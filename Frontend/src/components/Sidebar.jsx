@@ -17,17 +17,6 @@ const Sidebar = () => {
     setOpenMenu(openMenu === menu ? null : menu);
   };
 
-  const handleBackgroundChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBackgroundImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const renderLink = (to, label, staticIcon, activeIcon, isSub = false) => {
     return (
       <li className={isSub ? 'submenu-item' : 'menu-item'} onClick={() => setOpenMenu(null)}>
@@ -87,7 +76,7 @@ const Sidebar = () => {
 
       <div className="scrollable-menu hidden-scroll">
         <ul className="menu">
-          {renderLink('/home', 'Главная', dashboardIcon, dashboardIconActive)}
+          {renderLink('/home', 'Статистика', dashboardIcon, dashboardIconActive)}
 
           <li className="menu-item">
             <a
@@ -118,6 +107,10 @@ const Sidebar = () => {
               </ul>
             </div>
           )}
+          {renderLink('/assets', 'Активы', testactive, testactive)}
+          {renderLink('/currency-rates', 'Транзакции', ordersIcon, ordersIconActive)}
+          {renderLink('/clients', 'Клиенты', ordersIcon, ordersIconActive)}
+          {renderLink('/employees', 'Сотрудники', ordersIcon, ordersIconActive)}
 
           <li className="menu-item">
             <a
@@ -136,8 +129,8 @@ const Sidebar = () => {
           {openMenu === 'directory' && (
             <div className="submenu-panel show">
               <ul className="submenu">
-                {renderLink('/clients', 'Клиенты', ordersIcon, ordersIconActive, true)}
-                {renderLink('/employees', 'Сотрудники', ordersIcon, ordersIconActive, true)}
+                
+                
                 {renderLink('/reports', 'Отчеты', ordersIcon, ordersIconActive, true)}
                 {renderLink('/access', 'Доступы', ordersIcon, ordersIconActive, true)}
               </ul>
@@ -145,8 +138,8 @@ const Sidebar = () => {
           )}
 
           {renderLink('/stats', 'Статистика', ordersIcon, ordersIconActive)}
-          {renderLink('/assets', 'Активы', testactive, testactive)}
-          {renderLink('/transactions', 'Транзакции', ordersIcon, ordersIconActive)}
+          
+          
           {renderLink('/archive', 'Архив', ordersIcon, ordersIconActive)}
         </ul>
       </div>
