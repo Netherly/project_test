@@ -6,6 +6,7 @@
     color: var(--container-text-color);
     overflow-y: auto;
     overflow-x: hidden;
+    padding-left: 72px;
 }
 .modal-content {
     width: 50%;

@@ -1,0 +1,138 @@
+.add-asset-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: flex-end; 
+    align-items: stretch; 
+    z-index: 1000;
+}
+
+.add-asset-modal {
+    background-color: var(--bg-menu-color); 
+    border-radius: 8px 0 0 8px;
+    padding: 20px 30px;
+    width: 35%; 
+    min-width: 320px; 
+    max-width: 500px; 
+    height: 100vh; 
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1); 
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.add-asset-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border--color); 
+    flex-shrink: 0; 
+}
+
+.add-asset-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.add-asset-actions .icon {
+    margin-left: 15px;
+    cursor: pointer;
+    font-size: 22px;
+    color: var(--chips-color);
+}
+
+.add-asset-actions .icon:hover {
+    color: var(--accent-color);
+}
+
+.add-asset-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; 
+    flex-grow: 1; 
+    overflow-y: auto; 
+    padding-right: 10px; 
+    padding-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-size: 14px;
+    color: var(--chips-color);
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.add-asset-form input[type="text"],
+.add-asset-form input[type="email"],
+.add-asset-form select {
+    padding: 10px 12px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 15px;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.add-asset-form input::placeholder {
+    color: var(--chips-color);
+    opacity: 0.7;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: auto; 
+    padding-top: 10px;
+    border-top: 1px solid var(--border--color);
+    flex-shrink: 0; 
+}
+
+.cancel-button {
+    background: none;
+    border: 1px solid var(--chips-color);
+    cursor: pointer;
+    padding: 10px 20px;
+    color: var(--chips-color);
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.cancel-button:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+    color: var(--text-color);
+}
+
+.save-button {
+    background-color: var(--button-bg);
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.save-button:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

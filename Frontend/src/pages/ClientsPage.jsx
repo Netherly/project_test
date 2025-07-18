@@ -120,7 +120,7 @@ export default function ClientsPage({
         </header>
 
         {/* table */}
-        <div ref={wrapRef} className="clients-table-wrapper">
+        <div ref={wrapRef} className="clients-table-wrapper hidden-scroll">
           <table className="clients-table">
             <thead>
               <tr>{headers.map((h,i)=>

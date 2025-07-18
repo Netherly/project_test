@@ -1,7 +1,7 @@
 .orders-page {
   display: flex;
   flex-direction: row;
-  padding-left: 72px;
+  
 }
 .stage-title-line {
   height: 2px;
@@ -15,7 +15,7 @@
   justify-content: flex-end;
 }
 .order-page-main-container {
-  width: 100%;
+  width: 93vw;
 }
 
 .stage-column {

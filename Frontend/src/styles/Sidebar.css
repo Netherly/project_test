@@ -1,6 +1,6 @@
 .sidebar {
     width: 72px;
-    height: 100%;
+    height: 100vh;
     background-color: var(--bg-menu-color);
     color: var(--text-color);
     display: flex;
@@ -8,10 +8,10 @@
     align-items: center;
     left: 0;
     top: 0;
-    z-index: 2;
+    z-index: 88;
    /* position: fixed;*/
 }
-.avatar {
+.avatar-sidebar {
     width: 72px;
     height: 72px;
     cursor: pointer;
@@ -88,7 +88,7 @@
     background-color: var(--bg-menu-color);
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
-    z-index: 1;
+    z-index: 88;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     padding-top: 8px;
     
@@ -130,3 +130,75 @@
     padding-right: 4px;
     padding-bottom: 8px;
 }
+/* Выпадашка профиля */
+
+.avatar-link {
+    position: relative;
+    display: block;
+}
+
+.avatar-dropdown {
+    position: absolute;
+    top: 0;
+    left: 72px;
+    min-width: 300px;
+    background-color: var(--bg-menu-color);
+    color: var(--text-color);
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+    padding: 15px 15px;
+    opacity: 0;
+    transform: translateX(-10px);
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.avatar-link:hover .avatar-dropdown {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.avatar-info {
+    display: flex;
+    flex-direction: column;
+    margin-right: 15px;
+}
+
+.avatar-info .avatar-name {
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.avatar-info .avatar-id {
+    font-size: 13px;
+}
+
+.avatar-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.avatar-action {
+    font-size: 15px;
+    text-decoration: none;
+    color: var(--text-color);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 20px 10px;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.avatar-action:hover {
+    background-color: var(--input-bg);
+    border-radius: 3px;
+}
+
+/* Выпадашка профиля */

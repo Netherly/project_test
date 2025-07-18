@@ -8,6 +8,9 @@ import HomePage from './pages/HomePage';
 import OrdersPage from './components/Orders/OrdersPage';
 import JournalPage from './components/Journal/JournalPage';
 import ClientsPage from './pages/ClientsPage';
+import CurrencyRates from "./components/CurrencyRates/CurrencyRates";
+import AssetsPage from "./components/Assets/AssetsPage";
+import Profile from "./pages/Profile";
 
 import { sampleClients } from './data/sampleClients';
 
@@ -95,6 +98,18 @@ export default function App() {
         <Route
           path="/journal"
           element={<ProtectedRoute element={<JournalPage />} />}
+        />
+        <Route 
+          path="/currency-rates"
+          element={<ProtectedRoute element={<CurrencyRates />} />}
+        />
+        <Route 
+          path="/assets" 
+          element={<ProtectedRoute element={<AssetsPage />} />}
+        />
+        <Route 
+          path="/profile" 
+          element={<ProtectedRoute element={<Profile />} />}
         />
         <Route
           path="/clients"

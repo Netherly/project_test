@@ -89,17 +89,3 @@ a {
 .hidden-scroll::-webkit-scrollbar-thumb {
     display: none;
 }
-/* const [orders, setOrders] = useState([
-    { id: 1, name: "Разработка СРМ", stage: "Лиды" },
-    { id: 2, name: "Покурить", stage: "Лиды" },
-    { id: 3, name: "Редизайн сайта", stage: "Лиды" },
-    { id: 4, name: "Покурить", stage: "Лиды" },
-    { id: 5, name: "Предрейс", stage: "Лиды" },
-    { id: 6, name: "Покурить", stage: "Лиды" },
-    { id: 7, name: "Выпить пива", stage: "Лиды" },
-    { id: 8, name: "Тим билдинг в кс2", stage: "Лиды" },
-    { id: 9, name: "Покурить", stage: "Лиды" },
-    { id: 10, name: "Тим билдинг в кс2", stage: "Лиды" },
-    { id: 11, name: "Покурить", stage: "Лиды" }
-  ]); 
-*/

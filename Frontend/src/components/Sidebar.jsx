@@ -1,17 +1,21 @@
-import { NavLink, useLocation } from "react-router-dom";
-import React, { useContext, useState } from "react";
-import { ThemeContext } from "../context/ThemeContext";
-import "../styles/Sidebar.css";
+import React, { useContext, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { ThemeContext } from '../context/ThemeContext';
+import '../styles/Sidebar.css';
 
-import DashboardImg from "../assets/menu-icons/dashboard.gif";
-import DashboardStatic from "../assets/menu-icons/dashboard_static.png";
-import OrderImg from "../assets/sub-menu-icons/orders.gif";
-import OrderStatic from "../assets/sub-menu-icons/orders_static.png";
+import dashboardIcon from '../assets/menu-icons/dashboard_static.png';
+import dashboardIconActive from '../assets/menu-icons/dashboard.gif';
+import ordersIcon from '../assets/sub-menu-icons/orders_static.png';
+import ordersIconActive from '../assets/sub-menu-icons/orders.gif';
+import testactive from '../assets/menu-icons/test-icon.webp'
 
 const Sidebar = () => {
-  const { theme, toggleTheme, setBackgroundImage } = useContext(ThemeContext);
-  const location = useLocation();
-  const [activeMenu, setActiveMenu] = useState(null);
+  const { theme, toggleTheme, backgroundImage, setBackgroundImage } = useContext(ThemeContext);
+  const [openMenu, setOpenMenu] = useState(null);
+
+  const toggleMenu = (menu) => {
+    setOpenMenu(openMenu === menu ? null : menu);
+  };
 
   const handleBackgroundChange = (event) => {
     const file = event.target.files[0];
@@ -24,262 +28,129 @@ const Sidebar = () => {
     }
   };
 
-  const toggleMenu = (menuName) => {
-    setActiveMenu((prev) => (prev === menuName ? null : menuName));
+  const renderLink = (to, label, staticIcon, activeIcon, isSub = false) => {
+    return (
+      <li className={isSub ? 'submenu-item' : 'menu-item'} onClick={() => setOpenMenu(null)}>
+        <NavLink
+          to={to}
+          className={({ isActive }) => (isActive ? (isSub ? 'active-sub' : 'active') : '')}
+        >
+          {({ isActive }) => (
+            <>
+              <img
+                src={isActive ? activeIcon : staticIcon}
+                alt={label}
+                className={isSub ? 'submenu-icon' : 'menu-icon'}
+              />
+              <span>{label}</span>
+            </>
+          )}
+        </NavLink>
+      </li>
+    );
   };
 
+   const copyClientId = (clientId) => {
+    navigator.clipboard.writeText(clientId).then(() => {
+      console.log('ID клиента скопирован:', clientId);
+    }).catch(err => {
+      console.error('Ошибка при копировании:', err);
+    });
+  };
+
+  const clientId = "23995951"; 
+
   return (
-    <>
-      <nav className={`sidebar ${theme}`}>
-        <NavLink to="/profile" className="avatar-link">
-          <img src="/avatar.jpg" alt="Профиль" className="avatar" />
+    <nav
+      className={`sidebar ${theme}`}
+    >
+      <NavLink className="avatar-link">
+          <img src="/avatar.jpg" alt="Профиль" className="avatar-sidebar" />
+          <div className="avatar-dropdown">
+            <div className="avatar-info">
+              <div className="avatar-name">Nickname</div>
+              <div
+                className="avatar-id"
+                onClick={() => copyClientId(clientId)}
+                style={{ cursor: 'pointer' }}
+                title="Нажмите для копирования"
+              >
+                ID: {clientId} 📋
+              </div>
+            </div>
+            <div className="avatar-actions">
+              <NavLink to="/profile" className="avatar-action">профиль</NavLink>
+              <button className="avatar-action">выйти</button>
+            </div>
+          </div>
         </NavLink>
-        <div className="scrollable-menu hidden-scroll">
-          <ul className="menu">
-            <li className="menu-item">
-              <NavLink
-                to="/home"
-                className={location.pathname === "/statistics" ? "active" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={DashboardStatic} alt="Статистика" className="menu-icon" />
-                <span>Статистика</span>
-              </NavLink>
-            </li>
 
-            <li className={`menu-item ${activeMenu === "dashboard" ? "active" : ""}`}>
-              <NavLink
-                to="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toggleMenu("dashboard");
-                }}
-                className="submenu-toggle"
-              >
-                <img
-                  src={activeMenu === "dashboard" ? DashboardImg : DashboardStatic}
-                  alt="Рабочий стол"
-                  className="menu-icon"
-                />
-                <span>Рабочий стол</span>
-              </NavLink>
-            </li>
+      <div className="scrollable-menu hidden-scroll">
+        <ul className="menu">
+          {renderLink('/home', 'Главная', dashboardIcon, dashboardIconActive)}
 
-            <li className="menu-item">
-              <NavLink
-                to="/home"
-                className={location.pathname === "/assets" ? "active" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={DashboardStatic} alt="Активы" className="menu-icon" />
-                <span>Активы</span>
-              </NavLink>
-            </li>
+          <li className="menu-item">
+            <a
+              href="#"
+              className={openMenu === 'workspace' ? 'active' : ''}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleMenu('workspace');
+              }}
+            >
+              <img
+                src={openMenu === 'workspace' ? dashboardIconActive : dashboardIcon}
+                alt="Рабочий стол"
+                className="menu-icon"
+              />
+              <span>Рабочий стол</span>
+            </a>
+          </li>
 
-            <li className="menu-item">
-              <NavLink
-                to="/transactions"
-                className={location.pathname === "/transactions" ? "active" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={DashboardStatic} alt="Транзакции" className="menu-icon" />
-                <span>Транзакции</span>
-              </NavLink>
-            </li>
+          {openMenu === 'workspace' && (
+            <div className="submenu-panel show">
+              <ul className="submenu">
+                {renderLink('/orders', 'Заказы', ordersIcon, ordersIconActive, true)}
+                {renderLink('/executors', 'Исполнители', ordersIcon, ordersIconActive, true)}
+                {renderLink('/tasks', 'Задачи', ordersIcon, ordersIconActive, true)}
+                {renderLink('/journal', 'Журнал', ordersIcon, ordersIconActive, true)}
+                {renderLink('/calendar', 'Календарь', ordersIcon, ordersIconActive, true)}
+              </ul>
+            </div>
+          )}
 
-            <li className="menu-item">
-              <NavLink
-                to="/clients"
-                className={location.pathname === "/clients" ? "active" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={DashboardStatic} alt="Клиенты" className="menu-icon" />
-                <span>Клиенты</span>
-              </NavLink>
-            </li>
+          <li className="menu-item">
+            <a
+              href="#"
+              className={openMenu === 'directory' ? 'active' : ''}
+              onClick={(e) => {
+                e.preventDefault();
+                toggleMenu('directory');
+              }}
+            >
+              <img src={"https://cdn-icons-gif.flaticon.com/7211/7211817.gif"} alt="Справочник" className="menu-icon" />
+              <span>Справочник</span>
+            </a>
+          </li>
 
-            <li className="menu-item">
-              <NavLink
-                to="/employees"
-                className={location.pathname === "/employees" ? "active" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={DashboardStatic} alt="Сотрудники" className="menu-icon" />
-                <span>Сотрудники</span>
-              </NavLink>
-            </li>
+          {openMenu === 'directory' && (
+            <div className="submenu-panel show">
+              <ul className="submenu">
+                {renderLink('/clients', 'Клиенты', ordersIcon, ordersIconActive, true)}
+                {renderLink('/employees', 'Сотрудники', ordersIcon, ordersIconActive, true)}
+                {renderLink('/reports', 'Отчеты', ordersIcon, ordersIconActive, true)}
+                {renderLink('/access', 'Доступы', ordersIcon, ordersIconActive, true)}
+              </ul>
+            </div>
+          )}
 
-            <li className={`menu-item ${activeMenu === "directory" ? "active" : ""}`}>
-              <NavLink
-                to="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toggleMenu("directory");
-                }}
-                className="submenu-toggle"
-              >
-                <img
-                  src={
-                    activeMenu === "directory"
-                      ? "https://cdn-icons-gif.flaticon.com/7211/7211817.gif"
-                      : "https://cdn-icons-gif.flaticon.com/7211/7211817.gif"
-                  }
-                  alt="Справочник"
-                  className="menu-icon"
-                />
-                <span>Справочник</span>
-              </NavLink>
-            </li>
-
-            <li className="menu-item">
-              <NavLink
-                to="/archive"
-                className={location.pathname === "/archive" ? "active" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={DashboardStatic} alt="Архив" className="menu-icon" />
-                <span>Архив</span>
-              </NavLink>
-            </li>
-          </ul>
-
-          <button className="theme-toggle" onClick={toggleTheme}>
-            {theme === "light" ? "🌙 Темная тема" : "☀️ Светлая тема"}
-          </button>
-
-          <label className="upload-bg">
-            Загрузить фон
-            <input type="file" accept="image/*" onChange={handleBackgroundChange} />
-          </label>
-        </div>
-      </nav>
-
-      {/* Подменю: Рабочий стол */}
-      {activeMenu === "dashboard" && (
-        <div className="submenu-panel show">
-          <ul className="submenu">
-            <li>
-              <NavLink
-                to="/orders"
-                className={location.pathname === "/orders" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img
-                  src={location.pathname === "/orders" ? OrderImg : OrderStatic}
-                  alt="Заказы"
-                  className="submenu-icon"
-                />
-                <span>Заказы</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/executors"
-                className={location.pathname === "/executors" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={OrderStatic} alt="Исполнители" className="submenu-icon" />
-                <span>Исполнители</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/tasks"
-                className={location.pathname === "/tasks" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={OrderStatic} alt="Задачи" className="submenu-icon" />
-                <span>Задачи</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/journal"
-                className={location.pathname === "/journal" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={OrderStatic} alt="Журнал" className="submenu-icon" />
-                <span>Журнал</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/calendar"
-                className={location.pathname === "/calendar" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img src={OrderStatic} alt="Календарь" className="submenu-icon" />
-                <span>Календарь</span>
-              </NavLink>
-            </li>
-          </ul>
-        </div>
-      )}
-
-      {/* Подменю: Справочник */}
-      {activeMenu === "directory" && (
-        <div className="submenu-panel show">
-          <ul className="submenu">
-            <li>
-              <NavLink
-                to="/clients"
-                className={location.pathname === "/clients" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img
-                  src="https://cdn-icons-gif.flaticon.com/7211/7211817.gif"
-                  alt="Клиенты"
-                  className="submenu-icon"
-                />
-                <span>Клиенты</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/employees"
-                className={location.pathname === "/employees" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img
-                  src="https://cdn-icons-gif.flaticon.com/7211/7211849.gif"
-                  alt="Сотрудники"
-                  className="submenu-icon"
-                />
-                <span>Сотрудники</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/reports"
-                className={location.pathname === "/reports" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img
-                  src="https://cdn-icons-gif.flaticon.com/6416/6416398.gif"
-                  alt="Отчеты"
-                  className="submenu-icon"
-                />
-                <span>Отчеты</span>
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/access"
-                className={location.pathname === "/access" ? "active-sub" : ""}
-                onClick={() => setActiveMenu(null)}
-              >
-                <img
-                  src="https://cdn-icons-gif.flaticon.com/15968/15968705.gif"
-                  alt="Доступы"
-                  className="submenu-icon"
-                />
-                <span>Доступы</span>
-              </NavLink>
-            </li>
-          </ul>
-        </div>
-      )}
-    </>
+          {renderLink('/stats', 'Статистика', ordersIcon, ordersIconActive)}
+          {renderLink('/assets', 'Активы', testactive, testactive)}
+          {renderLink('/transactions', 'Транзакции', ordersIcon, ordersIconActive)}
+          {renderLink('/archive', 'Архив', ordersIcon, ordersIconActive)}
+        </ul>
+      </div>
+    </nav>
   );
 };
 
