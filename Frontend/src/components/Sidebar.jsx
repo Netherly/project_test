@@ -7,7 +7,26 @@ import dashboardIcon from '../assets/menu-icons/dashboard_static.png';
 import dashboardIconActive from '../assets/menu-icons/dashboard.gif';
 import ordersIcon from '../assets/sub-menu-icons/orders_static.png';
 import ordersIconActive from '../assets/sub-menu-icons/orders.gif';
-import testactive from '../assets/menu-icons/test-icon.webp'
+import testactive from '../assets/menu-icons/Активы.webm'
+
+// Компонент для анимированных иконок
+const AnimatedIcon = ({ src, alt, className, isActive }) => {
+  if (src.endsWith('.webm')) {
+    return (
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className={className}
+      >
+        <source src={src} type="video/webm" />
+      </video>
+    );
+  }
+  
+  return <img src={src} alt={alt} className={className} />;
+};
 
 const Sidebar = () => {
   const { theme, toggleTheme, backgroundImage, setBackgroundImage } = useContext(ThemeContext);
@@ -26,10 +45,11 @@ const Sidebar = () => {
         >
           {({ isActive }) => (
             <>
-              <img
+              <AnimatedIcon
                 src={isActive ? activeIcon : staticIcon}
                 alt={label}
                 className={isSub ? 'submenu-icon' : 'menu-icon'}
+                isActive={isActive}
               />
               <span>{label}</span>
             </>
@@ -87,10 +107,11 @@ const Sidebar = () => {
                 toggleMenu('workspace');
               }}
             >
-              <img
+              <AnimatedIcon
                 src={openMenu === 'workspace' ? dashboardIconActive : dashboardIcon}
                 alt="Рабочий стол"
                 className="menu-icon"
+                isActive={openMenu === 'workspace'}
               />
               <span>Рабочий стол</span>
             </a>
@@ -121,7 +142,12 @@ const Sidebar = () => {
                 toggleMenu('directory');
               }}
             >
-              <img src={"https://cdn-icons-gif.flaticon.com/7211/7211817.gif"} alt="Справочник" className="menu-icon" />
+              <AnimatedIcon 
+                src="https://cdn-icons-gif.flaticon.com/7211/7211817.gif" 
+                alt="Справочник" 
+                className="menu-icon"
+                isActive={openMenu === 'directory'}
+              />
               <span>Справочник</span>
             </a>
           </li>
@@ -129,8 +155,6 @@ const Sidebar = () => {
           {openMenu === 'directory' && (
             <div className="submenu-panel show">
               <ul className="submenu">
-                
-                
                 {renderLink('/reports', 'Отчеты', ordersIcon, ordersIconActive, true)}
                 {renderLink('/access', 'Доступы', ordersIcon, ordersIconActive, true)}
               </ul>
@@ -138,8 +162,6 @@ const Sidebar = () => {
           )}
 
           {renderLink('/stats', 'Статистика', ordersIcon, ordersIconActive)}
-          
-          
           {renderLink('/archive', 'Архив', ordersIcon, ordersIconActive)}
         </ul>
       </div>

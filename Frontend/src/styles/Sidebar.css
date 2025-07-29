@@ -202,3 +202,11 @@
 }
 
 /* Выпадашка профиля */
+
+.menu-icon video,
+.submenu-icon video {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  pointer-events: none;
+}
