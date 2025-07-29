@@ -8,6 +8,13 @@ import dashboardIconActive from '../assets/menu-icons/dashboard.gif';
 import ordersIcon from '../assets/sub-menu-icons/orders_static.png';
 import ordersIconActive from '../assets/sub-menu-icons/orders.gif';
 import testactive from '../assets/menu-icons/Активы.webm'
+import testwork from '../assets/menu-icons/Рабочий стол.webm'
+import dashbord from '../assets/menu-icons/Дашборд.webm'
+import transaction from '../assets/menu-icons/Транзакции.webm'
+import clientImg from '../assets/menu-icons/Клиенты.webm'
+import empImg from '../assets/menu-icons/Сотрудники.webm'
+import arkImg from '../assets/menu-icons/Архив.webm'
+import statImg from '../assets/menu-icons/Справочники.webm'
 
 // Компонент для анимированных иконок
 const AnimatedIcon = ({ src, alt, className, isActive }) => {
@@ -96,7 +103,7 @@ const Sidebar = () => {
 
       <div className="scrollable-menu hidden-scroll">
         <ul className="menu">
-          {renderLink('/home', 'Статистика', dashboardIcon, dashboardIconActive)}
+          {renderLink('/home', 'Дашборд', dashbord, dashbord)}
 
           <li className="menu-item">
             <a
@@ -108,7 +115,7 @@ const Sidebar = () => {
               }}
             >
               <AnimatedIcon
-                src={openMenu === 'workspace' ? dashboardIconActive : dashboardIcon}
+                src={openMenu === 'workspace' ? testwork : testwork}
                 alt="Рабочий стол"
                 className="menu-icon"
                 isActive={openMenu === 'workspace'}
@@ -129,9 +136,9 @@ const Sidebar = () => {
             </div>
           )}
           {renderLink('/assets', 'Активы', testactive, testactive)}
-          {renderLink('/currency-rates', 'Транзакции', ordersIcon, ordersIconActive)}
-          {renderLink('/clients', 'Клиенты', ordersIcon, ordersIconActive)}
-          {renderLink('/employees', 'Сотрудники', ordersIcon, ordersIconActive)}
+          {renderLink('/currency-rates', 'Транзакции', transaction, transaction)}
+          {renderLink('/clients', 'Клиенты', clientImg, ordersIconActive)}
+          {renderLink('/employees', 'Сотрудники', empImg, ordersIconActive)}
 
           <li className="menu-item">
             <a
@@ -161,8 +168,8 @@ const Sidebar = () => {
             </div>
           )}
 
-          {renderLink('/stats', 'Статистика', ordersIcon, ordersIconActive)}
-          {renderLink('/archive', 'Архив', ordersIcon, ordersIconActive)}
+          {renderLink('/stats', 'Статистика', statImg, statImg)}
+          {renderLink('/archive', 'Архив', arkImg, arkImg)}
         </ul>
       </div>
     </nav>
