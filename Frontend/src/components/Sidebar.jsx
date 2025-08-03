@@ -1,178 +1,174 @@
-import React, { useContext, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { ThemeContext } from '../context/ThemeContext';
-import '../styles/Sidebar.css';
+import { NavLink, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import "../styles/Sidebar.css";
 
-import dashboardIcon from '../assets/menu-icons/dashboard_static.png';
-import dashboardIconActive from '../assets/menu-icons/dashboard.gif';
-import ordersIcon from '../assets/sub-menu-icons/orders_static.png';
-import ordersIconActive from '../assets/sub-menu-icons/orders.gif';
-import testactive from '../assets/menu-icons/Активы.webm'
-import testwork from '../assets/menu-icons/Рабочий стол.webm'
-import dashbord from '../assets/menu-icons/Дашборд.webm'
-import transaction from '../assets/menu-icons/Транзакции.webm'
-import clientImg from '../assets/menu-icons/Клиенты.webm'
-import empImg from '../assets/menu-icons/Сотрудники.webm'
-import arkImg from '../assets/menu-icons/Архив.webm'
-import statImg from '../assets/menu-icons/Справочники.webm'
+// Menu icons
+import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
+import FinanceWebm from "../assets/menu-icons/Финансы.webm";
+import TransactionsWebm from "../assets/menu-icons/Транзакции.webm";
+import DirectoryWebm from "../assets/menu-icons/Справочники.webm";
+import DesktopWebm from "../assets/menu-icons/Рабочий стол.webm";
+import FieldSettingsWebm from "../assets/menu-icons/Настройки полей.webm";
+import CurrencyRatesWebm from "../assets/menu-icons/Курсы валют.webm";
+import ClientsWebm from "../assets/menu-icons/Клиенты.webm";
+import OrdersWebm from "../assets/menu-icons/Заказы.webm";
+import ArchiveWebm from "../assets/menu-icons/Архив.webm";
 
-// Компонент для анимированных иконок
-const AnimatedIcon = ({ src, alt, className, isActive }) => {
-  if (src.endsWith('.webm')) {
-    return (
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className={className}
-      >
-        <source src={src} type="video/webm" />
-      </video>
-    );
-  }
-  
-  return <img src={src} alt={alt} className={className} />;
-};
+// Reusable icon component
+const MediaIcon = ({ src, alt, className }) =>
+  src.endsWith(".webm") ? (
+    <video
+      src={src}
+      autoPlay
+      loop
+      muted
+      playsInline
+      className={className}
+    />
+  ) : (
+    <img src={src} alt={alt} className={className} />
+  );
 
 const Sidebar = () => {
-  const { theme, toggleTheme, backgroundImage, setBackgroundImage } = useContext(ThemeContext);
-  const [openMenu, setOpenMenu] = useState(null);
+  const location = useLocation();
+  const [activeMenu, setActiveMenu] = useState(null);
 
-  const toggleMenu = (menu) => {
-    setOpenMenu(openMenu === menu ? null : menu);
+  const toggleMenu = (menuName) =>
+    setActiveMenu((prev) => (prev === menuName ? null : menuName));
+
+  const isActivePath = (path) => location.pathname === path;
+
+  const copyClientId = (clientId) => {
+    navigator.clipboard
+      .writeText(clientId)
+      .then(() => console.log("Client ID copied:", clientId))
+      .catch((err) => console.error("Copy error:", err));
   };
 
-  const renderLink = (to, label, staticIcon, activeIcon, isSub = false) => {
-    return (
-      <li className={isSub ? 'submenu-item' : 'menu-item'} onClick={() => setOpenMenu(null)}>
-        <NavLink
-          to={to}
-          className={({ isActive }) => (isActive ? (isSub ? 'active-sub' : 'active') : '')}
-        >
-          {({ isActive }) => (
-            <>
-              <AnimatedIcon
-                src={isActive ? activeIcon : staticIcon}
-                alt={label}
-                className={isSub ? 'submenu-icon' : 'menu-icon'}
-                isActive={isActive}
-              />
-              <span>{label}</span>
-            </>
-          )}
-        </NavLink>
-      </li>
-    );
+  const clientId = "23995951";
+
+  const mainMenuItems = [
+    { name: "Дашборд", path: "/home", exact: "/statistics", iconActive: DashboardWebm, iconInactive: DashboardWebm },
+    { name: "Рабочий стол", menu: "Desktop", iconActive: DesktopWebm, iconInactive: DesktopWebm },
+    { name: "Финансы", menu: "transactions", iconActive: FinanceWebm, iconInactive: FinanceWebm },
+    { name: "Справочник", menu: "directory", iconActive: DirectoryWebm, iconInactive: DirectoryWebm },
+    { name: "Архив", path: "/archive", iconActive: ArchiveWebm, iconInactive: ArchiveWebm },
+    { name: "Настройки", menu: "settings", iconActive: FieldSettingsWebm, iconInactive: FieldSettingsWebm },
+  ];
+
+  const submenus = {
+    Desktop: [
+      { name: "Заказы", path: "/orders", icon: OrdersWebm },
+      { name: "Исполнители", path: "/executors" },
+      { name: "Задачи", path: "/tasks" },
+      { name: "Журнал", path: "/journal" },
+      { name: "Календарь", path: "/calendar" },
+    ],
+    directory: [
+      { name: "Клиенты", path: "/clients", icon: ClientsWebm },
+      { name: "Сотрудники", path: "/employees", icon: "https://cdn-icons-gif.flaticon.com/7211/7211849.gif" },
+      { name: "Отчёты", path: "/reports", icon: "https://cdn-icons-gif.flaticon.com/6416/6416398.gif" },
+      { name: "Доступы", path: "/access", icon: "https://cdn-icons-gif.flaticon.com/15968/15968705.gif" },
+    ],
+    transactions: [
+      { name: "Активы", path: "/assets" },
+      { name: "Транзакции", path: "/list" },
+    ],
+    settings: [
+      { name: "Роли/Доступы", path: "/roles-access" },
+      { name: "Настройки полей", path: "/fields" },
+      { name: "Курс валют", path: "/currency-rates", icon: CurrencyRatesWebm },
+    ],
   };
 
-   const copyClientId = (clientId) => {
-    navigator.clipboard.writeText(clientId).then(() => {
-      console.log('ID клиента скопирован:', clientId);
-    }).catch(err => {
-      console.error('Ошибка при копировании:', err);
-    });
-  };
-
-  const clientId = "23995951"; 
+  const renderSubmenu = (key) => (
+    <div className="submenu-panel show">
+      <ul className="submenu">
+        {submenus[key].map(({ name, path, icon }) => (
+          <li key={path}>
+            <NavLink
+              to={path}
+              className={isActivePath(path) ? "active-sub" : ""}
+              onClick={() => setActiveMenu(null)}
+            >
+              {icon && <MediaIcon src={icon} alt={name} className="submenu-icon" />}
+              <span>{name}</span>
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 
   return (
-    <nav
-      className={`sidebar ${theme}`}
-    >
-      <NavLink className="avatar-link">
-          <img src="/avatar.jpg" alt="Профиль" className="avatar-sidebar" />
+    <>
+      <nav className="sidebar">
+        <NavLink className="avatar-link">
+          <img src="/avatar.jpg" alt="Profile" className="avatar-sidebar" />
           <div className="avatar-dropdown">
             <div className="avatar-info">
               <div className="avatar-name">Nickname</div>
               <div
                 className="avatar-id"
                 onClick={() => copyClientId(clientId)}
-                style={{ cursor: 'pointer' }}
-                title="Нажмите для копирования"
+                style={{ cursor: "pointer" }}
+                title="Click to copy"
               >
                 ID: {clientId} 📋
               </div>
             </div>
             <div className="avatar-actions">
-              <NavLink to="/profile" className="avatar-action">профиль</NavLink>
-              <button className="avatar-action">выйти</button>
+              <NavLink to="/profile" className="avatar-action">
+                Profile
+              </NavLink>
+              <button className="avatar-action">Logout</button>
             </div>
           </div>
         </NavLink>
 
-      <div className="scrollable-menu hidden-scroll">
-        <ul className="menu">
-          {renderLink('/home', 'Дашборд', dashbord, dashbord)}
+        <div className="scrollable-menu hidden-scroll">
+          <ul className="menu">
+            {mainMenuItems.map((item) => {
+              const isMenuOpen = activeMenu === item.menu;
+              const isExactActive = isActivePath(item.exact || item.path);
+              const iconSrc =
+                isMenuOpen || isExactActive
+                  ? item.iconActive || item.iconInactive
+                  : item.iconInactive || item.iconActive;
 
-          <li className="menu-item">
-            <a
-              href="#"
-              className={openMenu === 'workspace' ? 'active' : ''}
-              onClick={(e) => {
-                e.preventDefault();
-                toggleMenu('workspace');
-              }}
-            >
-              <AnimatedIcon
-                src={openMenu === 'workspace' ? testwork : testwork}
-                alt="Рабочий стол"
-                className="menu-icon"
-                isActive={openMenu === 'workspace'}
-              />
-              <span>Рабочий стол</span>
-            </a>
-          </li>
+              return (
+                <li key={item.name} className={`menu-item ${isMenuOpen ? "active" : ""}`}>
+                  {item.path ? (
+                    <NavLink
+                      to={item.path}
+                      className={isExactActive ? "active" : ""}
+                      onClick={() => setActiveMenu(null)}
+                    >
+                      <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" />
+                      <span>{item.name}</span>
+                    </NavLink>
+                  ) : (
+                    <NavLink
+                      to="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleMenu(item.menu);
+                      }}
+                      className="submenu-toggle"
+                    >
+                      <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" />
+                      <span>{item.name}</span>
+                    </NavLink>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </nav>
 
-          {openMenu === 'workspace' && (
-            <div className="submenu-panel show">
-              <ul className="submenu">
-                {renderLink('/orders', 'Заказы', ordersIcon, ordersIconActive, true)}
-                {renderLink('/executors', 'Исполнители', ordersIcon, ordersIconActive, true)}
-                {renderLink('/tasks', 'Задачи', ordersIcon, ordersIconActive, true)}
-                {renderLink('/journal', 'Журнал', ordersIcon, ordersIconActive, true)}
-                {renderLink('/calendar', 'Календарь', ordersIcon, ordersIconActive, true)}
-              </ul>
-            </div>
-          )}
-          {renderLink('/assets', 'Активы', testactive, testactive)}
-          {renderLink('/currency-rates', 'Транзакции', transaction, transaction)}
-          {renderLink('/clients', 'Клиенты', clientImg, ordersIconActive)}
-          {renderLink('/employees', 'Сотрудники', empImg, ordersIconActive)}
-
-          <li className="menu-item">
-            <a
-              href="#"
-              className={openMenu === 'directory' ? 'active' : ''}
-              onClick={(e) => {
-                e.preventDefault();
-                toggleMenu('directory');
-              }}
-            >
-              <AnimatedIcon 
-                src="https://cdn-icons-gif.flaticon.com/7211/7211817.gif" 
-                alt="Справочник" 
-                className="menu-icon"
-                isActive={openMenu === 'directory'}
-              />
-              <span>Справочник</span>
-            </a>
-          </li>
-
-          {openMenu === 'directory' && (
-            <div className="submenu-panel show">
-              <ul className="submenu">
-                {renderLink('/reports', 'Отчеты', ordersIcon, ordersIconActive, true)}
-                {renderLink('/access', 'Доступы', ordersIcon, ordersIconActive, true)}
-              </ul>
-            </div>
-          )}
-
-          {renderLink('/stats', 'Статистика', statImg, statImg)}
-          {renderLink('/archive', 'Архив', arkImg, arkImg)}
-        </ul>
-      </div>
-    </nav>
+      {activeMenu && submenus[activeMenu] && renderSubmenu(activeMenu)}
+    </>
   );
 };
 

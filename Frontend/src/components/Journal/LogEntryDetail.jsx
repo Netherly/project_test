@@ -1,10 +1,32 @@
-import React from 'react';
-import './LogEntryDetails.css';
+import React, { useState } from 'react';
+import '../../styles/LogEntryDetails.css';
 
-const LogEntryDetails = ({ entry, onClose }) => {
+
+const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate }) => {
+    
+    const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+
     if (!entry) {
-        return null; 
+        return null;
     }
+
+    const handleMenuToggle = () => {
+        setShowOptionsMenu(prev => !prev);
+    };
+
+    const handleDeleteClick = () => {
+        if (window.confirm(`Вы уверены, что хотите удалить запись "${entry.description}"?`)) {
+            onDelete(entry.id);
+            onClose(); 
+        }
+        setShowOptionsMenu(false); 
+    };
+
+    const handleDuplicateClick = () => {
+        onDuplicate(entry);
+        onClose(); 
+        setShowOptionsMenu(false); 
+    };
 
     return (
         <div className="log-entry-details-overlay">
@@ -12,12 +34,19 @@ const LogEntryDetails = ({ entry, onClose }) => {
                 <div className="log-entry-details-header">
                     <h2>Информация о записи</h2>
                     <div className="log-entry-details-actions">
-                        <span className="icon" onClick={() => console.log("Delete")}>🗑️</span>
-                        <span className="icon" onClick={() => console.log("Edit")}>✏️</span>
-                        <span className="icon" onClick={() => console.log("Previous")}>◀️</span>
-                        <span className="icon" onClick={() => console.log("Next")}>▶️</span>
-                        <span className="icon" onClick={onClose}>✖️</span>
-                        <span className="icon" onClick={() => console.log("Expand")}>🗖</span>
+                        
+                        <button className="options-button" onClick={handleMenuToggle}>
+                            &#x22EF; 
+                        </button>
+                        
+                        {showOptionsMenu && (
+                            <div className="options-menu">
+                                <button className="menu-item" onClick={handleDuplicateClick}>Дублировать запись</button>
+                                <button className="menu-item delete-item" onClick={handleDeleteClick}>Удалить запись</button>
+                            </div>
+                        )}
+                        
+                        <button className="modal-close-button" onClick={onClose}>&times;</button>
                     </div>
                 </div>
 
@@ -66,4 +95,4 @@ const LogEntryDetails = ({ entry, onClose }) => {
     );
 };
 
-export default LogEntryDetails;
+export default LogEntryDetail;

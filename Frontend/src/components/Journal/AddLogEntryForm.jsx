@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './AddLogEntryForm.css';
+import '../../styles/AddLogEntryForm.css';
 
 const AddLogEntryForm = ({ onAdd, onClose }) => {
     const [formData, setFormData] = useState({

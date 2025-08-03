@@ -1,10 +1,49 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../Sidebar";
-import "./JournalPage.css";
-import LogEntryDetails from "./LogEntryDetail";
+import "../../styles/JournalPage.css"; 
+import LogEntryDetails from "./LogEntryDetail"; 
 import AddLogEntryForm from "./AddLogEntryForm"; 
 
 const JournalPage = () => {
+    const orderStatuses = [
+        "Лид",
+        "Изучаем ТЗ",
+        "Обсуждаем с клиентом",
+        "Клиент думает",
+        "Ожидаем предоплату",
+        "Взяли в работу",
+        "Ведется разработка",
+        "На уточнении у клиента",
+        "Тестируем",
+        "Тестирует клиент",
+        "На доработке",
+        "Ожидаем оплату",
+        "Успешно завершен",
+        "Закрыт",
+        "Неудачно завершён",
+        "Удаленные"
+    ];
+
+    
+    const statusToEmojiMap = {
+        "Лид": "🎯",
+        "Изучаем ТЗ": "📄",
+        "Обсуждаем с клиентом": "💬",
+        "Клиент думает": "🤔",
+        "Ожидаем предоплату": "💳",
+        "Взяли в работу": "🚀",
+        "Ведется разработка": "💻",
+        "На уточнении у клиента": "📝",
+        "Тестируем": "🧪",
+        "Тестирует клиент": "👀",
+        "На доработке": "🔧",
+        "Ожидаем оплату": "💸",
+        "Успешно завершен": "🏆",
+        "Закрыт": "🏁",
+        "Неудачно завершён": "❌",
+        "Удаленные": "🗑️"
+    };
+
     const initialLogEntries = [
         {
             id: 1,
@@ -16,7 +55,8 @@ const JournalPage = () => {
             endTime: "17:51",
             hours: "5:51:00",
             workDone: "Доделан блок с нами работают, сделан адаптив этого блока. Добавил новую категорию и блок на странице портфолио, исправлен вид текста в новом блоке в адаптивe. Выгрузил блок с нами работают на основную страницу и перевел заголовок.",
-            email: "alexanderlisyak@gmail.com"
+            email: "alexanderlisyak@gmail.com",
+            status: "Ведется разработка" 
         },
         {
             id: 2,
@@ -28,7 +68,8 @@ const JournalPage = () => {
             endTime: "-",
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
-            email: "alexanderlisyak@gmail.com"
+            email: "alexanderlisyak@gmail.com",
+            status: "Ожидаем предоплату" 
         },
         {
             id: 3,
@@ -40,7 +81,8 @@ const JournalPage = () => {
             endTime: "-",
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
-            email: "alexanderlisyak@gmail.com"
+            email: "alexanderlisyak@gmail.com",
+            status: "Клиент думает" 
         },
         {
             id: 4,
@@ -52,7 +94,8 @@ const JournalPage = () => {
             endTime: "-",
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
-            email: "alexanderlisyak@gmail.com"
+            email: "alexanderlisyak@gmail.com",
+            status: "Успешно завершен" 
         },
         {
             id: 5,
@@ -64,7 +107,8 @@ const JournalPage = () => {
             endTime: "-",
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
-            email: "alexanderlisyak@gmail.com"
+            email: "alexanderlisyak@gmail.com",
+            status: "Лид" 
         },
         {
             id: 6,
@@ -76,21 +120,41 @@ const JournalPage = () => {
             endTime: "-",
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
-            email: "alexanderlisyak@gmail.com"
+            email: "alexanderlisyak@gmail.com",
+            status: "Изучаем ТЗ" 
         },
     ];
 
-    const [logEntries, setLogEntries] = useState(initialLogEntries);
+    
+    const [allLogEntries, setAllLogEntries] = useState(() => {
+        const savedLogEntries = localStorage.getItem('journalEntries');
+        return savedLogEntries ? JSON.parse(savedLogEntries) : initialLogEntries;
+    });
+
+   
+    const [displayedLogEntries, setDisplayedLogEntries] = useState(allLogEntries);
+
     const [selectedEntry, setSelectedEntry] = useState(null);
-    const [showAddForm, setShowAddForm] = useState(false); 
+    const [showAddForm, setShowAddForm] = useState(false);
 
     const [searchOrderNumber, setSearchOrderNumber] = useState("");
     const [searchWorkDate, setSearchWorkDate] = useState("");
     const [searchWorkDone, setSearchWorkDone] = useState("");
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
 
-    const filterLogEntries = () => {
-        let filtered = initialLogEntries.filter(entry => {
+    
+    useEffect(() => {
+        localStorage.setItem('journalEntries', JSON.stringify(allLogEntries));
+        applyFilters(); 
+    }, [allLogEntries]);
+
+    
+    useEffect(() => {
+        applyFilters();
+    }, [searchOrderNumber, searchWorkDate, searchWorkDone]);
+
+    const applyFilters = () => {
+        let filtered = allLogEntries.filter(entry => {
             const matchesOrderNumber = searchOrderNumber
                 ? entry.orderNumber.toLowerCase().includes(searchOrderNumber.toLowerCase())
                 : true;
@@ -105,19 +169,15 @@ const JournalPage = () => {
 
             return matchesOrderNumber && matchesWorkDate && matchesWorkDone;
         });
-        setLogEntries(filtered);
+        setDisplayedLogEntries(filtered);
     };
 
     const handleResetSearch = () => {
         setSearchOrderNumber("");
         setSearchWorkDate("");
         setSearchWorkDone("");
-        setLogEntries(initialLogEntries);
+        setDisplayedLogEntries(allLogEntries);
     };
-
-    useEffect(() => {
-        filterLogEntries();
-    }, [searchOrderNumber, searchWorkDate, searchWorkDone]); 
 
     const handleRowClick = (entry) => {
         setSelectedEntry(entry);
@@ -127,10 +187,23 @@ const JournalPage = () => {
         setSelectedEntry(null);
     };
 
-    
     const handleAddLogEntry = (newEntry) => {
-        setLogEntries(prevEntries => [{ id: Date.now(), ...newEntry }, ...prevEntries]);
-        setShowAddForm(false); 
+        setAllLogEntries(prevEntries => [{ id: Date.now(), ...newEntry, status: newEntry.status || "Лид" }, ...prevEntries]);
+        setShowAddForm(false);
+    };
+
+    const handleDeleteLogEntry = (idToDelete) => {
+        setAllLogEntries(prevEntries => prevEntries.filter(entry => entry.id !== idToDelete));
+    };
+
+    const handleDuplicateLogEntry = (entryToDuplicate) => {
+        const newId = Date.now();
+        const duplicatedEntry = {
+            ...entryToDuplicate,
+            id: newId,
+            description: `${entryToDuplicate.description} (Копия)`,
+        };
+        setAllLogEntries(prevEntries => [...prevEntries, duplicatedEntry]);
     };
 
     return (
@@ -139,9 +212,11 @@ const JournalPage = () => {
             <div className="journal-page-main-container">
                 <header className="journal-header-container">
                     <h1 className="journal-title">Журнал</h1>
-                    <button className="add-entry-button" onClick={() => setShowAddForm(true)}>
-                        ➕ Добавить запись
-                    </button>
+                    <div className="add-entry-button-wrapper">
+                        <button className="add-entry-button" onClick={() => setShowAddForm(true)}>
+                            ➕ Добавить запись
+                        </button>
+                    </div>
                     <div className="search-container">
                         <div className="main-search-bar">
                             <span className="search-icon">🔍</span>
@@ -198,7 +273,7 @@ const JournalPage = () => {
 
                                 <div className="search-buttons">
                                     <button className="reset-button" onClick={handleResetSearch}>Сбросить</button>
-                                    <button className="search-button" onClick={filterLogEntries}>Поиск</button>
+                                    <button className="search-button" onClick={applyFilters}>Поиск</button>
                                 </div>
                             </div>
                         )}
@@ -209,7 +284,7 @@ const JournalPage = () => {
                     <table className="journal-table">
                         <thead>
                             <tr>
-                                <th>Статус заказа для исполнителя</th>
+                                <th>Статус заказа</th>
                                 <th>Описание заказа</th>
                                 <th>№ заказа</th>
                                 <th>Исполнитель роль</th>
@@ -221,9 +296,11 @@ const JournalPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {logEntries.map((entry) => (
+                            {displayedLogEntries.map((entry) => (
                                 <tr key={entry.id} onClick={() => handleRowClick(entry)} className="journal-table-row">
-                                    <td className="status-icon-cell">⚙️</td>
+                                    <td className="status-cell" title={entry.status}>
+                                        {statusToEmojiMap[entry.status] || entry.status}
+                                    </td>
                                     <td>{entry.description}</td>
                                     <td>{entry.orderNumber}</td>
                                     <td>{entry.executorRole}</td>
@@ -240,14 +317,20 @@ const JournalPage = () => {
             </div>
 
             {selectedEntry && (
-                <LogEntryDetails entry={selectedEntry} onClose={handleCloseDetails} />
+                <LogEntryDetails
+                    entry={selectedEntry}
+                    onClose={handleCloseDetails}
+                    onDelete={handleDeleteLogEntry}
+                    onDuplicate={handleDuplicateLogEntry}
+                    orderStatuses={orderStatuses} 
+                />
             )}
 
-            
             {showAddForm && (
                 <AddLogEntryForm
                     onAdd={handleAddLogEntry}
                     onClose={() => setShowAddForm(false)}
+                    orderStatuses={orderStatuses} 
                 />
             )}
         </div>

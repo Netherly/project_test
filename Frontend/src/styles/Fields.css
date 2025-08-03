@@ -1,0 +1,600 @@
+/* ---Основные стили--- */
+.fields-main-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+.fields-main-container-wrapper {
+    width: 100%;
+}
+.header {
+    width: 100%;
+    padding: 0;
+    background-color: #153043;
+    margin: 0;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    min-height: 74px;
+}
+
+.header-content {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    justify-content: flex-start;
+    position: relative;
+    border-bottom: 1px solid #ffffff40;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 0px 50px 0px 22px;
+}
+
+.header-left::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background-color: #ffffff40;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    position: relative;
+    padding: 0 50px;
+}
+
+.header-actions::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background-color: #ffffff40;
+}
+
+.header-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #fafafa;
+    margin: 0;
+    margin-left: 72px;
+}
+
+.fields-container {
+    padding-right: 15px;
+    color: #ffffff;
+    font-family: sans-serif;
+    padding-top: 20px;
+}
+
+/* ---Главная обертка--- */
+.main-content-wrapper {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+/* ---Контейнер с вкладками--- */
+.tabs-content-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.fields-box {
+    background-color: #132533;
+    padding: 24px;
+    opacity: 0.95;
+    margin-left: 22px;
+    min-height: 80vh;
+    height: fit-content;
+}
+
+/* ---Вкладки--- */
+.tabs-container {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 0;
+    position: relative;
+    overflow-x: auto;
+    scrollbar-width: none;
+    width: auto;
+    margin-left: 22px;
+}
+
+.tab-button {
+    padding: 12px 20px;
+    width: 175px;
+    background-color: #0f1a24;
+    color: #b0bec5;
+    border: none;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.tab-button:hover {
+    background-color: #1a2836;
+    color: #ffffff;
+}
+
+.tab-button.active {
+    background-color: #132533;
+    color: #4a90e2;
+    border-bottom: 2px solid #4a90e2;
+}
+
+/* ---Контент полей--- */
+.fields-content {
+    margin-bottom: 30px;
+    width: 100%;
+    min-width: 70%;
+}
+
+.fields-vertical-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+    width: 100%;
+}
+
+/* ---Структура для полей--- */
+.field-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    position: relative;
+}
+
+.field-row.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.field-label {
+    display: block;
+    font-size: 14px;
+    color: #b0bec5;
+    min-width: 150px;
+    width: 150px;
+    flex-shrink: 0;
+    margin-top: 8px;
+    text-align: left;
+}
+
+/* ---Базовые стили для dropdown--- */
+.dropdown-container {
+    position: relative;
+    overflow: visible;
+}
+
+/* ---Обычные поля--- */
+.field-row.simple-field .dropdown-container {
+    flex: 0 0 600px;
+    max-width: 600px;
+    width: 600px;
+}
+
+.dropdown-trigger-simple {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 20px;
+    box-sizing: border-box;
+    user-select: none;
+    overflow: hidden;
+    border-bottom: 1px solid transparent;
+    width: 100%;
+}
+
+.dropdown-trigger-simple:hover {
+    border-bottom: 1px solid #4a90e2;
+}
+
+.dropdown-trigger-simple.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.dropdown-trigger-simple.has-value {
+    border-bottom: 1px solid #37474f;
+}
+
+/* ---Поля категорий--- */
+.field-row.category-field .dropdown-container {
+    flex: 1;
+    max-width: none;
+}
+
+.dropdown-trigger-category {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 20px;
+    box-sizing: border-box;
+    user-select: none;
+    overflow: hidden;
+    border-bottom: 1px solid transparent;
+    width: 100%;
+}
+
+.dropdown-trigger-category:hover {
+    border-bottom: 1px solid #4a90e2;
+}
+
+.dropdown-trigger-category.has-value {
+    border-bottom: 1px solid #37474f;
+}
+
+/* ---Поля статей--- */
+.field-row.article-field .dropdown-container {
+    flex: 1;
+    max-width: none;
+}
+
+.dropdown-trigger-article {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 20px;
+    box-sizing: border-box;
+    user-select: none;
+    overflow: hidden;
+    border-bottom: 1px solid transparent;
+    width: 100%;
+}
+
+.dropdown-trigger-article:hover {
+    border-bottom: 1px solid #4a90e2;
+}
+
+.dropdown-trigger-article.has-value {
+    border-bottom: 1px solid #37474f;
+}
+
+/* ---Общие стили для всех dropdown--- */
+.dropdown-value {
+    color: #ffffff;
+    font-size: 14px;
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 8px;
+}
+
+.dropdown-arrow {
+    color: #b0bec5;
+    transition: transform 0.2s ease;
+    font-size: 12px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.dropdown-arrow.open {
+    transform: rotate(180deg);
+}
+
+/* ---Dropdown меню--- */
+.dropdown-menu {
+    position: relative;
+    top: 0;
+    left: 0;
+    background-color: #0f1a24;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    overflow: hidden;
+    margin-top: 2px;
+    width: 100%;
+    box-sizing: border-box;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    border-radius: 4px;
+}
+
+.dropdown-menu.open {
+    max-height: 400px;
+    opacity: 1;
+    transform: translateY(0);
+    overflow-y: auto;
+}
+
+.dropdown-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: #ffffff;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(55, 71, 79, 0.3);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-option:hover {
+    background-color: #1a2836;
+}
+
+.dropdown-option.selected {
+    background-color: #4a90e2;
+    color: white;
+}
+
+.dropdown-option:last-child {
+    border-bottom: none;
+}
+
+.dropdown-option.disabled-option {
+    color: #666;
+    cursor: not-allowed;
+    background-color: transparent;
+}
+
+.dropdown-option.disabled-option:hover {
+    background-color: transparent;
+}
+
+/* ---Текстовые поля--- */
+.text-input {
+    width: 100%;
+    padding: 8px;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: #ffffff;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    flex: 1;
+}
+
+.text-input:focus {
+    outline: none;
+    border-bottom: 1px solid #4a90e2;
+    background-color: transparent;
+}
+
+.text-input:disabled {
+    background-color: transparent;
+    color: #666;
+    cursor: not-allowed;
+    border-color: #2a2a2a;
+}
+
+.text-input::placeholder {
+    color: #b0bec5;
+}
+
+/* ---Поля категорий и статей--- */
+.category-fields-container {
+    position: relative;
+    flex: 0 0 600px;
+    max-width: 600px;
+    width: 600px;
+}
+
+.category-field-group {
+    margin-bottom: 5px;
+}
+
+.category-container {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    position: relative;
+    width: 100%;
+}
+
+.category-left,
+.category-right {
+    flex: 1;
+    min-width: 0;
+}
+
+.category-full {
+    flex: 1;
+    min-width: 0;
+}
+
+.remove-category-btn {
+    background-color: transparent;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    font-size: 22px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    margin-top: 4px;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.remove-category-btn:hover {
+    color: #f44336;
+}
+
+.add-category-btn {
+    background-color: #1e69be;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 20px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.add-category-btn:hover {
+    background-color: #174d8a;
+}
+
+/* ---Дизайн карт--- */
+.card-design-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    position: relative;
+    width: 100%;
+}
+
+.card-design-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-design-upload {
+    flex: 0 0 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-design-btn {
+    background-color: #37474f;
+    color: #b0bec5;
+    border: 2px dashed #666;
+    padding: 40px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    width: 100px;
+    height: 50px;
+    ;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 5px;
+}
+
+.upload-design-btn:hover {
+    background-color: #455a64;
+    border-color: #4a90e2;
+    color: #ffffff;
+}
+
+.card-design-item {
+    position: relative;
+    background-color: #0f1a24;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    width: 100px;
+    height: 60px;
+}
+
+.card-design-item:hover {
+    transform: scale(5.0);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+}
+
+.card-design-preview {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.card-design-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: all 0.3s ease;
+}
+
+/* ---Кнопки сохранения--- */
+.save-btn,
+.cancel-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.save-btn {
+    background-color: #1e69be;
+    color: white;
+}
+
+.save-btn:hover {
+    background-color: #1557a0;
+}
+
+.cancel-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background-color: #d32f2f;
+}
+
+/* ---Адаптивность--- */
+@media (max-width: 1200px) {
+    .main-content-wrapper {
+        flex-direction: column;
+    }
+
+    .card-design-upload {
+        flex: 0 0 250px;
+    }
+
+    .upload-design-btn,
+    .card-design-item {
+        width: 120px;
+        height: 80px;
+    }
+
+    .card-design-item:hover {
+        transform: scale(3.5);
+    }
+
+    .upload-design-btn {
+        padding: 30px 15px;
+    }
+}

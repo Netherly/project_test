@@ -1,0 +1,30 @@
+.actions-bar{
+  flex:0 0 180px;       /* фикс ширина колонки */
+  border-left:1px solid var(--border--color);
+  background:var(--input-bg);
+  padding:16px 10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.actions-bar button{
+  width:100%;
+  padding:10px 8px;
+  background:var(--button-bg);
+  color:var(--container-text-color);
+  border:none;
+  border-radius:6px;
+  font-size:14px;
+  cursor:pointer;
+  transition:background .18s;
+}
+.actions-bar button:hover{
+  background:var(--container-hover-bg);
+  color:var(--container-hover-text-color);
+}
+
+/* прячем на очень узких экранах */
+@media(max-width:700px){
+  .actions-bar{display:none;}
+}

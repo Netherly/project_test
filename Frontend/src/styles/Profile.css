@@ -4,11 +4,10 @@
     flex-direction: row;
 }
 .profile-container {
-    padding-right: 25px;
     height: 100vh;
     color: #ffffff;
     font-family: sans-serif;
-    padding-top: 32px;    
+    padding-top: 32px;
 }
 
 .profile-box {

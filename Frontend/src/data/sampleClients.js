@@ -34,7 +34,8 @@ export const sampleClients = [
     referrer_id: 9,           // ← ссылка на клиента-реферала
     referrer_first_id: 9,     // ← ссылка на первого реферала
     status: 'активен',
-    last_order_date: '2025-06-30'
+    last_order_date: '2025-06-30',
+     credentials: []
   },
   {
     id: 2,
@@ -58,6 +59,7 @@ export const sampleClients = [
     referrer_id: null,
     referrer_first_id: null,
     status: 'ожидание',
+     credentials: [],
     last_order_date: '—'
   },
   {
@@ -81,6 +83,7 @@ export const sampleClients = [
     referrer_id: null,
     referrer_first_id: null,
     status: 'переговоры',
+     credentials: [],
     last_order_date: '—'
   },
   {
@@ -103,6 +106,7 @@ export const sampleClients = [
     referrer_id: null,
     referrer_first_id: null,
     status: 'партнёр',
+     credentials: [],
     last_order_date: '—'
   },
 
@@ -129,6 +133,10 @@ export const sampleClients = [
     referrer_id: null,
     referrer_first_id: null,
     status: 'активен',
+    credentials: [
+      {
+        login: 'beta_solutions_login',
+        password: 'betaPass123',  }],
     last_order_date: '2025-07-14'
   },
   {
@@ -153,6 +161,7 @@ export const sampleClients = [
     referrer_id: null,
     referrer_first_id: null,
     status: 'активен',
+     credentials: [],
     last_order_date: '2025-07-10'
   },
   {
@@ -177,7 +186,8 @@ export const sampleClients = [
     referrer_id: null,
     referrer_first_id: null,
     status: 'активен',
-    last_order_date: '2025-07-12'
+    last_order_date: '2025-07-12',
+     credentials: []
   },
 
   /* ====================== ПО СИТУАЦИИ (3) ========================== */
@@ -204,7 +214,8 @@ export const sampleClients = [
     referrer_id: null,
     referrer_first_id: null,
     status: 'переговоры',
-    last_order_date: '—'
+    last_order_date: '—',
+     credentials: []
   },
   {
     id: 8,
@@ -581,7 +592,19 @@ export const sampleClients = [
   referrer_id: null,
   referrer_first_id: null,
   status: 'активен',
-  last_order_date: '2025-07-13'
+  last_order_date: '2025-07-13',
+   credentials: [
+      {
+        login: 'alfastroy_login',
+        password: 's3cr3tPass!',
+        description: 'Основной доступ для менеджера'
+      },
+      {
+        login: 'alfastroy_backup',
+        password: 'backup1234',
+        description: 'Резервный доступ'
+      }
+    ]
 },
 {
   id: 24,
@@ -604,7 +627,14 @@ export const sampleClients = [
   referrer_id: null,
   referrer_first_id: null,
   status: 'ожидание',
-  last_order_date: '2025-07-09'
+  last_order_date: '2025-07-09',
+   credentials: [
+      {
+        login: 'globalsnab_main',
+        password: 'globSup#2025',
+        description: 'Доступ для отдела закупок'
+      }
+    ]
 },
 
 /* ====================== ПО СИТУАЦИИ (3) ========================== */
@@ -630,7 +660,10 @@ export const sampleClients = [
   referrer_id: null,
   referrer_first_id: null,
   status: 'исследование',
-  last_order_date: '—'
+  last_order_date: '—',
+  credentials: [
+      { login: 'deltalog_login', password: 'DL2025!', description: 'Основной доступ' }
+    ]
 },
 {
   id: 26,

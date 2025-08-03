@@ -1,16 +1,7 @@
-/* ------------------------------------------------------------------
-   ClientsPage.css — обновлённая версия
-   • .clients-table теперь имеет min-width: max-content  ➜ весь столбец фиксируется,
-     при расширении появляется горизонтальный скролл, другие колонки не сжимаются.
-   • «Реферер» / «Реферер перв.» оформлены ярче: иконка-стрелка, лёгкий подсвет
-     + micro-анимация (scale) при ховере. 
-------------------------------------------------------------------*/
 
-/* ====== Общий лэйаут ====== */
 .clients-layout { display:flex; height:100vh; background:var(--bg-color); color:var(--container-text-color); overflow:hidden; }
-.clients-page   { flex:1; display:flex; flex-direction:column; padding:0 16px; overflow:hidden; }
+.clients-page   { flex:1; display:flex; flex-direction:column;  overflow:hidden; }
 
-/* ====== Toolbar ====== */
 .list-toolbar   { display:grid; grid-template-columns:1fr auto; gap:24px; align-items:center; padding:12px 0; }
 .toolbar-search { background:var(--input-bg); border:1px solid rgba(128,128,128,.3); border-radius:4px; padding:8px 12px; font-size:.9rem; width:100%; color:var(--container-text-color); }
 .toolbar-search::placeholder { color:#7a8b9b; }
@@ -19,11 +10,10 @@
 .toolbar-stats button{ all:unset; padding:6px 14px; border-radius:4px; background:var(--button-bg); font-weight:600; cursor:pointer; transition:background .2s; }
 .toolbar-stats button:hover{ background:var(--container-text-color); color:var(--bg-color); }
 
-/* ====== Таблица ====== */
+
 .clients-table-wrapper{ flex:1; overflow:auto; }
 
-/*  ▸ min-width:max-content фиксирует заданные пиксельные ширины,
-    ▸ table-layout:fixed — поддержка ellipsis. */
+
 .clients-table  { width:100%; min-width:max-content; border-collapse:collapse; font-size:.85rem; table-layout:fixed; }
 
 .clients-table thead th{
@@ -35,7 +25,7 @@
   white-space:normal; word-break:break-word; line-height:1.2;
 }
 
-/* ─── Ручка-резайзер ─────────────────────────── */
+
 .resizer{
   position:absolute; top:0; right:-4px;
   width:8px; height:100%;
@@ -54,10 +44,10 @@
   cursor:pointer;
 }
 
-/* ====== Group row ====== */
+
 .group-row td {
   position: sticky;
-  top: 32px; /* або 40px — в залежності від висоти твоїх <th> */
+  top: 0px; /* або 40px — в залежності від висоти твоїх <th> */
   z-index: 1;
   background: var(--button-bg);
   font-weight: 600;
@@ -67,17 +57,17 @@
 
 .group-row:hover td{ background:#13628d; }
 
-/* ====== Ellipsis helper ====== */
+
 .ellipsis{
   display:inline-block; width:100%;
   vertical-align:top; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis;
 }
 
-/* ====== Empty state ====== */
+
 .empty-state{ margin-top:40px; text-align:center; color:var(--chips-color); }
 
-/* ====== Реферер-ссылки (улучшенный стиль) ====== */
+
 .ref-cell{
   position:relative;
   color:var(--link-color);
@@ -103,8 +93,22 @@
   opacity:1;
   transform:translateY(-1px) scale(1.1);  /* стрелка чуть увеличивается */
 }  
-.group-count {
+/* .group-count {
   color: #888;
   font-size: 0.9em;
-}
+} */
 
+.group-count {
+  display: inline-block;
+  /* сам фон бейджа — полупрозрачный светло-серый */
+  background-color: rgba(255, 255, 255, 0.1);
+  /* цвет цифр чуть светлее основного текста */
+  color: #ccc;
+  font-size: 0.9em;
+  /* небольшой внутренний отступ */
+  padding: 2px 6px;
+  /* округлые края */
+  border-radius: 12px;
+  /* небольшой отступ слева от заголовка */
+  margin-left: 6px;
+}
