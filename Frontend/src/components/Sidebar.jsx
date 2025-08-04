@@ -2,7 +2,6 @@ import { NavLink, useLocation } from "react-router-dom";
 import React, { useState } from "react";
 import "../styles/Sidebar.css";
 
-// Menu icons
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
 import FinanceWebm from "../assets/menu-icons/Финансы.webm";
 import TransactionsWebm from "../assets/menu-icons/Транзакции.webm";
@@ -14,7 +13,6 @@ import ClientsWebm from "../assets/menu-icons/Клиенты.webm";
 import OrdersWebm from "../assets/menu-icons/Заказы.webm";
 import ArchiveWebm from "../assets/menu-icons/Архив.webm";
 
-// Reusable icon component
 const MediaIcon = ({ src, alt, className }) =>
   src.endsWith(".webm") ? (
     <video
@@ -41,8 +39,8 @@ const Sidebar = () => {
   const copyClientId = (clientId) => {
     navigator.clipboard
       .writeText(clientId)
-      .then(() => console.log("Client ID copied:", clientId))
-      .catch((err) => console.error("Copy error:", err));
+      .then(() => console.log("ID клиента скопировано:", clientId))
+      .catch((err) => console.error("Ошибка копирования:", err));
   };
 
   const clientId = "23995951";
@@ -112,16 +110,16 @@ const Sidebar = () => {
                 className="avatar-id"
                 onClick={() => copyClientId(clientId)}
                 style={{ cursor: "pointer" }}
-                title="Click to copy"
+                title="Нажмите чтобы скопировать"
               >
                 ID: {clientId} 📋
               </div>
             </div>
             <div className="avatar-actions">
               <NavLink to="/profile" className="avatar-action">
-                Profile
+                Профиль
               </NavLink>
-              <button className="avatar-action">Logout</button>
+              <button className="avatar-action">Выход</button>
             </div>
           </div>
         </NavLink>
