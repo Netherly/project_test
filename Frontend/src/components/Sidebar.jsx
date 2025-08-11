@@ -4,14 +4,25 @@ import "../styles/Sidebar.css";
 
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
 import FinanceWebm from "../assets/menu-icons/Финансы.webm";
-import TransactionsWebm from "../assets/menu-icons/Транзакции.webm";
 import DirectoryWebm from "../assets/menu-icons/Справочники.webm";
 import DesktopWebm from "../assets/menu-icons/Рабочий стол.webm";
 import FieldSettingsWebm from "../assets/menu-icons/Настройки полей.webm";
 import CurrencyRatesWebm from "../assets/menu-icons/Курсы валют.webm";
 import ClientsWebm from "../assets/menu-icons/Клиенты.webm";
 import OrdersWebm from "../assets/menu-icons/Заказы.webm";
+import AssetsWebm from "../assets/menu-icons/Активы.webm";
+import AssetsNewWebm from "../assets/menu-icons/Активы вектор вебм.webm";
+import TasksWebm from "../assets/menu-icons/Задачи.webm";
+import RolesWebm from "../assets/menu-icons/Роли.webm";
+import EntryWebm from "../assets/menu-icons/Доступы.webm";
 import ArchiveWebm from "../assets/menu-icons/Архив.webm";
+import ExecutorsWebm from "../assets/menu-icons/Исполнители.webm";
+import SettingsWebm from "../assets/menu-icons/Настройки.webm";
+import JournalWebm from "../assets/menu-icons/Журнал.webm";
+import TransactionWebm from "../assets/menu-icons/Транзакции.webm";
+import TransactionNewWebm from "../assets/menu-icons/Транзакции вектор вебм.webm";
+import ReportWebm from "../assets/menu-icons/Отчеты.webm";
+import EmployesWebm from "../assets/menu-icons/Сотрудники.webm";
 
 const MediaIcon = ({ src, alt, className }) =>
   src.endsWith(".webm") ? (
@@ -51,30 +62,32 @@ const Sidebar = () => {
     { name: "Финансы", menu: "transactions", iconActive: FinanceWebm, iconInactive: FinanceWebm },
     { name: "Справочник", menu: "directory", iconActive: DirectoryWebm, iconInactive: DirectoryWebm },
     { name: "Архив", path: "/archive", iconActive: ArchiveWebm, iconInactive: ArchiveWebm },
-    { name: "Настройки", menu: "settings", iconActive: FieldSettingsWebm, iconInactive: FieldSettingsWebm },
+    { name: "Настройки", menu: "settings", iconActive: SettingsWebm, iconInactive: SettingsWebm },
   ];
 
   const submenus = {
     Desktop: [
       { name: "Заказы", path: "/orders", icon: OrdersWebm },
-      { name: "Исполнители", path: "/executors" },
-      { name: "Задачи", path: "/tasks" },
-      { name: "Журнал", path: "/journal" },
+      { name: "Исполнители", path: "/executors", icon: ExecutorsWebm },
+      { name: "Задачи", path: "/tasks", icon: TasksWebm },
+      { name: "Журнал", path: "/journal", icon: JournalWebm },
       { name: "Календарь", path: "/calendar" },
     ],
     directory: [
       { name: "Клиенты", path: "/clients", icon: ClientsWebm },
-      { name: "Сотрудники", path: "/employees", icon: "https://cdn-icons-gif.flaticon.com/7211/7211849.gif" },
-      { name: "Отчёты", path: "/reports", icon: "https://cdn-icons-gif.flaticon.com/6416/6416398.gif" },
-      { name: "Доступы", path: "/access", icon: "https://cdn-icons-gif.flaticon.com/15968/15968705.gif" },
+      { name: "Сотрудники", path: "/employees", icon: EmployesWebm },
+      { name: "Отчёты", path: "/reports", icon: ReportWebm },
+      { name: "Доступы", path: "/access", icon: EntryWebm },
     ],
     transactions: [
-      { name: "Активы", path: "/assets" },
-      { name: "Транзакции", path: "/list" },
+      { name: "Активы", path: "/assets", icon: AssetsWebm },
+      { name: "Активы(n)", path: "/assets", icon: AssetsNewWebm },
+      { name: "Транзакции", path: "/list", icon: TransactionWebm },
+      { name: "Транзакции(n)", path: "/list", icon: TransactionNewWebm },
     ],
     settings: [
-      { name: "Роли/Доступы", path: "/roles-access" },
-      { name: "Настройки полей", path: "/fields" },
+      { name: "Роли/Доступы", path: "/roles-access", icon: RolesWebm },
+      { name: "Настройки полей", path: "/fields", icon: FieldSettingsWebm }, 
       { name: "Курс валют", path: "/currency-rates", icon: CurrencyRatesWebm },
     ],
   };

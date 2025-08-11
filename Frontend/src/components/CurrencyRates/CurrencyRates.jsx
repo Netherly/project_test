@@ -2,105 +2,119 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../Sidebar';
 import '../../styles/CurrencyRates.css';
 
+const API_BASE_URL = '/api';
+
+const fetchRates = async () => {
+    try {
+        console.log('API: Запрос истории курсов...');
+        return [];
+    } catch (error) {
+        console.error('Не удалось загрузить курсы:', error);
+        return [];
+    }
+};
+
+const saveRate = async (latestRate) => {
+    try {
+        console.log('API: Сохранение курса:', latestRate);
+    } catch (error) {
+        console.error('Не удалось сохранить курс:', error);
+        throw error;
+    }
+};
+
+const getPureDateTimestamp = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};
+
 const CurrencyRates = () => {
     const [rates, setRates] = useState([]);
     const [initialRates, setInitialRates] = useState([]);
     const [isDirty, setIsDirty] = useState(false);
+    
+    const calculateRates = useCallback((usdToUahValue, rubToUahValue) => {
+        const uahRate = 1;
+        const usdRate = parseFloat(usdToUahValue) || 0;
+        const rubRate = parseFloat(rubToUahValue) || 0;
+        const usdtRate = usdRate;
 
-    const getPureDateTimestamp = (date) => {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime();
-    };
-
-    const calculateRates = (usdToUah, rubToUah, usdtToUah) => {
-        const C4 = 1;
-        const D4 = parseFloat(usdToUah) || 0;
-        const E4 = parseFloat(rubToUah) || 0;
-        const F4 = parseFloat(usdtToUah) || D4;
-
-        const UAH_RUB_CALC = E4 !== 0 ? C4 / E4 : 0;
-        const UAH_USD = D4 !== 0 ? C4 / D4 : 0;
-        const UAH_USDT = F4 !== 0 ? C4 / F4 : 0;
-
-        const USD_UAH = C4 !== 0 ? D4 / C4 : 0;
-        const USD_RUB = 16.0004;
-        const USD_USDT = F4 !== 0 ? D4 / F4 : 0;
-
-        const USDT_UAH = C4 !== 0 ? F4 / C4 : 0;
-        const USDT_USD = D4 !== 0 ? F4 / D4 : 0;
-        const USDT_RUB = USD_RUB;
-
-        const RUB_UAH = C4 !== 0 ? E4 / C4 : 0;
-        const RUB_USD = USD_RUB !== 0 ? 1 / USD_RUB : 0;
-        const RUB_USDT = USDT_RUB !== 0 ? 1 / USDT_RUB : 0;
-
+        const usdToRubRate = rubRate !== 0 ? usdRate / rubRate : 0;
+        
         return {
-            UAH: C4,
-            USD: D4,
-            RUB: E4,
-            USDT: F4,
-            UAH_RUB: UAH_RUB_CALC,
-            UAH_USD: UAH_USD,
-            UAH_USDT: UAH_USDT,
-            USD_UAH: USD_UAH,
-            USD_RUB: USD_RUB,
-            USD_USDT: USD_USDT,
-            USDT_UAH: USDT_UAH,
-            USDT_USD: USDT_USD,
-            USDT_RUB: USDT_RUB,
-            RUB_UAH: RUB_UAH,
-            RUB_USD: RUB_USD,
-            RUB_USDT: RUB_USDT,
+            UAH: uahRate, USD: usdRate, RUB: rubRate, USDT: usdtRate,
+            UAH_RUB: rubRate !== 0 ? uahRate / rubRate : 0,
+            UAH_USD: usdRate !== 0 ? uahRate / usdRate : 0,
+            UAH_USDT: usdtRate !== 0 ? uahRate / usdtRate : 0,
+            USD_UAH: usdRate,
+            USD_RUB: usdToRubRate, 
+            USD_USDT: usdtRate !== 0 ? usdRate / usdtRate : 0,
+            USDT_UAH: usdtRate,
+            USDT_USD: usdRate !== 0 ? usdtRate / usdRate : 0,
+            USDT_RUB: usdToRubRate,
+            RUB_UAH: rubRate,
+            RUB_USD: usdToRubRate !== 0 ? 1 / usdToRubRate : 0,
+            RUB_USDT: usdToRubRate !== 0 ? 1 / usdToRubRate : 0,
         };
-    };
-
-    const addNewDayEntryIfNecessary = useCallback(() => {
-        setRates(prevRates => {
-            const todayTimestamp = getPureDateTimestamp(new Date());
-            const latestEntry = prevRates.length > 0 ? prevRates[0] : null;
-
-            const isTodayEntryPresent = latestEntry && getPureDateTimestamp(latestEntry.date) === todayTimestamp;
-
-            if (isTodayEntryPresent) {
-                const updatedRow = calculateRates(latestEntry.USD, latestEntry.RUB, latestEntry.USDT);
-                return [{ ...latestEntry, ...updatedRow }, ...prevRates.slice(1)];
-            } else {
-                const initialUSD = latestEntry ? latestEntry.USD : 8.0002;
-                const initialRUB = latestEntry ? latestEntry.RUB : 0.5000;
-                const initialUSDT = initialUSD;
-
-                const newRow = {
-                    id: Date.now(),
-                    date: todayTimestamp,
-                    UAH: 1,
-                    USD: initialUSD,
-                    RUB: initialRUB,
-                    USDT: initialUSDT,
-                };
-                const calculatedRow = calculateRates(newRow.USD, newRow.RUB, newRow.USDT);
-                return [{ ...newRow, ...calculatedRow }, ...prevRates];
-            }
-        });
     }, []);
 
+    const addNewDayEntryIfNecessary = useCallback((prevRates) => {
+        const todayTimestamp = getPureDateTimestamp(new Date());
+        const latestEntry = prevRates.length > 0 ? prevRates[0] : null;
+        const isTodayEntryPresent = latestEntry && getPureDateTimestamp(latestEntry.date) === todayTimestamp;
+
+        if (isTodayEntryPresent) {
+            return prevRates;
+        }
+        
+        const DEFAULT_RATES = { USD_TO_UAH: 41.7, RUB_TO_UAH: 0.52 };
+        const initialUSD = latestEntry ? latestEntry.USD : DEFAULT_RATES.USD_TO_UAH;
+        const initialRUB = latestEntry ? latestEntry.RUB : DEFAULT_RATES.RUB_TO_UAH;
+
+        const newRow = {
+            id: Date.now(),
+            date: todayTimestamp,
+            USD: initialUSD,
+            RUB: initialRUB,
+        };
+        const calculatedRow = calculateRates(newRow.USD, newRow.RUB);
+        return [{ ...newRow, ...calculatedRow }, ...prevRates];
+
+    }, [calculateRates]);
+
     useEffect(() => {
-        const savedRates = localStorage.getItem('currencyRates');
-        if (savedRates) {
-            const parsedRates = JSON.parse(savedRates).map(row => ({
+        const loadRates = async () => {
+            const fetchedRates = await fetchRates();
+            const initialData = fetchedRates.map(row => ({
                 ...row,
                 id: row.id || Date.now() + Math.random(),
                 date: getPureDateTimestamp(row.date)
-            }));
-            setRates(parsedRates);
-            setInitialRates(parsedRates);
-        }
-        addNewDayEntryIfNecessary();
+            })).sort((a, b) => b.date - a.date);
+
+            const fullRatesList = addNewDayEntryIfNecessary(initialData);
+            setRates(fullRatesList);
+            setInitialRates(fullRatesList);
+        };
+
+        loadRates();
     }, [addNewDayEntryIfNecessary]);
 
-    useEffect(() => {
-        localStorage.setItem('currencyRates', JSON.stringify(rates));
-    }, [rates]);
+    const handleSave = async () => {
+        if (rates.length === 0) return;
+        try {
+            await saveRate(rates[0]);
+            setInitialRates(rates);
+            setIsDirty(false);
+        } catch (error) {
+            alert('Не удалось сохранить данные. Попробуйте снова.');
+        }
+    };
+
+    const handleCancel = () => {
+        setRates(initialRates);
+        setIsDirty(false);
+    };
 
     useEffect(() => {
         const now = new Date();
@@ -110,11 +124,7 @@ const CurrencyRates = () => {
         const timeUntilMidnight = midnight.getTime() - now.getTime();
 
         const timeoutId = setTimeout(() => {
-            addNewDayEntryIfNecessary();
-            const intervalId = setInterval(() => {
-                addNewDayEntryIfNecessary();
-            }, 24 * 60 * 60 * 1000);
-            return () => clearInterval(intervalId);
+            setRates(prevRates => addNewDayEntryIfNecessary(prevRates));
         }, timeUntilMidnight);
 
         return () => clearTimeout(timeoutId);
@@ -129,34 +139,18 @@ const CurrencyRates = () => {
         setRates(prevRates => {
             const updatedRates = [...prevRates];
             const rowToUpdate = { ...updatedRates[rowIndex] };
-
-            rowToUpdate[currencyKey] = newValue;
-
-            if (currencyKey === 'USD') {
-                rowToUpdate.USDT = newValue;
-            }
-
+            rowToUpdate[currencyKey] = isNaN(newValue) ? '' : newValue;
+            
             const recalculatedRow = calculateRates(
                 rowToUpdate.USD,
-                rowToUpdate.RUB,
-                rowToUpdate.USDT
+                rowToUpdate.RUB
             );
-
+            
             updatedRates[rowIndex] = { ...rowToUpdate, ...recalculatedRow };
             return updatedRates;
         });
     };
-
-    const handleSave = () => {
-        setInitialRates(rates);
-        setIsDirty(false);
-    };
-
-    const handleCancel = () => {
-        setRates(initialRates);
-        setIsDirty(false);
-    };
-
+    
     return (
         <div className="currency-rates-page">
             <Sidebar />
@@ -192,38 +186,40 @@ const CurrencyRates = () => {
                                 {rates.map((row, rowIndex) => (
                                     <tr key={row.id}>
                                         <td>{new Date(row.date).toLocaleDateString()}</td>
-                                        <td>{row.UAH.toFixed(4)}</td>
+                                        <td>{row.UAH?.toFixed(3) || '1.000'}</td>
                                         <td className="currency-rates-editable-cell">
                                             <input
                                                 type="number"
                                                 step="0.01"
-                                                value={row.USD.toFixed(2)}
+                                                value={row.USD || ''}
                                                 onChange={(e) => handleInputChange(e, rowIndex, 'USD')}
                                                 className="currency-rates-editable-input"
+                                                disabled={rowIndex !== 0}
                                             />
                                         </td>
                                         <td className="currency-rates-editable-cell">
                                             <input
                                                 type="number"
                                                 step="0.01"
-                                                value={row.RUB.toFixed(2)}
+                                                value={row.RUB || ''}
                                                 onChange={(e) => handleInputChange(e, rowIndex, 'RUB')}
                                                 className="currency-rates-editable-input"
+                                                disabled={rowIndex !== 0}
                                             />
                                         </td>
-                                        <td>{row.USDT.toFixed(4)}</td>
-                                        <td>{row.UAH_RUB.toFixed(4)}</td>
-                                        <td>{row.UAH_USD.toFixed(4)}</td>
-                                        <td>{row.UAH_USDT.toFixed(4)}</td>
-                                        <td>{row.USD_UAH.toFixed(4)}</td>
-                                        <td>{row.USD_RUB.toFixed(4)}</td>
-                                        <td>{row.USD_USDT.toFixed(4)}</td>
-                                        <td>{row.USDT_UAH.toFixed(4)}</td>
-                                        <td>{row.USDT_USD.toFixed(4)}</td>
-                                        <td>{row.USDT_RUB.toFixed(4)}</td>
-                                        <td>{row.RUB_UAH.toFixed(4)}</td>
-                                        <td>{row.RUB_USD.toFixed(4)}</td>
-                                        <td>{row.RUB_USDT.toFixed(4)}</td>
+                                        <td>{row.USDT?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.UAH_RUB?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.UAH_USD?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.UAH_USDT?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.USD_UAH?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.USD_RUB?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.USD_USDT?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.USDT_UAH?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.USDT_USD?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.USDT_RUB?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.RUB_UAH?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.RUB_USD?.toFixed(3) || '0.000'}</td>
+                                        <td>{row.RUB_USDT?.toFixed(3) || '0.000'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -233,18 +229,10 @@ const CurrencyRates = () => {
 
                 {isDirty && (
                     <div className="action-buttons">
-                        <button
-                            type="button"
-                            className="cancel-order-btn"
-                            onClick={handleCancel}
-                        >
+                        <button type="button" className="cancel-order-btn" onClick={handleCancel}>
                             Отменить
                         </button>
-                        <button
-                            type="button"
-                            className="save-order-btn"
-                            onClick={handleSave}
-                        >
+                        <button type="button" className="save-order-btn" onClick={handleSave}>
                             Сохранить
                         </button>
                     </div>

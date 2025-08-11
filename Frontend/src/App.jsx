@@ -15,6 +15,7 @@ import Profile from "./pages/Profile";
 import FieldsPage from "./pages/FieldsPage"; 
 
 import { sampleClients } from './data/sampleClients';
+import ExecutorsPage from './components/Executors/ExecutorsPage';
 
 const ProtectedRoute = ({ element }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -96,6 +97,10 @@ export default function App() {
         <Route
           path="/orders"
           element={<ProtectedRoute element={<OrdersPage />} />}
+        />
+        <Route 
+          path="/executors" 
+          element={<ProtectedRoute element={<ExecutorsPage />} />}
         />
         <Route
           path="/journal"

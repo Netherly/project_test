@@ -97,6 +97,7 @@ const {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [showStageDropdown, setShowStageDropdown] = useState(false);
+  const [orderFields, setOrderFields] = useState({ intervals: [], categories: [], currency: [] });
 
   const tagInputRef = useRef(null);
   const tagDropdownRef = useRef(null);
@@ -291,6 +292,20 @@ const {
     };
   }, []);
 
+  useEffect(() => {
+      const savedFields = localStorage.getItem('fieldsData');
+      if (savedFields) {
+          try {
+              const parsedFields = JSON.parse(savedFields);
+              if (parsedFields.orderFields) {
+                  setOrderFields(parsedFields.orderFields);
+              }
+          } catch (e) {
+              console.error("Ошибка парсинга полей заказа из localStorage:", e);
+          }
+      }
+  }, []);
+
   const progress = ((stages.indexOf(watchedStage) + 1) / stages.length) * 100;
   const currentStageColor = getStageColor(watchedStage);
   const multiColorSegments = createMultiColorProgress();
@@ -465,6 +480,7 @@ const {
                 <GeneralInformation
                   order={order}
                   control={control}
+                  orderFields={orderFields}
                 />
               )}
               {activeTab === "План работ" && (
@@ -474,7 +490,7 @@ const {
                 />
               )}
               {activeTab === "Участники" && <Participants order={order} control={control}/>}
-              {activeTab === "Финансы" && <Finance order={order} control={control} />}
+              {activeTab === "Финансы" && <Finance order={order} control={control} orderFields={orderFields} />}
               {activeTab === "Выполнение заказа" && <OrderExecution order={order} control={control} />}
               {activeTab === "Завершение заказа" && <CompletingOrder order={order} control={control} />}
             </div>

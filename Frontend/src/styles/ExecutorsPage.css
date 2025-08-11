@@ -1,0 +1,209 @@
+.executors-page {
+    display: flex;
+    min-height: 100vh;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+}
+
+
+.executors-page-main-container {
+    flex-grow: 1;
+    transition: margin-left 0.3s ease;
+}
+
+
+.executors-header-container {
+    display: flex;
+    align-items: stretch; 
+    margin-bottom: 20px;
+    padding: 0;
+    position: relative;
+    background-color: var(--container-bg);
+    height: 60px;
+    border-bottom: 1px solid var(--border--color);
+}
+
+
+.executors-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    text-transform: uppercase;
+    padding: 0 35px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border--color);
+}
+
+
+.view-mode-buttons {
+    display: flex;
+    gap: 0;
+    padding: 0 20px;
+    border-right: 1px solid var(--border--color);
+    height: 100%;
+    align-items: center;
+}
+
+
+.view-mode-button {
+    background-color: transparent;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 0;
+    cursor: pointer;
+    font-size: 1.2em;
+    color: var(--chips-color);
+    transition: background-color 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+}
+
+.view-mode-button:hover {
+    background-color: var(--button-bg-hover);
+    color: var(--text-color);
+}
+
+.view-mode-button.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-radius: 6px;
+}
+
+
+.add-executor-wrapper {
+    margin-left: auto;
+    height: 100%;
+}
+
+
+.add-executor-button {
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 25px 0 55px;
+    border-left: 1px solid var(--border--color);
+    height: 100%;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.add-executor-button:hover {
+    background-color: #335d7a;
+}
+
+.executors-table-container {
+    background-color: var(--container-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+}
+
+.executors-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+    text-align: left;
+    color: var(--container-text-color);
+    table-layout: auto;
+    min-width: 1200px;
+}
+
+.executors-table thead {
+    background-color: var(--container-bg);
+    color: var(--chips-color);
+}
+
+.executors-table th {
+    padding: 12px 15px;
+    white-space: nowrap;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid var(--border--color);
+}
+
+.executors-table thead tr th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.executors-table thead tr th:last-child {
+    border-top-right-radius: 8px;
+}
+
+.executors-table tbody tr.executor-row {
+    border-bottom: 1px solid var(--border--color);
+    transition: background-color 0.2s ease;
+}
+
+.executors-table tbody tr.executor-row:last-child {
+    border-bottom: none;
+}
+
+.executors-table tbody tr.executor-row:hover {
+    background-color: #224158;
+}
+
+.executors-table td {
+    padding: 12px 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-color);
+    vertical-align: middle;
+}
+
+.view-mode-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.view-mode-button {
+    background: none;
+    border: 1px solid #555;
+    color: #ccc;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+.view-mode-button.active {
+    background-color: #555;
+    color: #fff;
+}
+
+.executors-cards-container {
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.performer-group {
+    margin-bottom: 32px;
+}
+
+.performer-name-card {
+    font-size: 1.5em;
+    color: #eee;
+    margin-bottom: 16px;
+}
+
+.performer-orders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}

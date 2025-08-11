@@ -4,6 +4,7 @@ import '../../styles/AssetCard.css';
 import visaLogo from '../../assets/assets-card/visa.png';
 import mastercardLogo from '../../assets/assets-card/mastercard.png';
 import mirLogo from '../../assets/assets-card/mir.png';
+import cryptoLogo from '../../assets/assets-card/cryptologo.png';
 import cardChip from '../../assets/assets-card/cardchip.png';
 
 const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites }) => {
@@ -48,6 +49,8 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites }) => {
                     return <img src={mastercardLogo} alt="Mastercard" className="card-type-logo mastercard" />;
                 case 'Мир':
                     return <img src={mirLogo} alt="Мир" className="card-type-logo mir" />;
+                case 'Криптовалюта':
+                    return <img src={cryptoLogo} alt="Bitcoin" className="card-type-logo crypto" />;
                 default:
                     return null;
             }

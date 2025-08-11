@@ -1,7 +1,207 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FaThLarge, FaSearch, FaFilter, FaEllipsisH } from 'react-icons/fa';
-import './ClientsPageHeader.css';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { FaSearch, FaFilter } from "react-icons/fa";
+import styles from "./ClientsPageHeader.module.css";
 
+/* ===========================
+   MultiTagSelect (portal + позиционирование)
+   =========================== */
+function MultiTagSelect({
+  options = [],
+  value = [],
+  onChange,
+  placeholder = "Теги...",
+  maxVisibleChips = 4,
+  usePortal = true,
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const wrapRef = useRef(null);
+  const triggerRef = useRef(null);
+  const hostRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  const filtered = useMemo(() => {
+    const qq = q.trim().toLowerCase();
+    return qq ? options.filter(o => o.toLowerCase().includes(qq)) : options;
+  }, [options, q]);
+
+  // host для портала
+  useEffect(() => {
+    if (!usePortal) return;
+    const host = document.createElement("div");
+    host.style.position = "fixed";
+    host.style.zIndex = "2147483000";
+    host.style.left = "0px";
+    host.style.top = "0px";
+    document.body.appendChild(host);
+    hostRef.current = host;
+    return () => {
+      document.body.removeChild(host);
+      hostRef.current = null;
+    };
+  }, [usePortal]);
+
+  // позиционирование (вниз/вверх + клампы)
+  const placeDropdown = () => {
+    if (!usePortal || !open || !triggerRef.current || !hostRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    const width = r.width;
+    let left = r.left;
+    let top = r.bottom + 6;
+
+    const ddh = dropdownRef.current?.offsetHeight ?? 300;
+    if (top + ddh > window.innerHeight - 8) {
+      top = Math.max(8, r.top - ddh - 6);
+    }
+    if (left + width > window.innerWidth - 8) left = window.innerWidth - 8 - width;
+    left = Math.max(8, left);
+
+    const host = hostRef.current;
+    host.style.width = `${width}px`;
+    host.style.left = `${left}px`;
+    host.style.top = `${top}px`;
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    placeDropdown();
+    const onScroll = () => placeDropdown();
+    const onResize = () => placeDropdown();
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open]);
+
+  // закрытие по клику вне (учитываем портал) + ESC
+  useEffect(() => {
+    const onDocClick = (e) => {
+      const inTrigger = wrapRef.current?.contains(e.target);
+      const inDropdown = dropdownRef.current?.contains(e.target);
+      if (!inTrigger && !inDropdown) setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const toggle = (tag) =>
+    value.includes(tag)
+      ? onChange(value.filter(v => v !== tag))
+      : onChange([...value, tag]);
+
+  const selectAll = () => onChange(Array.from(new Set([...value, ...filtered])));
+  const clearAll  = () => onChange([]);
+
+  const displayed = value.slice(0, maxVisibleChips);
+  const overflow  = Math.max(0, value.length - displayed.length);
+
+  const Dropdown = (
+    <div
+      ref={dropdownRef}
+      className={`${styles.tagsDropdown} ${usePortal ? styles.tagsDropdownPortal : ""}`}
+      role="listbox"
+    >
+      <div className={styles.tagsSticky}>
+        <input
+          className={styles.tagsSearch}
+          type="text"
+          placeholder="Найти тег…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          autoFocus
+        />
+        <div className={styles.tagsActions}>
+          <button type="button" onClick={selectAll}>Выбрать всё</button>
+          <button type="button" onClick={clearAll}>Очистить</button>
+        </div>
+      </div>
+
+      <div className={styles.tagsOptions}>
+        {filtered.length === 0 && <div className={styles.tagsEmpty}>Ничего не найдено</div>}
+        {filtered.map(tag => {
+          const checked = value.includes(tag);
+          return (
+            <label key={tag} className={`${styles.tagsOption} ${checked ? styles.isChecked : ""}`}>
+              <input type="checkbox" checked={checked} onChange={() => toggle(tag)} />
+              <span className={styles.tagsOptionText}>{tag}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={styles.tagsSelect} ref={wrapRef}>
+      <div
+        ref={triggerRef}
+        className={`${styles.tagsInput} ${open ? styles.isOpen : ""}`}
+        onClick={() => setOpen(o => !o)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(o => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <div className={styles.tagsChips}>
+          {value.length === 0 ? (
+            <span className={styles.tagsPlaceholder}>{placeholder}</span>
+          ) : (
+            <>
+              {displayed.map(tag => (
+                <span className={styles.tagChip} key={tag}>
+                  <span className={styles.tagChipText}>{tag}</span>
+                  <button
+                    type="button"
+                    className={styles.tagChipRemove}
+                    onClick={(e) => { e.stopPropagation(); onChange(value.filter(v => v !== tag)); }}
+                    aria-label={`Удалить тег ${tag}`}
+                    title="Удалить"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {overflow > 0 && (
+                <span className={`${styles.tagChip} ${styles.tagChipCount}`} title={value.join(", ")}>
+                  +{overflow}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* крестик ДО стрелки и по центру */}
+        {value.length > 0 && (
+          <button
+            type="button"
+            className={`${styles.tagsClear} ${styles.clearBeforeCaret}`}
+            onClick={(e) => { e.stopPropagation(); clearAll(); }}
+            aria-label="Очистить теги"
+            title="Очистить теги"
+          >
+            ×
+          </button>
+        )}
+        <span className={styles.tagsCaret} aria-hidden="true">▾</span>
+      </div>
+
+      {open && (!usePortal ? Dropdown : (hostRef.current && createPortal(Dropdown, hostRef.current)))}
+    </div>
+  );
+}
+
+/* ===========================
+   Хедер и фильтры
+   =========================== */
 export default function ClientsPageHeader({
   onAdd,
   onSearch,
@@ -13,161 +213,211 @@ export default function ClientsPageHeader({
   countryOptions  = [],
   onFilterChange,
 }) {
-  const [showSearch,  setShowSearch]  = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [query,       setQuery]       = useState('');
+  const [query, setQuery] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const [filters, setFilters] = useState({
-    currency: '', status: '', tags: [], source: '', country: '',
-    share: '', dateFrom: '', dateTo: ''
+    currency: "", status: "", tags: [], source: "", country: "",
+    share: "", dateFrom: "", dateTo: ""
   });
 
   const inputRef = useRef(null);
 
-  // фокус при открытии поиска
-  useEffect(() => {
-    if (showSearch) inputRef.current?.focus();
-  }, [showSearch]);
+  useEffect(() => { if (showAdvanced) inputRef.current?.focus(); }, [showAdvanced]);
+  useEffect(() => { onSearch?.(query.trim()); }, [query, onSearch]);
 
-  // поднимаем введённый запрос вверх
-  useEffect(() => {
-    onSearch?.(query);
-  }, [query, onSearch]);
-
-  const handleChange = field => e => {
-    const value = field === 'tags'
-      ? Array.from(e.target.selectedOptions).map(o => o.value)
-      : e.target.value;
+  const handleChange = (field) => (eOrValue) => {
+    const value = eOrValue?.target ? eOrValue.target.value : eOrValue;
     setFilters(f => ({ ...f, [field]: value }));
   };
 
-  const handleApply = () => onFilterChange?.(filters);
-  const handleReset = () => {
-    const empty = {
-      currency:'', status:'', tags:[], source:'', country:'',
-      share:'', dateFrom:'', dateTo:''
-    };
-    setFilters(empty);
-    onFilterChange?.(empty);
+  const handleApply = () => {
+    onFilterChange?.(filters);
+    onSearch?.(query.trim());
   };
 
-  const hasActive = Boolean(
-    filters.currency || filters.status || filters.tags.length ||
-    filters.source   || filters.country || filters.share   ||
-    filters.dateFrom || filters.dateTo
-  );
+  const handleReset = () => {
+    const empty = { currency:"", status:"", tags:[], source:"", country:"", share:"", dateFrom:"", dateTo:"" };
+    setFilters(empty);
+    setQuery("");
+    onFilterChange?.(empty);
+    onSearch?.("");
+  };
+
+  const hasActive =
+    !!(query || filters.currency || filters.status || filters.tags.length ||
+       filters.source || filters.country || filters.share ||
+       filters.dateFrom || filters.dateTo);
 
   return (
-    <header className="clients-toolbar">
-      {/* Левая группа */}
-      <div className="clients-toolbar-left">
-        <div className="toolbar-title">КЛИЕНТЫ</div>
-        <div className="view-toggle-icons">
-          {/* <FaThLarge className="icon view-icon" title="Вид плитки" /> */}
-          <FaSearch
-            className="icon view-icon"
-            title="Поиск"
-            onClick={() => setShowSearch(v => !v)}
-          />
-          <div className="filter-icon-wrapper">
-            <FaFilter
-              className="icon view-icon"
-              title="Фильтры"
-              onClick={() => setShowFilters(v => !v)}
-            />
-            {hasActive && <span className="filter-indicator" />}
-          </div>
-        </div>
-      </div>
+    <header className={styles.clientsHeaderContainer}>
+      <h1 className={styles.journalTitle}>КЛИЕНТЫ</h1>
+      <span className={styles.headerDivider} aria-hidden="true" />
 
-      {/* Центр: встроенный поиск */}
-      {showSearch && (
-        <div className="toolbar-search-inline">
-          <FaSearch className="search-icon" />
+      {/* Поиск */}
+      <div className={styles.searchContainer} role="search">
+        <div className={styles.mainSearchBar}>
+          <span className={styles.searchIcon} aria-hidden="true"><FaSearch /></span>
           <input
             ref={inputRef}
-            className="search-input"
             type="text"
+            className={styles.mainSearchInput}
             placeholder="Поиск по всем полям…"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleApply()}
+            aria-label="Поиск"
           />
+          <div className={styles.statPill} title={`Итого клиентов: ${total ?? 0}`}>
+            <span className={styles.statPillLabel}>Итого клиентов </span>
+            <span className={styles.statPillValue}>{total ?? 0}</span>
+          </div>
+          <button
+            type="button"
+            className={`${styles.filterToggle} ${showAdvanced ? styles.isOpen : ""}`}
+            aria-expanded={showAdvanced}
+            aria-label={showAdvanced ? "Скрыть фильтры" : "Показать фильтры"}
+            onClick={() => setShowAdvanced(v => !v)}
+            title="Фильтры"
+          >
+            <FaFilter />
+            {hasActive && <span className={styles.filterBadge} aria-hidden="true" />}
+          </button>
         </div>
-      )}
 
-      {/* Правая группа */}
-      <div className="clients-toolbar-right">
-        <span className="total-text">
-          Итого клиентов: <b>{total}</b>
-        </span>
-        {/* <FaEllipsisH className="more-btn" title="Дополнительно" />
-        <button className="configure-btn" onClick={() => {}}>
-          Настроить
-        </button> */}
-        <button className="add-client-btn" onClick={onAdd}>
-          + Добавить клиента
-        </button>
+        {/* Панель фильтров — СНИЗУ, поверх таблицы */}
+        <div className={`${styles.filtersPanel} ${!showAdvanced ? styles.hidden : ""}`}>
+          <div className={styles.advancedSearchFields}>
+            <div className={styles.searchFieldGroup}>
+              <label>Валюта</label>
+              <select value={filters.currency} onChange={handleChange("currency")}>
+                <option value="">Все валюты</option>
+                {currencyOptions.map(cur => <option key={cur} value={cur}>{cur}</option>)}
+              </select>
+              {filters.currency && (
+                <span
+                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
+                  onClick={() => setFilters(f => ({ ...f, currency: "" }))}
+                  title="Очистить"
+                >×</span>
+              )}
+            </div>
+
+            <div className={styles.searchFieldGroup}>
+              <label>Статус</label>
+              <select value={filters.status} onChange={handleChange("status")}>
+                <option value="">Все статусы</option>
+                {statusOptions.map(st => <option key={st} value={st}>{st}</option>)}
+              </select>
+              {filters.status && (
+                <span
+                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
+                  onClick={() => setFilters(f => ({ ...f, status: "" }))}
+                  title="Очистить"
+                >×</span>
+              )}
+            </div>
+
+            <div className={styles.searchFieldGroup}>
+              <label>Теги</label>
+              <MultiTagSelect
+                options={tagOptions}
+                value={filters.tags}
+                onChange={handleChange("tags")}
+                placeholder="Выберите теги"
+              />
+              {!!filters.tags.length && (
+                <span
+                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
+                  onClick={() => setFilters(f => ({ ...f, tags: [] }))}
+                  title="Очистить"
+                >×</span>
+              )}
+            </div>
+
+            <div className={styles.searchFieldGroup}>
+              <label>Источник</label>
+              <select value={filters.source} onChange={handleChange("source")}>
+                <option value="">Все источники</option>
+                {sourceOptions.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {filters.source && (
+                <span
+                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
+                  onClick={() => setFilters(f => ({ ...f, source: "" }))}
+                  title="Очистить"
+                >×</span>
+              )}
+            </div>
+
+            <div className={styles.searchFieldGroup}>
+              <label>Страна</label>
+              <select value={filters.country} onChange={handleChange("country")}>
+                <option value="">Все страны</option>
+                {countryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {filters.country && (
+                <span
+                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
+                  onClick={() => setFilters(f => ({ ...f, country: "" }))}
+                  title="Очистить"
+                >×</span>
+              )}
+            </div>
+
+            <div className={styles.searchFieldGroup}>
+              <label>Есть доля?</label>
+              <select value={filters.share} onChange={handleChange("share")}>
+                <option value="">Любое</option>
+                <option value="yes">Да</option>
+                <option value="no">Нет</option>
+              </select>
+              {filters.share && (
+                <span
+                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
+                  onClick={() => setFilters(f => ({ ...f, share: "" }))}
+                  title="Очистить"
+                >×</span>
+              )}
+            </div>
+
+            <div className={`${styles.searchFieldGroup} ${styles.dateRangeGroup}`}>
+              <label>Дата последнего заказа</label>
+              <div className={styles.dateFilterInline}>
+                <span>с</span>
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+                />
+                <span>по</span>
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+                />
+                {(filters.dateFrom || filters.dateTo) && (
+                  <span
+                    className={styles.fieldClear}
+                    onClick={() => setFilters(f => ({ ...f, dateFrom: "", dateTo: "" }))}
+                    title="Очистить"
+                  >×</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.searchButtons}>
+            <button className={styles.resetButton} type="button" onClick={handleReset}>Сбросить</button>
+            <button className={styles.searchButton} type="button" onClick={handleApply}>Поиск</button>
+          </div>
+        </div>
       </div>
 
-      {/* Плавающая панель фильтров */}
-      {showFilters && (
-        <div className="toolbar-filters">
-          <div className="filters-title">Фильтры</div>
-
-          <select value={filters.currency} onChange={handleChange('currency')}>
-            <option value="">Все валюты</option>
-            {currencyOptions.map(cur => <option key={cur} value={cur}>{cur}</option>)}
-          </select>
-
-          <select value={filters.status} onChange={handleChange('status')}>
-            <option value="">Все статусы</option>
-            {statusOptions.map(st => <option key={st} value={st}>{st}</option>)}
-          </select>
-
-          <select multiple value={filters.tags} onChange={handleChange('tags')}>
-            {tagOptions.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-
-          <select value={filters.source} onChange={handleChange('source')}>
-            <option value="">Все источники</option>
-            {sourceOptions.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-
-          <select value={filters.country} onChange={handleChange('country')}>
-            <option value="">Все страны</option>
-            {countryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-
-          <div className="switch-row">
-            <label>Есть доля?</label>
-            <select value={filters.share} onChange={handleChange('share')}>
-              <option value="">Любое</option>
-              <option value="yes">Да</option>
-              <option value="no">Нет</option>
-            </select>
-          </div>
-
-          <div className="date-filter-inline">
-            <label>Дата последнего заказа:</label>
-            <span>с</span>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={handleChange('dateFrom')}
-            />
-            <span>по</span>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={handleChange('dateTo')}
-            />
-          </div>
-
-          <div className="filter-buttons">
-            <button onClick={handleReset}>Сбросить</button>
-            <button onClick={handleApply}>Применить</button>
-          </div>
-        </div>
-      )}
+      <span className={styles.headerDivider} aria-hidden="true" />
+      <button type="button" className={styles.addEntryButton} onClick={onAdd}>
+        ➕ Добавить клиента
+      </button>
     </header>
   );
 }

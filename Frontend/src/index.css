@@ -25,22 +25,22 @@ body {
 [data-theme="dark"] {
 /* Темная тема */
 	--page-bg: ;
-	--bg-color: #0F2231;
-	--bg-menu-color: #07131D;
-	--text-color: #F6F8FF;
-	--text-hover-color: ;
-	--container-bg: #153043;
-	--container-text-color: #F6F8FF;
-	--container-hover-bg: #629CFF;
-	--container-hover-text-color: #7e8aa4;
-	--border--color: #596683;
-	--chips-color: #7F8BA4;
-	--button-bg: #19374D;
-	--button-text: #19213A;
-	--input-bg: #34495E;
-	--input-border: #4A5568;
-	--input-border-focus: #339DC7;
-	--opacity-container: rgba(25, 33, 58, 0.7);
+    --bg-color: #121524;
+    --bg-menu-color: #05071c;
+    --text-color: #F6F8FF;
+    --text-hover-color: ;
+    --container-bg: #22273b;
+    --container-text-color: #F6F8FF;
+    --container-hover-bg: #629CFF;
+    --container-hover-text-color: #7e8aa4;
+    --border--color: #121624;
+    --chips-color: #7F8BA4;
+    --button-bg: #2f364f;
+    --button-text: #19213A;
+    --input-bg: #242b45;
+    --input-border: #4A5568;
+    --input-border-focus: #339DC7;
+    --opacity-container: rgba(25, 33, 58, .7);
 }
 
 html, body, div, span, applet, object, iframe,

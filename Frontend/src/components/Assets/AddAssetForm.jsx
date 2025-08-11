@@ -5,16 +5,28 @@ const generateId = () => {
     return 'asset_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
 
-const AddAssetForm = ({ onAdd, onClose }) => {
+const designNameMap = {
+    'Монобанк': 'monobank-black',
+    'ПриватБанк': 'privatbank-green',
+    'Сбербанк': 'sberbank-light-green',
+    'Bybit': 'bybit-white',
+    'Рубин': 'ruby',
+    'Сапфир': 'saphire',
+    'Атлас': 'atlas',
+    '3Д': '3d',
+    'Красный': 'red',
+};
+
+const AddAssetForm = ({ onAdd, onClose, fields }) => {
     const [activeTab, setActiveTab] = useState('general');
 
     const [formData, setFormData] = useState({
         accountName: '',
-        currency: 'UAH',
+        currency: fields?.currency?.[0] || '',
         limitTurnover: '',
-        type: 'Наличные',
-        paymentSystem: '',
-        design: 'default',
+        type: fields?.type?.[0] || '',
+        paymentSystem: fields?.paymentSystem?.[0] || '',
+        design: designNameMap[fields?.cardDesigns?.[0]?.name] || '', // ИЗМЕНЕНИЕ ЗДЕСЬ
         employee: '',
         requisites: [{ label: '', value: '' }],
     });
@@ -138,7 +150,6 @@ const AddAssetForm = ({ onAdd, onClose }) => {
                 <form onSubmit={handleSubmit} className="add-asset-form">
                     {activeTab === 'general' && (
                         <div className="tab-content">
-
                             <div className="form-row">
                                 <label htmlFor="accountName" className="form-label">Наименование счета</label>
                                 <input
@@ -163,10 +174,10 @@ const AddAssetForm = ({ onAdd, onClose }) => {
                                     required
                                     className="form-input"
                                 >
-                                    <option value="UAH">UAH</option>
-                                    <option value="RUB">RUB</option>
-                                    <option value="USD">USD</option>
-                                    <option value="USDT">USDT</option>
+                                    <option value="" disabled>Выберите валюту</option>
+                                    {fields?.currency?.map((item, index) => (
+                                        <option key={index} value={item}>{item}</option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -193,9 +204,10 @@ const AddAssetForm = ({ onAdd, onClose }) => {
                                     required
                                     className="form-input"
                                 >
-                                    <option value="Наличные">Наличные</option>
-                                    <option value="Безналичные">Безналичные</option>
-                                    <option value="Криптовалюта">Криптовалюта</option>
+                                    <option value="" disabled>Выберите тип</option>
+                                    {fields?.type?.map((item, index) => (
+                                        <option key={index} value={item}>{item}</option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -209,9 +221,9 @@ const AddAssetForm = ({ onAdd, onClose }) => {
                                     className="form-input"
                                 >
                                     <option value="">Не выбрано</option>
-                                    <option value="Visa">Visa</option>
-                                    <option value="Mastercard">Mastercard</option>
-                                    <option value="Мир">Мир</option>
+                                    {fields?.paymentSystem?.map((item, index) => (
+                                        <option key={index} value={item}>{item}</option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -224,15 +236,12 @@ const AddAssetForm = ({ onAdd, onClose }) => {
                                     onChange={handleChange}
                                     className="form-input"
                                 >
-                                    <option value="monobank-black">Monobank</option>
-                                    <option value="privatbank-green">ПриватБанк</option>
-                                    <option value="sberbank-light-green">Сбербанк</option>
-                                    <option value="bybit-white">Bybit</option>
-                                    <option value="atlas">Атлас</option>
-                                    <option value="saphire">Сапфир</option>
-                                    <option value="red">Красный</option>
-                                    <option value="ruby">Рубин</option>
-                                    <option value="3d">3Д</option>
+                                    <option value="">Не выбрано</option>
+                                    {fields?.cardDesigns?.map((design, index) => (
+                                        <option key={index} value={designNameMap[design.name]}> {/* ИЗМЕНЕНИЕ ЗДЕСЬ */}
+                                            {design.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 

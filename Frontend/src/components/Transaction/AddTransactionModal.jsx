@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
 
-const AddTransactionModal = ({ onAdd, onClose }) => {
+
+const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
     const getCurrentDateTime = () => {
         const now = new Date();
         const year = now.getFullYear();
@@ -18,7 +19,7 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
 
     const [formData, setFormData] = useState({
         date: getCurrentDateTime(),
-        category: "",
+        category: financeFields?.articles?.[0]?.articleValue || "",
         subcategory: "",
         description: "",
         account: "",
@@ -43,11 +44,10 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
         id: generateId("TRX_"),
     });
 
+    
     const [currentRates, setCurrentRates] = useState(null);
     const [showCommissionField, setShowCommissionField] = useState(false);
     const [showOrderBlock, setShowOrderBlock] = useState(false);
-    
-    
     const [destinationAccounts, setDestinationAccounts] = useState([{
         id: generateId("DEST_"),
         account: "",
@@ -55,8 +55,21 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
         amount: "",
         commission: "",
     }]);
-
     const [showDestinationAccountsBlock, setShowDestinationAccountsBlock] = useState(false);
+
+
+    
+    const availableSubcategories = useMemo(() => {
+        if (!formData.category || !financeFields?.subarticles) {
+            return [];
+        }
+        return financeFields.subarticles.filter(
+            (sub) => sub.subarticleInterval === formData.category
+        );
+    }, [formData.category, financeFields]);
+
+
+    
 
     useEffect(() => {
         try {
@@ -72,26 +85,7 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
         }
     }, []);
 
-    
-    const categories = ["Продажи", "Расходы", "Зарплата", "Инвестиции", "Доходы", "Налоги", "Смена счета"];
-    const subcategories = {
-        "Продажи": ["Онлайн-продажи", "Оффлайн-продажи"],
-        "Расходы": ["Закупка материалов", "Оплата услуг"],
-        "Зарплата": ["Выдача ЗП", "Аванс"],
-        "Инвестиции": ["Покупка криптовалюты", "Покупка акций"],
-        "Доходы": ["Возврат средств", "Кэшбэк"],
-        "Налоги": ["Уплата ЕСВ", "Единый налог"],
-        "Смена счета": ["Внутренний перевод"],
-    };
-    const accounts = [
-        { name: "ПриватБанк - Ключ к счету", currency: "UAH" },
-        { name: "Монобанк - Черная (V) (0574)", currency: "UAH" },
-        { name: "Binance - Спотовый", currency: "USDT" },
-        { name: "Ощадбанк - Текущий", currency: "UAH" },
-        { name: "Наличные - Офис", currency: "UAH" },
-        { name: "Revolut - USD", currency: "USD" },
-        { name: "Тинькофф - RUB", currency: "RUB" },
-    ];
+
     const counterparties = ["Иванов И.И.", "ООО 'Поставщик'", "Петров П.П.", "Binance Exchange", "ООО 'Клиент'", "Государственная Налоговая Служба"];
     const counterpartyRequisitesMap = {
         "Иванов И.И.": { UAH: "UA987654321098765432109876543", USD: "US987654321098765432109876543" },
@@ -102,7 +96,7 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
         "Государственная Налоговая Служба": { UAH: "UA456789012345678901234567890" },
     };
 
-    
+
     const activeOrders = [
         { id: "ORD001", number: "P-54321", currency: "UAH", amount: 1200 },
         { id: "ORD002", number: "S-98765", currency: "USD", amount: 50 },
@@ -135,66 +129,6 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
         return (amount * rate).toFixed(2);
     };
 
-    useEffect(() => {
-        const amount = parseFloat(formData.amount);
-        const currency = formData.accountCurrency;
-
-        if (amount && currentRates && currency) {
-            setFormData(prevData => ({
-                ...prevData,
-                sumUAH: convertCurrency(amount, currency, "UAH"),
-                sumUSD: convertCurrency(amount, currency, "USD"),
-                sumRUB: convertCurrency(amount, currency, "RUB"),
-            }));
-        } else {
-            setFormData(prevData => ({
-                ...prevData,
-                sumUAH: "",
-                sumUSD: "",
-                sumRUB: "",
-            }));
-        }
-    }, [formData.amount, formData.accountCurrency, currentRates]);
-
-    useEffect(() => {
-        if (formData.orderNumber) {
-            const selectedOrder = activeOrders.find(order => order.number === formData.orderNumber);
-            if (selectedOrder) {
-                setFormData(prevData => ({
-                    ...prevData,
-                    orderId: selectedOrder.id,
-                    orderCurrency: selectedOrder.currency,
-                    sumByRatesOrderAmountCurrency: selectedOrder.amount.toFixed(2),
-                    sumByRatesUAH: convertCurrency(selectedOrder.amount, selectedOrder.currency, "UAH"),
-                    sumByRatesUSD: convertCurrency(selectedOrder.amount, selectedOrder.currency, "USD"),
-                    sumByRatesRUB: convertCurrency(selectedOrder.amount, selectedOrder.currency, "RUB"),
-                }));
-            } else {
-                setFormData(prevData => ({
-                    ...prevData,
-                    orderId: generateId("ORD_"),
-                    orderCurrency: "",
-                    sumByRatesOrderAmountCurrency: "",
-                    sumByRatesUAH: "",
-                    sumByRatesUSD: "",
-                    sumByRatesRUB: "",
-                }));
-            }
-            setShowOrderBlock(true);
-        } else {
-            setShowOrderBlock(false);
-            setFormData(prevData => ({
-                ...prevData,
-                orderId: "",
-                orderCurrency: "",
-                sumByRatesOrderAmountCurrency: "",
-                sumByRatesUAH: "",
-                sumByRatesUSD: "",
-                sumByRatesRUB: "",
-            }));
-        }
-    }, [formData.orderNumber, currentRates, activeOrders]);
-
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         let newValue = type === "checkbox" ? checked : value;
@@ -204,17 +138,24 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
             newFormData.subcategory = "";
             if (value === "Смена счета") {
                 setShowDestinationAccountsBlock(true);
-                newFormData.operation = "Зачисление";
+                newFormData.operation = "Списание";
+                setDestinationAccounts([{
+                    id: generateId("DEST_"),
+                    account: "",
+                    accountCurrency: "UAH",
+                    amount: "",
+                    commission: "",
+                }]);
             } else {
                 setShowDestinationAccountsBlock(false);
             }
         }
 
         if (name === "account") {
-            const selectedAccount = accounts.find(acc => acc.name === newValue);
-            newFormData.accountCurrency = selectedAccount ? selectedAccount.currency : "";
+            const selectedAccount = assets.find(acc => acc.id === newValue);
+            newFormData.accountCurrency = selectedAccount ? selectedAccount.currency : "UAH";
         }
-
+        
         if (name === "counterparty") {
             const selectedRequisites = counterpartyRequisitesMap[newValue];
             newFormData.counterpartyRequisites = selectedRequisites ? selectedRequisites[newFormData.accountCurrency] || Object.values(selectedRequisites)[0] || "" : "";
@@ -226,19 +167,62 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
             setShowCommissionField(currentCategory === "Смена счета" && currentAmount > 0);
         }
 
+        if (name === "amount" || name === "account") {
+            const currentAmount = parseFloat(name === "amount" ? newValue : newFormData.amount);
+            const currentCurrency = name === "account" ? (assets.find(acc => acc.id === newValue)?.currency || "UAH") : newFormData.accountCurrency;
+            if (currentAmount && currentRates && currentCurrency) {
+                newFormData.sumUAH = convertCurrency(currentAmount, currentCurrency, "UAH");
+                newFormData.sumUSD = convertCurrency(currentAmount, currentCurrency, "USD");
+                newFormData.sumRUB = convertCurrency(currentAmount, currentCurrency, "RUB");
+            } else {
+                newFormData.sumUAH = "";
+                newFormData.sumUSD = "";
+                newFormData.sumRUB = "";
+            }
+        }
+        
+        if (name === "orderNumber") {
+            if (newValue) {
+                const selectedOrder = activeOrders.find(order => order.number === newValue);
+                if (selectedOrder) {
+                    newFormData = {
+                        ...newFormData,
+                        orderId: selectedOrder.id,
+                        orderCurrency: selectedOrder.currency,
+                        sumByRatesOrderAmountCurrency: selectedOrder.amount.toFixed(2),
+                        sumByRatesUAH: convertCurrency(selectedOrder.amount, selectedOrder.currency, "UAH"),
+                        sumByRatesUSD: convertCurrency(selectedOrder.amount, selectedOrder.currency, "USD"),
+                        sumByRatesRUB: convertCurrency(selectedOrder.amount, selectedOrder.currency, "RUB"),
+                    };
+                }
+                setShowOrderBlock(true);
+            } else {
+                setShowOrderBlock(false);
+                newFormData = {
+                    ...newFormData,
+                    orderId: "",
+                    orderCurrency: "",
+                    sumByRatesOrderAmountCurrency: "",
+                    sumByRatesUAH: "",
+                    sumByRatesUSD: "",
+                    sumByRatesRUB: "",
+                };
+            }
+        }
+
         setFormData(newFormData);
     };
 
-    
+
     const handleDestinationAccountChange = (e, id) => {
         const { name, value } = e.target;
-        setDestinationAccounts(prevAccounts => 
+        setDestinationAccounts(prevAccounts =>
             prevAccounts.map(account => {
                 if (account.id === id) {
                     const newAccountData = { ...account, [name]: value };
                     if (name === "account") {
-                        const selectedAccount = accounts.find(acc => acc.name === value);
-                        newAccountData.accountCurrency = selectedAccount ? selectedAccount.currency : "";
+                        const selectedAccount = assets.find(acc => acc.id === value);
+                        newAccountData.accountCurrency = selectedAccount ? selectedAccount.currency : "UAH";
                     }
                     return newAccountData;
                 }
@@ -247,7 +231,7 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
         );
     };
 
-    
+
     const addDestinationAccount = () => {
         if (destinationAccounts.length < 3) {
             setDestinationAccounts(prevAccounts => [
@@ -256,8 +240,8 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
             ]);
         }
     };
-    
-    
+
+
     const removeDestinationAccount = (id) => {
         setDestinationAccounts(prevAccounts => prevAccounts.filter(account => account.id !== id));
     };
@@ -267,12 +251,9 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
 
         if (formData.category === "Смена счета") {
             const transactions = [];
-
-            
             const totalAmountToTransfer = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount || 0), 0);
             const totalCommission = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.commission || 0), 0);
             const totalWithdrawal = totalAmountToTransfer + totalCommission;
-            
             
             const transaction1 = {
                 ...formData,
@@ -281,15 +262,13 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                 operation: "Списание",
                 amount: totalWithdrawal,
                 commission: totalCommission,
-                description: `Перевод на счета: ${destinationAccounts.map(acc => acc.account).join(', ')}`,
-                
+                description: `Перевод на счета: ${destinationAccounts.map(acc => assets.find(a => a.id === acc.account)?.accountName).join(', ')}`,
             };
             transactions.push(transaction1);
-
             
             destinationAccounts.forEach(destAcc => {
                 const transaction2 = {
-                    ...formData, 
+                    ...formData,
                     id: generateId("TRX_"),
                     date: formData.date.replace("T", " "),
                     account: destAcc.account,
@@ -297,7 +276,7 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                     operation: "Зачисление",
                     amount: parseFloat(destAcc.amount || 0),
                     commission: parseFloat(destAcc.commission || 0),
-                    description: `Перевод со счета ${formData.account}`,
+                    description: `Перевод со счета ${assets.find(a => a.id === formData.account)?.accountName}`,
                     sentToCounterparty: false,
                     sendLion: false,
                 };
@@ -333,32 +312,30 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                 <div className="add-transaction-header">
                     <h2>Добавить транзакцию</h2>
                     <div className="add-transaction-actions">
-                        <span className="icon" onClick={onClose}>
-                            ✖️
-                        </span>
+                        <span className="icon" onClick={onClose}>✖️</span>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="add-transaction-form">
+                   
                     <div className="form-row">
-                        <label htmlFor="date" className="form-label">
-                            Дата и время операции
-                        </label>
-                        <input
-                            type="datetime-local"
-                            id="date"
-                            name="date"
-                            value={formData.date}
-                            onChange={handleChange}
-                            required
-                            className="form-input"
-                        />
-                    </div>
+                         <label htmlFor="date" className="form-label">
+                             Дата и время операции
+                         </label>
+                         <input
+                             type="datetime-local"
+                             id="date"
+                             name="date"
+                             value={formData.date}
+                             onChange={handleChange}
+                             required
+                             className="form-input"
+                         />
+                     </div>
 
+                    
                     <div className="form-row">
-                        <label htmlFor="category" className="form-label">
-                            Статья
-                        </label>
+                        <label htmlFor="category" className="form-label">Статья</label>
                         <select
                             id="category"
                             name="category"
@@ -367,20 +344,22 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                             required
                             className="form-input"
                         >
-                            <option value="">Выберите статью</option>
-                            {categories.map((cat) => (
-                                <option key={cat} value={cat}>
-                                    {cat}
+                            <option value="" disabled>Выберите статью</option>
+                            {financeFields?.articles?.map((article, index) => (
+                                <option key={index} value={article.articleValue}>
+                                    {article.articleValue}
                                 </option>
                             ))}
+                            {!financeFields?.articles?.some(a => a.articleValue === "Смена счета") && (
+                                <option value="Смена счета">Смена счета</option>
+                            )}
                         </select>
                     </div>
 
-                    {formData.category && subcategories[formData.category] && (
+                    
+                    {availableSubcategories.length > 0 && (
                         <div className="form-row">
-                            <label htmlFor="subcategory" className="form-label">
-                                Подстатья
-                            </label>
+                            <label htmlFor="subcategory" className="form-label">Подстатья</label>
                             <select
                                 id="subcategory"
                                 name="subcategory"
@@ -390,15 +369,16 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                                 className="form-input"
                             >
                                 <option value="">Выберите подстатью</option>
-                                {subcategories[formData.category].map((subcat) => (
-                                    <option key={subcat} value={subcat}>
-                                        {subcat}
+                                {availableSubcategories.map((sub, index) => (
+                                    <option key={index} value={sub.subarticleValue}>
+                                        {sub.subarticleValue}
                                     </option>
                                 ))}
                             </select>
                         </div>
                     )}
 
+                    
                     <div className="form-row">
                         <label htmlFor="description" className="form-label">
                             Описание
@@ -428,11 +408,15 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                             className="form-input"
                         >
                             <option value="">Выберите счет</option>
-                            {accounts.map((acc) => (
-                                <option key={acc.name} value={acc.name}>
-                                    {acc.name}
-                                </option>
-                            ))}
+                            {assets && assets.length > 0 ? (
+                                assets.map((acc) => (
+                                    <option key={acc.id} value={acc.id}>
+                                        {acc.accountName}
+                                    </option>
+                                ))
+                            ) : (
+                                <option disabled>Нет доступных счетов</option>
+                            )}
                         </select>
                     </div>
 
@@ -453,7 +437,6 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                             <option value="Списание">Списание</option>
                         </select>
                     </div>
-
                     
                     {!showDestinationAccountsBlock && (
                         <>
@@ -491,7 +474,6 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                         </>
                     )}
                     
-                    
                     {formData.amount && (
                         <div className="currency-recalculation-block">
                             <div className="form-row">
@@ -513,7 +495,6 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                         </div>
                     )}
                     
-                    
                     {showDestinationAccountsBlock && (
                         <>
                             {destinationAccounts.map((destAcc, index) => (
@@ -532,11 +513,15 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                                                 className="form-input"
                                             >
                                                 <option value="">Выберите счет зачисления</option>
-                                                {accounts.map((acc) => (
-                                                    <option key={`dest-acc-${destAcc.id}-${acc.name}`} value={acc.name}>
-                                                        {acc.name}
-                                                    </option>
-                                                ))}
+                                                {assets && assets.length > 0 ? (
+                                                    assets.map((acc) => (
+                                                        <option key={`dest-acc-${destAcc.id}-${acc.id}`} value={acc.id}>
+                                                            {acc.accountName}
+                                                        </option>
+                                                    ))
+                                                ) : (
+                                                    <option disabled>Нет доступных счетов</option>
+                                                )}
                                             </select>
                                             {index === 0 && destinationAccounts.length < 3 && (
                                                 <button type="button" onClick={addDestinationAccount} className="action-button add-button">+</button>
@@ -695,12 +680,8 @@ const AddTransactionModal = ({ onAdd, onClose }) => {
                     </div>
 
                     <div className="form-actions">
-                        <button type="button" className="cancel-button" onClick={onClose}>
-                            Отменить
-                        </button>
-                        <button type="submit" className="save-button">
-                            Сохранить
-                        </button>
+                        <button type="button" className="cancel-button" onClick={onClose}>Отменить</button>
+                        <button type="submit" className="save-button">Сохранить</button>
                     </div>
                 </form>
             </div>

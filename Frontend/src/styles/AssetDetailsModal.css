@@ -75,7 +75,7 @@
     color: var(--text-color);
 }
 
-.modal-body {
+.modal-body1 {
     padding: 0;
     flex-grow: 1;
     overflow-y: auto;
@@ -95,7 +95,7 @@
     border-bottom: 1px solid var(--border--color);
 }
 
-.modal-body > .modal-section:first-child h3 {
+.modal-body1 > .modal-section:first-child h3 {
     margin-top: 0;
 }
 
@@ -560,7 +560,7 @@
 }
 
 
-/* Drag and Drop Styles */
+
 .main-requisite-item.editable,
 .other-requisite-item.editable {
     cursor: grab;

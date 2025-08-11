@@ -1,11 +1,9 @@
 .currency-rates-page {
   display: flex;
-  background-color: var(--bg-color);
 }
 
 
 .currency-rates-main-container {
-  margin-left: 70px; 
   background-color: var(--bg-color); 
   color: var(--text-color); 
 }

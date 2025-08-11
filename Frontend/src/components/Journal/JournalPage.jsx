@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../Sidebar";
-import "../../styles/JournalPage.css"; 
-import LogEntryDetails from "./LogEntryDetail"; 
-import AddLogEntryForm from "./AddLogEntryForm"; 
+import "../../styles/JournalPage.css";
+import LogEntryDetails from "./LogEntryDetail";
+import AddLogEntryForm from "./AddLogEntryForm";
 
 const JournalPage = () => {
     const orderStatuses = [
@@ -24,7 +24,6 @@ const JournalPage = () => {
         "Удаленные"
     ];
 
-    
     const statusToEmojiMap = {
         "Лид": "🎯",
         "Изучаем ТЗ": "📄",
@@ -56,7 +55,7 @@ const JournalPage = () => {
             hours: "5:51:00",
             workDone: "Доделан блок с нами работают, сделан адаптив этого блока. Добавил новую категорию и блок на странице портфолио, исправлен вид текста в новом блоке в адаптивe. Выгрузил блок с нами работают на основную страницу и перевел заголовок.",
             email: "alexanderlisyak@gmail.com",
-            status: "Ведется разработка" 
+            status: "Ведется разработка"
         },
         {
             id: 2,
@@ -69,7 +68,7 @@ const JournalPage = () => {
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
             email: "alexanderlisyak@gmail.com",
-            status: "Ожидаем предоплату" 
+            status: "Ожидаем предоплату"
         },
         {
             id: 3,
@@ -82,7 +81,7 @@ const JournalPage = () => {
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
             email: "alexanderlisyak@gmail.com",
-            status: "Клиент думает" 
+            status: "Клиент думает"
         },
         {
             id: 4,
@@ -95,7 +94,7 @@ const JournalPage = () => {
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
             email: "alexanderlisyak@gmail.com",
-            status: "Успешно завершен" 
+            status: "Успешно завершен"
         },
         {
             id: 5,
@@ -108,7 +107,7 @@ const JournalPage = () => {
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
             email: "alexanderlisyak@gmail.com",
-            status: "Лид" 
+            status: "Лид"
         },
         {
             id: 6,
@@ -121,17 +120,15 @@ const JournalPage = () => {
             hours: "0:00:00",
             workDone: "Отчет за Июль 2025. Https://...",
             email: "alexanderlisyak@gmail.com",
-            status: "Изучаем ТЗ" 
+            status: "Изучаем ТЗ"
         },
     ];
 
-    
     const [allLogEntries, setAllLogEntries] = useState(() => {
         const savedLogEntries = localStorage.getItem('journalEntries');
         return savedLogEntries ? JSON.parse(savedLogEntries) : initialLogEntries;
     });
 
-   
     const [displayedLogEntries, setDisplayedLogEntries] = useState(allLogEntries);
 
     const [selectedEntry, setSelectedEntry] = useState(null);
@@ -142,13 +139,11 @@ const JournalPage = () => {
     const [searchWorkDone, setSearchWorkDone] = useState("");
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
 
-    
     useEffect(() => {
         localStorage.setItem('journalEntries', JSON.stringify(allLogEntries));
-        applyFilters(); 
+        applyFilters();
     }, [allLogEntries]);
 
-    
     useEffect(() => {
         applyFilters();
     }, [searchOrderNumber, searchWorkDate, searchWorkDone]);
@@ -192,6 +187,15 @@ const JournalPage = () => {
         setShowAddForm(false);
     };
 
+    const handleUpdateLogEntry = (updatedEntry) => {
+        setAllLogEntries(prevEntries =>
+            prevEntries.map(entry =>
+                entry.id === updatedEntry.id ? updatedEntry : entry
+            )
+        );
+        setSelectedEntry(null);
+    };
+
     const handleDeleteLogEntry = (idToDelete) => {
         setAllLogEntries(prevEntries => prevEntries.filter(entry => entry.id !== idToDelete));
     };
@@ -214,7 +218,7 @@ const JournalPage = () => {
                     <h1 className="journal-title">Журнал</h1>
                     <div className="add-entry-button-wrapper">
                         <button className="add-entry-button" onClick={() => setShowAddForm(true)}>
-                            ➕ Добавить запись
+                            Добавить запись
                         </button>
                     </div>
                     <div className="search-container">
@@ -226,7 +230,6 @@ const JournalPage = () => {
                                 className="main-search-input"
                                 value={`${searchOrderNumber} ${searchWorkDate} ${searchWorkDone}`.trim()}
                                 onChange={(e) => {
-                                    
                                 }}
                                 onFocus={() => setShowAdvancedSearch(true)}
                             />
@@ -322,7 +325,8 @@ const JournalPage = () => {
                     onClose={handleCloseDetails}
                     onDelete={handleDeleteLogEntry}
                     onDuplicate={handleDuplicateLogEntry}
-                    orderStatuses={orderStatuses} 
+                    onUpdate={handleUpdateLogEntry}
+                    orderStatuses={orderStatuses}
                 />
             )}
 
@@ -330,7 +334,7 @@ const JournalPage = () => {
                 <AddLogEntryForm
                     onAdd={handleAddLogEntry}
                     onClose={() => setShowAddForm(false)}
-                    orderStatuses={orderStatuses} 
+                    orderStatuses={orderStatuses}
                 />
             )}
         </div>

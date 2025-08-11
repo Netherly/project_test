@@ -16,6 +16,31 @@
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
+.card-size-medium .asset-card-wrapper {
+    min-width: 19rem;
+}
+
+.card-size-medium .card-number-back{
+  font-size: 1em;
+}
+
+.card-size-small .asset-card-wrapper {
+    min-width: 17rem;
+}
+
+.card-size-small .card-top-left-name{
+  width: 100px;
+}
+
+.card-size-small .card-balance-value{
+  font-size: 22px;
+}
+
+.card-size-small .card-number-back{
+  font-size: 0.8em;
+}
+
+
 .asset-card-inner {
   position: relative;
   width: 100%;

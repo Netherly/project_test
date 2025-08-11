@@ -181,7 +181,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
                         </div>
                     </div>
                 </div>
-                <div className="modal-body custom-scrollbar">
+                <div className="modal-body1 custom-scrollbar">
                     <div className="modal-section">
                         <h3>Баланс</h3>
                         <div className="balance-grid-header">

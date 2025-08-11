@@ -2,6 +2,7 @@
     display: flex;
     min-height: 100vh;
     color: var(--text-color);
+    background-color: var(--bg-color);
 }
 
 .assets-page-main-container {
@@ -329,4 +330,25 @@
     display: flex;
     flex-direction: row;
     gap: 10px;
+}
+
+.card-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 20px 20px;
+}
+
+.card-size-button {
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+
+.card-size-button.active {
+    background-color: #007bff;
+    color: #fff;
 }
