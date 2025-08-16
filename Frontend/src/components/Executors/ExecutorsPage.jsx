@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../Sidebar";
 import AddExecutorModal from './AddExecutorModal.jsx'; 
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ExecutorCard from './ExecutorCard.jsx';
+import ExecutorEditModal from './ExecutorEditModal.jsx';
 import "../../styles/ExecutorsPage.css";
 
 const ExecutorsPage = () => {
+    const generateId = () => {
+        return 'P' + Math.random().toString(36).substring(2, 9);
+    };
     const defaultPerformers = [
         {
             id: "P001",
@@ -93,10 +98,41 @@ const ExecutorsPage = () => {
         return savedExecutors ? JSON.parse(savedExecutors) : defaultPerformers;
     });
     const [userSettings, setUserSettings] = useState({ currency: '₴' });
+    const [editingOrder, setEditingOrder] = useState(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     
     
     const [viewMode, setViewMode] = useState('card');
+
+    const handleUpdateExecutor = (updatedOrder) => {
+        setExecutors(prevExecutors => 
+            prevExecutors.map(ex => ex.id === updatedOrder.id ? updatedOrder : ex)
+        );
+        setEditingOrder(null); // Закрываем модальное окно
+    };
+
+    const handleDeleteExecutor = (orderId) => {
+        setExecutors(prevExecutors => prevExecutors.filter(ex => ex.id !== orderId));
+        setEditingOrder(null); // Закрываем модальное окно
+    };
+
+    const handleDuplicateExecutor = (orderToDuplicate) => {
+        const newExecutor = {
+            ...orderToDuplicate,
+            id: generateId(), 
+            orderNumber: `${orderToDuplicate.orderNumber}-copy`,
+        };
+        setExecutors(prevExecutors => [...prevExecutors, newExecutor]);
+    };
+
+    const handleOpenEditModal = (order) => {
+        setEditingOrder(order);
+    };
+
+    const handleCloseEditModal = () => {
+        setEditingOrder(null);
+    };
+
     
     useEffect(() => {
         localStorage.setItem("executorsData", JSON.stringify(executors));
@@ -144,9 +180,11 @@ const ExecutorsPage = () => {
             <Sidebar />
             <div className="executors-page-main-container">
                 <header className="executors-header-container">
-                    <h1 className="executors-title">Исполнители</h1>
-                    
-                    
+                    <h1 className="executors-title">
+                    <PageHeaderIcon pageName="Исполнители" />
+                    Исполнители
+                    </h1>
+
                     <div className="view-mode-buttons">
                         <button
                             className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
@@ -197,7 +235,7 @@ const ExecutorsPage = () => {
                                 </thead>
                                 <tbody>
                                     {executors.map((executor) => (
-                                        <tr key={executor.id} className="executor-row">
+                                        <tr key={executor.id} className="executor-row" onClick={() => handleOpenEditModal(executor)}>
                                             <td>{executor.orderNumber}</td>
                                             <td>
                                                 <span title={executor.orderStatus}>{executor.orderStatusEmoji}</span>
@@ -236,6 +274,7 @@ const ExecutorsPage = () => {
                                                 key={order.id}
                                                 order={order}
                                                 userSettings={userSettings}
+                                                onCardClick={handleOpenEditModal}
                                             />
                                         ))}
                                     </div>
@@ -250,6 +289,16 @@ const ExecutorsPage = () => {
                         onAdd={handleAddExecutor} 
                         onClose={() => setIsAddModalOpen(false)} 
                         fields={formFields} 
+                    />
+                )}
+                {editingOrder && (
+                    <ExecutorEditModal 
+                        order={editingOrder}
+                        onUpdate={handleUpdateExecutor}
+                        onDelete={handleDeleteExecutor}
+                        onDuplicate={handleDuplicateExecutor}
+                        onClose={handleCloseEditModal}
+                        fields={formFields}
                     />
                 )}
             </div>

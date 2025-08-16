@@ -83,7 +83,7 @@
     position: fixed;
     top: 0;
     left: 72px;
-    width: 130px;
+    width: 200px;
     height: 100%;
     background-color: var(--bg-menu-color);
     transform: translateX(-100%);
@@ -92,6 +92,15 @@
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     padding-top: 8px;
     
+}
+.submenu-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 10px;
+    height: 100%;
+    background: transparent;
 }
 .submenu-panel.show {
     transform: translateX(0);
@@ -119,8 +128,8 @@
     border-radius: 6%;
 }
 .submenu-icon {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     margin-right: 4px;
     object-fit: contain;
 }

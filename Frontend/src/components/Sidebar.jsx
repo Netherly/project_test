@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import "../styles/Sidebar.css";
 
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
@@ -31,7 +31,7 @@ const MediaIcon = ({ src, alt, className }) =>
       autoPlay
       loop
       muted
-      playsInline
+      playsInlineё
       className={className}
     />
   ) : (
@@ -41,29 +41,6 @@ const MediaIcon = ({ src, alt, className }) =>
 const Sidebar = () => {
   const location = useLocation();
   const [activeMenu, setActiveMenu] = useState(null);
-
-  const toggleMenu = (menuName) =>
-    setActiveMenu((prev) => (prev === menuName ? null : menuName));
-
-  const isActivePath = (path) => location.pathname === path;
-
-  const copyClientId = (clientId) => {
-    navigator.clipboard
-      .writeText(clientId)
-      .then(() => console.log("ID клиента скопировано:", clientId))
-      .catch((err) => console.error("Ошибка копирования:", err));
-  };
-
-  const clientId = "23995951";
-
-  const mainMenuItems = [
-    { name: "Дашборд", path: "/home", exact: "/statistics", iconActive: DashboardWebm, iconInactive: DashboardWebm },
-    { name: "Рабочий стол", menu: "Desktop", iconActive: DesktopWebm, iconInactive: DesktopWebm },
-    { name: "Финансы", menu: "transactions", iconActive: FinanceWebm, iconInactive: FinanceWebm },
-    { name: "Справочник", menu: "directory", iconActive: DirectoryWebm, iconInactive: DirectoryWebm },
-    { name: "Архив", path: "/archive", iconActive: ArchiveWebm, iconInactive: ArchiveWebm },
-    { name: "Настройки", menu: "settings", iconActive: SettingsWebm, iconInactive: SettingsWebm },
-  ];
 
   const submenus = {
     Desktop: [
@@ -80,36 +57,77 @@ const Sidebar = () => {
       { name: "Доступы", path: "/access", icon: EntryWebm },
     ],
     transactions: [
-      { name: "Активы", path: "/assets", icon: AssetsWebm },
-      { name: "Активы(n)", path: "/assets", icon: AssetsNewWebm },
-      { name: "Транзакции", path: "/list", icon: TransactionWebm },
-      { name: "Транзакции(n)", path: "/list", icon: TransactionNewWebm },
+      { name: "Активы", path: "/assets", icon: AssetsNewWebm },
+      { name: "Транзакции", path: "/list", icon: TransactionNewWebm },
     ],
     settings: [
       { name: "Роли/Доступы", path: "/roles-access", icon: RolesWebm },
-      { name: "Настройки полей", path: "/fields", icon: FieldSettingsWebm }, 
+      { name: "Настройки полей", path: "/fields", icon: FieldSettingsWebm },
       { name: "Курс валют", path: "/currency-rates", icon: CurrencyRatesWebm },
     ],
   };
 
-  const renderSubmenu = (key) => (
-    <div className="submenu-panel show">
-      <ul className="submenu">
-        {submenus[key].map(({ name, path, icon }) => (
-          <li key={path}>
-            <NavLink
-              to={path}
-              className={isActivePath(path) ? "active-sub" : ""}
-              onClick={() => setActiveMenu(null)}
-            >
-              {icon && <MediaIcon src={icon} alt={name} className="submenu-icon" />}
-              <span>{name}</span>
-            </NavLink>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  const mainMenuItems = [
+    { name: "Дашборд", path: "/home", exact: "/statistics", iconActive: DashboardWebm, iconInactive: DashboardWebm },
+    { name: "Рабочий стол", menu: "Desktop", iconActive: DesktopWebm, iconInactive: DesktopWebm },
+    { name: "Финансы", menu: "transactions", iconActive: FinanceWebm, iconInactive: FinanceWebm },
+    { name: "Справочник", menu: "directory", iconActive: DirectoryWebm, iconInactive: DirectoryWebm },
+    { name: "Архив", path: "/archive", iconActive: ArchiveWebm, iconInactive: ArchiveWebm },
+    { name: "Настройки", menu: "settings", iconActive: SettingsWebm, iconInactive: SettingsWebm },
+  ];
+
+  const MouseEnter = useCallback((menuName) => {
+    setActiveMenu(menuName);
+  }, []);
+
+  const MouseLeave = useCallback(() => {
+    setActiveMenu(null);
+  }, []);
+
+  const isActivePath = useCallback((path) => location.pathname === path, [location.pathname]);
+
+  const isParentMenuActive = useCallback((menuKey) => {
+    if (!submenus[menuKey]) return false;
+    return submenus[menuKey].some(submenuItem =>
+      location.pathname === submenuItem.path
+    );
+  }, [location.pathname, submenus]);
+
+  const copyClientId = useCallback((clientId) => {
+    navigator.clipboard
+      .writeText(clientId)
+      .then(() => console.log("ID клиента скопировано:", clientId))
+      .catch((err) => console.error("Ошибка копирования:", err));
+  }, []);
+
+  const clientId = "23995951";
+
+  const renderSubmenu = useCallback((key) => {
+    if (!submenus[key]) return null;
+    
+    return (
+      <div
+        key={`submenu-${key}`}
+        className="submenu-panel show"
+        onMouseEnter={() => MouseEnter(key)} 
+        onMouseLeave={MouseLeave} 
+      >
+        <ul className="submenu">
+          {submenus[key].map(({ name, path, icon }) => (
+            <li key={`${key}-${path}`}>
+              <NavLink
+                to={path}
+                onClick={() => setActiveMenu(null)}
+              >
+                {icon && <MediaIcon src={icon} alt={name} className="submenu-icon" />}
+                <span>{name}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }, [submenus, MouseEnter, MouseLeave]);
 
   return (
     <>
@@ -142,13 +160,21 @@ const Sidebar = () => {
             {mainMenuItems.map((item) => {
               const isMenuOpen = activeMenu === item.menu;
               const isExactActive = isActivePath(item.exact || item.path);
+              const isParentActive = item.menu ? isParentMenuActive(item.menu) : false;
+              const isItemActive = isMenuOpen || isExactActive || isParentActive;
+
               const iconSrc =
-                isMenuOpen || isExactActive
+                isItemActive
                   ? item.iconActive || item.iconInactive
                   : item.iconInactive || item.iconActive;
 
               return (
-                <li key={item.name} className={`menu-item ${isMenuOpen ? "active" : ""}`}>
+                <li
+                  key={item.name}
+                  className={`menu-item ${isItemActive ? "active" : ""}`}
+                  onMouseEnter={() => item.menu && MouseEnter(item.menu)}
+                  onMouseLeave={MouseLeave}
+                >
                   {item.path ? (
                     <NavLink
                       to={item.path}
@@ -159,17 +185,10 @@ const Sidebar = () => {
                       <span>{item.name}</span>
                     </NavLink>
                   ) : (
-                    <NavLink
-                      to="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleMenu(item.menu);
-                      }}
-                      className="submenu-toggle"
-                    >
+                    <div className={`submenu-toggle ${isParentActive ? "parent-active" : ""}`}>
                       <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" />
                       <span>{item.name}</span>
-                    </NavLink>
+                    </div>
                   )}
                 </li>
               );

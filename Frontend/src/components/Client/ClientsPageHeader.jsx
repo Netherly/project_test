@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaSearch, FaFilter } from "react-icons/fa";
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import styles from "./ClientsPageHeader.module.css";
 
 /* ===========================
@@ -251,7 +252,10 @@ export default function ClientsPageHeader({
 
   return (
     <header className={styles.clientsHeaderContainer}>
-      <h1 className={styles.journalTitle}>КЛИЕНТЫ</h1>
+      <h1 className={styles.journalTitle}>
+      <PageHeaderIcon pageName="Клиенты" />
+      КЛИЕНТЫ
+      </h1>
       <span className={styles.headerDivider} aria-hidden="true" />
 
       {/* Поиск */}

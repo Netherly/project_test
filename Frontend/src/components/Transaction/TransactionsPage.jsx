@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../Sidebar";
 import AddTransactionModal from "./AddTransactionModal";
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ViewEditTransactionModal from "./ViewEditTransactionModal";
 import "../../styles/TransactionsPage.css";
 
@@ -220,7 +221,10 @@ const TransactionsPage = () => {
             <Sidebar />
             <div className="transactions-page-main-container">
                 <header className="transactions-header-container">
-                    <h1 className="transactions-title">Транзакции</h1>
+                    <h1 className="transactions-title">
+                    <PageHeaderIcon pageName="Транзакции" />
+                    Транзакции
+                    </h1>
                     <div className="add-transaction-wrapper">
                         <button
                             className="add-transaction-button"

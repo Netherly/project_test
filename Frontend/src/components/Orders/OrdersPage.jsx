@@ -4,6 +4,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import Sidebar from "../Sidebar";
 import StageColumn from "./StageColumn";
 import OrderModal from "../modals/OrderModal/OrderModal";
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import useHorizontalDragScroll from "./hooks/useHorizontalDragScroll";
 import "../../styles/OrdersPage.css";
 
@@ -31,6 +32,8 @@ const OrdersPage = () => {
     ]);
 
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [viewMode, setViewMode] = useState('kanban');
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const stagesContainerRef = useRef(null);
     const isDraggingRef = useRef(false);
 
@@ -57,7 +60,6 @@ const OrdersPage = () => {
         );
     };
 
-
     useHorizontalDragScroll(stagesContainerRef, isDraggingRef);
 
     return (
@@ -65,7 +67,29 @@ const OrdersPage = () => {
             <Sidebar />
             <div className="order-page-main-container">
                 <header className="order-header-container">
-                    <button type="button" className="create-order-btn">Создать заказ</button>
+                    <h1 className="order-title">
+                        <PageHeaderIcon pageName="Заказы" />
+                        Заказы
+                    </h1>   
+                    <div className="view-mode-buttons">
+                        <button
+                            className={`view-mode-button ${viewMode === 'kanban' ? 'active' : ''}`}
+                            onClick={() => setViewMode('kanban')}
+                            title="Канбан вид"
+                        >
+                            &#x25A3;
+                        </button>
+                        <button
+                            className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
+                            onClick={() => setViewMode('table')}
+                            title="Табличный вид"
+                        >
+                            &#x2261;
+                        </button>
+                    </div>
+                    <button className="create-order-btn" onClick={() => setShowCreateModal(true)}>
+                        ➕ Создать заказ
+                    </button>
                 </header>
                 <DndProvider backend={HTML5Backend}>
                 <div className="stages-container" ref={stagesContainerRef}>

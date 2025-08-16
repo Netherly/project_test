@@ -11,7 +11,7 @@ import ClientsPage from './pages/ClientsPage';
 import CurrencyRates from "./components/CurrencyRates/CurrencyRates";
 import AssetsPage from "./components/Assets/AssetsPage";
 import TransactionsPage from "./components/Transaction/TransactionsPage";
-import Profile from "./pages/Profile";
+import Profile from "./components/Profile/Profile";
 import FieldsPage from "./pages/FieldsPage"; 
 
 import { sampleClients } from './data/sampleClients';
