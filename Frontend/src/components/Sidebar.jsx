@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import React, { useState, useCallback } from "react";
+import Lottie from "lottie-react";
 import "../styles/Sidebar.css";
 
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
@@ -23,20 +24,34 @@ import TransactionWebm from "../assets/menu-icons/Транзакции.webm";
 import TransactionNewWebm from "../assets/menu-icons/Транзакции вектор вебм.webm";
 import ReportWebm from "../assets/menu-icons/Отчеты.webm";
 import EmployesWebm from "../assets/menu-icons/Сотрудники.webm";
+import TransactionJson from "../assets/menu-icons/транзакциии json.json";
+import AssetsNewJson from "../assets/menu-icons/активы json.json";
+import DashboardJson from "../assets/menu-icons/дашборд json.json";
 
-const MediaIcon = ({ src, alt, className }) =>
-  src.endsWith(".webm") ? (
-    <video
-      src={src}
-      autoPlay
-      loop
-      muted
-      playsInlineё
-      className={className}
-    />
-  ) : (
-    <img src={src} alt={alt} className={className} />
-  );
+
+const MediaIcon = ({ src, alt, className }) => {
+  // Если webm
+  if (typeof src === "string" && src.endsWith(".webm")) {
+    return (
+      <video
+        src={src}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className={className}
+      />
+    );
+  }
+
+  // Если JSON-анимация
+  if (typeof src === "object" && src !== null) {
+    return <Lottie animationData={src} loop={true} className={className} />;
+  }
+
+  // Всё остальное — картинка
+  return <img src={src} alt={alt} className={className} />;
+};
 
 const Sidebar = () => {
   const location = useLocation();
@@ -57,8 +72,8 @@ const Sidebar = () => {
       { name: "Доступы", path: "/access", icon: EntryWebm },
     ],
     transactions: [
-      { name: "Активы", path: "/assets", icon: AssetsNewWebm },
-      { name: "Транзакции", path: "/list", icon: TransactionNewWebm },
+      { name: "Активы", path: "/assets", icon: AssetsNewJson },
+      { name: "Транзакции", path: "/list", icon: TransactionJson },
     ],
     settings: [
       { name: "Роли/Доступы", path: "/roles-access", icon: RolesWebm },
@@ -68,7 +83,7 @@ const Sidebar = () => {
   };
 
   const mainMenuItems = [
-    { name: "Дашборд", path: "/home", exact: "/statistics", iconActive: DashboardWebm, iconInactive: DashboardWebm },
+    { name: "Дашборд", path: "/home", exact: "/statistics", iconActive: DashboardJson, iconInactive: DashboardJson },
     { name: "Рабочий стол", menu: "Desktop", iconActive: DesktopWebm, iconInactive: DesktopWebm },
     { name: "Финансы", menu: "transactions", iconActive: FinanceWebm, iconInactive: FinanceWebm },
     { name: "Справочник", menu: "directory", iconActive: DirectoryWebm, iconInactive: DirectoryWebm },
