@@ -1159,7 +1159,7 @@ function Fields() {
                 return null;
         }
     };
-
+    
     return (
         <div ref={containerRef} className="fields-main-container">
             <Sidebar />
@@ -1167,7 +1167,7 @@ function Fields() {
             <div className="header">
                 <div className="header-content">
                     <div className="header-left">
-                        <h1 className="header-title">СПИСКИ</h1>
+                        <h1 className="lists-title">СПИСКИ</h1>
                     </div>
                     <div className="header-actions">
                         {hasChanges && (

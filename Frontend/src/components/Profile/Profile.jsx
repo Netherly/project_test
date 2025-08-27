@@ -1,9 +1,9 @@
 import React, { useState, useContext } from "react";
 import { useForm, FormProvider } from "react-hook-form";
-import Sidebar from "../components/Sidebar";
-import Requisites from "../components/ui/Requisites/Requisites";
-import { ThemeContext } from "../context/ThemeContext";
-import "../styles/Profile.css";
+import Sidebar from "../Sidebar";
+import Requisites from "../ui/Requisites/Requisites";
+import { ThemeContext } from "../../context/ThemeContext";
+import "../../styles/Profile.css";
 
 function Profile() {
 

@@ -47,12 +47,13 @@ const AddLogEntryForm = ({ onAdd, onClose }) => {
             const diffMs = endDate - startDate;
             const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
             const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-            const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-    
-            return `${diffHours}:${String(diffMinutes).padStart(2, '0')}:${String(diffSeconds).padStart(2, '0')}`;
+            // No seconds needed based on the screenshot format 0:00
+            const finalMinutes = String(diffMinutes).padStart(2, '0');
+
+            return `${diffHours}:${finalMinutes}`;
         } catch (error) {
             console.error("Ошибка при расчете часов:", error);
-            return '0:00:00';
+            return '0:00';
         }
     };
     
@@ -107,51 +108,43 @@ const AddLogEntryForm = ({ onAdd, onClose }) => {
                             required
                         />
                     </div>
-                    <div className="form-row date-time-group">
-                        <div className="form-group half-width">
-                            <label htmlFor="workDate">Дата работы</label>
-                            <input
-                                type="date"
-                                id="workDate"
-                                name="workDate"
-                                value={formData.workDate}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-                        <div className="form-group half-width">
-                            <label htmlFor="hours">Часы</label>
-                            <input
-                                type="text"
-                                id="hours"
-                                name="hours"
-                                value={formData.hours}
-                                readOnly
-                                className="read-only"
-                            />
+                     <div className="form-group">
+                        <label htmlFor="workDate">Дата работы</label>
+                        <input
+                            type="date"
+                            id="workDate"
+                            name="workDate"
+                            value={formData.workDate}
+                            onChange={handleChange}
+                            required
+                        />
+                    </div>
+                     <div className="form-group">
+                        <label htmlFor="hours">Часы</label>
+                        {/* Replaced input with a styled div */}
+                        <div id="hours" className="hours-display">
+                            {formData.hours}
                         </div>
                     </div>
-                    <div className="form-row time-inputs">
-                        <div className="form-group quarter-width">
-                            <label htmlFor="startTime">Время начала</label>
-                            <input
-                                type="time"
-                                id="startTime"
-                                name="startTime"
-                                value={formData.startTime}
-                                onChange={handleChange}
-                            />
-                        </div>
-                        <div className="form-group quarter-width">
-                            <label htmlFor="endTime">Время окончания</label>
-                            <input
-                                type="time"
-                                id="endTime"
-                                name="endTime"
-                                value={formData.endTime}
-                                onChange={handleChange}
-                            />
-                        </div>
+                    <div className="form-group">
+                        <label htmlFor="startTime">Время начала</label>
+                        <input
+                            type="time"
+                            id="startTime"
+                            name="startTime"
+                            value={formData.startTime}
+                            onChange={handleChange}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="endTime">Время окончания</label>
+                        <input
+                            type="time"
+                            id="endTime"
+                            name="endTime"
+                            value={formData.endTime}
+                            onChange={handleChange}
+                        />
                     </div>
                     <div className="form-group">
                         <label htmlFor="workDone">Что было сделано?</label>

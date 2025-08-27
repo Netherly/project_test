@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../Sidebar";
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import "../../styles/JournalPage.css";
 import LogEntryDetails from "./LogEntryDetail";
 import AddLogEntryForm from "./AddLogEntryForm";
@@ -215,7 +216,10 @@ const JournalPage = () => {
             <Sidebar />
             <div className="journal-page-main-container">
                 <header className="journal-header-container">
-                    <h1 className="journal-title">Журнал</h1>
+                    <h1 className="journal-title">
+                    <PageHeaderIcon pageName="Журнал" />
+                    Журнал
+                    </h1>
                     <div className="add-entry-button-wrapper">
                         <button className="add-entry-button" onClick={() => setShowAddForm(true)}>
                             Добавить запись

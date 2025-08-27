@@ -42,7 +42,12 @@
     font-size: 12px;
     font-weight: 600;
 }
+
 .menu-item.active {
+    background-color: #283977;
+}
+
+.menu-item:hover {
     background-color: var(--input-bg);
 }
 .menu-item.active span {
@@ -83,7 +88,7 @@
     position: fixed;
     top: 0;
     left: 72px;
-    width: 130px;
+    width: 250px;
     height: 100%;
     background-color: var(--bg-menu-color);
     transform: translateX(-100%);
@@ -92,6 +97,15 @@
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     padding-top: 8px;
     
+}
+.submenu-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 10px;
+    height: 100%;
+    background: transparent;
 }
 .submenu-panel.show {
     transform: translateX(0);
@@ -102,6 +116,8 @@
 }
 .submenu li {
     margin-bottom: 5px;
+    margin-left: 10px;
+    margin-right: 10px;
 }
 .submenu a {
     display: flex;
@@ -119,8 +135,8 @@
     border-radius: 6%;
 }
 .submenu-icon {
-    width: 32px;
-    height: 32px;
+    width: 52px;
+    height: 52px;
     margin-right: 4px;
     object-fit: contain;
 }

@@ -5,7 +5,15 @@ import { getStageColor } from "../Orders/stageColors";
 
 const ItemTypes = { ORDER: "order" };
 
-const StageColumn = ({ stage, orders, moveOrder, onOrderClick, isDraggingRef }) => {
+const StageColumn = ({
+  stage,
+  orders,
+  moveOrder,
+  onOrderClick,
+  isDraggingRef,
+  onDragStart,
+  onDragEnd
+}) => {
   const ref = useRef(null);
   const totalAmount = orders.reduce((sum, o) => sum + (o.price || 0), 0);
   const stageColor = getStageColor(stage);
@@ -16,6 +24,8 @@ const StageColumn = ({ stage, orders, moveOrder, onOrderClick, isDraggingRef }) 
       if (item.stage !== stage) {
         moveOrder(item.id, stage, orders.length);
       }
+      // Завершаем перетаскивание
+      if (onDragEnd) onDragEnd();
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
@@ -25,16 +35,21 @@ const StageColumn = ({ stage, orders, moveOrder, onOrderClick, isDraggingRef }) 
   drop(ref);
 
   return (
-    <div ref={ref} className={`stage-column ${isOver ? "highlight" : ""}`}>
-      <h3>{stage}</h3>
-      <div className="stage-subtitle">
-        {orders.length} заказов / {totalAmount.toLocaleString()} грн
-      </div>
+    <div
+      ref={ref}
+      className={`stage-column ${isOver ? "highlight" : ""}`}
+    >
+      <header className="stage-column-header">
+        <h3>{stage}</h3>
+        <div className="stage-subtitle">
+          {orders.length} заказов / {totalAmount.toLocaleString()} грн
+        </div>
+        <div
+          className="stage-title-line"
+          style={{ backgroundColor: stageColor }}
+        ></div>
+      </header>
 
-      <div 
-        className="stage-title-line" 
-        style={{ backgroundColor: stageColor }}
-      ></div>
       <div className="orders-list hidden-scroll">
         {orders.map((order, index) => (
           <OrderCard
@@ -45,6 +60,8 @@ const StageColumn = ({ stage, orders, moveOrder, onOrderClick, isDraggingRef }) 
             moveOrder={moveOrder}
             onClick={onOrderClick}
             isDraggingRef={isDraggingRef}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
           />
         ))}
       </div>
