@@ -1,11 +1,16 @@
 import React from 'react';
-import { useWatch } from 'react-hook-form';
+import { Controller, useWatch, useFieldArray } from 'react-hook-form';
 
 const OrderExecution = ({ control }) => {
   const executionTime = useWatch({ control, name: 'executionTime' });
   const startDate = useWatch({ control, name: 'startDate' });
   const endDate = useWatch({ control, name: 'endDate' });
   const countDays = useWatch({ control, name: 'countDays' });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "work_log"
+  });
 
   return (
     <div className='tab-content-container'>
@@ -25,10 +30,29 @@ const OrderExecution = ({ control }) => {
         <div className="tab-content-title">Дней на выполнение</div>
         <span>{countDays || '—'}</span>
       </div>
-      <div className="tab-content-row">
-        <div className="tab-content-title">Журнал выполнения</div>
-        <span>В разработке...</span>
-      </div>
+      <div className="tab-content-row-column">
+                <div className="tab-content-title">Журнал выполнения</div>
+                <div className="work-log-table">
+                    <div className="work-log-header">
+                        <div>Исполнитель</div>
+                        <div>Роль</div>
+                        <div>Дата работы</div>
+                        <div>Часы</div>
+                        <div>Что было сделано?</div>
+                        <div></div>
+                    </div>
+                    {fields.map((item, index) => (
+                        <div key={item.id} className="work-log-row">
+                            <Controller name={`work_log.${index}.executor`} control={control} render={({ field }) => <input placeholder="Исполнитель..." {...field} />} />
+                            <Controller name={`work_log.${index}.role`} control={control} render={({ field }) => <input placeholder="Роль..." {...field} />} />
+                            <Controller name={`work_log.${index}.work_date`} control={control} render={({ field }) => <input type="date" {...field} />} />
+                            <Controller name={`work_log.${index}.hours`} control={control} render={({ field }) => <input type="number" placeholder="Часы..." {...field} />} />
+                            <Controller name={`work_log.${index}.description`} control={control} render={({ field }) => <textarea placeholder="Что было сделано?" {...field}></textarea>} />
+                            <button type="button" className="remove-row-btn" onClick={() => remove(index)}>&times;</button>
+                        </div>
+                    ))}
+                </div>
+            </div>
     </div>
   );
 };

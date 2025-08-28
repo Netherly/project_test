@@ -29,8 +29,8 @@ const AssetsPage = () => {
             netMoneyUSD: 0.00,
             netMoneyRUB: 0.00,
             turnoverStartBalance: 322.86,
-            turnoverIncoming: 0.00,
-            turnoverOutgoing: 0.00,
+            turnoverIncoming: 12500.00,
+            turnoverOutgoing: 12500.00,
             turnoverEndBalance: 322.86,
             requisites: [
                 { label: "Ключ к счету", value: "UA123456789012345678901234567" }
@@ -39,23 +39,23 @@ const AssetsPage = () => {
             paymentSystem: 'Visa'
         },
         {
-            id: "Монобанк - Черная (V) (0574)",
-            accountName: "Монобанк - Черная (V) (0574)",
+            id: "Монобанк - Черная",
+            accountName: "Монобанк Черная",
             currency: "UAH",
             type: "Безналичные",
             employee: "Петров П.П.",
-            balance: 322.86,
-            balanceUAH: 322.86,
+            balance: 1000.00,
+            balanceUAH: 1000.00,
             balanceUSD: 0.00,
             balanceRUB: 0.00,
             lastEntryDate: "1 февр. 2025 г.",
-            netMoneyUAH: 322.86,
+            netMoneyUAH: 1000.00,
             netMoneyUSD: 0.00,
             netMoneyRUB: 0.00,
-            turnoverStartBalance: 322.86,
-            turnoverIncoming: 0.00,
+            turnoverStartBalance: 0.00,
+            turnoverIncoming: 1000.00,
             turnoverOutgoing: 0.00,
-            turnoverEndBalance: 322.86,
+            turnoverEndBalance: 1000.00,
             requisites: [
                 { label: "Номер карты", value: "5375 **** **** 0574" },
             ],
@@ -125,8 +125,8 @@ const AssetsPage = () => {
             netMoneyUSD: 0.00,
             netMoneyRUB: 0.00,
             turnoverStartBalance: 13.46,
-            turnoverIncoming: 0.00,
-            turnoverOutgoing: 0.00,
+            turnoverIncoming: 150.00,
+            turnoverOutgoing: 150.00,
             turnoverEndBalance: 13.46,
             requisites: [
                 { label: "Binance ID", value: "BINANCE12345" }
@@ -395,25 +395,25 @@ const AssetsPage = () => {
                     <h1 className="assets-title">Активы</h1>
                     
                         
-                        <div className="view-mode-buttons">
-                            <button
-                                className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
-                                onClick={() => setViewMode('card')}
-                                title="Карточный вид"
-                            >
-                                &#x25A3;
+                            <div className="view-mode-buttons">
+                                <button
+                                    className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
+                                    onClick={() => setViewMode('card')}
+                                    title="Карточный вид"
+                                >
+                                    &#x25A3;
+                                </button>
+                                <button
+                                    className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
+                                    onClick={() => setViewMode('table')}
+                                    title="Табличный вид"
+                                >
+                                    &#x2261;
+                                </button>
+                            </div>
+                            <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
+                                ➕ Добавить актив
                             </button>
-                            <button
-                                className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
-                                onClick={() => setViewMode('table')}
-                                title="Табличный вид"
-                            >
-                                &#x2261;
-                            </button>
-                        </div>
-                        <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
-                            ➕ Добавить актив
-                        </button>
                 </header>
 
                 
@@ -450,7 +450,7 @@ const AssetsPage = () => {
                                         <th rowSpan="2">Валюта</th>
                                         <th rowSpan="2">Баланс</th>
                                         <th rowSpan="2">Свободный</th>
-                                        <th rowSpan="2">Copy</th>
+                                        <th rowSpan="2">Реквизиты</th>
                                         <th colSpan="4" className="turnover-header">Оборот за текущий месяц</th>
                                     </tr>
                                     <tr>
@@ -463,16 +463,15 @@ const AssetsPage = () => {
                                 <tbody>
                                     {Object.entries(assetsByCurrency).map(([currency, data], index) => (
                                         <React.Fragment key={currency}>
-                                            <tr className="currency-group-header">
-                                                <td colSpan="9">
-                                                    <span className="currency-name">{currency}</span>
-                                                    <span className="total-in-currency">{data.totalBalance.toFixed(2)}</span>
-                                                    <span className="total-from-settings">{data.totalBalanceUAH.toFixed(2)}</span>
-                                                    <span className="total-turnover-start">{data.totalTurnoverStartBalance.toFixed(2)}</span>
-                                                    <span className="total-turnover-incoming">{data.totalTurnoverIncoming.toFixed(2)}</span>
-                                                    <span className="total-turnover-outgoing">{data.totalTurnoverOutgoing.toFixed(2)}</span>
-                                                    <span className="total-turnover-end">{data.totalTurnoverEndBalance.toFixed(2)}</span>
-                                                </td>
+                                             <tr className="currency-group-header">
+                                                <td colSpan="2">{currency}</td>
+                                                <td>{data.totalBalance.toFixed(2)}</td>
+                                                <td>{data.totalBalanceUAH.toFixed(2)}</td>
+                                                <td></td>
+                                                <td>{data.totalTurnoverStartBalance.toFixed(2)}</td>
+                                                <td>{data.totalTurnoverIncoming.toFixed(2)}</td>
+                                                <td>{data.totalTurnoverOutgoing.toFixed(2)}</td>
+                                                <td>{data.totalTurnoverEndBalance.toFixed(2)}</td>
                                             </tr>
                                             {data.items.map((asset) => (
                                                 <tr key={asset.id} className="asset-row" onClick={() => handleRowClick(asset)}>
@@ -488,7 +487,11 @@ const AssetsPage = () => {
                                                     </td>
                                                     <td>{asset.currency}</td>
                                                     <td>{asset.balance.toFixed(2)}</td>
-                                                    <td className={Number(asset.balance) === Number(asset.turnoverEndBalance) ? 'highlight-green' : ''}>
+                                                    <td className={
+                                                        Number(asset.balance.toFixed(2)) === Number(asset.turnoverEndBalance.toFixed(2)) 
+                                                        ? 'highlight-green' 
+                                                        : 'highlight-red'
+                                                    }>
                                                         {asset.balance.toFixed(2)}
                                                     </td>
                                                     <td>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
+import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -17,7 +18,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    const [formData, setFormData] = useState({
+    const initialFormData = useMemo(() => ({
         date: getCurrentDateTime(),
         category: financeFields?.articles?.[0]?.articleValue || "",
         subcategory: "",
@@ -42,9 +43,11 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
         sentToCounterparty: false,
         sendLion: false,
         id: generateId("TRX_"),
-    });
+    }), [financeFields]);
 
-    
+
+    const [formData, setFormData] = useState(initialFormData);
+
     const [currentRates, setCurrentRates] = useState(null);
     const [showCommissionField, setShowCommissionField] = useState(false);
     const [showOrderBlock, setShowOrderBlock] = useState(false);
@@ -57,8 +60,11 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
     }]);
     const [showDestinationAccountsBlock, setShowDestinationAccountsBlock] = useState(false);
 
+ 
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
-    
+
     const availableSubcategories = useMemo(() => {
         if (!formData.category || !financeFields?.subarticles) {
             return [];
@@ -67,9 +73,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
             (sub) => sub.subarticleInterval === formData.category
         );
     }, [formData.category, financeFields]);
-
-
-    
 
     useEffect(() => {
         try {
@@ -134,6 +137,8 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
         let newValue = type === "checkbox" ? checked : value;
         let newFormData = { ...formData, [name]: newValue };
 
+        setHasUnsavedChanges(true);
+
         if (name === "category") {
             newFormData.subcategory = "";
             if (value === "Смена счета") {
@@ -188,6 +193,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                     newFormData = {
                         ...newFormData,
                         orderId: selectedOrder.id,
+                        orderNumber: selectedOrder.number,
                         orderCurrency: selectedOrder.currency,
                         sumByRatesOrderAmountCurrency: selectedOrder.amount.toFixed(2),
                         sumByRatesUAH: convertCurrency(selectedOrder.amount, selectedOrder.currency, "UAH"),
@@ -201,6 +207,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                 newFormData = {
                     ...newFormData,
                     orderId: "",
+                    orderNumber: "",
                     orderCurrency: "",
                     sumByRatesOrderAmountCurrency: "",
                     sumByRatesUAH: "",
@@ -229,6 +236,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                 return account;
             })
         );
+        setHasUnsavedChanges(true);
     };
 
 
@@ -239,18 +247,21 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                 { id: generateId("DEST_"), account: "", accountCurrency: "UAH", amount: "", commission: "" }
             ]);
         }
+        setHasUnsavedChanges(true);
     };
 
 
     const removeDestinationAccount = (id) => {
         setDestinationAccounts(prevAccounts => prevAccounts.filter(account => account.id !== id));
+        setHasUnsavedChanges(true);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        let newTransactions = [];
 
         if (formData.category === "Смена счета") {
-            const transactions = [];
             const totalAmountToTransfer = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount || 0), 0);
             const totalCommission = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.commission || 0), 0);
             const totalWithdrawal = totalAmountToTransfer + totalCommission;
@@ -264,7 +275,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                 commission: totalCommission,
                 description: `Перевод на счета: ${destinationAccounts.map(acc => assets.find(a => a.id === acc.account)?.accountName).join(', ')}`,
             };
-            transactions.push(transaction1);
+            newTransactions.push(transaction1);
             
             destinationAccounts.forEach(destAcc => {
                 const transaction2 = {
@@ -280,10 +291,8 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                     sentToCounterparty: false,
                     sendLion: false,
                 };
-                transactions.push(transaction2);
+                newTransactions.push(transaction2);
             });
-
-            onAdd(transactions);
         } else {
             const newTransactionBase = {
                 ...formData,
@@ -300,24 +309,43 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                 balanceBefore: 0,
                 balanceAfter: 0,
             };
-            onAdd(newTransactionBase);
+            newTransactions.push(newTransactionBase);
         }
+        
+        onAdd(newTransactions);
+        setHasUnsavedChanges(false);
+        onClose(); 
+    };
+    
+    const handleConfirmClose = () => {
         onClose();
+        setShowConfirmationModal(false);
     };
 
+    const handleCancelClose = () => {
+        setShowConfirmationModal(false);
+    };
+
+    const handleOverlayClose = () => {
+        if (hasUnsavedChanges) {
+            setShowConfirmationModal(true);
+        } else {
+            onClose();
+        }
+    };
 
     return (
-        <div className="add-transaction-overlay">
-            <div className="add-transaction-modal">
+        <div className="add-transaction-overlay" onClick={handleOverlayClose}>
+            <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="add-transaction-header">
                     <h2>Добавить транзакцию</h2>
                     <div className="add-transaction-actions">
-                        <span className="icon" onClick={onClose}>✖️</span>
+                        <span className="icon" onClick={handleOverlayClose}>✖️</span>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="add-transaction-form">
-                   
+                    
                     <div className="form-row">
                          <label htmlFor="date" className="form-label">
                              Дата и время операции
@@ -680,11 +708,22 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                     </div>
 
                     <div className="form-actions">
-                        <button type="button" className="cancel-button" onClick={onClose}>Отменить</button>
-                        <button type="submit" className="save-button">Сохранить</button>
+                        <button type="button" className="cancel-button" onClick={handleOverlayClose}>Отмена</button>
+                        <button type="submit" className="add-button">Добавить</button>
                     </div>
                 </form>
             </div>
+            
+            {showConfirmationModal && (
+                <ConfirmationModal
+                    title="Есть несохраненные изменения"
+                    message="Вы уверены, что хотите закрыть окно? Все несохраненные данные будут утеряны."
+                    onConfirm={handleConfirmClose}
+                    onCancel={handleCancelClose}
+                    confirmText="Да, закрыть"
+                    cancelText="Остаться"
+                />
+            )}
         </div>
     );
 };

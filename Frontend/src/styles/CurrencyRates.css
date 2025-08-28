@@ -10,22 +10,23 @@
 
 
 .currency-rates-header-container{
-  display: flex;
   margin-bottom: 20px;
   height: 60px;
   background-color: var(--container-bg);
   border-bottom: 1px solid var(--border--color);
+  display: flex;
 }
 
-.currency-rates-header-container h2{
+.currency-rates-header-title{
   border-right: 1px solid var(--border--color);
   padding: 0px 35px 0px 35px;
   height: 100%;
-  align-items: center;
+  display: flex;
+  align-items: center; 
+  justify-content: center;
   font-size: 22px;
   font-weight: 700;
   text-transform: uppercase;
-  justify-content: center;
 }
 
 .currency-rates-table-container {
@@ -55,7 +56,7 @@
   border: 1px solid var(--border--color, #ddd);
   padding: 8px;
   text-align: center;
-  font-size: 0.9em;
+  font-size: 12px;
   white-space: nowrap; 
   color: var(--text-color);
   width: calc(100% / 17); 

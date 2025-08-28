@@ -1,3 +1,5 @@
+/* LogEntryDetails.css - ОБНОВЛЕНО */
+
 .log-entry-details-overlay {
     position: fixed;
     top: 0;
@@ -16,7 +18,8 @@
     border-radius: 8px 0 0 8px;
     padding: 20px 30px;
     width: 35%;
-    max-width: none;
+    max-width: 500px;
+    min-width: 450px;
     height: 100%;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
     color: var(--text-color);
@@ -28,87 +31,16 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     padding-bottom: 15px;
     border-bottom: 1px solid var(--border--color);
-    position: relative;
-    flex-shrink: 0; 
+    flex-shrink: 0;
 }
 
 .log-entry-details-header h2 {
     font-size: 22px;
     font-weight: 600;
     margin: 0;
-    color: var(--text-color);
-}
-
-.log-entry-details-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    position: relative;
-}
-
-.options-button {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: var(--chips-color);
-    cursor: pointer;
-    padding: 0 5px;
-    transition: color 0.2s ease;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    z-index: 10;
-}
-
-.options-button:hover {
-    color: var(--accent-color);
-}
-
-.options-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background-color: var(--bg-menu-color);
-    border: 1px solid var(--border--color);
-    border-radius: 6px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    display: flex;
-    flex-direction: column;
-    min-width: 180px;
-    z-index: 1001;
-    padding: 5px 0;
-}
-
-.options-menu .menu-item {
-    background: none;
-    border: none;
-    color: var(--text-color);
-    padding: 10px 15px;
-    text-align: left;
-    cursor: pointer;
-    font-size: 14px;
-    width: 100%;
-    white-space: nowrap;
-    transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.options-menu .menu-item:hover {
-    background-color: var(--button-bg);
-    color: var(--button-text);
-}
-
-.options-menu .delete-item {
-    color: #ff4d4f;
-}
-
-.options-menu .delete-item:hover {
-    background-color: #ff4d4f;
-    color: white;
 }
 
 .modal-close-button {
@@ -128,109 +60,102 @@
 .log-entry-details-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
     flex-grow: 1;
     overflow-y: auto;
-    padding-right: 5px;
+    padding-right: 10px;
     padding-bottom: 20px;
 }
 
-
 .form-group {
     display: flex;
-    flex-direction: column;
-    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    gap: 15px;
 }
 
 .form-group label {
-    font-size: 13px;
+    flex-basis: 40%;
+    min-width: 120px;
+    text-align: left;
     color: var(--chips-color);
-    margin-bottom: 5px;
+    font-size: 14px;
     font-weight: 500;
 }
 
-
-.log-entry-details-content input[type="text"],
-.log-entry-details-content input[type="email"],
-.log-entry-details-content input[type="date"],
-.log-entry-details-content input[type="time"],
-.log-entry-details-content textarea,
-.log-entry-details-content .form-group span,
-.log-entry-details-content .form-group p {
+/* Общий стиль для всех полей ввода */
+.form-group input,
+.form-group textarea {
+    flex-basis: 60%;
+    width: 100%;
     padding: 10px 12px;
     background-color: var(--bg-color);
     border: 1px solid var(--border--color);
     border-radius: 6px;
     color: var(--text-color);
-    font-size: 14px;
-    outline: none;
-    width: 100%;
+    font-size: 15px;
+    min-height: 42px;
     box-sizing: border-box;
-    line-height: 1.4;
-    white-space: pre-wrap; 
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
 }
 
-
-.log-entry-details-content input[type="text"]:focus,
-.log-entry-details-content input[type="email"]:focus,
-.log-entry-details-content input[type="date"]:focus,
-.log-entry-details-content input[type="time"]:focus,
-.log-entry-details-content textarea:focus {
+.form-group input:focus,
+.form-group textarea:focus {
     border-color: var(--accent-color);
     box-shadow: 0 0 0 1px var(--accent-color);
 }
 
-.log-entry-details-content textarea {
-    min-height: 80px;
+.form-group textarea {
     resize: vertical;
+    min-height: 80px;
 }
 
-
-.log-entry-details-content .read-only {
-    background-color: #3e4450;
-    color: var(--text-color-light);
+/* Стиль для нередактируемого поля "Часы" */
+.form-group .read-only-input {
+    background-color: #333842;
     cursor: not-allowed;
 }
-
-
-.form-row {
-    display: flex;
-    gap: 12px;
-    width: 100%;
-}
-
-.form-group.half-width {
-    flex: 1;
-}
-
-.form-group.quarter-width {
-    flex-basis: 50%;
-}
-
-
 
 .form-actions-bottom {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 10px;
     margin-top: auto;
-    padding-top: 15px;
+    padding-top: 20px;
     border-top: 1px solid var(--border--color);
-    flex-shrink: 0; 
+    flex-shrink: 0;
 }
 
-.cancel-button {
+.action-button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.delete-button {
+    background-color: #553434;
+    color: #ff8282;
+    margin-right: auto; /* Помещает кнопку удаления слева */
+}
+
+.delete-button:hover {
+    background-color: #6d3a3a;
+    color: #ff9e9e;
+}
+
+.duplicate-button {
     background: none;
     border: 1px solid var(--chips-color);
-    cursor: pointer;
-    padding: 10px 20px;
     color: var(--chips-color);
-    font-weight: 500;
-    border-radius: 6px;
-    transition: all 0.2s ease;
 }
 
-.cancel-button:hover {
+.duplicate-button:hover {
     background-color: rgba(128, 128, 128, 0.1);
     color: var(--text-color);
 }
@@ -238,17 +163,8 @@
 .save-button {
     background-color: var(--button-bg);
     color: #fff;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .save-button:hover {
     background-color: var(--accent-color);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

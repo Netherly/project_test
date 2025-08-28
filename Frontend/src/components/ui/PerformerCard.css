@@ -1,0 +1,91 @@
+
+.performer-card {
+    background-color: #2c2c2e; 
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px; 
+    max-width: 250px; 
+    position: relative;
+    border: 1px solid #3a3a3c;
+}
+
+.performer-card-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #48484a; 
+    object-fit: cover;
+}
+
+.performer-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden; 
+}
+
+.performer-card-login {
+    color: #e5e5ea;
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.performer-card-name {
+    color: #8e8e93;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.performer-card-remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: none;
+    border: none;
+    color: #8e8e93;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px;
+    display: none; 
+}
+
+.performer-card:hover .performer-card-remove-btn {
+    display: block; 
+}
+
+.performer-card-remove-btn:hover {
+    color: #ff453a; 
+}
+
+/* Контейнер для всех карточек */
+.performer-cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px; 
+}
+
+
+.add-performer-button {
+    background-color: #007aff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.add-performer-button:hover {
+    background-color: #005ecb;
+}

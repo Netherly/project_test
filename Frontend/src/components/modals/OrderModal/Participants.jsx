@@ -1,60 +1,122 @@
-import React from 'react';
-import { Controller } from 'react-hook-form';
+import React, { useState, useRef, useEffect } from 'react';
+import { Controller,  useFormContext } from 'react-hook-form';
 import CustomSelect from '../../ui/CustomSelect';
+import AddExecutorModal from '../../Executors/AddExecutorModal'; 
+import PerformerCard from '../../ui/PerformerCard';
+import ConfirmationModal from '../confirm/ConfirmationModal';
+import * as executorService from '../../Executors/executorService';
 
-const Participants = ({ control }) => {
-  const orderClient = [
-    { value: "1", label: "Лев" },
-    { value: "2", label: "Лев Андреевич" },
-    { value: "3", label: "Босс Лев" },
-    { value: "4", label: "Шеф Андреевич" },
-  ];
+const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorModal }) => {
+  
+  const allPerformers = ["Иван Иванов", "Петр Петров", "Сидор Сидоров", "Анна Кузнецова"];
+  const [customPerformer, setCustomPerformer] = useState('');
+  const [showPerformerDropdown, setShowPerformerDropdown] = useState(false);
+  const performerInputRef = useRef(null);
+  const performerDropdownRef = useRef(null);
+  const { watch, setValue, getValues } = useFormContext();
+  const [selectedClientInfo, setSelectedClientInfo] = useState(null);
+  const [customThirdParty, setCustomThirdParty] = useState('');
+  const [showThirdPartyDropdown, setShowThirdPartyDropdown] = useState(false);
+  const thirdPartyInputRef = useRef(null);
+  const thirdPartyDropdownRef = useRef(null);
+  const [isExecutorModalOpen, setIsExecutorModalOpen] = useState(false);
+  const [performerToDelete, setPerformerToDelete] = useState(null);
 
-  const orderMainClient = [
-    { value: "1", label: "Лев" },
-    { value: "2", label: "Лев Андреевич" },
-    { value: "3", label: "Босс Лев" },
-    { value: "4", label: "Шеф Андреевич" },
-  ];
 
-  const clientCompany = [
-    { value: "1", label: "GSSE" },
-    { value: "2", label: "Говно, ведь это не GSSE" },
-    { value: "3", label: "Нет ничего лучше GSSE" },
-    { value: "4", label: "Точно нет ничего лучше GSSE" },
-  ];
+  const allClientsOptions = clientsData.map(client => ({
+    value: client.id,
+    label: client.name,
+  }));
+  
+  const partnerOptions = clientsData
+    .filter(client => client.group === 1) 
+    .map(partner => ({
+      value: partner.id,
+      label: partner.name,
+    }));
 
-  const partnerName = [
-    { value: "1", label: "Толик" },
-    { value: "2", label: "Лев" },
-    { value: "3", label: "Вова" },
-    { value: "4", label: "Павлентий" },
-  ];
+ 
+  const selectedClientId = watch('order_client'); 
 
+  useEffect(() => {
+    if (selectedClientId) {
+      const clientIdNumber = Number(selectedClientId);
+      const client = clientsData.find(c => c.id === clientIdNumber);
+      
+      if (client) {
+        setSelectedClientInfo(client);
+        setValue('order_main_client', client.full_name, { shouldDirty: true });
+        setValue('client_company', client.name, { shouldDirty: true });
+        setValue('share_percent', client.percent, { shouldDirty: true });
+        setValue('currency_type', client.currency, { shouldDirty: true });
+      }
+    } else {
+      setSelectedClientInfo(null); 
+      setValue('order_main_client', '');
+      setValue('client_company', '');
+      setValue('share_percent', '');
+      setValue('currency_type', null);
+    }
+  }, [selectedClientId, clientsData, setValue]);
+  
+  const handleConfirmDelete = () => {
+        if (!performerToDelete) return; 
+
+        
+        executorService.deleteExecutor(performerToDelete.id);
+
+        
+        const currentPerformers = getValues('performers') || [];
+        const updatedPerformers = currentPerformers.filter(p => p.id !== performerToDelete.id);
+        setValue('performers', updatedPerformers, { shouldDirty: true });
+
+        
+        setPerformerToDelete(null);
+    };
+ 
   const clientInfo = {
-    country: "Украина",
-    category: "Алкаш",
-    source: "Друг посоветовал",
-    referer: "Дядя Толя",
-    refererFirst: "Дядя Толя",
-    manager: "Дядя Exzibit",
-    isFirstOrder: false
+    country: selectedClientInfo?.country || '—',
+    
+    category: selectedClientInfo?.tags[0]?.name || '—',
+    source: selectedClientInfo?.source || '—',
+    referer: selectedClientInfo?.referrer_name || '—',
+    refererFirst: selectedClientInfo?.referrer_first_name || '—',
+    manager: 'Дядя Exzibit',
+    isFirstOrder: false 
   };
+
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        performerDropdownRef.current &&
+        !performerDropdownRef.current.contains(event.target) &&
+        performerInputRef.current &&
+        !performerInputRef.current.contains(event.target)
+      ) {
+        setShowPerformerDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className='tab-content-container'>
-
+      
       <div className="tab-content-row">
         <Controller
           name="order_client"
           control={control}
-          render={({ field }) => (
+          render={({ field: { ref, ...rest } }) => (
             <CustomSelect
-              {...field}
-              onChange={e => field.onChange(e.target.value)}
-              value={field.value}
+              {...rest}
               label="Клиент"
-              options={orderClient}
+              options={allClientsOptions}
+              isClearable={true}
             />
           )}
         />
@@ -64,39 +126,112 @@ const Participants = ({ control }) => {
         <h3>Третьи участники</h3>
       </div>
 
-      <div className="tab-content-row">
+       <div className="tab-content-row">
+        <div className="tab-content-title">Основной клиент</div>
         <Controller
           name="order_main_client"
           control={control}
           render={({ field }) => (
-            <CustomSelect
+            <input
+              type="text"
+              readOnly
+              className='tab-content-input modal-content-span-info'
               {...field}
-              onChange={e => field.onChange(e.target.value)}
-              value={field.value}
-              label="Основной клиент"
-              options={orderMainClient}
             />
           )}
         />
       </div>
 
       <div className="tab-content-row">
+        <div className="tab-content-title">Компания</div>
         <Controller
           name="client_company"
           control={control}
           render={({ field }) => (
-            <CustomSelect
+            <input
+              type="text"
+              readOnly
+              className='tab-content-input modal-content-span-info'
               {...field}
-              onChange={e => field.onChange(e.target.value)}
-              value={field.value}
-              label="Компания"
-              options={clientCompany}
             />
           )}
         />
       </div>
 
-      {/* Статичные данные */}
+      <div className="tab-content-row">
+        <div className="tab-content-title">Добавить участника</div>
+        <Controller
+          name="third_parties"
+          control={control}
+          render={({ field: { onChange, value } }) => { 
+              
+              const selectedParties = Array.isArray(value) ? value : [];
+
+              const availableOptions = allClientsOptions.filter(
+                  (opt) =>
+                      !selectedParties.some(p => p.value === opt.value) && 
+                      opt.label.toLowerCase().includes(customThirdParty.toLowerCase())
+              );
+
+              const handleSelect = (option) => {
+                  if (option && !selectedParties.some(p => p.value === option.value)) {
+                      onChange([...selectedParties, option]); 
+                      setCustomThirdParty('');
+                      setShowThirdPartyDropdown(false);
+                  }
+              };
+              
+              const handleRemove = (optionToRemove) => {
+                  onChange(selectedParties.filter((p) => p.value !== optionToRemove.value)); 
+              };
+
+              return (
+                  <div className="tags-section"> 
+                      <div className="tag-input-container" ref={thirdPartyInputRef}>
+                          <input
+                              type="text"
+                              placeholder="Найти или добавить..."
+                              className="input-tag"
+                              value={customThirdParty}
+                              onChange={(e) => {
+                                  setCustomThirdParty(e.target.value);
+                                  setShowThirdPartyDropdown(true);
+                              }}
+                              onFocus={() => setShowThirdPartyDropdown(true)}
+                              autoComplete="off"
+                          />
+                          {showThirdPartyDropdown && availableOptions.length > 0 && (
+                              <div className="tag-dropdown" ref={thirdPartyDropdownRef}>
+                                  {availableOptions.map((opt) => (
+                                      <div
+                                          key={opt.value}
+                                          className="tag-dropdown-item"
+                                          onClick={() => handleSelect(opt)}
+                                      >
+                                          {opt.label}
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+                      <div className="tag-chips-container">
+                          {selectedParties.map((party, index) => (
+                              <span
+                                  key={index}
+                                  className="tag-chips tag-order-chips"
+                                  onClick={() => handleRemove(party)}
+                              >
+                                  {party.label}
+                              </span>
+                          ))}
+                      </div>
+                  </div>
+              );
+          }}
+      />
+      </div>
+
+      
       <div className="tab-content-row">
         <div className="tab-content-title">Страна</div>
         <span className='modal-content-span-info'>{clientInfo.country}</span>
@@ -134,13 +269,12 @@ const Participants = ({ control }) => {
         <Controller
           name="partner_name"
           control={control}
-          render={({ field }) => (
+          render={({ field: { ref, ...rest } }) => (
             <CustomSelect
-              {...field}
-              onChange={e => field.onChange(e.target.value)}
-              value={field.value}
+              {...rest}
               label="Партнер"
-              options={partnerName}
+              options={partnerOptions}
+              isClearable={true}
             />
           )}
         />
@@ -156,6 +290,7 @@ const Participants = ({ control }) => {
               type="checkbox"
               checked={field.value || false}
               onChange={e => field.onChange(e.target.checked)}
+              {...field} 
             />
           )}
         />
@@ -241,6 +376,62 @@ const Participants = ({ control }) => {
         />
       </div>
 
+      <div className="tab-content-row">
+        <h3>👨‍💻 Исполнители</h3>
+      </div>
+           <div className="tab-content-row">
+                <div className="tab-content-title">Список исполнителей</div>
+                <Controller
+                    name="performers"
+                    control={control}
+                    render={({ field: { onChange, value: selectedPerformers = [] } }) => {
+                        const handleRemovePerformer = (performerIdToRemove) => {
+                            onChange(selectedPerformers.filter(p => p.id !== performerIdToRemove));
+                        };
+
+                        return (
+                            <div>
+                                <div className="performer-cards-container">
+                                    {selectedPerformers.map(performer => (
+                                        <PerformerCard
+                                            key={performer.id}
+                                            performer={performer}
+                                            onRemove={() => setPerformerToDelete(performer)}
+                                        />
+                                    ))}
+                                </div>
+                                
+                                
+                                <button
+                                    type="button"
+                                    className="add-performer-button"
+                                    onClick={onOpenAddExecutorModal}
+                                >
+                                    + Добавить исполнителя
+                                </button>
+                            </div>
+                        );
+                    }}
+                />
+            </div>
+     
+            {isExecutorModalOpen && (
+                <AddExecutorModal
+                    onAdd={handleAddExecutor} 
+                    onClose={() => setIsExecutorModalOpen(false)} 
+                    employees={employeesData} 
+                />
+            )}
+            {performerToDelete && (
+                <ConfirmationModal
+                    title="Удалить исполнителя"
+                    message={`Вы уверены, что хотите удалить исполнителя "${performerToDelete.fullName}" из заказа? Это действие также полностью удалит запись о его работе в этом заказе из системы.`}
+                    confirmText="Да, удалить"
+                    cancelText="Отмена"
+                    onConfirm={handleConfirmDelete}
+                    onCancel={() => setPerformerToDelete(null)}
+                />
+            )}
     </div>
   );
 };

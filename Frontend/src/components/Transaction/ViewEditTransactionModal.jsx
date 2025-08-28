@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import "../../styles/ViewEditTransactionModal.css";
+import ConfirmationModal from '../modals/confirm/ConfirmationModal'; 
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -8,6 +9,7 @@ const generateId = (prefix) => {
 
 const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, onDuplicate, assets, financeFields }) => {
     const formattedDate = transaction.date ? transaction.date.replace(" ", "T") : "";
+    const originalTransactionRef = useRef(transaction);
 
     const [formData, setFormData] = useState({
         id: transaction.id,
@@ -42,8 +44,10 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     const [showOrderBlock, setShowOrderBlock] = useState(false);
     const [showSecondAccountBlock, setShowSecondAccountBlock] = useState(transaction.category === "Смена счета");
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [showUnsavedChangesConfirmation, setShowUnsavedChangesConfirmation] = useState(false);
 
-   
+    
     const availableSubcategories = useMemo(() => {
         if (!formData.category || !financeFields?.subarticles) {
             return [];
@@ -72,17 +76,17 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
 
 
     useEffect(() => {
-     try {
-       const savedRates = localStorage.getItem("currencyRates");
-       if (savedRates) {
-         const rates = JSON.parse(savedRates);
-         if (rates && rates.length > 0) {
-           setCurrentRates(rates[0]);
-         }
-       }
-     } catch (error) {
-       console.error("Ошибка загрузки курсов из localStorage:", error);
-     }
+      try {
+        const savedRates = localStorage.getItem("currencyRates");
+        if (savedRates) {
+          const rates = JSON.parse(savedRates);
+          if (rates && rates.length > 0) {
+            setCurrentRates(rates[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Ошибка загрузки курсов из localStorage:", error);
+      }
     }, []);
 
     const convertCurrency = (amount, fromCurrency, toCurrency) => {
@@ -176,6 +180,31 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         setShowOrderBlock(!!formData.orderNumber);
         setShowSecondAccountBlock(formData.category === "Смена счета");
     }, [formData.category, formData.amount, formData.orderNumber]);
+    
+    
+    const hasUnsavedChanges = () => {
+        const currentData = { ...formData, date: formData.date.replace("T", " ") };
+        const originalData = { ...originalTransactionRef.current, date: originalTransactionRef.current.date };
+
+        for (const key in originalData) {
+            if (key in currentData) {
+                if (key === "date") {
+                    
+                    if (new Date(currentData[key]).setSeconds(0,0) !== new Date(originalData[key]).setSeconds(0,0)) {
+                        return true;
+                    }
+                } else if (key === "amount" || key === "commission") {
+                    if (parseFloat(currentData[key]) !== parseFloat(originalData[key])) {
+                        return true;
+                    }
+                } else if (currentData[key] !== originalData[key]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -193,9 +222,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             }
         }
 
-        
         if (name === "account") {
-            
             const selectedAccount = assets.find(acc => acc.id === newValue);
             if (selectedAccount) {
                 newFormData.accountCurrency = selectedAccount.currency;
@@ -260,13 +287,20 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     };
 
     const handleDeleteClick = () => {
-        if (window.confirm(`Вы уверены, что хотите удалить транзакцию с ID "${transaction.id}"?`)) {
-            if (onDelete) {
-                onDelete(transaction.id);
-            }
-            onClose();
-        }
+        setShowDeleteConfirmation(true);
         setShowOptionsMenu(false);
+    };
+
+    const handleConfirmDelete = () => {
+        if (onDelete) {
+            onDelete(transaction.id);
+        }
+        setShowDeleteConfirmation(false);
+        onClose();
+    };
+
+    const handleCancelDelete = () => {
+        setShowDeleteConfirmation(false);
     };
 
     const handleDuplicateClick = () => {
@@ -277,26 +311,44 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         setShowOptionsMenu(false);
     };
 
+    
+    const handleCloseModal = () => {
+        if (hasUnsavedChanges()) {
+            setShowUnsavedChangesConfirmation(true);
+        } else {
+            onClose();
+        }
+    };
+
+    const handleConfirmUnsavedChanges = () => {
+        setShowUnsavedChangesConfirmation(false);
+        onClose();
+    };
+
+    const handleCancelUnsavedChanges = () => {
+        setShowUnsavedChangesConfirmation(false);
+    };
+
 
     return (
-        <div className="add-transaction-overlay">
-            <div className="add-transaction-modal">
+        <div className="add-transaction-overlay" onClick={handleCloseModal}>
+            <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="add-transaction-header">
                     <h2>Редактировать транзакцию</h2>
                     <div className="add-transaction-actions">
-                         <button className="options-button" onClick={handleMenuToggle}>
-                             ⋮
-                         </button>
-                         {showOptionsMenu && (
-                             <div className="options-menu">
-                                 <button className="menu-item" onClick={handleDuplicateClick}>Дублировать транзакцию</button>
-                                 <button className="menu-item delete-item" onClick={handleDeleteClick}>Удалить транзакцию</button>
-                             </div>
-                         )}
-                         <span className="icon" onClick={onClose}>
-                             ✖️
-                         </span>
-                     </div>
+                             <button className="options-button" onClick={handleMenuToggle}>
+                                 ⋮
+                             </button>
+                             {showOptionsMenu && (
+                                 <div className="options-menu">
+                                     <button className="menu-item" onClick={handleDuplicateClick}>Дублировать транзакцию</button>
+                                     <button className="menu-item delete-item" onClick={handleDeleteClick}>Удалить транзакцию</button>
+                                 </div>
+                             )}
+                             <span className="icon" onClick={handleCloseModal}>
+                                 ✖️
+                             </span>
+                         </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="add-transaction-form">
@@ -397,205 +449,227 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
 
                     
                     <div className="form-row">
-                         <label htmlFor="operation" className="form-label">
-                             Операция
-                         </label>
-                         <select
-                             id="operation"
-                             name="operation"
-                             value={formData.operation}
-                             onChange={handleChange}
-                             required
-                             className="form-input"
-                             disabled={showSecondAccountBlock}
-                         >
-                             <option value="Зачисление">Зачисление</option>
-                             <option value="Списание">Списание</option>
-                         </select>
-                     </div>
+                            <label htmlFor="operation" className="form-label">
+                                Операция
+                            </label>
+                            <select
+                                id="operation"
+                                name="operation"
+                                value={formData.operation}
+                                onChange={handleChange}
+                                required
+                                className="form-input"
+                                disabled={showSecondAccountBlock}
+                            >
+                                <option value="Зачисление">Зачисление</option>
+                                <option value="Списание">Списание</option>
+                            </select>
+                        </div>
 
-                     <div className="form-row">
-                         <label htmlFor="amount" className="form-label">
-                             Сумма операции
-                         </label>
-                         <input
-                             type="number"
-                             id="amount"
-                             name="amount"
-                             value={formData.amount}
-                             onChange={handleChange}
-                             placeholder="Введите сумму"
-                             required
-                             step="0.01"
-                             className="form-input"
-                         />
-                     </div>
+                        <div className="form-row">
+                            <label htmlFor="amount" className="form-label">
+                                Сумма операции
+                            </label>
+                            <input
+                                type="number"
+                                id="amount"
+                                name="amount"
+                                value={formData.amount}
+                                onChange={handleChange}
+                                placeholder="Введите сумму"
+                                required
+                                step="0.01"
+                                className="form-input"
+                            />
+                        </div>
 
-                     {formData.amount && (
-                         <div className="currency-recalculation-block">
-                             <div className="form-row">
-                                 <label className="form-label">Сумма операции (₴)</label>
-                                 <span className="form-value readonly">{formData.sumUAH}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label">Сумма операции ($)</label>
-                                 <span className="form-value readonly">{formData.sumUSD}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label">Сумма операции (руб)</label>
-                                 <span className="form-value readonly">{formData.sumRUB}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label small-label">Пересчет согласно текущим курсам</label>
-                                 <span className="form-value"></span>
-                             </div>
-                         </div>
-                     )}
+                        {formData.amount && (
+                            <div className="currency-recalculation-block">
+                                <div className="form-row">
+                                    <label className="form-label">Сумма операции (₴)</label>
+                                    <span className="form-value readonly">{formData.sumUAH}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label">Сумма операции ($)</label>
+                                    <span className="form-value readonly">{formData.sumUSD}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label">Сумма операции (руб)</label>
+                                    <span className="form-value readonly">{formData.sumRUB}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label small-label">Пересчет согласно текущим курсам</label>
+                                    <span className="form-value"></span>
+                                </div>
+                            </div>
+                        )}
 
-                     {showCommissionField && (
-                         <div className="form-row">
-                             <label htmlFor="commission" className="form-label">
-                                 Комиссия
-                             </label>
-                             <input
-                                 type="number"
-                                 id="commission"
-                                 name="commission"
-                                 value={formData.commission}
-                                 onChange={handleChange}
-                                 placeholder="Введите комиссию"
-                                 step="0.01"
-                                 className="form-input"
-                             />
-                         </div>
-                     )}
+                        {showCommissionField && (
+                            <div className="form-row">
+                                <label htmlFor="commission" className="form-label">
+                                    Комиссия
+                                </label>
+                                <input
+                                    type="number"
+                                    id="commission"
+                                    name="commission"
+                                    value={formData.commission}
+                                    onChange={handleChange}
+                                    placeholder="Введите комиссию"
+                                    step="0.01"
+                                    className="form-input"
+                                />
+                            </div>
+                        )}
 
-                     {showSecondAccountBlock && (
-                         <div className="form-row duplicated-account-block">
-                         </div>
-                     )}
+                        {showSecondAccountBlock && (
+                            <div className="form-row duplicated-account-block">
+                            </div>
+                        )}
 
-                     <div className="form-row">
-                         <label htmlFor="counterparty" className="form-label">
-                             Контрагент
-                         </label>
-                         <select
-                             id="counterparty"
-                             name="counterparty"
-                             value={formData.counterparty}
-                             onChange={handleChange}
-                             className="form-input"
-                         >
-                             <option value="">Выберите контрагента</option>
-                             {counterparties.map((cp) => (
-                                 <option key={cp} value={cp}>
-                                     {cp}
-                                 </option>
-                             ))}
-                         </select>
-                     </div>
+                        <div className="form-row">
+                            <label htmlFor="counterparty" className="form-label">
+                                Контрагент
+                            </label>
+                            <select
+                                id="counterparty"
+                                name="counterparty"
+                                value={formData.counterparty}
+                                onChange={handleChange}
+                                className="form-input"
+                            >
+                                <option value="">Выберите контрагента</option>
+                                {counterparties.map((cp) => (
+                                    <option key={cp} value={cp}>
+                                        {cp}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                     <div className="form-row">
-                         <label htmlFor="counterpartyRequisites" className="form-label">
-                             Реквизиты контрагента
-                         </label>
-                         <input
-                             type="text"
-                             id="counterpartyRequisites"
-                             name="counterpartyRequisites"
-                             value={formData.counterpartyRequisites}
-                             readOnly
-                             className="form-input readonly"
-                         />
-                     </div>
+                        <div className="form-row">
+                            <label htmlFor="counterpartyRequisites" className="form-label">
+                                Реквизиты контрагента
+                            </label>
+                            <input
+                                type="text"
+                                id="counterpartyRequisites"
+                                name="counterpartyRequisites"
+                                value={formData.counterpartyRequisites}
+                                readOnly
+                                className="form-input readonly"
+                            />
+                        </div>
 
-                     <div className="form-row">
-                         <label htmlFor="orderNumber" className="form-label">
-                             № заказа
-                         </label>
-                         <select
-                             id="orderNumber"
-                             name="orderNumber"
-                             value={formData.orderNumber}
-                             onChange={handleChange}
-                             className="form-input"
-                         >
-                             <option value="">Выберите номер заказа</option>
-                             {activeOrders.map(order => (
-                                 <option key={order.id} value={order.number}>
-                                     {order.number}
-                                 </option>
-                             ))}
-                         </select>
-                     </div>
+                        <div className="form-row">
+                            <label htmlFor="orderNumber" className="form-label">
+                                № заказа
+                            </label>
+                            <select
+                                id="orderNumber"
+                                name="orderNumber"
+                                value={formData.orderNumber}
+                                onChange={handleChange}
+                                className="form-input"
+                            >
+                                <option value="">Выберите номер заказа</option>
+                                {activeOrders.map(order => (
+                                    <option key={order.id} value={order.number}>
+                                        {order.number}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                     {showOrderBlock && (
-                         <div className="order-details-block">
-                             <div className="form-row">
-                                 <label className="form-label">ID заказа</label>
-                                 <span className="form-value readonly">{formData.orderId}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label">Валюта заказа</label>
-                                 <span className="form-value readonly">{formData.orderCurrency}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label">Сумма по курсам заказа в валюте заказа</label>
-                                 <span className="form-value readonly">{formData.sumByRatesOrderAmountCurrency}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label">Сумма по курсам заказа в гривне</label>
-                                 <span className="form-value readonly">{formData.sumByRatesUAH}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label">Сумма по курсам заказа в долларах</label>
-                                 <span className="form-value readonly">{formData.sumByRatesUSD}</span>
-                             </div>
-                             <div className="form-row">
-                                 <label className="form-label">Сумма по курсам заказа в рублях</label>
-                                 <span className="form-value readonly">{formData.sumByRatesRUB}</span>
-                             </div>
-                         </div>
-                     )}
+                        {showOrderBlock && (
+                            <div className="order-details-block">
+                                <div className="form-row">
+                                    <label className="form-label">ID заказа</label>
+                                    <span className="form-value readonly">{formData.orderId}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label">Валюта заказа</label>
+                                    <span className="form-value readonly">{formData.orderCurrency}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label">Сумма по курсам заказа в валюте заказа</label>
+                                    <span className="form-value readonly">{formData.sumByRatesOrderAmountCurrency}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label">Сумма по курсам заказа в гривне</label>
+                                    <span className="form-value readonly">{formData.sumByRatesUAH}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label">Сумма по курсам заказа в долларах</label>
+                                    <span className="form-value readonly">{formData.sumByRatesUSD}</span>
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label">Сумма по курсам заказа в рублях</label>
+                                    <span className="form-value readonly">{formData.sumByRatesRUB}</span>
+                                </div>
+                            </div>
+                        )}
 
-                     <div className="form-row checkbox-row">
-                         <label htmlFor="sentToCounterparty" className="form-label">
-                             Отправлено контрагенту
-                         </label>
-                         <input
-                             type="checkbox"
-                             id="sentToCounterparty"
-                             name="sentToCounterparty"
-                             checked={formData.sentToCounterparty}
-                             onChange={handleChange}
-                             className="form-checkbox"
-                         />
-                     </div>
+                        <div className="form-row checkbox-row">
+                            <label htmlFor="sentToCounterparty" className="form-label">
+                                Отправлено контрагенту
+                            </label>
+                            <input
+                                type="checkbox"
+                                id="sentToCounterparty"
+                                name="sentToCounterparty"
+                                checked={formData.sentToCounterparty}
+                                onChange={handleChange}
+                                className="form-checkbox"
+                            />
+                        </div>
 
-                     <div className="form-row second-checkbox-row">
-                         <label htmlFor="sendLion" className="form-label">
-                             Отправить 🦁
-                         </label>
-                         <input
-                             type="checkbox"
-                             id="sendLion"
-                             name="sendLion"
-                             checked={formData.sendLion}
-                             onChange={handleChange}
-                             className="form-checkbox"
-                         />
-                     </div>
+                        <div className="form-row second-checkbox-row">
+                            <label htmlFor="sendLion" className="form-label">
+                                Отправить 🦁
+                            </label>
+                            <input
+                                type="checkbox"
+                                id="sendLion"
+                                name="sendLion"
+                                checked={formData.sendLion}
+                                onChange={handleChange}
+                                className="form-checkbox"
+                            />
+                        </div>
 
-                     <div className="form-actions">
-                         <button type="button" className="cancel-button" onClick={onClose}>
-                             Отменить
-                         </button>
-                         <button type="submit" className="save-button">
-                             Сохранить
-                         </button>
-                     </div>
+                    <div className="form-actions">
+                        <button type="button" className="cancel-button" onClick={handleCloseModal}>
+                            Отменить
+                        </button>
+                        <button type="submit" className="save-button">
+                            Сохранить
+                        </button>
+                    </div>
                 </form>
             </div>
+            
+            {showDeleteConfirmation && (
+                <ConfirmationModal
+                    title="Подтверждение удаления"
+                    message={`Вы уверены, что хотите удалить транзакцию с ID "${transaction.id}"? Это действие необратимо.`}
+                    confirmText="Удалить"
+                    cancelText="Отмена"
+                    onConfirm={handleConfirmDelete}
+                    onCancel={handleCancelDelete}
+                />
+            )}
+            
+            {showUnsavedChangesConfirmation && (
+                <ConfirmationModal
+                    title="Несохраненные изменения"
+                    message="У вас есть несохраненные изменения. Вы уверены, что хотите закрыть без сохранения?"
+                    confirmText="Закрыть без сохранения"
+                    cancelText="Отмена"
+                    onConfirm={handleConfirmUnsavedChanges}
+                    onCancel={handleCancelUnsavedChanges}
+                />
+            )}
         </div>
     );
 };

@@ -69,7 +69,7 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 14px;
+    font-size: 11px;
     text-align: left;
     color: var(--container-text-color);
 }
@@ -81,11 +81,26 @@
     border-bottom: 1px solid var(--bg-color);
     border-top: 1px solid var(--bg-color);
     border-right: 1px solid var(--bg-color);
+    vertical-align: middle;
 }
 
 .assets-table th:nth-child(5),
 .assets-table td:nth-child(5) {
     border-right: 4px solid var(--bg-color);
+}
+
+.assets-table td:nth-child(5){
+    text-align: right;
+}
+
+
+.assets-table-v2 td:nth-child(3),
+.assets-table-v2 td:nth-child(4),
+.assets-table-v2 td:nth-child(6),
+.assets-table-v2 td:nth-child(7),
+.assets-table-v2 td:nth-child(8),
+.assets-table-v2 td:nth-child(9) {
+    text-align: right;
 }
 
 .assets-table th:first-child,
@@ -112,6 +127,7 @@
     font-weight: 600;
     position: sticky;
     top: 0;
+    text-align: center; 
 }
 
 .assets-table-v2 thead tr:first-child th:first-child {
@@ -126,7 +142,7 @@
     border-top: none;
     padding-top: 5px;
     padding-bottom: 5px;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: normal;
     color: var(--chips-color);
     vertical-align: top;
@@ -145,29 +161,26 @@
     background-color: #224158;
 }
 
+
 .currency-group-header td {
     background-color: var(--bg-color);
-    color: var(--text-color);
-    font-weight: bold;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: normal;
     padding: 8px 15px;
-    display: table-cell;
-    vertical-align: middle;
-    gap: unset;
-    justify-content: unset;
     border: none;
-    width: 100%;
+    border-bottom: 1px solid var(--border--color) !important;
 }
 
-.currency-group-header .currency-name {
-    font-weight: bold;
-    font-size: 16px;
-    display: inline-block;
+
+.currency-group-header td:first-child {
+    font-size: 11px;
+    text-align: left;
 }
 
-.currency-name {
-    font-weight: bold;
-    font-size: 16px;
-    margin-right: 480px;
+
+.currency-group-header td:not(:first-child):not(:nth-child(5)) {
+    text-align: right;
 }
 
 .currency-name-card {
@@ -176,48 +189,11 @@
     margin-right: 30px;
 }
 
-.currency-group-header .total-in-currency,
-.currency-group-header .total-from-settings {
-    font-weight: normal;
-    font-size: 14px;
-    color: var(--chips-color);
-    display: inline-block;
-}
-
-.total-in-currency {
-    margin-right: 100px;
-}
-
 .total-in-currency-сard {
     margin-right: 30px;
 }
 
-.total-from-settings {
-    margin-right: 245px;
-}
-
 .total-from-settings-card {
-}
-
-.currency-group-header .total-turnover-start,
-.currency-group-header .total-turnover-incoming,
-.currency-group-header .total-turnover-outgoing,
-.currency-group-header .total-turnover-end {
-    font-weight: normal;
-    font-size: 14px;
-    color: var(--chips-color);
-}
-
-.total-turnover-start {
-    margin-right: 140px;
-}
-
-.total-turnover-incoming {
-    margin-right: 120px;
-}
-
-.total-turnover-outgoing {
-    margin-right: 140px;
 }
 
 .table-section-divider td {
@@ -232,6 +208,11 @@
     font-weight: bold;
 }
 
+.highlight-red {
+    color: #F44336; 
+    font-weight: bold;
+}
+
 .turnover-header {
     text-align: center;
 }
@@ -240,19 +221,24 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    text-align: left;
 }
 
 .account-info .account-main-name {
     font-weight: bold;
     color: var(--text-color);
-    font-size: 14px;
+    font-size: 11px;
     margin-bottom: 2px;
 }
 
 .account-info .account-sub-id {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--chips-color);
     display: none;
+}
+
+.copy-button-container {
+    text-align: center;
 }
 
 .copy-button-icon {
@@ -341,12 +327,12 @@
 
 .card-size-button {
     border: none;
-    border-radius: 5px;
+    border-radius: 4px;
     padding: 5px 10px;
+    background-color: var(--container-bg);
+    color: var(--text-color);
     cursor: pointer;
-    transition: background-color 0.2s ease;
 }
-
 
 .card-size-button.active {
     background-color: #007bff;

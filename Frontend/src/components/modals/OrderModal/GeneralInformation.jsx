@@ -43,6 +43,23 @@ const GeneralInformation = ({ control, orderFields }) => {
     return (
         <div className='tab-content-container'>
             <div className="tab-content-row">
+                <div className="tab-content-title">Заказ из старой срм?</div>
+                <Controller
+                    name="isOldOrder"
+                    control={control}
+                    render={({ field }) => (
+                        <input 
+                            type="checkbox"
+                            className='custom-content-checkbox'
+                            checked={field.value}
+                            {...field}
+                        />
+                    )}
+                />
+            </div>
+
+
+            <div className="tab-content-row">
                 <div className="tab-content-title">Срочность</div>
                 <Controller
                     name="urgency"
