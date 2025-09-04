@@ -109,7 +109,7 @@ export default function EmployeeModal({
 
   
   return (
-    <div className={`modal-overlay ${isOpen ? 'open' : ''} ${closing ? 'closing' : ''}`} onClick={closeHandler}>
+    <div className={`employee-modal-overlay ${isOpen ? 'open' : ''} ${closing ? 'closing' : ''}`} onClick={closeHandler}>
       <div className="employee-modal tri-layout" onClick={(e) => e.stopPropagation()}>
         
        
@@ -128,7 +128,7 @@ export default function EmployeeModal({
             />
 
             <form
-              className="modal-body"
+              className="employee-modal-body"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
               {activeTab === 'general'    && <GeneralInfoTab employeeFields={allFields.employeeFields} />}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../styles/AddLogEntryForm.css';
 import ConfirmationModal from '../modals/confirm/ConfirmationModal'; 
 
-const AddLogEntryForm = ({ onAdd, onClose }) => {
+const AddLogEntryForm = ({ onAdd, onClose, employees, orders }) => {
     const [initialFormData] = useState({
         description: '',
         orderNumber: '',
@@ -110,15 +110,20 @@ const AddLogEntryForm = ({ onAdd, onClose }) => {
                     <form onSubmit={handleSubmit} className="form-content">
                         <div className="form-group">
                             <label htmlFor="orderNumber">№ заказа</label>
-                            <input
-                                type="text"
+                            <select
                                 id="orderNumber"
                                 name="orderNumber"
                                 value={formData.orderNumber}
                                 onChange={handleChange}
-                                placeholder="Например, 2416"
                                 required
-                            />
+                            >
+                                <option value="">Выберите заказ</option>
+                                {orders.map((order) => (
+                                    <option key={order.id} value={order.id}>
+                                        Заказ №{order.id}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label htmlFor="description">Описание заказа</label>
@@ -133,16 +138,21 @@ const AddLogEntryForm = ({ onAdd, onClose }) => {
                             />
                         </div>
                         <div className="form-group">
-                            <label htmlFor="executorRole">Исполнитель роль</label>
-                            <input
-                                type="text"
+                            <label htmlFor="executorRole">Исполнитель</label>
+                            <select
                                 id="executorRole"
                                 name="executorRole"
                                 value={formData.executorRole}
                                 onChange={handleChange}
-                                placeholder="Frontend Developer"
                                 required
-                            />
+                            >
+                                <option value="">Выберите исполнителя</option>
+                                {employees.map((employee) => (
+                                    <option key={employee.id} value={employee.fullName}>
+                                        {employee.fullName}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label htmlFor="workDate">Дата работы</label>

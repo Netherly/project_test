@@ -12,6 +12,8 @@ import ChatPanel from '../../Client/ClientModal/ChatPanel';
 import AddLogEntryForm from '../../Journal/AddLogEntryForm';
 import * as executorService from '../../Executors/executorService';
 import AddExecutorModal from '../../Executors/AddExecutorModal';
+import AddTransactionModal from '../../Transaction/AddTransactionModal';
+import { useTransactions } from '../../../context/TransactionsContext';
 import { addLogEntry } from '../../Journal/journalApi'
 import { stageColors, getStageColor } from '../../Orders/stageColors';
 import { sampleClients } from '../../../data/sampleClients'; 
@@ -44,6 +46,7 @@ const newOrderDefaults = {
     closeReason: "",
     plannedStartDate: "",
     plannedFinishDate: "",
+    project: "",
     orderDescription: "",   
     techTags: [],     
     taskTags: [],                                         
@@ -86,7 +89,7 @@ const newOrderDefaults = {
 };
 
 
-function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCreateOrder, onDeleteOrder }) {
+function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCreateOrder, onDeleteOrder, journalEntries }) {
   const methods = useForm({
     defaultValues: mode === 'create' ? newOrderDefaults : {
       stage: order?.stage || '',
@@ -102,6 +105,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
       closeReason: order?.closeReason || "",
       plannedStartDate: order?.plannedStartDate || "",
       plannedFinishDate: order?.plannedFinishDate || "",
+      project: order?.project || "",
       orderDescription: order?.orderDescription || "",   
       techTags: order?.techTags || [],     
       taskTags: order?.taskTags || [],                                         
@@ -155,8 +159,19 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
     reset,
     setValue,  
     getValues,
-    formState: { isDirty }
+    formState: { isDirty },
   } = methods;
+
+  const {
+        isAddModalOpen,
+        openAddTransactionModal,
+        closeAddTransactionModal,
+        addTransaction,
+        assets,
+        financeFields,
+        initialDataForModal,
+        orders,
+    } = useTransactions();
 
   const [customTag, setCustomTag] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
@@ -169,6 +184,92 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAddExecutorModalOpen, setIsAddExecutorModalOpen] = useState(false);
   const [executorFormFields, setExecutorFormFields] = useState({ employees: [], role: [], currency: [] });
+
+  useEffect(() => {
+    
+    if (!order || !order.id || !journalEntries) {
+        console.log("Ждем загрузки данных заказа или журнала...", { order, journalEntries });
+        return; 
+    }
+
+    console.log(`--- Начинаем фильтрацию для заказа ID: ${order.id} ---`);
+    console.log("Всего записей в журнале:", journalEntries.length);
+
+    
+    const relevantEntries = journalEntries.filter(entry => {
+        const orderIdStr = String(order.id);
+        const entryOrderNumStr = String(entry.orderNumber).trim(); 
+
+       
+        if (entry.id === 1756485911484) { 
+             console.log(`Сравнение: ID заказа "${orderIdStr}" === OrderNumber записи "${entryOrderNumStr}" -> ${orderIdStr === entryOrderNumStr}`);
+        }
+
+        return orderIdStr === entryOrderNumStr;
+    });
+
+    console.log(`Найдено релевантных записей: ${relevantEntries.length}`, relevantEntries);
+
+    
+    const formattedWorkLog = relevantEntries.map(entry => ({
+        executor: entry.email,
+        role: entry.executorRole,
+        work_date: entry.workDate,
+        hours: entry.hours,
+        description: entry.workDone,
+        original_id: entry.id
+    }));
+    
+    console.log("Отформатированный work_log для формы:", formattedWorkLog);
+
+    
+    const currentFormValues = getValues(); 
+    reset({
+        ...currentFormValues, 
+        work_log: formattedWorkLog
+    });
+    
+    console.log("--- Форма обновлена ---");
+
+}, [order, journalEntries, reset, getValues]); 
+
+    const onSubmit1 = (data) => {
+        console.log("Данные формы для сохранения:", data);
+    };
+
+    const handleClientPayment = () => {
+        const defaults = {
+            operation: 'Зачисление',
+            category: 'Оплата от клиента',
+            subcategory: 'Предоплата', 
+            counterparty: order.clientName, 
+            amount: order.totalPrice, 
+            description: `Оплата по заказу #${order.id}`,
+        };
+        openAddTransactionModal(defaults);
+    };
+
+    const handlePartnerPayout = () => {
+        const defaults = {
+            operation: 'Списание',
+            category: 'Выплата партнеру',
+            counterparty: order.partnerName,
+            amount: order.partnerFee, 
+            description: `Выплата партнеру по заказу #${order.id}`,
+        };
+        openAddTransactionModal(defaults);
+    };
+
+    const handleExecutorPayout = () => {
+        const defaults = {
+            operation: 'Списание',
+            category: 'Выплата исполнителю',
+            counterparty: order.executorName,
+            amount: order.executorFee,
+            description: `Выплата исполнителю по заказу #${order.id}`,
+        };
+        openAddTransactionModal(defaults);
+    };
 
 
   const tagInputRef = useRef(null);
@@ -316,6 +417,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
         closeReason: order?.closeReason || "",
         plannedStartDate: order?.plannedStartDate || "",
         plannedFinishDate: order?.plannedFinishDate || "",
+        project: order?.project || "",
         orderDescription: order?.orderDescription || "",   
         techTags: order?.techTags || [],     
         taskTags: order?.taskTags || [],                                         
@@ -563,6 +665,18 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                     </>
                     )}
                 />
+                {isDirty && (
+                <div className="action-buttons">
+                <button
+                    type="button"
+                    className="cancel-order-btn"
+                    onClick={resetChanges}
+                >
+                    Отменить
+                </button>
+                <button type="submit" className="save-order-btn">Сохранить</button>
+                </div>
+            )}
             </div>
             
             <div className="developing-stages-container">
@@ -654,19 +768,6 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
               {activeTab === "Выполнение заказа" && <OrderExecution control={control} mode={mode} />}
               {activeTab === "Завершение заказа" && <CompletingOrder control={control} mode={mode} />}
             </div>
-
-            {isDirty && (
-                <div className="action-buttons">
-                <button
-                    type="button"
-                    className="cancel-order-btn"
-                    onClick={resetChanges}
-                >
-                    Отменить
-                </button>
-                <button type="submit" className="save-order-btn">Сохранить</button>
-                </div>
-            )}
           </form>
         </FormProvider>
       </div>
@@ -691,9 +792,9 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                   <button type="button" className="menu-button">Поставить задачу</button>
                   <div className="menu-separator" />
                   <button type="button" className="menu-button">Сгенерировать счет</button>
-                  <button type="button" className="menu-button">Оплата клиента</button>
-                  <button type="button" className="menu-button">Выплата партнеру</button>
-                  <button type="button" className="menu-button">Выплата исполнителю</button>
+                  <button type="button" className="menu-button" onClick={handleClientPayment}>Оплата клиента</button>
+                  <button type="button" className="menu-button" onClick={handlePartnerPayout}>Выплата партнеру</button>
+                  <button type="button" className="menu-button" onClick={handleExecutorPayout}>Выплата исполнителю</button>
                   <div className="menu-separator" />
                   <button type="button" className="menu-button">Ссылка на отзыв</button>
                   <button type="button" className="menu-button">Ссылка на отзыв 2</button>
@@ -724,6 +825,16 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                     onAdd={handleAddExecutor}
                     onClose={() => setIsAddExecutorModalOpen(false)}
                     fields={executorFormFields}
+                />
+            )}
+      {isAddModalOpen && (
+                <AddTransactionModal
+                    onAdd={addTransaction}
+                    onClose={closeAddTransactionModal}
+                    assets={assets}
+                    financeFields={financeFields}
+                    initialData={initialDataForModal}
+                    orders={orders} 
                 />
             )}
     </div>

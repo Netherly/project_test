@@ -21,7 +21,7 @@ const calculateHours = (start, end) => {
     }
 };
 
-const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate }) => {
+const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate, employees, orders }) => {
     const [editedEntry, setEditedEntry] = useState(entry || {});
     const [initialEntry, setInitialEntry] = useState(entry || {});
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -118,12 +118,20 @@ const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate }) => 
                         
                         <div className="form-group">
                             <label>№ заказа</label>
-                            <input
-                                type="text"
+                            <select
+                                id="orderNumber"
                                 name="orderNumber"
-                                value={editedEntry.orderNumber || ''}
+                                value={editedEntry.orderNumber}
                                 onChange={handleChange}
-                            />
+                                required
+                            >
+                                <option value="">Выберите заказ</option>
+                                {orders.map((order) => (
+                                    <option key={order.id} value={order.id}>
+                                        Заказ №{order.id}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label>Описание заказа</label>
@@ -135,13 +143,19 @@ const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate }) => 
                             />
                         </div>
                         <div className="form-group">
-                            <label>Исполнитель роль</label>
-                            <input
-                                type="text"
+                            <label htmlFor="executorRole">Исполнитель</label>
+                            <select
                                 name="executorRole"
-                                value={editedEntry.executorRole || ''}
+                                value={editedEntry.executorRole}
                                 onChange={handleChange}
-                            />
+                            >
+                                <option value="">Выберите исполнителя</option>
+                                {employees.map((employee) => (
+                                    <option key={employee.id} value={employee.fullName}>
+                                        {employee.fullName}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label>Дата работы</label>

@@ -1,15 +1,15 @@
-.transactions-page {
+.regular-payments-page {
     display: flex;
     min-height: 100vh;
     color: var(--text-color);
 }
 
-.transactions-page-main-container {
+.regular-payments-page-main-container {
     flex-grow: 1;
     transition: margin-left 0.3s ease;
 }
 
-.transactions-header-container {
+.regular-payments-header-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -20,7 +20,7 @@
     border-bottom: 1px solid var(--border--color);
 }
 
-.add-transaction-wrapper {
+.add-payment-wrapper {
     display: flex;
     align-items: center;
     height: 100%;
@@ -29,7 +29,7 @@
     box-sizing: border-box;
 }
 
-.add-transaction-button {
+.add-payment-button {
     background-color: var(--button-bg);
     color: #fff;
     padding: 10px 20px;
@@ -41,13 +41,13 @@
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.add-transaction-button:hover {
+.add-payment-button:hover {
     background-color: var(--accent-color);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.transactions-title {
+.regular-payments-title {
     font-size: 22px;
     font-weight: 700;
     margin: 0;
@@ -60,13 +60,13 @@
     height: 100%;
 }
 
-.transactions-table-container {
+.regular-payments-table-container {
     background-color: var(--container-bg);
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.transactions-table {
+.regular-payments-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
@@ -76,12 +76,12 @@
     table-layout: fixed;
 }
 
-.transactions-table thead {
+.regular-payments-table thead {
     background-color: var(--container-bg);
     color: var(--chips-color);
 }
 
-.transactions-table th {
+.regular-payments-table th {
     padding: 12px 15px;
     white-space: normal;
     word-wrap: break-word;
@@ -93,51 +93,33 @@
     text-align: center;
 }
 
-.transactions-table thead tr th:first-child {
+.regular-payments-table thead tr th:first-child {
     border-top-left-radius: 8px;
 }
 
-.transactions-table thead tr th:last-child {
+.regular-payments-table thead tr th:last-child {
     border-top-right-radius: 8px;
 }
 
-.transactions-table tbody tr.transaction-row {
+.regular-payments-table tbody tr.regular-payment-row {
     transition: background-color 0.2s ease;
 }
 
-.transactions-table tbody tr.transaction-row:last-child {
-    border-bottom: none;
+.regular-payments-table tbody tr.regular-payment-row:hover {
+    background-color: #224158; 
 }
 
-.transactions-table tbody tr.transaction-row:hover {
-    background-color: #224158;
-}
-
-.transactions-table td {
+.regular-payments-table td {
     padding: 12px 15px;
     white-space: normal;
     word-wrap: break-word;
     word-break: break-all;
     color: var(--text-color);
-    vertical-align: top;
+    vertical-align: middle; 
     border-bottom: 1px solid var(--bg-color);
     border-top: 1px solid var(--bg-color);
     border-right: 1px solid var(--bg-color);
     text-align: center;
-}
-
-.sorting-indicator-row td {
-    background-color: var(--bg-color);
-    color: var(--chips-color);
-    font-size: 13px;
-    padding: 8px 15px;
-    font-weight: normal;
-    border-bottom: 1px solid var(--border--color);
-}
-
-.sorting-indicator-row td .sorting-text {
-    display: block;
-    text-align: left;
 }
 
 .amount-positive {
@@ -150,43 +132,20 @@
     font-weight: bold;
 }
 
-.account-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.account-info .account-main-name {
-    font-weight: bold;
-    color: var(--text-color);
-    font-size: 14px;
-    margin-bottom: 2px;
-}
-
-.copy-button-container {
-    display: flex;
-    align-items: flex-start;
-    gap: 5px;
-    white-space: normal;
-    word-wrap: break-word;
-    word-break: break-all;
-}
-
-.copy-button-icon {
+/* Стили для статуса */
+.status-chip {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #fff;
     display: inline-block;
-    width: 20px;
-    height: 20px;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%237F8BA4"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>');
-    background-size: 80%;
-    background-repeat: no-repeat;
-    background-position: center;
-    cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s ease;
-    flex-shrink: 0;
-    margin-top: 2px;
 }
 
-.copy-button-icon:hover {
-    opacity: 1;
+.status-active {
+    background-color: #4CAF50; 
+}
+
+.status-paused {
+    background-color: #f4b400; 
 }

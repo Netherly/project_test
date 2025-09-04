@@ -6,7 +6,7 @@ const generateId = () => {
     return 'executor_' + Math.random().toString(36).substring(2, 9);
 };
 
-const AddExecutorModal = ({ onAdd, onClose, fields, employees }) => {
+const AddExecutorModal = ({ onAdd, onClose, fields, orders }) => {
     const [formData, setFormData] = useState({
         orderNumber: '',
         performer: fields?.employees?.[0]?.fullName || '',
@@ -38,7 +38,7 @@ const AddExecutorModal = ({ onAdd, onClose, fields, employees }) => {
 
         const newExecutor = {
             id: generateId(),
-            orderNumber: formData.orderNumber,
+            orderNumber: "",
             orderStatus: "В работе",
             orderStatusEmoji: "⏳",
             orderDate: new Date().toISOString().split('T')[0],
@@ -96,15 +96,20 @@ const AddExecutorModal = ({ onAdd, onClose, fields, employees }) => {
                         <div className="tab-content">
                             <div className="form-row">
                                 <label htmlFor="orderNumber" className="form-label">Номер заказа</label>
-                                <input
-                                    type="text"
-                                    id="orderNumber"
-                                    name="orderNumber"
-                                    value={formData.orderNumber}
-                                    onChange={handleChange}
-                                    className="form-input"
-                                    required
-                                />
+                                <select
+                                        id="orderNumber"
+                                        name="orderNumber"
+                                        value={formData.orderNumber}
+                                        onChange={handleChange}
+                                        required
+                                        >
+                                        <option value="">Выберите заказ</option>
+                                        {orders.map((order) => (
+                                            <option key={order.id} value={order.id}>
+                                                Заказ №{order.id}
+                                            </option>
+                                        ))}
+                                </select>
                             </div>
                             <div className="form-row">
                                 <label htmlFor="performer" className="form-label">Исполнитель</label>

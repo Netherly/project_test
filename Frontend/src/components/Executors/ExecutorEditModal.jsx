@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import '../../styles/AddExecutorModal.css';
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 
-const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fields }) => {
+const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fields, orders, transactions = [], assets = [] }) => {
     const [formData, setFormData] = useState({
         ...order,
         orderSum: order.orderSum || '',
@@ -81,6 +81,19 @@ const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fi
         setShowCloseConfirmation(false);
     };
 
+    const executorTransactions = useMemo(() => {
+        if (!formData.orderNumber || !formData.performer || !formData.performerRole) {
+            return [];
+        }
+
+        
+        return transactions.filter(trx => 
+            String(trx.orderNumber) === String(formData.orderNumber) &&
+            trx.counterparty === formData.performer &&
+            trx.subcategory === formData.performerRole
+        );
+    }, [transactions, formData.orderNumber, formData.performer, formData.performerRole]);
+
     return (
         <>
             <div className="add-executor-overlay" onClick={handleOpenCloseConfirmation}>
@@ -102,7 +115,20 @@ const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fi
                     <form onSubmit={handleSubmit} className="add-executor-form">
                         <div className="form-row">
                             <label className="form-label">Номер заказа</label>
-                            <input type="text" name="orderNumber" value={formData.orderNumber} onChange={handleChange} className="form-input" required />
+                            <select
+                                        id="orderNumber"
+                                        name="orderNumber"
+                                        value={formData.orderNumber}
+                                        onChange={handleChange}
+                                        required
+                                        >
+                                        <option value="">Выберите заказ</option>
+                                        {orders.map((order) => (
+                                            <option key={order.id} value={order.id}>
+                                                Заказ №{order.id}
+                                            </option>
+                                        ))}
+                            </select>
                         </div>
                         
                         <div className="form-row">
@@ -162,6 +188,30 @@ const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fi
                         <div className="form-row checkbox-row">
                             <label className="form-label">Скрыть клиента</label>
                             <input type="checkbox" name="clientHidden" checked={formData.clientHidden} onChange={handleChange} className="form-checkbox" />
+                        </div>
+
+                        <div className="tab-content-row-column" style={{ marginTop: '20px' }}>
+                            <div className="tab-content-title">Журнал операций</div>
+                            <div className="payment-log-table">
+                                <div className="payment-log-header">
+                                    <div>Дата и время</div>
+                                    <div>Счет</div>
+                                    <div>Сумма операции</div>
+                                </div>
+                                
+                                {executorTransactions.map((trx) => (
+                                    <div key={trx.id} className="payment-log-row">
+                                        <input type="text" value={trx.date} readOnly />
+                                        <input type="text" value={trx.account} readOnly /> 
+                                        <input 
+                                            type="text" 
+                                            value={`${trx.amount.toFixed(2)} ${trx.accountCurrency}`}
+                                            className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}
+                                            readOnly 
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         
                         <div className="form-actions">

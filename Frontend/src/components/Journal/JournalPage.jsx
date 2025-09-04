@@ -12,6 +12,26 @@ import {
     deleteLogEntry,
 } from "./journalApi"; 
 
+const getEmployees = () => {
+    try {
+        const savedEmployees = localStorage.getItem('employees'); 
+        return savedEmployees ? JSON.parse(savedEmployees) : [];
+    } catch (error) {
+        console.error("Ошибка при чтении исполнителей из localStorage:", error);
+        return [];
+    }
+};
+
+const getOrders = () => {
+    try {
+        const savedOrders = localStorage.getItem('ordersData'); 
+        return savedOrders ? JSON.parse(savedOrders) : [];
+    } catch (error) {
+        console.error("Ошибка при чтении заказов из localStorage:", error);
+        return [];
+    }
+};
+
 const JournalPage = () => {
     const orderStatuses = [
         "Лид", "Изучаем ТЗ", "Обсуждаем с клиентом", "Клиент думает",
@@ -38,6 +58,13 @@ const JournalPage = () => {
     const [searchWorkDate, setSearchWorkDate] = useState("");
     const [searchWorkDone, setSearchWorkDone] = useState("");
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+    const [employees, setEmployees] = useState([]);
+    const [orders, setOrders] = useState([]); 
+
+    useEffect(() => {
+        setEmployees(getEmployees());
+        setOrders(getOrders());
+    }, []);
 
     useEffect(() => {
         applyFilters();
@@ -99,11 +126,6 @@ const JournalPage = () => {
             <div className="journal-page-main-container">
                 <header className="journal-header-container">
                     <h1 className="journal-title">Журнал</h1>
-                    <div className="add-entry-button-wrapper">
-                        <button className="add-entry-button" onClick={() => setShowAddForm(true)}>
-                            Добавить запись
-                        </button>
-                    </div>
                     <div className="search-container">
                         <div className="main-search-bar">
                             <span className="search-icon">🔍</span>
@@ -162,6 +184,11 @@ const JournalPage = () => {
                             </div>
                         )}
                     </div>
+                    <div className="add-entry-button-wrapper">
+                        <button className="add-entry-button" onClick={() => setShowAddForm(true)}>
+                            Добавить запись
+                        </button>
+                    </div>
                 </header>
 
                 <div className="journal-table-container">
@@ -208,6 +235,8 @@ const JournalPage = () => {
                     onDuplicate={handleDuplicateLogEntry}
                     onUpdate={handleUpdateLogEntry}
                     orderStatuses={orderStatuses}
+                    employees={employees}
+                    orders={orders}
                 />
             )}
 
@@ -216,6 +245,8 @@ const JournalPage = () => {
                     onAdd={handleAddLogEntry}
                     onClose={() => setShowAddForm(false)}
                     orderStatuses={orderStatuses}
+                    employees={employees}
+                    orders={orders}
                 />
             )}
         </div>

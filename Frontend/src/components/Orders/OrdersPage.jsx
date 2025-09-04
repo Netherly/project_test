@@ -1,21 +1,25 @@
-import React, { useState, useRef, useCallback, useEffect } from "react"; 
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import Sidebar from "../Sidebar";
 import StageColumn from "./StageColumn";
 import OrderModal from "../modals/OrderModal/OrderModal";
 import useHorizontalDragScroll from "./hooks/useHorizontalDragScroll";
+
+import { getLogEntries } from "../Journal/journalApi";
+import { useTransactions } from "../../context/TransactionsContext";
 import "../../styles/OrdersPage.css";
 
+
 const stages = [
-  "Лид", "Изучаем ТЗ", "Обсуждаем с клиентом", "Клиент думает",
-  "Ожидаем предоплату", "Взяли в работу", "Ведется разработка",
-  "На уточнении у клиента", "Тестируем", "Тестирует клиент",
-  "На доработке", "Ожидаем оплату", "Успешно завершен", "Закрыт",
-  "Неудачно завершён", "Удаленные"
+  "Лид", "Изучаем ТЗ", "Обсуждаем с клиентом", "Клиент думает",
+  "Ожидаем предоплату", "Взяли в работу", "Ведется разработка",
+  "На уточнении у клиента", "Тестируем", "Тестирует клиент",
+  "На доработке", "Ожидаем оплату", "Успешно завершен", "Закрыт",
+  "Неудачно завершён", "Удаленные"
 ];
 
-const ORDERS_STORAGE_KEY = 'ordersData'; 
+const ORDERS_STORAGE_KEY = 'ordersData';
 
 const OrdersPage = () => {
     const [orders, setOrders] = useState(() => {
@@ -33,6 +37,10 @@ const OrdersPage = () => {
         ];
     });
 
+    
+    const [journalEntries, setJournalEntries] = useState([]);
+    
+
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const stagesContainerRef = useRef(null);
@@ -42,7 +50,16 @@ const OrdersPage = () => {
         localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
     }, [orders]);
 
+    
+    useEffect(() => {
+        const allEntries = getLogEntries();
+        setJournalEntries(allEntries);
+    }, []);
+    
+
+
     const moveOrder = useCallback((orderId, newStage, newIndex) => {
+       
         setOrders((prevOrders) => {
             const order = prevOrders.find((o) => o.id === orderId);
             if (!order) return prevOrders;
@@ -57,31 +74,33 @@ const OrdersPage = () => {
     }, []);
 
     const updateOrder = (updatedOrder) => {
+        
         setOrders((prev) =>
             prev.map((order) =>
                 order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order
             )
         );
-        setSelectedOrder(null); 
+        setSelectedOrder(null);
     };
 
-    
+
     const generateRandomId = () => {
         return Math.floor(10000000 + Math.random() * 90000000);
     };
-    
+
     const handleCreateOrder = (newOrderData) => {
         const newOrder = {
             ...newOrderData,
-            id: generateRandomId(), 
+            id: generateRandomId(),
         };
         setOrders((prevOrders) => [newOrder, ...prevOrders]);
         setIsCreateModalOpen(false);
     };
 
     const handleDeleteOrder = (orderId) => {
+
         setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
-        setSelectedOrder(null); 
+        setSelectedOrder(null);
     };
 
     useHorizontalDragScroll(stagesContainerRef, isDraggingRef);
@@ -108,7 +127,7 @@ const OrdersPage = () => {
                     </div>
                 </DndProvider>
             </div>
-            
+
             {selectedOrder && (
                 <OrderModal
                     mode="edit"
@@ -116,14 +135,16 @@ const OrdersPage = () => {
                     onClose={() => setSelectedOrder(null)}
                     onUpdateOrder={updateOrder}
                     onDeleteOrder={handleDeleteOrder}
+                    journalEntries={journalEntries}
                 />
             )}
-            
+
             {isCreateModalOpen && (
                 <OrderModal
                     mode="create"
                     onClose={() => setIsCreateModalOpen(false)}
                     onCreateOrder={handleCreateOrder}
+                    journalEntries={journalEntries}
                 />
             )}
         </div>

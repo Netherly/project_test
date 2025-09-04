@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { TransactionsProvider } from './context/TransactionsContext';
 
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
@@ -17,6 +18,8 @@ import FieldsPage from "./pages/FieldsPage";
 import { sampleClients } from './data/sampleClients';
 import ExecutorsPage from './components/Executors/ExecutorsPage';
 import EmployeePage from './components/Employees/EmployeePage';
+import RegularPaymentsPage from './components/RegularPayments/RegularPaymentsPage';
+import { PaymentChecker } from './components/RegularPayments/PaymentChecker';
 
 const ProtectedRoute = ({ element }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -24,7 +27,6 @@ const ProtectedRoute = ({ element }) => {
 };
 
 export default function App() {
-  // Начальный список клиентов из sampleClients
   const [clients, setClients] = useState(sampleClients);
 
   // Примеры справочников для формы клиента
@@ -89,68 +91,75 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route
-          path="/home"
-          element={<ProtectedRoute element={<HomePage />} />}
-        />
-        <Route
-          path="/orders"
-          element={<ProtectedRoute element={<OrdersPage />} />}
-        />
-        <Route 
-          path="/executors" 
-          element={<ProtectedRoute element={<ExecutorsPage />} />}
-        />
-        <Route 
-          path="/employees" 
-          element={<ProtectedRoute element={<EmployeePage />} />}
-        />
-        <Route
-          path="/journal"
-          element={<ProtectedRoute element={<JournalPage />} />}
-        />
-        <Route 
-          path="/currency-rates"
-          element={<ProtectedRoute element={<CurrencyRates />} />}
-        />
-        <Route 
-          path="/assets" 
-          element={<ProtectedRoute element={<AssetsPage />} />}
-        />
-        <Route 
-          path="/list" 
-          element={<ProtectedRoute element={<TransactionsPage />} />}
-        />
-        <Route 
-          path="/profile" 
-          element={<ProtectedRoute element={<Profile />} />}
-        />
-        <Route 
-          path="/fields" 
-          element={<ProtectedRoute element={<FieldsPage />} />}
-        />
-        <Route
-          path="/clients"
-          element={
-            <ProtectedRoute
-              element={
-                <ClientsPage
-                  clients={clients}
-                  onSaveClient={handleSaveClient}
-                  onAddCompany={handleAddCompany}
-                  companies={companies}
-                  employees={employees}
-                  referrers={referrers}
-                  countries={countries}
-                  currencies={currencies}
-                />
-              }
-            />
-          }
-        />
-      </Routes>
+       <TransactionsProvider>
+        <PaymentChecker />
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route
+            path="/home"
+            element={<ProtectedRoute element={<HomePage />} />}
+          />
+          <Route
+            path="/orders"
+            element={<ProtectedRoute element={<OrdersPage />} />}
+          />
+          <Route 
+            path="/executors" 
+            element={<ProtectedRoute element={<ExecutorsPage />} />}
+          />
+          <Route 
+            path="/employees" 
+            element={<ProtectedRoute element={<EmployeePage />} />}
+          />
+          <Route
+            path="/journal"
+            element={<ProtectedRoute element={<JournalPage />} />}
+          />
+          <Route 
+            path="/currency-rates"
+            element={<ProtectedRoute element={<CurrencyRates />} />}
+          />
+          <Route 
+            path="/assets" 
+            element={<ProtectedRoute element={<AssetsPage />} />}
+          />
+          <Route 
+            path="/list" 
+            element={<ProtectedRoute element={<TransactionsPage />} />}
+          />
+          <Route 
+            path="/regular" 
+            element={<ProtectedRoute element={<RegularPaymentsPage />} />}
+          />
+          <Route 
+            path="/profile" 
+            element={<ProtectedRoute element={<Profile />} />}
+          />
+          <Route 
+            path="/fields" 
+            element={<ProtectedRoute element={<FieldsPage />} />}
+          />
+          <Route
+            path="/clients"
+            element={
+              <ProtectedRoute
+                element={
+                  <ClientsPage
+                    clients={clients}
+                    onSaveClient={handleSaveClient}
+                    onAddCompany={handleAddCompany}
+                    companies={companies}
+                    employees={employees}
+                    referrers={referrers}
+                    countries={countries}
+                    currencies={currencies}
+                  />
+                }
+              />
+            }
+          />
+        </Routes>
+      </TransactionsProvider>
     </ThemeProvider>
   );
 }

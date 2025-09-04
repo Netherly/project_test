@@ -219,6 +219,25 @@
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+
+.add-executor-form select{
+    flex-basis: 60%;
+    width: 100%; 
+    padding: 10px 12px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.add-executor-form select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
+}
+
 @media (max-width: 768px) {
     .add-executor-modal {
         width: 100%;

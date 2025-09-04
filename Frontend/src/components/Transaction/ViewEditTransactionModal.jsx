@@ -7,7 +7,7 @@ const generateId = (prefix) => {
 };
 
 
-const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, onDuplicate, assets, financeFields }) => {
+const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, onDuplicate, assets, financeFields, orders = [], counterparties = [] }) => {
     const formattedDate = transaction.date ? transaction.date.replace(" ", "T") : "";
     const originalTransactionRef = useRef(transaction);
 
@@ -57,21 +57,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         );
     }, [formData.category, financeFields]);
 
-    const counterparties = ["Иванов И.И.", "ООО 'Поставщик'", "Петров П.П.", "Binance Exchange", "ООО 'Клиент'", "Государственная Налоговая Служба"];
-    const counterpartyRequisitesMap = {
-        "Иванов И.И.": { UAH: "UA987654321098765432109876543", USD: "US987654321098765432109876543" },
-        "ООО 'Поставщик'": { UAH: "EDRPOU 12345678" },
-        "Петров П.П.": { UAH: "Паспорт СН123456" },
-        "Binance Exchange": { USDT: "Binance ID: 987654321" },
-        "ООО 'Клиент'": { UAH: "ИНН 87654321" },
-        "Государственная Налоговая Служба": { UAH: "UA456789012345678901234567890" },
-    };
-
-    const activeOrders = [
-        { id: "ORD001", number: "P-54321", currency: "UAH", amount: 1200 },
-        { id: "ORD002", number: "S-98765", currency: "USD", amount: 50 },
-        { id: "ORD003", number: "K-11223", currency: "RUB", amount: 3000 },
-    ];
 
 
 
@@ -136,44 +121,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         }
     }, [formData.amount, formData.accountCurrency, currentRates]);
 
-    useEffect(() => {
-        if (formData.orderNumber) {
-            const selectedOrder = activeOrders.find(order => order.number === formData.orderNumber);
-            if (selectedOrder) {
-                setFormData(prevData => ({
-                    ...prevData,
-                    orderId: selectedOrder.id,
-                    orderCurrency: selectedOrder.currency,
-                    sumByRatesOrderAmountCurrency: selectedOrder.amount.toFixed(2),
-                    sumByRatesUAH: convertCurrency(selectedOrder.amount, selectedOrder.currency, "UAH"),
-                    sumByRatesUSD: convertCurrency(selectedOrder.amount, selectedOrder.currency, "USD"),
-                    sumByRatesRUB: convertCurrency(selectedOrder.amount, selectedOrder.currency, "RUB"),
-                }));
-            } else {
-                setFormData(prevData => ({
-                    ...prevData,
-                    orderId: generateId("ORD_"),
-                    orderCurrency: "",
-                    sumByRatesOrderAmountCurrency: "",
-                    sumByRatesUAH: "",
-                    sumByRatesUSD: "",
-                    sumByRatesRUB: "",
-                }));
-            }
-            setShowOrderBlock(true);
-        } else {
-            setShowOrderBlock(false);
-            setFormData(prevData => ({
-                ...prevData,
-                orderId: "",
-                orderCurrency: "",
-                sumByRatesOrderAmountCurrency: "",
-                sumByRatesUAH: "",
-                sumByRatesUSD: "",
-                sumByRatesRUB: "",
-            }));
-        }
-    }, [formData.orderNumber, currentRates]);
 
     useEffect(() => {
         setShowCommissionField(formData.category === "Смена счета" && parseFloat(formData.amount) > 0);
@@ -230,18 +177,61 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         }
 
         if (name === "counterparty") {
-            const selectedRequisites = counterpartyRequisitesMap[newValue];
-            if (selectedRequisites) {
-                newFormData.counterpartyRequisites = selectedRequisites[newFormData.accountCurrency] || Object.values(selectedRequisites)[0] || "";
-            } else {
-                newFormData.counterpartyRequisites = "";
+            const selectedCounterparty = counterparties.find(cp => cp.name === newValue);
+            let requisitesString = "";
+
+            if (selectedCounterparty && selectedCounterparty.requisites) {
+               
+                const requisitesForCurrency = selectedCounterparty.requisites[newFormData.accountCurrency];
+
+                if (requisitesForCurrency && requisitesForCurrency.length > 0) {
+                    
+                    requisitesString = requisitesForCurrency
+                        .map(req => `${req.bank}: ${req.card}`)
+                        .join(', ');
+                } else {
+                    
+                    const firstAvailableCurrency = Object.keys(selectedCounterparty.requisites)[0];
+                    if (firstAvailableCurrency) {
+                        const firstRequisites = selectedCounterparty.requisites[firstAvailableCurrency];
+                        if (firstRequisites && firstRequisites.length > 0) {
+                           requisitesString = firstRequisites
+                             .map(req => `${req.bank}: ${req.card}`)
+                             .join(', ');
+                        }
+                    }
+                }
             }
+            newFormData.counterpartyRequisites = requisitesString;
         }
 
         if (name === "amount" || name === "category") {
             const currentAmount = parseFloat(name === "amount" ? newValue : newFormData.amount);
             const currentCategory = name === "category" ? newValue : newFormData.category;
             setShowCommissionField(currentCategory === "Смена счета" && currentAmount > 0);
+        }
+
+        if (name === "orderNumber") {
+            if (newValue) { 
+                const selectedOrder = orders.find(order => String(order.id) === newValue);
+                if (selectedOrder) {
+                    
+                    newFormData.orderId = selectedOrder.id;
+                    newFormData.orderCurrency = selectedOrder.currency; 
+                    newFormData.sumByRatesOrderAmountCurrency = selectedOrder.amount; 
+                    newFormData.sumByRatesUAH = convertCurrency(selectedOrder.amount, selectedOrder.currency, "UAH");
+                    newFormData.sumByRatesUSD = convertCurrency(selectedOrder.amount, selectedOrder.currency, "USD");
+                    newFormData.sumByRatesRUB = convertCurrency(selectedOrder.amount, selectedOrder.currency, "RUB");
+                }
+            } else {
+                newFormData.orderId = "";
+                newFormData.orderNumber = "";
+                newFormData.orderCurrency = "";
+                newFormData.sumByRatesOrderAmountCurrency = "";
+                newFormData.sumByRatesUAH = "";
+                newFormData.sumByRatesUSD = "";
+                newFormData.sumByRatesRUB = "";
+            }
         }
 
         setFormData(newFormData);
@@ -540,8 +530,8 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             >
                                 <option value="">Выберите контрагента</option>
                                 {counterparties.map((cp) => (
-                                    <option key={cp} value={cp}>
-                                        {cp}
+                                    <option key={`${cp.type}-${cp.id}`} value={cp.name}>
+                                        {cp.name}
                                     </option>
                                 ))}
                             </select>
@@ -573,9 +563,9 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 className="form-input"
                             >
                                 <option value="">Выберите номер заказа</option>
-                                {activeOrders.map(order => (
+                                {orders.map(order => (
                                     <option key={order.id} value={order.number}>
-                                        {order.number}
+                                        {order.id}
                                     </option>
                                 ))}
                             </select>

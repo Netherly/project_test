@@ -1,4 +1,4 @@
-/* LogEntryDetails.css - ОБНОВЛЕНО */
+
 
 .log-entry-details-overlay {
     position: fixed;
@@ -141,7 +141,7 @@
 .delete-button {
     background-color: #553434;
     color: #ff8282;
-    margin-right: auto; /* Помещает кнопку удаления слева */
+    margin-right: auto; 
 }
 
 .delete-button:hover {
@@ -167,4 +167,24 @@
 
 .save-button:hover {
     background-color: var(--accent-color);
+}
+
+
+
+.log-entry-details-content select{
+    flex-basis: 60%;
+    width: 100%; 
+    padding: 10px 12px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.log-entry-details-content select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
 }

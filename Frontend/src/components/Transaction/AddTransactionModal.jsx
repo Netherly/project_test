@@ -7,7 +7,7 @@ const generateId = (prefix) => {
 };
 
 
-const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
+const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialData = {}, orders = [], counterparties = [] }) => {
     const getCurrentDateTime = () => {
         const now = new Date();
         const year = now.getFullYear();
@@ -43,10 +43,14 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
         sentToCounterparty: false,
         sendLion: false,
         id: generateId("TRX_"),
+        ...initialData,
     }), [financeFields]);
 
 
-    const [formData, setFormData] = useState(initialFormData);
+    const [formData, setFormData] = useState({
+        ...initialFormData,
+        ...initialData
+    });
 
     const [currentRates, setCurrentRates] = useState(null);
     const [showCommissionField, setShowCommissionField] = useState(false);
@@ -89,22 +93,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
     }, []);
 
 
-    const counterparties = ["Иванов И.И.", "ООО 'Поставщик'", "Петров П.П.", "Binance Exchange", "ООО 'Клиент'", "Государственная Налоговая Служба"];
-    const counterpartyRequisitesMap = {
-        "Иванов И.И.": { UAH: "UA987654321098765432109876543", USD: "US987654321098765432109876543" },
-        "ООО 'Поставщик'": { UAH: "EDRPOU 12345678" },
-        "Петров П.П.": { UAH: "Паспорт СН123456" },
-        "Binance Exchange": { USDT: "Binance ID: 987654321" },
-        "ООО 'Клиент'": { UAH: "ИНН 87654321" },
-        "Государственная Налоговая Служба": { UAH: "UA456789012345678901234567890" },
-    };
-
-
-    const activeOrders = [
-        { id: "ORD001", number: "P-54321", currency: "UAH", amount: 1200 },
-        { id: "ORD002", number: "S-98765", currency: "USD", amount: 50 },
-        { id: "ORD003", number: "K-11223", currency: "RUB", amount: 3000 },
-    ];
 
     const convertCurrency = (amount, fromCurrency, toCurrency) => {
         if (!currentRates || !amount || isNaN(amount) || amount === 0) {
@@ -162,8 +150,32 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
         }
         
         if (name === "counterparty") {
-            const selectedRequisites = counterpartyRequisitesMap[newValue];
-            newFormData.counterpartyRequisites = selectedRequisites ? selectedRequisites[newFormData.accountCurrency] || Object.values(selectedRequisites)[0] || "" : "";
+            const selectedCounterparty = counterparties.find(cp => cp.name === newValue);
+            let requisitesString = "";
+
+            if (selectedCounterparty && selectedCounterparty.requisites) {
+                
+                const requisitesForCurrency = selectedCounterparty.requisites[newFormData.accountCurrency];
+
+                if (requisitesForCurrency && requisitesForCurrency.length > 0) {
+                    
+                    requisitesString = requisitesForCurrency
+                        .map(req => `${req.bank}: ${req.card}`)
+                        .join(', ');
+                } else {
+                    
+                    const firstAvailableCurrency = Object.keys(selectedCounterparty.requisites)[0];
+                    if (firstAvailableCurrency) {
+                        const firstRequisites = selectedCounterparty.requisites[firstAvailableCurrency];
+                        if (firstRequisites && firstRequisites.length > 0) {
+                           requisitesString = firstRequisites
+                             .map(req => `${req.bank}: ${req.card}`)
+                             .join(', ');
+                        }
+                    }
+                }
+            }
+            newFormData.counterpartyRequisites = requisitesString;
         }
 
         if (name === "amount" || name === "category") {
@@ -188,14 +200,14 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
         
         if (name === "orderNumber") {
             if (newValue) {
-                const selectedOrder = activeOrders.find(order => order.number === newValue);
+                const selectedOrder = orders.find(order => String(order.id) === newValue);
                 if (selectedOrder) {
                     newFormData = {
                         ...newFormData,
                         orderId: selectedOrder.id,
-                        orderNumber: selectedOrder.number,
+                        orderNumber: selectedOrder.id,
                         orderCurrency: selectedOrder.currency,
-                        sumByRatesOrderAmountCurrency: selectedOrder.amount.toFixed(2),
+                        sumByRatesOrderAmountCurrency: selectedOrder.amount,
                         sumByRatesUAH: convertCurrency(selectedOrder.amount, selectedOrder.currency, "UAH"),
                         sumByRatesUSD: convertCurrency(selectedOrder.amount, selectedOrder.currency, "USD"),
                         sumByRatesRUB: convertCurrency(selectedOrder.amount, selectedOrder.currency, "RUB"),
@@ -393,7 +405,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                                 name="subcategory"
                                 value={formData.subcategory}
                                 onChange={handleChange}
-                                required
                                 className="form-input"
                             >
                                 <option value="">Выберите подстатью</option>
@@ -609,8 +620,8 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                         >
                             <option value="">Выберите контрагента</option>
                             {counterparties.map((cp) => (
-                                <option key={cp} value={cp}>
-                                    {cp}
+                                <option key={`${cp.type}-${cp.id}`} value={cp.name}>
+                                    {cp.name}
                                 </option>
                             ))}
                         </select>
@@ -642,9 +653,9 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields }) => {
                             className="form-input"
                         >
                             <option value="">Выберите номер заказа</option>
-                            {activeOrders.map(order => (
+                            {orders.map(order => (
                                 <option key={order.id} value={order.number}>
-                                    {order.number}
+                                    {order.id}
                                 </option>
                             ))}
                         </select>

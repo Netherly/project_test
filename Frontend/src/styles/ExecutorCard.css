@@ -10,6 +10,13 @@
     min-height: 150px;
 }
 
+.executor-card:hover{
+     transform: translateY(-5px);
+     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
+              0 0 0 2px #478cff,
+              0 0 15px rgba(71, 140, 255, 0.5);
+}
+
 .card-header {
     display: flex;
     justify-content: space-between;

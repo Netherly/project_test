@@ -96,8 +96,33 @@ const WorkPlan = ({ control }) => {
     navigator.clipboard.writeText(textToCopy).then(() => alert("Данные скопированы в буфер обмена!"));
   };
 
+  const projectOptions = [
+  "Проект Альфа",
+  "Разработка CRM",
+  "Интернет-магазин 'Космос'",
+  "Лендинг для конференции"
+];
+
   return (
     <div className="tab-content-container">
+
+       <div className="tab-content-row">
+          <div className="tab-content-title">Проект</div>
+          <Controller
+            name="project"
+            control={control}
+            render={({ field }) => (
+              <select {...field} className="custom-content-input"> 
+                <option value="" disabled>Выберите проект</option>
+                {projectOptions.map((project, index) => (
+                  <option key={index} value={project}>
+                    {project}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
+        </div>
 
       
       <div className="tab-content-row">

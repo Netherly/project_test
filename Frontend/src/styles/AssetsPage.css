@@ -252,7 +252,7 @@
     cursor: pointer;
 }
 
-.view-mode-buttons {
+.assets-view-mode-buttons {
     display: flex;
     gap: 0;
     padding: 0 20px;
@@ -261,7 +261,7 @@
     align-items: center;
 }
 
-.view-mode-button {
+.assets-view-mode-button {
     background-color: transparent;
     border: none;
     padding: 8px 12px;
@@ -277,33 +277,28 @@
     height: 40px;
 }
 
-.view-mode-button:hover {
+.assets-view-mode-button:hover {
     background-color: var(--button-bg-hover);
     color: var(--text-color);
 }
 
-.view-mode-button.active {
-    background-color: var(--accent-color);
+.assets-view-mode-button.active {
+    background-color: #478cff;
     color: white;
     border-radius: 6px;
 }
 
-.view-mode-button:first-child.active {
+.assets-view-mode-button:first-child.active {
     border-top-left-radius: 6px;
     border-bottom-left-radius: 6px;
 }
 
-.view-mode-button:last-child.active {
+.assets-view-mode-button:last-child.active {
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
 }
 
-.view-mode-buttons {
-    border: none;
-    border-radius: 0;
-    overflow: visible;
-    border-right: 1px solid var(--border--color);
-}
+
 
 .assets-cards-container {
     display: grid;
@@ -322,7 +317,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 0 0 20px 20px;
+    margin-left: 20px;
+    padding: 0 20px;
+    border-right: 1px solid var(--border--color);
 }
 
 .card-size-button {
@@ -335,6 +332,6 @@
 }
 
 .card-size-button.active {
-    background-color: #007bff;
+    background-color: #478cff;
     color: #fff;
 }

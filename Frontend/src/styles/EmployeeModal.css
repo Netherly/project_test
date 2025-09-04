@@ -1,5 +1,5 @@
 
-.modal-overlay {
+.employee-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -14,7 +14,7 @@
   transition: opacity 0.3s ease;
 }
 
-.modal-overlay.open {
+.employee-modal-overlay.open {
   opacity: 1;
 }
 
@@ -37,7 +37,7 @@
   transition: transform 0.3s ease-out, opacity 0.3s ease-out;
 }
 
-.modal-overlay.open .employee-modal.tri-layout {
+.employee-modal-overlay.open .employee-modal.tri-layout {
   transform: scale(1);
   opacity: 1;
 }
@@ -83,7 +83,7 @@
 }
 
 
-.modal-body {
+.employee-modal-body {
   flex-grow: 1;
   overflow-y: auto;
   padding: 24px;

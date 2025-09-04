@@ -395,51 +395,51 @@ const AssetsPage = () => {
                     <h1 className="assets-title">Активы</h1>
                     
                         
-                            <div className="view-mode-buttons">
+                            <div className="assets-view-mode-buttons">
                                 <button
-                                    className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
+                                    className={`assets-view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
                                     onClick={() => setViewMode('card')}
                                     title="Карточный вид"
                                 >
                                     &#x25A3;
                                 </button>
                                 <button
-                                    className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
+                                    className={`assets-view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
                                     onClick={() => setViewMode('table')}
                                     title="Табличный вид"
                                 >
                                     &#x2261;
                                 </button>
                             </div>
+                            {viewMode === 'card' && (
+                                <div className="card-size-selector">
+                                    <span>Размеры карт:</span>
+                                    <button
+                                        className={`card-size-button ${cardSize === 'large' ? 'active' : ''}`}
+                                        onClick={() => handleSetCardSize('large')}
+                                    >
+                                        Крупно
+                                    </button>
+                                    <button
+                                        className={`card-size-button ${cardSize === 'medium' ? 'active' : ''}`}
+                                        onClick={() => handleSetCardSize('medium')}
+                                    >
+                                        Средне
+                                    </button>
+                                    <button
+                                        className={`card-size-button ${cardSize === 'small' ? 'active' : ''}`}
+                                        onClick={() => handleSetCardSize('small')}
+                                    >
+                                        Мелко
+                                    </button>
+                                </div>
+                            )}
                             <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
                                 ➕ Добавить актив
                             </button>
                 </header>
 
-                
-                {viewMode === 'card' && (
-                    <div className="card-size-selector">
-                        <span>Размеры карт:</span>
-                        <button
-                            className={`card-size-button ${cardSize === 'large' ? 'active' : ''}`}
-                            onClick={() => handleSetCardSize('large')}
-                        >
-                            Крупно
-                        </button>
-                        <button
-                            className={`card-size-button ${cardSize === 'medium' ? 'active' : ''}`}
-                            onClick={() => handleSetCardSize('medium')}
-                        >
-                            Средне
-                        </button>
-                        <button
-                            className={`card-size-button ${cardSize === 'small' ? 'active' : ''}`}
-                            onClick={() => handleSetCardSize('small')}
-                        >
-                            Мелко
-                        </button>
-                    </div>
-                )}
+            
                 <div className="assets-content">
                     {viewMode === 'table' && (
                         <div className="assets-table-container">

@@ -19,6 +19,7 @@
 }
 
 .stage-column {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
   position: relative;
   flex: 0 0 320px; 
   height: calc(100vh - 41px);
@@ -30,9 +31,7 @@
   box-sizing: border-box;
   background-color: none;
 }
-/* .stage-column:hover {
-  background-color: var(--container-hover-bg); 
-} */
+
 .stage-column.highlight {
   background-color: rgba(0, 150, 255, 0.2);
   transition: background-color 0.3s ease-in-out;
@@ -73,8 +72,10 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .order-container:hover {
-  
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
+              0 0 0 2px #478cff,
+              0 0 15px rgba(71, 140, 255, 0.5);
 }
 .order-container.dragging {
   opacity: 0.5;

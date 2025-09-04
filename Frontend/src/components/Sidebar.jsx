@@ -84,6 +84,7 @@ const Sidebar = () => {
       { name: "Активы(n)", path: "/assets", icon: AssetsNewWebm },
       { name: "Транзакции", path: "/list", icon: TransactionWebm },
       { name: "Транзакции(n)", path: "/list", icon: TransactionNewWebm },
+      { name: "Регулярные платежи", path: "/regular", icon: TransactionNewWebm}
     ],
     settings: [
       { name: "Роли/Доступы", path: "/roles-access", icon: RolesWebm },
