@@ -54,7 +54,6 @@ const OrderExecution = ({ control }) => {
                         <div>Дата работы</div>
                         <div>Часы</div>
                         <div>Что было сделано?</div>
-                        <div></div>
                     </div>
                     {fields.map((item, index) => (
                         <div key={item.id} className="work-log-row">
@@ -63,7 +62,6 @@ const OrderExecution = ({ control }) => {
                             <Controller name={`work_log.${index}.work_date`} control={control} render={({ field }) => <input type="date" {...field} />} />
                             <Controller name={`work_log.${index}.hours`} control={control} render={({ field }) => <input placeholder="Часы..." {...field} />} />
                             <Controller name={`work_log.${index}.description`} control={control} render={({ field }) => <textarea placeholder="Что было сделано?" {...field}></textarea>} />
-                            <button type="button" className="remove-row-btn" onClick={() => remove(index)}>&times;</button>
                         </div>
                     ))}
                 </div>

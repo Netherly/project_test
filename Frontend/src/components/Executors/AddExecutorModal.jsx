@@ -6,7 +6,7 @@ const generateId = () => {
     return 'executor_' + Math.random().toString(36).substring(2, 9);
 };
 
-const AddExecutorModal = ({ onAdd, onClose, fields, orders }) => {
+const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
     const [formData, setFormData] = useState({
         orderNumber: '',
         performer: fields?.employees?.[0]?.fullName || '',
@@ -89,7 +89,7 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders }) => {
                     <div className="add-executor-header">
                         <h2>Добавить исполнителя</h2>
                         <div className="add-executor-actions">
-                            <span className="icon" onClick={handleOverlayClose}>✖️</span>
+                            <span className="icon" onClick={handleOverlayClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
                         </div>
                     </div>
                     <form onSubmit={handleSubmit} className="add-executor-form">

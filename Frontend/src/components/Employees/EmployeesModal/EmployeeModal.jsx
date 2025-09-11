@@ -115,10 +115,16 @@ export default function EmployeeModal({
        
         <div className="left-panel">
           <FormProvider {...methods}>
+            <form
+              className="employee-modal-body"
+              onSubmit={handleSubmit(submitHandler, onInvalid)}
+            >
             <EmployeeHeader
               isNew={isNew}
               onClose={closeHandler}
               onDelete={!isNew && onDelete ? deleteHandler : null}
+              isDirty={isDirty}
+              reset={reset}
             />
 
             <TabsNav
@@ -126,23 +132,11 @@ export default function EmployeeModal({
               setActiveTab={setActiveTab}
               errors={groupErrors(errors)}
             />
-
-            <form
-              className="employee-modal-body"
-              onSubmit={handleSubmit(submitHandler, onInvalid)}
-            >
               {activeTab === 'general'    && <GeneralInfoTab employeeFields={allFields.employeeFields} />}
               {activeTab === 'contacts'   && <ContactsTab />}
               {activeTab === 'requisites' && <RequisitesTab />}
               {activeTab === 'finances'   && <FinancesTab isNew={isNew} />}
-              {activeTab === 'orders'     && <OrdersTab isNew={isNew} />}
-
-              <div className="form-actions-bottom">
-                <button type="button" onClick={() => reset()} disabled={!isDirty}>
-                  Сбросить
-                </button>
-                <button type="submit">Сохранить</button>
-              </div>
+              {activeTab === 'orders'     && <OrdersTab isNew={isNew} employee={safeEmployee} />}
             </form>
           </FormProvider>
         </div>

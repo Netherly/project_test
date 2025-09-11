@@ -2,6 +2,35 @@
 
 const JOURNAL_KEY = 'journalEntries'; 
 
+
+/**
+ * Получает всех исполнителей из localStorage.
+ * @returns {Array} Массив исполнителей или пустой массив.
+ */
+export const getEmployees = () => {
+    try {
+        const savedEmployees = localStorage.getItem('employees'); 
+        return savedEmployees ? JSON.parse(savedEmployees) : [];
+    } catch (error) {
+        console.error("Ошибка при чтении исполнителей из localStorage:", error);
+        return [];
+    }
+};
+
+/**
+ * Получает все заказы из localStorage.
+ * @returns {Array} Массив заказов или пустой массив.
+ */
+export const getOrders = () => {
+    try {
+        const savedOrders = localStorage.getItem('ordersData'); 
+        return savedOrders ? JSON.parse(savedOrders) : [];
+    } catch (error) {
+        console.error("Ошибка при чтении заказов из localStorage:", error);
+        return [];
+    }
+};
+
 /**
  * Получает все записи журнала из localStorage.
  * @returns {Array} Массив записей журнала или пустой массив, если записей нет.

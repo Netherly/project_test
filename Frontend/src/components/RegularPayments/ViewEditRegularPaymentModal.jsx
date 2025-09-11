@@ -90,14 +90,14 @@ const ViewEditRegularPaymentModal = ({
                 <div className="add-transaction-header">
                     <h2>Редактировать платеж</h2>
                     <div className="add-transaction-actions">
-                        <button className="options-button" onClick={handleMenuToggle}>⋮</button>
+                        <button className="options-button" onClick={handleMenuToggle}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
                         {showOptionsMenu && (
                             <div className="options-menu">
                                 <button className="menu-item" onClick={handleDuplicateClick}>Дублировать</button>
                                 <button className="menu-item delete-item" onClick={handleDeleteClick}>Удалить</button>
                             </div>
                         )}
-                        <span className="icon" onClick={handleCloseModal}>✖️</span>
+                        <span className="icon" onClick={handleCloseModal}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
                     </div>
                 </div>
 

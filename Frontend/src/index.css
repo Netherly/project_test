@@ -21,6 +21,9 @@ body {
 	--button-text: #FFFFFF;
 	--btn-border-color: #284860;
 	--opacity-container: rgba(25, 33, 58, 0.1);
+	--font-size-page-title:   22px;  
+  	--font-size-table-header: 12px; 
+  	--font-size-table-text:   12px;
 }
 [data-theme="dark"] {
 /* Темная тема */
@@ -39,7 +42,7 @@ body {
     --button-text: #19213A;
     --input-bg: #242b45;
     --input-border: #4A5568;
-    --input-border-focus: #339DC7;
+    --input-border-focus: #478cff;
     --opacity-container: rgba(25, 33, 58, .7);
 }
 

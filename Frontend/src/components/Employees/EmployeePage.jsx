@@ -6,17 +6,58 @@ import "../../styles/EmployeesPage.css";
 import avatarPlaceholder from "../../assets/avatar-placeholder.svg"; 
 
 
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); 
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+};
+
 const EmployeeCard = ({ employee, onClick }) => {
     return (
         <div className="employee-card" onClick={onClick}>
-            <img src={avatarPlaceholder} alt={employee.fullName} className="card-avatar" />
-            <div className="card-info">
-                <span className="card-tag">{employee.login}</span>
-                <span className="card-name">{employee.fullName}</span>
+            <img 
+                src={employee.avatarUrl || avatarPlaceholder} 
+                alt={employee.fullName} 
+                className="card-avatar" 
+            />
+
+            <div className="card-details">
+                <div className="card-header">
+                    <span className="card-full-name">{employee.fullName}</span>
+                    {employee.birthDate && (
+                        <span className="card-birthdate">{formatDate(employee.birthDate)}</span>
+                    )}
+                </div>
+
+                <div className="card-login-wrapper">
+                    <span className="card-login">{employee.login}</span>
+                </div>
+
+                <div className="card-footer">
+                    <div className="card-tags-container">
+                        {employee.tags?.length > 0 ? (
+                            employee.tags.map((tag, index) => (
+                                <span key={index} className="tag-chip" style={{ backgroundColor: tag.color }}>
+                                    {tag.name}
+                                </span>
+                            ))
+                        ) : (
+                            <span className="card-label"></span>
+                        )}
+                    </div>
+                    <div className="card-balance-container">
+                        <span className="card-label">баланс:</span>
+                        <span className="card-balance">{employee.balance || 'N/A'}</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
+
 
 const EmployeePage = () => {
     const defaultEmployees = [
@@ -138,7 +179,7 @@ const EmployeePage = () => {
                     </div>
 
                     <button className="add-employee-button" onClick={() => handleOpenModal()}>
-                        ➕ добавить сотрудника
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить сотрудника
                     </button>
                 </header>
 

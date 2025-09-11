@@ -16,10 +16,12 @@
   transition:background .2s;
 }
 .tabs-nav li.active button{
-  background:#0d4c77;           /* активная */
-  font-weight:600;
+    border-bottom-color: var(--container-text-color);
+    opacity: 1;
+    color: var(--container-text-color);
+    background-color: rgba(128, 128, 128, 0.15);
 }
-.tabs-nav li button:hover{background:#165a8d;}
+
 .tabs-nav li.has-error button{box-shadow:inset 0 -3px 0 #c0392b;}
 .error-dot{
   display:inline-block;

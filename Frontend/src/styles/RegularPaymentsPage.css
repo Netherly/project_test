@@ -30,25 +30,23 @@
 }
 
 .add-payment-button {
-    background-color: var(--button-bg);
+    background-color: var(--container-bg);
     color: #fff;
     padding: 10px 20px;
     border: none;
-    border-radius: 6px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
 }
 
-.add-payment-button:hover {
-    background-color: var(--accent-color);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
 
 .regular-payments-title {
-    font-size: 22px;
+    font-size: var(--font-size-page-title);
     font-weight: 700;
     margin: 0;
     color: var(--text-color);
@@ -62,7 +60,6 @@
 
 .regular-payments-table-container {
     background-color: var(--container-bg);
-    border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -70,7 +67,6 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 14px;
     text-align: left;
     color: var(--container-text-color);
     table-layout: fixed;
@@ -78,7 +74,7 @@
 
 .regular-payments-table thead {
     background-color: var(--container-bg);
-    color: var(--chips-color);
+    font-size: var(--font-size-table-header);
 }
 
 .regular-payments-table th {
@@ -106,7 +102,7 @@
 }
 
 .regular-payments-table tbody tr.regular-payment-row:hover {
-    background-color: #224158; 
+    background-color: var(--input-border-focus); 
 }
 
 .regular-payments-table td {
@@ -120,6 +116,7 @@
     border-top: 1px solid var(--bg-color);
     border-right: 1px solid var(--bg-color);
     text-align: center;
+    font-size: var(--font-size-table-text);
 }
 
 .amount-positive {

@@ -14,7 +14,7 @@ import * as executorService from '../../Executors/executorService';
 import AddExecutorModal from '../../Executors/AddExecutorModal';
 import AddTransactionModal from '../../Transaction/AddTransactionModal';
 import { useTransactions } from '../../../context/TransactionsContext';
-import { addLogEntry } from '../../Journal/journalApi'
+import { addLogEntry, getEmployees, getOrders } from '../../Journal/journalApi'
 import { stageColors, getStageColor } from '../../Orders/stageColors';
 import { sampleClients } from '../../../data/sampleClients'; 
 import '../../../styles/OrderModal.css';
@@ -171,6 +171,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
         financeFields,
         initialDataForModal,
         orders,
+        counterparties,
     } = useTransactions();
 
   const [customTag, setCustomTag] = useState('');
@@ -184,6 +185,10 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAddExecutorModalOpen, setIsAddExecutorModalOpen] = useState(false);
   const [executorFormFields, setExecutorFormFields] = useState({ employees: [], role: [], currency: [] });
+  const [employees, setEmployees] = useState([]);
+   useEffect(() => {
+        setEmployees(getEmployees());
+    }, []);
 
   useEffect(() => {
     
@@ -233,9 +238,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
 
 }, [order, journalEntries, reset, getValues]); 
 
-    const onSubmit1 = (data) => {
-        console.log("Данные формы для сохранения:", data);
-    };
+  
 
     const handleClientPayment = () => {
         const defaults = {
@@ -571,10 +574,12 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
   return (
     <div className="order-modal-overlay">
       <div className="order-modal-content">
-        <button className="close-button" onClick={onClose}>{'<'}</button>
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit(onSubmit)} className="order-modal-form">
-            <div className="modal-header">
+            <div className="order-modal-header-section">
+              <div className='header-top-row'>
+                 <button className="close-button" onClick={onClose}>{'<'}</button>
+                 <div className="modal-header">
               <h2 className="modal-order-title">
                 {mode === 'create'
                   ? 'Создание нового заказа'
@@ -610,131 +615,129 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                   )}
                 </div>
               )}
-            </div>
-
-            <div className="tags-section">
-                <Controller
-                    control={control}
-                    name="tags"
-                    render={({ field: { onChange } }) => (
-                    <>
-                        <div className="tag-input-container" ref={tagInputRef}>
-                        <input
-                            type="text"
-                            placeholder="Добавить тег или выбрать"
-                            className="input-tag"
-                            value={customTag}
-                            onChange={handleTagInputChange}
-                            onKeyDown={(e) => handleCustomTagAdd(e, onChange)}
-                            onFocus={handleTagInputFocus}
-                            autoComplete="off"
-                        />
-                        {showTagDropdown && (filteredTags.length > 0 || customTag.trim()) && (
-                            <div className="tag-dropdown" ref={tagDropdownRef}>
-                            {filteredTags.map(tag => (
-                                <div
-                                key={tag}
-                                className="tag-dropdown-item"
-                                onClick={() => handleTagSelect(tag, onChange)}
-                                >
-                                {tag}
-                                </div>
-                            ))}
-                            {customTag.trim() && !defaultTags.includes(customTag) && !watchedTags.includes(customTag) && (
-                                <div
-                                className="tag-dropdown-item tag-dropdown-custom"
-                                onClick={() => handleTagSelect(customTag.trim(), onChange)}
-                                >
-                                Добавить: "{customTag}"
-                                </div>
-                            )}
-                            </div>
-                        )}
-                        </div>
-                        <div className="tag-chips-container">
-                        {watchedTags.map((tag, index) => (
-                            <span
-                            key={index}
-                            className="tag-chips tag-order-chips"
-                            onClick={() => handleTagRemove(tag, onChange)}
-                            >
-                            {tag}
-                            </span>
-                        ))}
-                        </div>
-                    </>
-                    )}
-                />
-                {isDirty && (
-                <div className="action-buttons">
-                <button
-                    type="button"
-                    className="cancel-order-btn"
-                    onClick={resetChanges}
-                >
-                    Отменить
-                </button>
-                <button type="submit" className="save-order-btn">Сохранить</button>
+               </div>
+              </div>
+                <div className="tags-section">
+                  <Controller
+                      control={control}
+                      name="tags"
+                      render={({ field: { onChange } }) => (
+                      <>
+                          <div className="tag-input-container" ref={tagInputRef}>
+                          <input
+                              type="text"
+                              placeholder="Добавить тег или выбрать"
+                              className="input-tag"
+                              value={customTag}
+                              onChange={handleTagInputChange}
+                              onKeyDown={(e) => handleCustomTagAdd(e, onChange)}
+                              onFocus={handleTagInputFocus}
+                              autoComplete="off"
+                          />
+                          {showTagDropdown && (filteredTags.length > 0 || customTag.trim()) && (
+                              <div className="tag-dropdown" ref={tagDropdownRef}>
+                              {filteredTags.map(tag => (
+                                  <div
+                                  key={tag}
+                                  className="tag-dropdown-item"
+                                  onClick={() => handleTagSelect(tag, onChange)}
+                                  >
+                                  {tag}
+                                  </div>
+                              ))}
+                              {customTag.trim() && !defaultTags.includes(customTag) && !watchedTags.includes(customTag) && (
+                                  <div
+                                  className="tag-dropdown-item tag-dropdown-custom"
+                                  onClick={() => handleTagSelect(customTag.trim(), onChange)}
+                                  >
+                                  Добавить: "{customTag}"
+                                  </div>
+                              )}
+                              </div>
+                          )}
+                          </div>
+                          <div className="tag-chips-container">
+                          {watchedTags.map((tag, index) => (
+                              <span
+                              key={index}
+                              className="tag-chips tag-order-chips"
+                              onClick={() => handleTagRemove(tag, onChange)}
+                              >
+                              {tag}
+                              </span>
+                          ))}
+                          </div>
+                      </>
+                      )}
+                  />
+                  {isDirty && (
+                  <div className="action-buttons">
+                  <button
+                      type="button"
+                      className="cancel-order-btn"
+                      onClick={resetChanges}
+                  >
+                      Отменить
+                  </button>
+                  <button type="submit" className="save-order-btn">Сохранить</button>
+                  </div>
+              )}
                 </div>
-            )}
-            </div>
-            
-            <div className="developing-stages-container">
-                <Controller
-                    control={control}
-                    name="stage"
-                    render={({ field: { value, onChange } }) => (
-                    <div className="stage-select-container">
-                        <div className="custom-stage-select" ref={stageDropdownRef}>
-                            <div
-                                className="stage-select-trigger"
-                                onClick={() => setShowStageDropdown(!showStageDropdown)}
-                                style={{ color: getStageColor(value) }}
-                            >
-                                {value}
-                            </div>
-                            {showStageDropdown && (
-                                <div className="stage-dropdown">
-                                {stages.map(stage => (
-                                    <div
-                                    key={stage}
-                                    className="stage-dropdown-item"
-                                    onClick={() => handleStageSelect(stage, onChange)}
-                                    style={{ color: getStageColor(stage) }}
-                                    >
-                                    {stage}
-                                    </div>
-                                ))}
-                                </div>
-                            )}
-                        </div>
-                        {mode === 'edit' && daysFromOrder > 0 && (
-                            <span className="days-counter">
-                                {daysFromOrder} {daysFromOrder === 1 ? 'день' : daysFromOrder < 5 ? 'дня' : 'дней'}
-                            </span>
-                        )}
-                    </div>
-                    )}
-                />
-                <div className="progress-bar">
-                    {multiColorSegments.map((segment, index) => (
-                        <div
-                            key={index}
-                            className="progress-segment"
-                            style={{
-                                width: `${segment.width}%`,
-                                backgroundColor: segment.color,
-                                left: `${segment.left}%`,
-                                position: 'absolute',
-                                height: '100%',
-                                borderRadius: index === 0 ? '4px 0 0 4px' : index === multiColorSegments.length - 1 ? '0 4px 4px 0' : '0'
-                            }}
-                        ></div>
-                    ))}
+                <div className="developing-stages-container">
+                  <Controller
+                      control={control}
+                      name="stage"
+                      render={({ field: { value, onChange } }) => (
+                      <div className="stage-select-container">
+                          <div className="custom-stage-select" ref={stageDropdownRef}>
+                              <div
+                                  className="stage-select-trigger"
+                                  onClick={() => setShowStageDropdown(!showStageDropdown)}
+                                  style={{ color: getStageColor(value) }}
+                              >
+                                  {value}
+                              </div>
+                              {showStageDropdown && (
+                                  <div className="stage-dropdown">
+                                  {stages.map(stage => (
+                                      <div
+                                      key={stage}
+                                      className="stage-dropdown-item"
+                                      onClick={() => handleStageSelect(stage, onChange)}
+                                      style={{ color: getStageColor(stage) }}
+                                      >
+                                      {stage}
+                                      </div>
+                                  ))}
+                                  </div>
+                              )}
+                          </div>
+                          {mode === 'edit' && daysFromOrder > 0 && (
+                              <span className="days-counter">
+                                  {daysFromOrder} {daysFromOrder === 1 ? 'день' : daysFromOrder < 5 ? 'дня' : 'дней'}
+                              </span>
+                          )}
+                      </div>
+                      )}
+                  />
+                  <div className="progress-bar">
+                      {multiColorSegments.map((segment, index) => (
+                          <div
+                              key={index}
+                              className="progress-segment"
+                              style={{
+                                  width: `${segment.width}%`,
+                                  backgroundColor: segment.color,
+                                  left: `${segment.left}%`,
+                                  position: 'absolute',
+                                  height: '100%',
+                                  borderRadius: index === 0 ? '4px 0 0 4px' : index === multiColorSegments.length - 1 ? '0 4px 4px 0' : '0'
+                              }}
+                          ></div>
+                      ))}
+                  </div>
                 </div>
-            </div>
-
-            <div className="tabs-container">
+                 <div className="tabs-container">
                 <div className="tabs">
                     {tabs.map(tab => (
                         <button
@@ -747,26 +750,31 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                         </button>
                     ))}
                 </div>
+                 </div>
             </div>
+            
 
-            <div className="tab-content">
-              {activeTab === "Общая информация" && (
-                <GeneralInformation
-                  control={control}
-                  orderFields={orderFields}
-                  mode={mode}
-                />
-              )}
-              {activeTab === "План работ" && (
-                <WorkPlan
-                  control={control}
-                  mode={mode}
-                />
-              )}
-              {activeTab === "Участники" && <Participants control={control} mode={mode} clientsData={sampleClients} employeesData={executorFormFields.employees} onOpenAddExecutorModal={() => setIsAddExecutorModalOpen(true)} />}
-              {activeTab === "Финансы" && <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions}  />}
-              {activeTab === "Выполнение заказа" && <OrderExecution control={control} mode={mode} />}
-              {activeTab === "Завершение заказа" && <CompletingOrder control={control} mode={mode} />}
+
+            <div className='order-modal-body-section'>
+                  <div className="tab-content">
+                    {activeTab === "Общая информация" && (
+                      <GeneralInformation
+                        control={control}
+                        orderFields={orderFields}
+                        mode={mode}
+                      />
+                    )}
+                    {activeTab === "План работ" && (
+                      <WorkPlan
+                        control={control}
+                        mode={mode}
+                      />
+                    )}
+                    {activeTab === "Участники" && <Participants control={control} mode={mode} clientsData={sampleClients} employeesData={executorFormFields.employees} onOpenAddExecutorModal={() => setIsAddExecutorModalOpen(true)} />}
+                    {activeTab === "Финансы" && <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions}  />}
+                    {activeTab === "Выполнение заказа" && <OrderExecution control={control} mode={mode} />}
+                    {activeTab === "Завершение заказа" && <CompletingOrder control={control} mode={mode} />}
+                  </div>
             </div>
           </form>
         </FormProvider>
@@ -818,6 +826,8 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
         <AddLogEntryForm
             onAdd={handleAddLogEntry}
             onClose={() => setIsLogModalOpen(false)}
+            orders={orders}
+            employees={employees}
         />
       )}
       {isAddExecutorModalOpen && (
@@ -825,6 +835,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                     onAdd={handleAddExecutor}
                     onClose={() => setIsAddExecutorModalOpen(false)}
                     fields={executorFormFields}
+                    orders={orders} 
                 />
             )}
       {isAddModalOpen && (
@@ -835,6 +846,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                     financeFields={financeFields}
                     initialData={initialDataForModal}
                     orders={orders} 
+                    counterparties={counterparties} 
                 />
             )}
     </div>

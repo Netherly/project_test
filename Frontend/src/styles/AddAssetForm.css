@@ -136,6 +136,9 @@
 .add-asset-form input[type="text"],
 .add-asset-form input[type="number"],
 .add-asset-form select {
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
 }
 
 .add-asset-form input::placeholder {

@@ -111,7 +111,7 @@ const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate, emplo
                     <div className="log-entry-details-header">
                         <h2>Редактировать запись</h2>
                         
-                        <button className="modal-close-button" onClick={handleOpenCloseConfirmation}>&times;</button>
+                        <button className="modal-close-button" onClick={handleOpenCloseConfirmation}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                     </div>
 
                     <form className="log-entry-details-content" onSubmit={handleSave}>

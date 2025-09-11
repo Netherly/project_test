@@ -108,6 +108,9 @@
   font-size: 15px;
   outline: none;
   box-sizing: border-box;
+  -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
 }
 
 .form-input.readonly {

@@ -1,8 +1,8 @@
 
 
-const EXECUTORS_KEY = 'executorsData'; // Ключ для хранения в localStorage
+const EXECUTORS_KEY = 'executorsData'; 
 
-// Данные по умолчанию, если в localStorage ничего нет
+
 const defaultPerformers = [
     {
         id: "P001",
@@ -26,7 +26,6 @@ const defaultPerformers = [
         paymentRemaining: 0.00,
         accountingCurrency: "UAH",
     },
-    // ... (остальные исполнители по умолчанию из вашего файла ExecutorsPage) ...
 ];
 
 /**

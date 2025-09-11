@@ -379,41 +379,43 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
       <div className="tab-content-row">
         <h3>👨‍💻 Исполнители</h3>
       </div>
-           <div className="tab-content-row">
-                <div className="tab-content-title">Список исполнителей</div>
-                <Controller
-                    name="performers"
-                    control={control}
-                    render={({ field: { onChange, value: selectedPerformers = [] } }) => {
-                        const handleRemovePerformer = (performerIdToRemove) => {
-                            onChange(selectedPerformers.filter(p => p.id !== performerIdToRemove));
-                        };
+           <div className="performers-section">
 
-                        return (
-                            <div>
-                                <div className="performer-cards-container">
-                                    {selectedPerformers.map(performer => (
-                                        <PerformerCard
-                                            key={performer.id}
-                                            performer={performer}
-                                            onRemove={() => setPerformerToDelete(performer)}
-                                        />
-                                    ))}
-                                </div>
-                                
-                                
-                                <button
-                                    type="button"
-                                    className="add-performer-button"
-                                    onClick={onOpenAddExecutorModal}
-                                >
-                                    + Добавить исполнителя
-                                </button>
-                            </div>
-                        );
-                    }}
-                />
-            </div>
+              
+              <div className="tab-content-row">
+                  <div className="tab-content-title">Список исполнителей</div>
+                  <button
+                      type="button"
+                      className="add-performer-button"
+                      onClick={onOpenAddExecutorModal}
+                  >
+                      + Добавить исполнителя
+                  </button>
+              </div>
+
+              
+              <Controller
+                  name="performers"
+                  control={control}
+                  render={({ field: { onChange, value: selectedPerformers = [] } }) => {
+                      const handleRemovePerformer = (performerIdToRemove) => {
+                          onChange(selectedPerformers.filter(p => p.id !== performerIdToRemove));
+                      };
+
+                      return (
+                          <div className="performer-cards-container">
+                              {selectedPerformers.map(performer => (
+                                  <PerformerCard
+                                      key={performer.id}
+                                      performer={performer}
+                                      onRemove={() => setPerformerToDelete(performer)} 
+                                  />
+                              ))}
+                          </div>
+                      );
+                  }}
+              />
+          </div>
      
             {isExecutorModalOpen && (
                 <AddExecutorModal

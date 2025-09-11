@@ -101,14 +101,14 @@ const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fi
                     <div className="add-executor-header">
                         <h2>Редактировать заказ</h2>
                         <div className="add-transaction-actions">
-                             <button className="options-button" onClick={handleMenuToggle}>⋮</button>
+                             <button className="options-button" onClick={handleMenuToggle}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
                              {showOptionsMenu && (
                                  <div className="options-menu">
                                      <button className="menu-item" onClick={handleDuplicateClick}>Дублировать</button>
                                      <button className="menu-item delete-item" onClick={handleOpenDeleteConfirmation}>Удалить</button>
                                  </div>
                              )}
-                            <span className="icon" onClick={handleOpenCloseConfirmation}>✖️</span>
+                            <span className="icon" onClick={handleOpenCloseConfirmation}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
                         </div>
                     </div>
 
@@ -192,16 +192,20 @@ const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fi
 
                         <div className="tab-content-row-column" style={{ marginTop: '20px' }}>
                             <div className="tab-content-title">Журнал операций</div>
-                            <div className="payment-log-table">
-                                <div className="payment-log-header">
+                            <div className="executor-payment-log-table">
+                                <div className="executor-payment-log-header">
                                     <div>Дата и время</div>
+                                    <div>Статья</div>
+                                    <div>Подстатья</div>
                                     <div>Счет</div>
                                     <div>Сумма операции</div>
                                 </div>
                                 
                                 {executorTransactions.map((trx) => (
-                                    <div key={trx.id} className="payment-log-row">
+                                    <div key={trx.id} className="executor-payment-log-row">
                                         <input type="text" value={trx.date} readOnly />
+                                        <input type="text" value={trx.category} readOnly />
+                                        <input type="text" value={trx.subcategory} readOnly />
                                         <input type="text" value={trx.account} readOnly /> 
                                         <input 
                                             type="text" 

@@ -22,7 +22,7 @@
 }
 
 .assets-title {
-    font-size: 22px;
+    font-size: var(--font-size-page-title);
     font-weight: 700;
     margin: 0;
     color: var(--text-color);
@@ -60,16 +60,13 @@
 .assets-table-container {
     overflow-x: auto;
     background-color: var(--container-bg);
-    border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    margin: 0 15px 0 0;
 }
 
 .assets-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 11px;
     text-align: left;
     color: var(--container-text-color);
 }
@@ -82,6 +79,10 @@
     border-top: 1px solid var(--bg-color);
     border-right: 1px solid var(--bg-color);
     vertical-align: middle;
+}
+
+.assets-table td{
+    font-size: var(--font-size-table-text);
 }
 
 .assets-table th:nth-child(5),
@@ -121,6 +122,7 @@
 .assets-table thead {
     background-color: var(--container-bg);
     color: var(--text-color);
+    font-size: var(--font-size-table-header);
 }
 
 .assets-table th {
@@ -144,7 +146,6 @@
     padding-bottom: 5px;
     font-size: 11px;
     font-weight: normal;
-    color: var(--chips-color);
     vertical-align: top;
 }
 
@@ -158,7 +159,7 @@
 }
 
 .assets-table-v2 tbody tr:hover {
-    background-color: #224158;
+    background-color: var(--input-border-focus);
 }
 
 
