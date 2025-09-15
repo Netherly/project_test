@@ -87,6 +87,7 @@
     top: 0;
     border-right: 1px solid var(--bg-color);
     text-align: center;
+    border-bottom: 10px solid var(--bg-color);
 }
 
 .regular-payments-table thead tr th:first-child {

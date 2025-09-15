@@ -18,10 +18,10 @@ const designNameMap = {
     'Красный': 'red',
 };
 
-const AddAssetForm = ({ onAdd, onClose, fields }) => {
+const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
     const [activeTab, setActiveTab] = useState('general');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [showConfirmationModal, setShowConfirmationModal] = useState(false); // 👈 Новое состояние для модала
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false); 
 
     const [formData, setFormData] = useState({
         accountName: '',
@@ -160,13 +160,13 @@ const AddAssetForm = ({ onAdd, onClose, fields }) => {
                     </div>
                     <div className="tabs">
                         <button
-                            className={`tab-button ${activeTab === 'general' ? 'active' : ''}`}
+                            className={`tab-menu-btn ${activeTab === 'general' ? 'active' : ''}`}
                             onClick={() => setActiveTab('general')}
                         >
                             Общая информация
                         </button>
                         <button
-                            className={`tab-button ${activeTab === 'requisites' ? 'active' : ''}`}
+                            className={`tab-menu-btn ${activeTab === 'requisites' ? 'active' : ''}`}
                             onClick={() => setActiveTab('requisites')}
                         >
                             Реквизиты
@@ -266,16 +266,21 @@ const AddAssetForm = ({ onAdd, onClose, fields }) => {
                                 </div>
                                 <div className="form-row">
                                     <label htmlFor="employee" className="form-label">Сотрудник</label>
-                                    <input
-                                        type="text"
+                                    <select
                                         id="employee"
                                         name="employee"
                                         value={formData.employee}
                                         onChange={handleChange}
-                                        placeholder="Выберите сотрудника"
                                         required
                                         className="form-input"
-                                    />
+                                    >
+                                        <option value="" disabled>Выберите сотрудника</option>
+                                    {employees && employees.map(emp => (
+                                        <option key={emp.id} value={emp.fullName}>
+                                            {emp.fullName}
+                                        </option>
+                                    ))}
+                                </select>
                                 </div>
                             </div>
                         )}

@@ -44,7 +44,7 @@
 
 
 .left-panel {
-  flex: 0 0 1000px; 
+  flex: 0 0 700px; 
   display: flex;
   flex-direction: column; 
 }

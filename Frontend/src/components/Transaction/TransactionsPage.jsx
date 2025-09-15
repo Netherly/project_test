@@ -59,11 +59,11 @@ const TransactionsPage = () => {
                                 <th>Подстатья</th>
                                 <th>Описание</th>
                                 <th>Счет</th>
-                                <th>Валюта счета</th>
+                                <th>Валюта</th>
                                 <th>Операция</th>
-                                <th>Сумма операции</th>
+                                <th>Сумма</th>
                                 <th>Контрагент</th>
-                                <th>Реквизиты контрагента</th>
+                                <th>Реквизиты</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -98,7 +98,6 @@ const TransactionsPage = () => {
                                     <td>{transaction.counterparty}</td>
                                     <td>
                                         <div className="copy-button-container">
-                                            {transaction.counterpartyRequisites}
                                             <span
                                                 className="copy-button-icon"
                                                 onClick={(e) => {

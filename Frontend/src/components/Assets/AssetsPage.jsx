@@ -172,9 +172,23 @@ const AssetsPage = () => {
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [viewMode, setViewMode] = useState('table');
     const [fields, setFields] = useState({ currency: [], type: [], paymentSystem: [], cardDesigns: [] });
+    const [employees, setEmployees] = useState([]);
 
     
     const [cardSize, setCardSize] = useState('medium');
+
+
+     useEffect(() => {
+        const savedEmployees = localStorage.getItem('employees');
+        if (savedEmployees) {
+            try {
+                const parsedEmployees = JSON.parse(savedEmployees);
+                setEmployees(parsedEmployees);
+            } catch (e) {
+                console.error("Ошибка парсинга сотрудников из localStorage:", e);
+            }
+        }
+    }, []);
 
 
     useEffect(() => {
@@ -354,10 +368,13 @@ const AssetsPage = () => {
         setSelectedAsset(null);
     };
 
-    const handleSaveAsset = (assetId, newRequisites) => {
-        setAssets(prevAssets => prevAssets.map(asset =>
-            asset.id === assetId ? { ...asset, requisites: newRequisites } : asset
-        ));
+    const handleSaveAsset = (updatedAsset) => {
+        setAssets(prevAssets => 
+            prevAssets.map(asset => 
+                asset.id === updatedAsset.id ? updatedAsset : asset
+            )
+        );
+        handleCloseDetailsModal(); 
     };
 
     const assetsByCurrency = assets.reduce((acc, asset) => {
@@ -552,6 +569,7 @@ const AssetsPage = () => {
                         onClose={() => setShowAddForm(false)}
                         onAdd={handleAddAsset}
                         fields={fields}
+                        employees={employees}
                     />
                 )}
 
@@ -562,6 +580,8 @@ const AssetsPage = () => {
                         onDelete={handleDeleteAsset}
                         onDuplicate={handleDuplicateAsset}
                         onSave={handleSaveAsset}
+                        fields={fields}
+                        employees={employees}
                     />
                 )}
             </div>

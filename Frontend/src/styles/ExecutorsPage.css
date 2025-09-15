@@ -131,6 +131,7 @@
     position: sticky;
     top: 0;
     border-right: 1px solid var(--bg-color);
+    border-bottom: 10px solid var(--bg-color);
 }
 
 .executors-table thead tr th:first-child {

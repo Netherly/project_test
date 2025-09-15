@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useForm, Controller, FormProvider } from 'react-hook-form';
 
+import OrderSummary from './OrderSummary';
 import GeneralInformation from './GeneralInformation';
 import WorkPlan from './WorkPlan';
 import Participants from './Participants';
@@ -29,7 +30,7 @@ const stages = [
 
 const defaultTags = ["Срочный", "В приоритете", "На паузе", "Клиент VIP"];
 
-const tabs = ["Общая информация", "План работ", "Участники", "Финансы", "Выполнение заказа", "Завершение заказа"];
+const tabs = ["Сводка","Основная информация", "План работ", "Участники", "Финансы", "Выполнение заказа", "Завершение заказа"];
 
 
 const newOrderDefaults = {
@@ -176,7 +177,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
 
   const [customTag, setCustomTag] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
-  const [activeTab, setActiveTab] = useState('Общая информация');
+  const [activeTab, setActiveTab] = useState('Сводка');
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
@@ -586,6 +587,18 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                   : (order?.name || (order?.numberOrder ? `Заказ № ${order.numberOrder}` : `Заявка #${order?.id}`))
                 }
               </h2>
+              {isDirty && (
+                  <div className="action-buttons">
+                  <button
+                      type="button"
+                      className="cancel-order-btn"
+                      onClick={resetChanges}
+                  >
+                      Отменить
+                  </button>
+                  <button type="submit" className="save-order-btn">Сохранить</button>
+                  </div>
+              )}
               {mode === 'edit' && (
                 <div className="order-actions-menu">
                   <button
@@ -670,18 +683,6 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                       </>
                       )}
                   />
-                  {isDirty && (
-                  <div className="action-buttons">
-                  <button
-                      type="button"
-                      className="cancel-order-btn"
-                      onClick={resetChanges}
-                  >
-                      Отменить
-                  </button>
-                  <button type="submit" className="save-order-btn">Сохранить</button>
-                  </div>
-              )}
                 </div>
                 <div className="developing-stages-container">
                   <Controller
@@ -757,7 +758,8 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
 
             <div className='order-modal-body-section'>
                   <div className="tab-content">
-                    {activeTab === "Общая информация" && (
+                    {activeTab === "Сводка" && <OrderSummary />}
+                    {activeTab === "Основная информация" && (
                       <GeneralInformation
                         control={control}
                         orderFields={orderFields}

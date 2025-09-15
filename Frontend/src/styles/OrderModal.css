@@ -14,7 +14,7 @@
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  width: 42.5%;
+  width: 50%;
   height: 100%;
 }
 
@@ -29,7 +29,7 @@
 .order-modal-content {
     padding: 0;
     border-radius: 8px 0 0 8px;
-    width: 50%;
+    width: 41%;
     max-width: none;
     height: 100%;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
@@ -57,7 +57,7 @@
 
 
 .right-side-menu {
-  width: 80px;
+  width: 100px;
   flex-shrink: 0; 
   background-color: var(--bg-menu-color); 
   border-left: 1px solid var(--border--color);
@@ -77,7 +77,7 @@
   border: none;
   background-color: transparent;
   color: var(--container-text-color); 
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
   cursor: pointer;
   transition: background-color 0.2s, color 0.2s;
@@ -105,6 +105,11 @@
   width: 75px;
 }
 
+.header-top-row{
+    display: flex;
+    flex-direction: row;
+}
+
 .close-button {
     all: unset;
     display: flex;
@@ -115,7 +120,6 @@
     justify-content: center;
     font-size: 30px;
     font-weight: bold;
-    padding: 0;
     cursor: pointer;
     margin-right: 5px;
     transition: opacity 0.2s ease;
@@ -189,9 +193,10 @@
 }
 .tags-section {
     display: flex;
-    flex-direction: column;
-    width: 50%;
-    gap: 5px;
+    flex-direction: row;       
+    align-items: flex-start;  
+    width: 100%;
+    gap: 10px;
 }
 .tag-input-container {
     position: relative;
@@ -247,12 +252,11 @@
     margin-bottom: 0;
 }
 .tag-chips-container {
-    margin-top: 6px;
+    flex: 1;                  
+    margin-top: 0;
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: wrap;          
     gap: 5px;
-    align-items: flex-start;
 }
 .tag-chips-container.expanded {
     overflow: visible;

@@ -16,8 +16,7 @@
     border-radius: 8px 0 0 8px;
     padding: 20px 30px;
     width: 35%;
-    min-width: 320px;
-    max-width: 500px;
+    max-width: 750px;
     height: 100vh;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
     color: var(--text-color);
@@ -54,31 +53,37 @@
 
 .tabs {
     display: flex;
+    gap: 5px;
+    width: 100%;
+    margin-top: 30px;
     margin-bottom: 20px;
-    border-bottom: 1px solid var(--border--color);
-    flex-shrink: 0;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
 }
 
 .tab-button {
-    background-color: transparent;
+    background: none;
     border: none;
-    color: var(--chips-color);
-    padding: 10px 15px;
-    cursor: pointer;
-    font-size: 1em;
     outline: none;
     border-bottom: 2px solid transparent;
-    transition: all 0.2s ease;
+    color: var(--container-text-color);
+    padding: 4px 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    border-radius: 4px 4px 0 0;
 }
 
 .tab-button:hover {
-    color: var(--text-color);
+    background-color: rgba(128, 128, 128, 0.1);
+    opacity: 1;
 }
 
 .tab-button.active {
-    color: var(--accent-color);
-    border-color: var(--accent-color);
-    font-weight: bold;
+    border-bottom-color: var(--container-text-color);
+    opacity: 1;
+    color: var(--container-text-color);
+    background-color: rgba(128, 128, 128, 0.15);
 }
 
 .add-asset-form {
@@ -110,7 +115,7 @@
 }
 
 .form-value {
-    flex-basis: 60%;
+    flex-basis: 70%;
     width: 100%;
     padding: 10px 0;
     color: var(--text-color);
@@ -121,7 +126,7 @@
 }
 
 .form-input {
-    flex-basis: 60%;
+    flex-basis: 70%;
     width: 100%;
     padding: 10px 12px;
     background-color: var(--bg-color);
