@@ -13,6 +13,7 @@ import AssetsPage from "./components/Assets/AssetsPage";
 import TransactionsPage from "./components/Transaction/TransactionsPage";
 import Profile from "./components/Profile/Profile";
 import FieldsPage from "./pages/FieldsPage"; 
+import AccessSettings from "./components/AccessSettings/AccessSettingsPage";
 
 import { sampleClients } from './data/sampleClients';
 import ExecutorsPage from './components/Executors/ExecutorsPage';
@@ -125,6 +126,10 @@ export default function App() {
         <Route 
           path="/fields" 
           element={<ProtectedRoute element={<FieldsPage />} />}
+        />
+        <Route
+          path="/access"
+          element={<ProtectedRoute element={<AccessSettings />} />}
         />
         <Route
           path="/clients"

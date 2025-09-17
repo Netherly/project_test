@@ -137,27 +137,25 @@
 }
 
 .tab-button {
+    font-weight: 700;
     padding: 12px 20px;
     width: 175px;
-    background-color: var(--button-bg);
-    color: #b0bec5;
+    color: #e7e7e7;
     border: none;
-    border-radius: 6px 6px 0 0;
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 14px;
-    font-weight: 500;
     white-space: nowrap;
 }
 
 .tab-button:hover {
     background-color: #1f294b;
-    color: #ffffff;
+    color: #e2e2e2;
 }
 
 .tab-button.active {
-    background-color: #1f294b;
-    border-bottom: 2px solid #6777b6;
+    background-color: #1f294ba2;
+    border-bottom: 2px solid #e7e7e7;
 }
 
 /* ---Контент полей--- */

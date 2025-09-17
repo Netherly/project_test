@@ -59,8 +59,8 @@ const PageHeaderIcon = ({ pageName, className = "page-header-icon" }) => {
             playsInline
             className={className}
             style={{
-                width: "32px",
-                height: "32px",
+                width: "38px",
+                height: "38px",
                 objectFit: "contain",
                 marginRight: "8px",
             }}

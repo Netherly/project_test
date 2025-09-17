@@ -1,0 +1,626 @@
+.access-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.access-modal {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 950px;
+    background-color: var(--container-bg, #ffffff);
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -2px 0 20px rgba(0, 0, 0, 0.15);
+    animation: access-modal-slideInRight 0.3s ease-out;
+}
+
+@keyframes access-modal-slideInRight {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+.access-modal-header {
+    padding: 20px 25px;
+    background-color: var(--bg-color);
+    border-bottom: 1px solid var(--border--color);
+    position: relative;
+    min-height: 80px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.access-modal-header-content {
+    flex: 1;
+}
+
+.access-modal-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--container-text-color, #333333);
+    text-transform: uppercase;
+}
+
+.access-modal-employee-info {
+    margin: 0;
+    color: var(--container-text-color, #666666);
+    font-size: 15px;
+}
+
+.access-modal-employee-info strong {
+    color: var(--container-text-color, #333333);
+}
+
+.access-modal-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.access-modal-close-button {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: var(--container-text-color, #666666);
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.access-modal-close-button:hover {
+    background-color: var(--container-hover-bg, #858585);
+    color: var(--container-hover-text-color, #333333);
+    opacity: 1;
+}
+
+.access-modal-action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.access-modal-changes-indicator{
+    font-size: 30px;
+    color: #dc3545;
+    font-weight: 600;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+
+.access-modal-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 25px;
+    background-color: var(--bg-menu-color);
+}
+
+.access-modal-roles-section {
+    margin-bottom: 30px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border--color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.access-modal-roles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.access-modal-roles-label {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--container-text-color, #333333);
+    text-transform: uppercase;
+}
+
+.access-modal-roles-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.access-modal-add-role-btn,
+.access-modal-delete-mode-btn {
+    width: 35px;
+    height: 35px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.access-modal-add-role-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.access-modal-add-role-btn:hover {
+    background-color: #218838;
+    transform: scale(1.1);
+}
+
+.access-modal-delete-mode-btn {
+    background-color: var(--button-bg, #6c757d);
+    color: var(--button-text, white);
+}
+
+.access-modal-delete-mode-btn:hover,
+.access-modal-delete-mode-btn.active {
+    background-color: #dc3545;
+    color: white;
+    transform: scale(1.1);
+}
+
+.access-modal-roles-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.access-modal-role-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    background-color: var(--container-bg, #ffffff);
+    border: 2px solid var(--border--color, #e0e0e0);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    color: var(--container-text-color, #333333);
+    user-select: none;
+    min-height: 25px;
+}
+
+.access-modal-role-item:hover {
+    border-color: #28a745;
+    background-color: #e8f5e8;
+    color: rgb(53, 53, 53);
+}
+
+.access-modal-role-item.active {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.access-modal-role-item.selected-for-delete {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+.access-modal-role-name {
+    font-weight: 600;
+    font-size: 14px;
+    flex: 1;
+    pointer-events: none;
+}
+
+.access-modal-base-badge {
+    background-color: #ffc107;
+    color: #000;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.access-modal-role-item.active .access-modal-base-badge {
+    background-color: rgba(255, 193, 7, 0.9);
+}
+
+.access-modal-role-checkbox {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.access-modal-add-role-input {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px;
+    background-color: var(--container-bg, #ffffff);
+    border: 2px solid #28a745;
+    border-radius: 20px;
+}
+
+.access-modal-add-role-input input {
+    border: none;
+    outline: none;
+    padding: 3px 8px;
+    font-size: 14px;
+    background: transparent;
+    color: var(--container-text-color, #333333);
+}
+
+.access-modal-add-role-input input::placeholder {
+    color: var(--container-text-color, #999999);
+    opacity: 0.6;
+}
+
+.access-modal-add-role-input button {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.access-modal-add-role-input button:first-of-type {
+    background-color: #28a745;
+    color: white;
+}
+
+.access-modal-add-role-input button:last-of-type {
+    background-color: #dc3545;
+    color: white;
+}
+
+.access-modal-delete-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border--color, #e0e0e0);
+}
+
+.access-modal-confirm-delete-btn {
+    padding: 8px 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.access-modal-confirm-delete-btn:hover {
+    background-color: #c82333;
+}
+
+.access-modal-cancel-delete-btn {
+    padding: 8px 16px;
+    background-color: var(--button-bg, #6c757d);
+    color: var(--button-text, white);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.access-modal-cancel-delete-btn:hover {
+    background-color: #545b62;
+}
+
+.access-modal-permissions-section {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border--color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.access-modal-permissions-title {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--container-text-color, #333333);
+    text-transform: uppercase;
+}
+
+.access-modal-permissions-title span {
+    color: #28a745;
+}
+
+.access-modal-permissions-table {
+    background-color: var(--container-bg, #ffffff);
+    border: 1px solid var(--border--color, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.access-modal-table-header {
+    display: grid;
+    grid-template-columns: 180px repeat(4, 100px) 1fr;
+    background-color: var(--container-bg, #ffffff);
+    border-bottom: 2px solid var(--border--color, #e0e0e0);
+}
+
+.access-modal-table-header>div {
+    padding: 15px 10px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--container-text-color, #666666);
+    letter-spacing: 0.5px;
+    border-right: 1px solid var(--border--color, #e0e0e0);
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.access-modal-module-column {
+    justify-content: flex-start !important;
+    padding-left: 20px !important;
+    font-weight: 700 !important;
+}
+
+.access-modal-description-column {
+    justify-content: center !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+}
+
+.access-modal-table-header>div:last-child {
+    border-right: none;
+}
+
+.access-modal-table-row {
+    display: grid;
+    grid-template-columns: 180px repeat(4, 100px) 1fr;
+    border-bottom: 1px solid var(--border--color, #e0e0e0);
+    align-items: center;
+}
+
+.access-modal-table-row:last-child {
+    border-bottom: none;
+}
+
+.access-modal-module-name {
+    padding: 18px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--container-text-color, #333333);
+    border-right: 1px solid var(--border--color, #e0e0e0);
+}
+
+.access-modal-action-cell {
+    padding: 18px 10px;
+    border-right: 1px solid var(--border--color, #e0e0e0);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.access-modal-action-cell:last-of-type {
+    border-right: 1px solid var(--border--color, #e0e0e0);
+}
+
+.access-modal-description-cell {
+    padding: 18px 20px;
+    color: var(--container-text-color, #666666);
+    opacity: 0.8;
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.access-modal-description-cell .description-line {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 4px;
+}
+
+.access-modal-description-cell .description-line:last-child {
+    margin-bottom: 0;
+}
+
+.access-modal-save-button,
+.access-modal-cancel-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-width: 90px;
+}
+
+.access-modal-save-button {
+    background-color: #28a745;
+    color: white;
+}
+
+.access-modal-save-button:hover {
+    background-color: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.access-modal-cancel-button {
+    background-color: var(--button-bg, #6c757d);
+    color: var(--button-text, white);
+}
+
+.access-modal-cancel-button:hover {
+    background-color: #545b62;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+.access-modal-three-state-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    user-select: none;
+}
+
+.access-modal-three-state-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.access-modal-three-state-toggle.access-modal-disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.access-modal-three-state-toggle.access-modal-disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.access-modal-three-state-toggle.access-modal-allowed {
+    background-color: #d4edda;
+    border-color: #28a745;
+}
+
+.access-modal-three-state-toggle.access-modal-allowed:hover {
+    background-color: #c3e6cb;
+}
+
+.access-modal-three-state-toggle.access-modal-responsible {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+}
+
+.access-modal-three-state-toggle.access-modal-responsible:hover {
+    background-color: #ffeaa7;
+}
+
+.access-modal-three-state-toggle.access-modal-forbidden {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+}
+
+.access-modal-three-state-toggle.access-modal-forbidden:hover {
+    background-color: #f1b0b7;
+}
+
+.access-modal-toggle-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.access-modal-action-column.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.access-modal-action-column.clickable:hover {
+    background-color: #e8f5e8;
+    color: #28a745;
+    transform: scale(1.02);
+}
+
+.access-modal-action-header-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.2s ease;
+}
+
+.access-modal-action-name {
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.access-modal-column-state-icon {
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.2s ease;
+    height: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-5px);
+}
+
+.access-modal-action-column.clickable:hover {
+    background-color: #e8f5e815;
+    color: #28a745;
+    transform: scale(1.02);
+    padding-top: 18px;
+    padding-bottom: 18px;
+}
+
+.access-modal-action-column.clickable:hover .access-modal-action-header-content {
+    gap: 6px;
+}
+
+.access-modal-action-column.clickable:hover .access-modal-column-state-icon {
+    opacity: 1;
+    height: 16px;
+    transform: translateY(0) scale(1.1);
+}
+
+.access-modal-action-column.clickable::after {
+    content: 'Клик для массового изменения';
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+}
+
+.access-modal-action-column.clickable:hover::after {
+    opacity: 1;
+}

@@ -69,14 +69,13 @@ const Sidebar = () => {
       { name: "Клиенты", path: "/clients", icon: ClientsWebm },
       { name: "Сотрудники", path: "/employees", icon: EmployesWebm },
       { name: "Отчёты", path: "/reports", icon: ReportWebm },
-      { name: "Доступы", path: "/access", icon: EntryWebm },
     ],
     transactions: [
-      { name: "Активы", path: "/assets", icon: AssetsNewJson },
-      { name: "Транзакции", path: "/list", icon: TransactionJson },
+      { name: "Активы", path: "/assets", icon: AssetsNewWebm },
+      { name: "Транзакции", path: "/list", icon: TransactionNewWebm },
     ],
     settings: [
-      { name: "Роли/Доступы", path: "/roles-access", icon: RolesWebm },
+      { name: "Доступы", path: "/access", icon: RolesWebm },
       { name: "Настройки полей", path: "/fields", icon: FieldSettingsWebm },
       { name: "Курс валют", path: "/currency-rates", icon: CurrencyRatesWebm },
     ],
@@ -176,7 +175,8 @@ const Sidebar = () => {
               const isMenuOpen = activeMenu === item.menu;
               const isExactActive = isActivePath(item.exact || item.path);
               const isParentActive = item.menu ? isParentMenuActive(item.menu) : false;
-              const isItemActive = isMenuOpen || isExactActive || isParentActive;
+
+              const isItemActive = isExactActive || isParentActive;
 
               const iconSrc =
                 isItemActive
