@@ -55,46 +55,24 @@
 }
 
 .modal-header-actions {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-
-.modal-header-actions .options-button,
-.modal-header-actions .modal-close-button {
-  background: none;
-  border: none;
-  color: var(--chips-color);
-  cursor: pointer;
-  padding: 0; 
-  transition: color 0.2s ease;
-  
-  
-  width: 24px;
-  height: 24px;
-  
-  
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.modal-close-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--chips-color);
+    cursor: pointer;
+    padding: 0 5px;
+    transition: color 0.2s ease;
 }
 
-
-.modal-header-actions button svg {
-  width: 24px;
-  height: 24px;
-  display: block; 
-}
-
-
-.modal-header-actions .options-button:hover {
-  color: var(--accent-color); 
-}
-
-.modal-header-actions .modal-close-button:hover {
-  color: var(--text-color);
+.modal-close-button:hover {
+    color: var(--text-color);
 }
 
 .modal-body1 {
@@ -380,6 +358,7 @@
 
 .turnover-table {
     border: 1px solid var(--border--color);
+    border-radius: 6px;
     overflow: hidden;
 }
 
@@ -393,10 +372,6 @@
     border-bottom: 1px solid var(--border--color);
 }
 
-.turnover-table-row span{
-    border-right: 1px solid var(--border--color);
-}
-
 .turnover-table-header span,
 .turnover-table-row span {
     padding: 10px 15px;
@@ -404,6 +379,7 @@
     font-weight: 500;
     color: var(--text-color);
     text-align: center;
+    border-right: 1px solid var(--border--color);
 }
 
 .turnover-table-header span:last-child,
@@ -614,5 +590,3 @@
     font-weight: 500;
     color: var(--container-text-color);
 }
-
-

@@ -38,11 +38,11 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
 
         const newExecutor = {
             id: generateId(),
-            orderNumber: "",
-            orderStatus: "В работе",
-            orderStatusEmoji: "⏳",
-            orderDate: new Date().toISOString().split('T')[0],
-            description: "",
+            orderNumber: formData.orderNumber,
+            orderStatus: "В работе", 
+            orderStatusEmoji: "⏳", 
+            orderDate: new Date().toISOString().split('T')[0], 
+            description: "", 
             client: "",
             clientHidden: formData.hideClient,
             performer: formData.performer,

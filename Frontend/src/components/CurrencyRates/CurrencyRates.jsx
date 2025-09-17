@@ -157,7 +157,14 @@ const CurrencyRates = () => {
             <Sidebar />
             <div className="currency-rates-main-container">
                 <header className="currency-rates-header-container">
+<<<<<<< HEAD
                     <h2 className='currency-rates-header-title'>Курсы валют</h2>
+=======
+                    <h2>
+                    <PageHeaderIcon pageName="Курс валют" />
+                    Курсы валют
+                    </h2>
+>>>>>>> update_last_changes
                 </header>
                 <div className="currency-rates-table-container">
                     <div className="currency-rates-table-wrapper">

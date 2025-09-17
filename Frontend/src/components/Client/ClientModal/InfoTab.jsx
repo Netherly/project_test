@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import TagSelector from '../TagSelector';
 import TextareaWithCounter from '../TextareaWithCounter';
@@ -6,15 +6,24 @@ import './InfoTab.css';
 
 export default function InfoTab({
   companies = [],
-  onAddCompany,
-  clientFields
+  categoriesInit = [],
+  sourcesInit = [],
+  onAddCompany
 }) {
+  const [categories, setCategories] = useState(categoriesInit);
+  const [sources, setSources] = useState(sourcesInit);
   const {
     control,
     formState: { errors },
     watch
   } = useFormContext();
 
+  const addOption = (setter, label) => {
+    const val = prompt(`Новое значение для "${label}"`);
+    if (val && val.trim()) setter(prev => [...prev, val.trim()]);
+  };
+
+  // Для подсветки ошибок при превышении лимита можно следить за значениями
   const introVal = watch('intro_description') || '';
   const noteVal  = watch('note') || '';
 
@@ -27,7 +36,6 @@ export default function InfoTab({
           <TagSelector
             tags={Array.isArray(field.value) ? field.value : []}
             onChange={field.onChange}
-            availableTags={clientFields?.tag || []}
           />
         )}
       />
@@ -60,10 +68,14 @@ export default function InfoTab({
                 className={errors.category ? 'input-error' : ''}
               >
                 <option value="">-- выбрать --</option>
-                {clientFields?.category?.map(c => (
+                {categories.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => addOption(setCategories, 'Категория')}
+              >+</button>
             </div>
             {errors.category && <p className="error">{errors.category.message}</p>}
           </div>
@@ -82,10 +94,14 @@ export default function InfoTab({
                 className={errors.source ? 'input-error' : ''}
               >
                 <option value="">-- выбрать --</option>
-                {clientFields?.source?.map(s => (
+                {sources.map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => addOption(setSources, 'Источник')}
+              >+</button>
             </div>
             {errors.source && <p className="error">{errors.source.message}</p>}
           </div>

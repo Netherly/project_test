@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/components/Client/ClientModal/ClientModal.jsx
+import React, { useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { clientSchema } from '../validationSchema';
@@ -21,6 +22,8 @@ export default function ClientModal({
   companies   = [],
   employees   = [],
   referrers   = [],
+  countries   = [],
+  currencies  = [],
   onClose,
   onSave,
   onAddCompany,
@@ -29,35 +32,15 @@ export default function ClientModal({
   onDuplicate  = () => {}
 }) {
   const safeClient = client ?? {};
-  const isNew = !safeClient.id;
+  const isNew = !safeClient.id;    // новый клиент, ещё не сохранён
 
   const [activeTab,   setActiveTab]   = useState('info');
   const [showCompany, setShowCompany] = useState(false);
   const [showImage,   setShowImage]   = useState(false);
   const [closing,     setClosing]     = useState(false);
   const [formErrors,  setFormErrors]  = useState(null);
-  const [clientFields, setClientFields] = useState({
-      source: [],
-      category: [],
-      country: [],
-      currency: [],
-      tag: []
-  });
 
-  useEffect(() => {
-      const savedFields = localStorage.getItem('fieldsData');
-      if (savedFields) {
-          try {
-              const parsedFields = JSON.parse(savedFields);
-              if (parsedFields.clientFields) {
-                  setClientFields(parsedFields.clientFields);
-              }
-          } catch (e) {
-              console.error("Ошибка парсинга полей клиента из localStorage:", e);
-          }
-      }
-  }, []);
-
+  // пример логов
   const sampleLogs = [
     { timestamp: '2023-03-07T12:36', author: 'Менеджеры', message: 'Отримувач: …' },
     { timestamp: '2023-03-07T12:38', author: 'Менеджеры', message: 'ДУБЛЬ!!!!!!!!!!!' },
@@ -65,6 +48,7 @@ export default function ClientModal({
     { timestamp: new Date().toISOString(), author: 'Лев', message: 'Не' },
   ];
 
+  /* ---------- useForm ---------- */
   const methods = useForm({
     resolver: yupResolver(clientSchema),
     mode: 'onChange',
@@ -86,6 +70,7 @@ export default function ClientModal({
     formState: { isDirty }
   } = methods;
 
+  /* ---------- Ошибки по вкладкам ---------- */
   const errorMap = {
     info:     ['name','company_id','category','source','tags'],
     contacts: ['full_name','phone','email','country'],
@@ -101,6 +86,7 @@ export default function ClientModal({
     return grouped;
   };
 
+  /* ---------- Сохранение / валидация ---------- */
   const submitHandler = data => {
     onSave(data);
     closeHandler();
@@ -112,6 +98,7 @@ export default function ClientModal({
     if (firstTab) setActiveTab(firstTab);
   };
 
+  /* ---------- Закрытие / Удаление ---------- */
   const closeHandler = () => {
     setClosing(true);
     setTimeout(onClose, 300);
@@ -128,6 +115,7 @@ export default function ClientModal({
     <div className={`client-modal-overlay${closing ? ' closing' : ''}`}>
       <div className="client-modal tri-layout">
 
+        {/* ─── левая панель ─── */}
         <div className="left-panel">
           <FormProvider {...methods}>
             <ClientHeader
@@ -145,9 +133,9 @@ export default function ClientModal({
               className="modal-body"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
-              {activeTab === 'info'     && <InfoTab     companies={companies} onAddCompany={() => setShowCompany(true)} clientFields={clientFields} />}
-              {activeTab === 'contacts' && <ContactsTab openImage={() => getValues('photo_link') && setShowImage(true)} clientFields={clientFields} />}
-              {activeTab === 'finances' && <FinancesTab referrers={referrers} employees={employees} clientFields={clientFields} />}
+              {activeTab === 'info'     && <InfoTab     companies={companies} onAddCompany={() => setShowCompany(true)} />}
+              {activeTab === 'contacts' && <ContactsTab countries={countries}  openImage={() => getValues('photo_link') && setShowImage(true)} />}
+              {activeTab === 'finances' && <FinancesTab currencies={currencies} referrers={referrers} employees={employees} />}
               {activeTab === 'accesses' && <AccessesTab />}
               <div className="form-actions-bottom">
                 <button type="button" onClick={() => reset()} disabled={!isDirty}>
@@ -159,6 +147,7 @@ export default function ClientModal({
           </FormProvider>
         </div>
 
+        {/* ─── центр – чат ─── */}
         {isNew ? (
           <div className="chat-panel-wrapper chat-placeholder">
             <p>Сохраните клиента, чтобы открыть чат.</p>
@@ -169,6 +158,7 @@ export default function ClientModal({
           </div>
         )}
 
+        {/* ─── правая панель действий ─── */}
         {isNew ? (
           <div className="actions-panel actions-placeholder">
             <p>Сохраните клиента, чтобы добавить заказ или дублировать.</p>
@@ -180,6 +170,7 @@ export default function ClientModal({
         )}
       </div>
 
+      {/* ─── модалки поверх ─── */}
       {showCompany && (
         <AddCompanyModal
           onCreate={async data => {

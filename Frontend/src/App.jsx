@@ -145,6 +145,10 @@ export default function App() {
           element={<ProtectedRoute element={<AccessSettings />} />}
         />
         <Route
+          path="/tasks"
+          element={<ProtectedRoute element={<TasksPage />} />}
+        />
+        <Route
           path="/clients"
           element={
             <ProtectedRoute

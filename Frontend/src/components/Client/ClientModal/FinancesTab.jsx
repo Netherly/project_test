@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Controller,
   useWatch,
@@ -6,7 +6,15 @@ import {
 } from 'react-hook-form';
 import './FinancesTab.css';
 
-export default function FinancesTab({ clientFields, referrers = [], employees = [] }) {
+export default function FinancesTab({ currencies = [], referrers = [], employees = [] }) {
+  const [currencyList, setCurrencyList] = useState(currencies);
+  const addCurrency = () => {
+    const val = prompt('Новая валюта (пример: CHF):');
+    if (val && val.trim() && !currencyList.includes(val.trim())) {
+      setCurrencyList(prev => [...prev, val.trim()]);
+    }
+  };
+
   const {
     control,
     setValue,
@@ -32,6 +40,7 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
 
   return (
     <div className="tab-section finances-tab">
+      {/* Валюта */}
       <Controller
         name="currency"
         control={control}
@@ -41,16 +50,18 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
             <div className="select-plus">
               <select {...field} className={errors.currency ? 'input-error' : ''}>
                 <option value="">-- выбрать --</option>
-                {clientFields?.currency?.map(cur => (
+                {currencyList.map(cur => (
                   <option key={cur} value={cur}>{cur}</option>
                 ))}
               </select>
+              <button type="button" onClick={addCurrency}>+</button>
             </div>
             {errors.currency && <p className="error">{errors.currency.message}</p>}
           </div>
         )}
       />
 
+      {/* Реквизиты для оплаты */}
       <Controller
         name="payment_details"
         control={control}
@@ -62,6 +73,7 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
         )}
       />
 
+      {/* Ставка в час */}
       <Controller
         name="hourly_rate"
         control={control}
@@ -73,6 +85,7 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
         )}
       />
 
+      {/* Процент + Чекбокс */}
       <div className="two-cols">
         <Controller
           name="percent"
@@ -103,7 +116,6 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
                 <input
                   type="checkbox"
                   {...field}
-                  checked={field.value}
                   onChange={e => field.onChange(e.target.checked)}
                 />
                 <span className="slider" />
@@ -113,6 +125,7 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
         />
       </div>
 
+      {/* Реферер */}
       <Controller
         name="referrer_id"
         control={control}
@@ -131,6 +144,7 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
         )}
       />
 
+      {/* Первый реферер */}
       <Controller
         name="referrer_first_id"
         control={control}
@@ -147,6 +161,7 @@ export default function FinancesTab({ clientFields, referrers = [], employees = 
         )}
       />
 
+      {/* Менеджер */}
       <Controller
         name="manager_id"
         control={control}

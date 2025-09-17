@@ -45,10 +45,6 @@ export default function ClientHeader({
   /* ======== JSX ======== */
   return (
     <div className={styles.clientHeader}>
-      {/* аватар */}
-      <div className={styles.avatarWrap}>
-        <img src={avatarSrc} alt="Аватар клиента" className={styles.avatar} />
-      </div>
       {/* инфо */}
       <div className={styles.info}>
         <h2 className={name === 'Имя клиента' ? styles.placeholder : undefined}>
@@ -65,6 +61,11 @@ export default function ClientHeader({
             <div className={styles.moreTags}>+{tags.length - 4}</div>
           )}
         </div>
+      </div>
+
+      {/* аватар */}
+      <div className={styles.avatarWrap}>
+        <img src={avatarSrc} alt="Аватар клиента" className={styles.avatar} />
       </div>
 
       {/* действия */}

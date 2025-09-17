@@ -2,11 +2,15 @@ import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import './ContactsTab.css';
 
-export default function ContactsTab({ clientFields, openImage }) {
+/**
+ * Вкладка «Контакты» для модального окна клиента.
+ */
+export default function ContactsTab({ countries = [], openImage }) {
   const { control, formState: { errors } } = useFormContext();
 
   return (
     <div className="tab-section contacts-tab">
+      {/* ---------- ФИО ---------- */}
       <Controller
         name="full_name"
         control={control}
@@ -19,6 +23,7 @@ export default function ContactsTab({ clientFields, openImage }) {
         )}
       />
 
+      {/* ---------- Телефон ---------- */}
       <Controller
         name="phone"
         control={control}
@@ -35,6 +40,7 @@ export default function ContactsTab({ clientFields, openImage }) {
         )}
       />
 
+      {/* ---------- Email ---------- */}
       <Controller
         name="email"
         control={control}
@@ -51,6 +57,7 @@ export default function ContactsTab({ clientFields, openImage }) {
         )}
       />
 
+      {/* ---------- Страна ---------- */}
       <Controller
         name="country"
         control={control}
@@ -59,7 +66,7 @@ export default function ContactsTab({ clientFields, openImage }) {
             <label>Страна<span className="req">*</span></label>
             <select {...field} className={errors.country ? 'input-error' : ''}>
               <option value="">-- Выберите страну --</option>
-              {clientFields?.country?.map(c => (
+              {countries.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
@@ -68,6 +75,7 @@ export default function ContactsTab({ clientFields, openImage }) {
         )}
       />
 
+      {/* ---------- Город ---------- */}
       <Controller
         name="city"
         control={control}
@@ -79,6 +87,7 @@ export default function ContactsTab({ clientFields, openImage }) {
         )}
       />
 
+      {/* ---------- Ссылка на чат ---------- */}
       <Controller
         name="chat_link"
         control={control}
@@ -90,6 +99,7 @@ export default function ContactsTab({ clientFields, openImage }) {
         )}
       />
 
+      {/* ---------- Ссылка на папку ---------- */}
       <Controller
         name="folder_link"
         control={control}

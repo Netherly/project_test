@@ -105,6 +105,10 @@
 
 .executors-table-container {
     background-color: var(--container-bg);
+<<<<<<< HEAD
+=======
+    border-radius: 8px;
+>>>>>>> update_last_changes
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     overflow-x: auto;
 }
@@ -113,6 +117,10 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
+<<<<<<< HEAD
+=======
+    font-size: 14px;
+>>>>>>> update_last_changes
     text-align: left;
     color: var(--container-text-color);
     table-layout: auto;
@@ -121,7 +129,11 @@
 
 .executors-table thead {
     background-color: var(--container-bg);
+<<<<<<< HEAD
     font-size: var(--font-size-table-header);
+=======
+    color: var(--chips-color);
+>>>>>>> update_last_changes
 }
 
 .executors-table th {
@@ -130,8 +142,12 @@
     font-weight: 600;
     position: sticky;
     top: 0;
+<<<<<<< HEAD
     border-right: 1px solid var(--bg-color);
     border-bottom: 10px solid var(--bg-color);
+=======
+    border-bottom: 1px solid var(--border--color);
+>>>>>>> update_last_changes
 }
 
 .executors-table thead tr th:first-child {
@@ -152,7 +168,11 @@
 }
 
 .executors-table tbody tr.executor-row:hover {
+<<<<<<< HEAD
     background-color: var(--input-border-focus);
+=======
+    background-color: #224158;
+>>>>>>> update_last_changes
 }
 
 .executors-table td {
@@ -162,10 +182,13 @@
     text-overflow: ellipsis;
     color: var(--text-color);
     vertical-align: middle;
+<<<<<<< HEAD
     border-bottom: 1px solid var(--bg-color);
     border-top: 1px solid var(--bg-color);
     border-right: 1px solid var(--bg-color);
     font-size: var(--font-size-table-text);
+=======
+>>>>>>> update_last_changes
 }
 
 .view-mode-buttons {
@@ -186,17 +209,26 @@
 }
 
 .view-mode-button.active {
+<<<<<<< HEAD
     background-color: #478cff;
+=======
+    background-color: #555;
+>>>>>>> update_last_changes
     color: #fff;
 }
 
 .executors-cards-container {
     padding: 20px;
     border-radius: 8px;
+<<<<<<< HEAD
     transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
 }
 
 
+=======
+}
+
+>>>>>>> update_last_changes
 .performer-group {
     margin-bottom: 32px;
 }
@@ -211,5 +243,9 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
+<<<<<<< HEAD
 }
 
+=======
+}
+>>>>>>> update_last_changes

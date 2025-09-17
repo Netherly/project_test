@@ -71,7 +71,6 @@
     color: var(--container-text-color);
 }
 
-
 .assets-table th,
 .assets-table td {
     padding: 12px 15px;
@@ -298,7 +297,6 @@
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
 }
-
 
 
 .assets-cards-container {
