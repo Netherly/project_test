@@ -33,7 +33,7 @@ const getTransactions = () => {
         const saved = localStorage.getItem('transactionsData');
         return saved ? JSON.parse(saved) : [];
     } catch (error) {
-        console.error("Ошибка при чтении транзакций из localStorage:", error);
+        console.error("Ошибка при чтении транзакций из localStorage:", error);пше
         return [];
     }
 };
