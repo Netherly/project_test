@@ -5,13 +5,10 @@ const ExecutorCard = ({ order, userSettings, onCardClick }) => {
     const handleClick = () => {
         onCardClick(order);
     };
-<<<<<<< HEAD
-=======
 
     
     const paymentDue = order.calculatedPaymentDue || 0;
 
->>>>>>> Alexander
     return (
         <div className="executor-card" onClick={handleClick}>
             <div className="card-header">
