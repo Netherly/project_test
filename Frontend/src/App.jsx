@@ -15,6 +15,7 @@ import TransactionsPage from "./components/Transaction/TransactionsPage";
 import Profile from "./components/Profile/Profile";
 import FieldsPage from "./pages/FieldsPage"; 
 import AccessSettings from "./components/AccessSettings/AccessSettingsPage";
+import TasksPage from "./components/TasksPage/TasksPage"
 
 import { sampleClients } from './data/sampleClients';
 import ExecutorsPage from './components/Executors/ExecutorsPage';
