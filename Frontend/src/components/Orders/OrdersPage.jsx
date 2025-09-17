@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { DndProvider, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import Sidebar from "../Sidebar";
@@ -8,6 +8,9 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ColumnMinimap from "./Minimap/ColumnMinimap";
 import ColumnVisibilityToggle from "./ColumnVisibilityToggle/ColumnVisibilityToggle";
 import useHorizontalDragScroll from "./hooks/useHorizontalDragScroll";
+
+import { getLogEntries } from "../Journal/journalApi";
+import { useTransactions } from "../../context/TransactionsContext";
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
@@ -73,20 +76,26 @@ const allStages = [
 
 const finalStages = ["Успешно завершен", "Закрыт", "Неудачно завершён", "Удаленные"];
 
+const ORDERS_STORAGE_KEY = 'ordersData';
+
 const OrdersPage = () => {
-    const [orders, setOrders] = useState([
-        { id: 1, numberOrder: "2234", name: "Разработка СРМ", stage: "Лид", date: "21.03.2025", price: 50000, client: "Лев" },
-        { id: 2, name: "Редизайн сайта", stage: "Изучаем ТЗ", date: "23.03.2025", price: 24300 },
-        { id: 3, name: "Мобильное приложение", stage: "Обсуждаем с клиентом", date: "27.03.2025", price: 35000 },
-        { id: 4, numberOrder: "23334", name: "API интеграция", stage: "Клиент думает", price: 28000 },
-        { id: 5, name: "Предрейс", stage: "Ожидаем предоплату", price: 15000 },
-        { id: 6, name: "Покурить", stage: "Взяли в работу", price: 8000 },
-        { id: 7, name: "Выпить пива", stage: "Ведется разработка", price: 12000 },
-        { id: 8, name: "Тим билдинг в кс2", stage: "На уточнении у клиента", price: 25000 },
-        { id: 9, name: "Покурить", stage: "Тестируем", price: 9000 },
-        { id: 10, name: "Тим билдинг в кс2", stage: "Тестирует клиент", price: 18000 },
-        { id: 11, name: "Покурить", stage: "На доработке", price: 6000 }
-    ]);
+    const [orders, setOrders] = useState(() => {
+        const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
+        if (savedOrders) {
+            try {
+                return JSON.parse(savedOrders);
+            } catch (e) {
+                console.error("Ошибка чтения заказов из localStorage", e);
+            }
+        }
+        return [
+            { id: 1, numberOrder: "2234", name: "Разработка СРМ", stage: "Лид", date: "21.03.2025", price: 50000, client: "Лев" },
+            { id: 2, name: "Редизайн сайта", stage: "Лид", date: "23.03.2025", price: 24300 },
+        ];
+    });
+
+    
+    const [journalEntries, setJournalEntries] = useState([]);
 
     // Теперь это фильтр для заказов, а не для столбцов
     // По умолчанию показываем все заказы кроме финальных стадий
@@ -98,10 +107,24 @@ const OrdersPage = () => {
     const [viewMode, setViewMode] = useState('kanban');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const stagesContainerRef = useRef(null);
     const isDraggingRef = useRef(false);
 
+    useEffect(() => {
+        localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    }, [orders]);
+
+    
+    useEffect(() => {
+        const allEntries = getLogEntries();
+        setJournalEntries(allEntries);
+    }, []);
+    
+
+
     const moveOrder = useCallback((orderId, newStage, newIndex) => {
+       
         setOrders((prevOrders) => {
             const order = prevOrders.find((o) => o.id === orderId);
             if (!order) return prevOrders;
@@ -116,11 +139,13 @@ const OrdersPage = () => {
     }, []);
 
     const updateOrder = (updatedOrder) => {
+        
         setOrders((prev) =>
             prev.map((order) =>
                 order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order
             )
         );
+        setSelectedOrder(null);
     };
 
     const handleDragStart = () => {
@@ -159,6 +184,25 @@ const OrdersPage = () => {
             stagesContainerRef.current.scrollLeft = scrollLeft;
         }
     }, []);
+
+    const generateRandomId = () => {
+        return Math.floor(10000000 + Math.random() * 90000000);
+    };
+
+    const handleCreateOrder = (newOrderData) => {
+        const newOrder = {
+            ...newOrderData,
+            id: generateRandomId(),
+        };
+        setOrders((prevOrders) => [newOrder, ...prevOrders]);
+        setIsCreateModalOpen(false);
+    };
+
+    const handleDeleteOrder = (orderId) => {
+
+        setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+        setSelectedOrder(null);
+    };
 
     useHorizontalDragScroll(stagesContainerRef, isDraggingRef);
 
@@ -243,9 +287,21 @@ const OrdersPage = () => {
 
             {selectedOrder && (
                 <OrderModal
+                    mode="edit"
                     order={selectedOrder}
                     onClose={() => setSelectedOrder(null)}
                     onUpdateOrder={updateOrder}
+                    onDeleteOrder={handleDeleteOrder}
+                    journalEntries={journalEntries}
+                />
+            )}
+
+            {isCreateModalOpen && (
+                <OrderModal
+                    mode="create"
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onCreateOrder={handleCreateOrder}
+                    journalEntries={journalEntries}
                 />
             )}
         </div>

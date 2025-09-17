@@ -22,7 +22,7 @@
 }
 
 .assets-title {
-    font-size: 22px;
+    font-size: var(--font-size-page-title);
     font-weight: 700;
     margin: 0;
     color: var(--text-color);
@@ -60,19 +60,17 @@
 .assets-table-container {
     overflow-x: auto;
     background-color: var(--container-bg);
-    border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    margin: 0 15px 0 0;
 }
 
 .assets-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 14px;
     text-align: left;
     color: var(--container-text-color);
 }
+
 
 .assets-table th,
 .assets-table td {
@@ -84,6 +82,10 @@
     vertical-align: middle;
 }
 
+.assets-table td{
+    font-size: var(--font-size-table-text);
+}
+
 .assets-table th:nth-child(5),
 .assets-table td:nth-child(5) {
     border-right: 4px solid var(--bg-color);
@@ -93,7 +95,6 @@
     text-align: right;
 }
 
-/* Align values in turnover columns to the right */
 .assets-table-v2 td:nth-child(3),
 .assets-table-v2 td:nth-child(4),
 .assets-table-v2 td:nth-child(6),
@@ -121,13 +122,14 @@
 .assets-table thead {
     background-color: var(--container-bg);
     color: var(--text-color);
+    font-size: var(--font-size-table-header);
 }
 
 .assets-table th {
     font-weight: 600;
     position: sticky;
     top: 0;
-    text-align: center; /* Center align all headers */
+    text-align: center; 
 }
 
 .assets-table-v2 thead tr:first-child th:first-child {
@@ -142,9 +144,8 @@
     border-top: none;
     padding-top: 5px;
     padding-bottom: 5px;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: normal;
-    color: var(--chips-color);
     vertical-align: top;
 }
 
@@ -158,28 +159,27 @@
 }
 
 .assets-table-v2 tbody tr:hover {
-    background-color: #224158;
+    background-color: var(--input-border-focus);
 }
 
-/* Styles for the entire summary row */
+
 .currency-group-header td {
     background-color: var(--bg-color);
     color: #FFFFFF;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: normal;
     padding: 8px 15px;
     border: none;
     border-bottom: 1px solid var(--border--color) !important;
 }
 
-/* Style for the first cell (currency name) */
+
 .currency-group-header td:first-child {
-    font-weight: bold;
-    font-size: 16px;
+    font-size: 11px;
     text-align: left;
 }
 
-/* Align numeric totals to the right */
+
 .currency-group-header td:not(:first-child):not(:nth-child(5)) {
     text-align: right;
 }
@@ -228,12 +228,12 @@
 .account-info .account-main-name {
     font-weight: bold;
     color: var(--text-color);
-    font-size: 14px;
+    font-size: 11px;
     margin-bottom: 2px;
 }
 
 .account-info .account-sub-id {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--chips-color);
     display: none;
 }
@@ -253,7 +253,7 @@
     cursor: pointer;
 }
 
-.view-mode-buttons {
+.assets-view-mode-buttons {
     display: flex;
     gap: 0;
     padding: 0 20px;
@@ -262,7 +262,7 @@
     align-items: center;
 }
 
-.view-mode-button {
+.assets-view-mode-button {
     background-color: transparent;
     border: none;
     padding: 8px 12px;
@@ -278,33 +278,28 @@
     height: 40px;
 }
 
-.view-mode-button:hover {
+.assets-view-mode-button:hover {
     background-color: var(--button-bg-hover);
     color: var(--text-color);
 }
 
-.view-mode-button.active {
-    background-color: var(--accent-color);
+.assets-view-mode-button.active {
+    background-color: #478cff;
     color: white;
     border-radius: 6px;
 }
 
-.view-mode-button:first-child.active {
+.assets-view-mode-button:first-child.active {
     border-top-left-radius: 6px;
     border-bottom-left-radius: 6px;
 }
 
-.view-mode-button:last-child.active {
+.assets-view-mode-button:last-child.active {
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
 }
 
-.view-mode-buttons {
-    border: none;
-    border-radius: 0;
-    overflow: visible;
-    border-right: 1px solid var(--border--color);
-}
+
 
 .assets-cards-container {
     display: grid;
@@ -323,7 +318,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 0 0 20px 20px;
+    margin-left: 20px;
+    padding: 0 20px;
+    border-right: 1px solid var(--border--color);
 }
 
 .card-size-button {
@@ -336,6 +333,6 @@
 }
 
 .card-size-button.active {
-    background-color: #007bff;
+    background-color: #478cff;
     color: #fff;
 }

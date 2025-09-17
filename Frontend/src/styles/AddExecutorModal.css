@@ -18,7 +18,7 @@
     padding: 20px 30px;
     width: 35%;
     min-width: 320px;
-    max-width: 500px;
+    max-width: 750px;
     height: 100vh;
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
     color: var(--text-color);
@@ -71,7 +71,6 @@
 
 .form-row.checkbox-row {
     justify-content: flex-start;
-    gap: 15px;
 }
 
 .form-label {
@@ -87,7 +86,7 @@
 }
 
 .form-input {
-    flex-basis: 60%;
+    flex-basis: 70%;
     width: 100%;
     padding: 10px 12px;
     background-color: var(--bg-color);
@@ -160,36 +159,46 @@
 }
 
 .add-transaction-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
 }
 
+
+.add-transaction-actions .options-button svg,
+.add-transaction-actions .icon svg {
+  width: 24px;
+  height: 24px;
+  display: block; 
+}
+
+
 .add-transaction-actions .icon {
-    margin-left: 0;
-    font-size: 24px;
-    font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .options-button {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: var(--chips-color);
-    cursor: pointer;
-    padding: 0 5px;
-    transition: color 0.2s ease;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    z-index: 10;
+  background: none;
+  border: none;
+  color: var(--chips-color);
+  cursor: pointer;
+  padding: 0;
+  width: 24px;  
+  height: 24px; 
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
 }
 
 .options-button:hover {
-    color: var(--accent-color);
+  color: var(--accent-color);
 }
 
 .options-menu {
@@ -218,6 +227,76 @@
     width: 100%;
     white-space: nowrap;
     transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+
+.add-executor-form select{
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
+    flex-basis: 70%;
+    width: 100%; 
+    padding: 10px 12px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.add-executor-form select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.executor-payment-log-table {
+    border: 1px solid var(--border--color);
+    overflow: hidden;
+    margin-top: 10px;
+    display: flex;
+    font-size: 11px;
+    flex-direction: column;
+}
+
+.executor-payment-log-header{
+    min-height: 20px;
+    border-bottom: 1px solid var(--border--color);
+}
+
+.executor-payment-log-header,
+.executor-payment-log-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.executor-payment-log-header div,
+.executor-payment-log-row input {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 10px; 
+    text-align: center;
+}
+
+
+.executor-payment-log-row input {
+    min-height: 40px;
+    border: none;
+    background-color: transparent;
+    color: var(--container-text-color);
+    outline: none;
+    border-right: 1px solid var(--border--color);
+    text-align: center;
+}
+
+.executor-payment-log-row input:nth-child(5){
+    border-right: none;
+}
+
+.executor-payment-log-row input:focus {
+    background-color: var(--focused-input-bg);
 }
 
 @media (max-width: 768px) {

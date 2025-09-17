@@ -4,17 +4,112 @@
     height: 100%;
     background-color: var(--container-bg);
     color: var(--container-text-color);
-    overflow-y: auto;
+    overflow-y: hidden;
     overflow-x: hidden;
+    display: flex;
+    flex-direction: row;
     padding-left: 72px;
 }
-.modal-content {
-    width: 50%;
-    height: 100%;
-    display: flex;
-    padding: 5px 0px 0px 5px;
-
+.order-chat-panel-wrapper {             
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  height: 100%;
 }
+
+.chat-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  padding: 20px;
+}
+.order-modal-content {
+    padding: 0;
+    border-radius: 8px 0 0 8px;
+    width: 41%;
+    max-width: none;
+    height: 100%;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-right: 1px solid var(--border--color);
+}
+
+.order-modal-header-section {
+  background-color: var(--bg-menu-color);
+  color: var(--text-color);
+  padding: 30px 30px 0; 
+  flex-shrink: 0; 
+}
+
+.order-modal-body-section {
+  padding: 20px 30px;
+  flex-grow: 1; 
+  overflow-y: auto;
+  
+}
+
+
+
+.right-side-menu {
+  width: 100px;
+  flex-shrink: 0; 
+  background-color: var(--bg-menu-color); 
+  border-left: 1px solid var(--border--color);
+  border-right: 1px solid var(--border--color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  overflow-y: auto;
+  height: 100vh; 
+}
+
+.menu-button {
+  width: 100%;
+  padding: 8px 4px;
+  margin-bottom: 5px;
+  border: none;
+  background-color: transparent;
+  color: var(--container-text-color); 
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.menu-button:hover {
+  background-color: var(--container-bg);
+}
+
+.menu-separator {
+  width: 80%;
+  height: 1px;
+  background-color: #3a3a5c; 
+  margin: 10px 0;
+}
+
+.menu-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-placeholder p {
+  font-size: 9px;
+  width: 75px;
+}
+
+.header-top-row{
+    display: flex;
+    flex-direction: row;
+}
+
 .close-button {
     all: unset;
     display: flex;
@@ -25,7 +120,6 @@
     justify-content: center;
     font-size: 30px;
     font-weight: bold;
-    padding: 0;
     cursor: pointer;
     margin-right: 5px;
     transition: opacity 0.2s ease;
@@ -36,7 +130,6 @@
 .order-modal-form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
     width: 100%;
 }
 .modal-header {
@@ -100,9 +193,10 @@
 }
 .tags-section {
     display: flex;
-    flex-direction: column;
-    width: 50%;
-    gap: 5px;
+    flex-direction: row;       
+    align-items: flex-start;  
+    width: 100%;
+    gap: 10px;
 }
 .tag-input-container {
     position: relative;
@@ -158,12 +252,11 @@
     margin-bottom: 0;
 }
 .tag-chips-container {
-    margin-top: 6px;
+    flex: 1;                  
+    margin-top: 0;
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: wrap;          
     gap: 5px;
-    align-items: flex-start;
 }
 .tag-chips-container.expanded {
     overflow: visible;
@@ -383,7 +476,7 @@
 }
 .tab-content-title {
     align-items: center;
-    width: 330px;
+    width: 220px;
     font-weight: 500;
     font-size: 14px;
     color: var(--chips-color);
@@ -393,8 +486,7 @@
 .order-menu-title {
     margin-right: 8px;
 }
-.tab-content-input,
-.custom-content-input {
+.tab-content-input{
     background: none;
     border: none;
     outline: none;
@@ -402,14 +494,24 @@
     -webkit-appearance: none;
     -moz-appearance: none;
     color: var(--container-text-color);
-    background-color: var(--container-bg);
-    padding: 4px 8px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+    padding: 10px 12px;
     min-width: 150px;
 }
-.tab-content-input:focus,
-.custom-content-input:focus {
-    border-color: var(--container-text-color);
+
+.custom-content-input{
+    background-color: var(--container-bg);
+    border: none;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    color: var(--container-text-color);
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+    min-width: 170px;
 }
+
 .workplan-textarea {
     background: none;
     border: 1px solid rgba(128, 128, 128, 0.2);
@@ -659,4 +761,196 @@
 }
 .modal-content-span-info-checkbox {
     padding-left: 5px;
+}
+
+.payment-log-table {
+    border: 1px solid var(--border--color);
+    overflow: hidden;
+    margin-top: 10px;
+    display: flex;
+    font-size: 11px;
+    flex-direction: column;
+}
+
+.payment-log-header {
+    display: grid;
+    grid-template-columns: 2fr 2fr 2fr 2fr 2fr; 
+    background-color: var(--secondary-background);
+    padding: 10px 0;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border--color);
+    min-height: 20px;
+}
+
+.payment-log-header div {
+    text-align: center;
+    padding: 0 10px;
+}
+
+.payment-log-row {
+    display: grid;
+    grid-template-columns: 2fr 3fr 3fr 2fr 2fr;
+    border-bottom: 1px solid var(--border--color);
+    align-items: center;
+    text-align: center;
+}
+
+.payment-log-row:last-child {
+    border-bottom: none;
+    border-right: none;
+}
+
+.payment-log-row input {
+    min-height: 40px;
+    border: none;
+    background-color: transparent;
+    box-sizing: border-box;
+    color: var(--container-text-color);
+    outline: none;
+     border-right: 1px solid var(--border--color);
+    text-align: center;
+}
+
+.payment-log-row input:nth-child(5){
+    border-right: none;
+}
+
+.payment-log-row input:focus {
+    background-color: var(--focused-input-bg);
+}
+
+.remove-row-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ff4d4f; 
+    font-size: 11x; 
+    font-weight: bold;
+    padding: 5px;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.remove-row-btn:hover {
+    color: #ff7875; 
+}
+
+.add-row-btn {
+    background-color: var(--primary-color); 
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 10px;
+    width: fit-content; 
+    align-self: flex-end; 
+    transition: background-color 0.2s;
+}
+
+.add-row-btn:hover {
+    background-color: var(--primary-color-hover); 
+}
+
+.work-log-table {
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+}
+
+.work-log-header,
+.work-log-row {
+    display: grid;
+    grid-template-columns: 2fr 2fr 2fr 2fr 2fr; 
+    align-items: center;
+}
+
+.work-log-header {
+    background-color: var(--secondary-background);
+    padding: 10px 0;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border--color);
+    min-height: 20px;
+}
+
+.work-log-header div {
+    text-align: center;
+    padding: 0 10px;
+}
+
+.work-log-row {
+    border-bottom: 1px solid var(--border--color);
+}
+
+.work-log-row:last-child {
+    border-bottom: none;
+}
+
+
+.work-log-row input,
+.work-log-row textarea {
+    border: none;
+    background-color: transparent;
+    box-sizing: border-box;
+    color: var(--container-text-color);
+    outline: none;
+    text-align: center;
+    resize: vertical; 
+    min-height: 40px; 
+    border-right: 1px solid var(--border--color);
+}
+
+.work-log-row textarea{
+    border-right: none;
+}
+
+.work-log-row input:focus,
+.work-log-row textarea:focus {
+    background-color: var(--focused-input-bg);
+}
+
+.work-log-row .remove-row-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ff4d4f;
+    font-size: 20px;
+    font-weight: bold;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+}
+
+.work-log-row .remove-row-btn:hover {
+    color: #ff7875;
+}
+
+.tab-content-row-column .add-row-btn {
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 15px;
+    width: fit-content;
+    align-self: flex-end;
+    transition: background-color 0.2s;
+}
+
+.tab-content-row-column .add-row-btn:hover {
+    background-color: var(--primary-color-hover);
 }

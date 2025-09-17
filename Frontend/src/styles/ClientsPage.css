@@ -52,7 +52,6 @@
 .clients-table thead th{
   position: sticky; top: 0; z-index: 2;
   background: #141c28;                      /* тёмная шапка */
-  color: #cdd6e4;
   font-weight: 600;
   padding: 12px 12px;
   border-bottom: 1px solid #233044;

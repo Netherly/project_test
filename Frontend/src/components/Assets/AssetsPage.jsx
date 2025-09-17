@@ -173,9 +173,23 @@ const AssetsPage = () => {
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [viewMode, setViewMode] = useState('table');
     const [fields, setFields] = useState({ currency: [], type: [], paymentSystem: [], cardDesigns: [] });
+    const [employees, setEmployees] = useState([]);
 
     
     const [cardSize, setCardSize] = useState('medium');
+
+
+     useEffect(() => {
+        const savedEmployees = localStorage.getItem('employees');
+        if (savedEmployees) {
+            try {
+                const parsedEmployees = JSON.parse(savedEmployees);
+                setEmployees(parsedEmployees);
+            } catch (e) {
+                console.error("Ошибка парсинга сотрудников из localStorage:", e);
+            }
+        }
+    }, []);
 
 
     useEffect(() => {
@@ -355,10 +369,13 @@ const AssetsPage = () => {
         setSelectedAsset(null);
     };
 
-    const handleSaveAsset = (assetId, newRequisites) => {
-        setAssets(prevAssets => prevAssets.map(asset =>
-            asset.id === assetId ? { ...asset, requisites: newRequisites } : asset
-        ));
+    const handleSaveAsset = (updatedAsset) => {
+        setAssets(prevAssets => 
+            prevAssets.map(asset => 
+                asset.id === updatedAsset.id ? updatedAsset : asset
+            )
+        );
+        handleCloseDetailsModal(); 
     };
 
     const assetsByCurrency = assets.reduce((acc, asset) => {
@@ -393,55 +410,54 @@ const AssetsPage = () => {
             <Sidebar />
             <div className="assets-page-main-container">
                 <header className="assets-header-container">
-                    <h1 className="assets-title">
-                    <PageHeaderIcon pageName="Активы" />
-                    Активы
-                    </h1>   
-                            <div className="view-mode-buttons">
+                    <h1 className="assets-title">Активы</h1>
+                    
+                        
+                            <div className="assets-view-mode-buttons">
                                 <button
-                                    className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
+                                    className={`assets-view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
                                     onClick={() => setViewMode('card')}
                                     title="Карточный вид"
                                 >
                                     &#x25A3;
                                 </button>
                                 <button
-                                    className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
+                                    className={`assets-view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
                                     onClick={() => setViewMode('table')}
                                     title="Табличный вид"
                                 >
                                     &#x2261;
                                 </button>
                             </div>
+                            {viewMode === 'card' && (
+                                <div className="card-size-selector">
+                                    <span>Размеры карт:</span>
+                                    <button
+                                        className={`card-size-button ${cardSize === 'large' ? 'active' : ''}`}
+                                        onClick={() => handleSetCardSize('large')}
+                                    >
+                                        Крупно
+                                    </button>
+                                    <button
+                                        className={`card-size-button ${cardSize === 'medium' ? 'active' : ''}`}
+                                        onClick={() => handleSetCardSize('medium')}
+                                    >
+                                        Средне
+                                    </button>
+                                    <button
+                                        className={`card-size-button ${cardSize === 'small' ? 'active' : ''}`}
+                                        onClick={() => handleSetCardSize('small')}
+                                    >
+                                        Мелко
+                                    </button>
+                                </div>
+                            )}
                             <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
-                                ➕ Добавить актив
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить актив
                             </button>
                 </header>
 
-                
-                {viewMode === 'card' && (
-                    <div className="card-size-selector">
-                        <span>Размеры карт:</span>
-                        <button
-                            className={`card-size-button ${cardSize === 'large' ? 'active' : ''}`}
-                            onClick={() => handleSetCardSize('large')}
-                        >
-                            Крупно
-                        </button>
-                        <button
-                            className={`card-size-button ${cardSize === 'medium' ? 'active' : ''}`}
-                            onClick={() => handleSetCardSize('medium')}
-                        >
-                            Средне
-                        </button>
-                        <button
-                            className={`card-size-button ${cardSize === 'small' ? 'active' : ''}`}
-                            onClick={() => handleSetCardSize('small')}
-                        >
-                            Мелко
-                        </button>
-                    </div>
-                )}
+            
                 <div className="assets-content">
                     {viewMode === 'table' && (
                         <div className="assets-table-container">
@@ -554,6 +570,7 @@ const AssetsPage = () => {
                         onClose={() => setShowAddForm(false)}
                         onAdd={handleAddAsset}
                         fields={fields}
+                        employees={employees}
                     />
                 )}
 
@@ -564,6 +581,8 @@ const AssetsPage = () => {
                         onDelete={handleDeleteAsset}
                         onDuplicate={handleDuplicateAsset}
                         onSave={handleSaveAsset}
+                        fields={fields}
+                        employees={employees}
                     />
                 )}
             </div>

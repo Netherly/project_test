@@ -304,6 +304,7 @@
 }
 
 .stage-column {
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
   position: relative;
   flex: 0 0 320px;
   height: 100%;
@@ -356,7 +357,10 @@
 }
 
 .order-container:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
+              0 0 0 2px #478cff,
+              0 0 15px rgba(71, 140, 255, 0.5);
 }
 
 .order-container.dragging {

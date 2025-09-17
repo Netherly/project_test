@@ -25,7 +25,7 @@
 
 
 .executors-title {
-    font-size: 22px;
+    font-size: var(--font-size-page-title);
     font-weight: 700;
     margin: 0;
     color: var(--text-color);
@@ -105,7 +105,6 @@
 
 .executors-table-container {
     background-color: var(--container-bg);
-    border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     overflow-x: auto;
 }
@@ -114,7 +113,6 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 14px;
     text-align: left;
     color: var(--container-text-color);
     table-layout: auto;
@@ -123,7 +121,7 @@
 
 .executors-table thead {
     background-color: var(--container-bg);
-    color: var(--chips-color);
+    font-size: var(--font-size-table-header);
 }
 
 .executors-table th {
@@ -132,7 +130,8 @@
     font-weight: 600;
     position: sticky;
     top: 0;
-    border-bottom: 1px solid var(--border--color);
+    border-right: 1px solid var(--bg-color);
+    border-bottom: 10px solid var(--bg-color);
 }
 
 .executors-table thead tr th:first-child {
@@ -153,7 +152,7 @@
 }
 
 .executors-table tbody tr.executor-row:hover {
-    background-color: #224158;
+    background-color: var(--input-border-focus);
 }
 
 .executors-table td {
@@ -163,6 +162,10 @@
     text-overflow: ellipsis;
     color: var(--text-color);
     vertical-align: middle;
+    border-bottom: 1px solid var(--bg-color);
+    border-top: 1px solid var(--bg-color);
+    border-right: 1px solid var(--bg-color);
+    font-size: var(--font-size-table-text);
 }
 
 .view-mode-buttons {
@@ -183,14 +186,16 @@
 }
 
 .view-mode-button.active {
-    background-color: #555;
+    background-color: #478cff;
     color: #fff;
 }
 
 .executors-cards-container {
     padding: 20px;
     border-radius: 8px;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
 }
+
 
 .performer-group {
     margin-bottom: 32px;
@@ -207,3 +212,4 @@
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
 }
+

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { TransactionsProvider } from './context/TransactionsContext';
 
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
@@ -17,6 +18,9 @@ import AccessSettings from "./components/AccessSettings/AccessSettingsPage";
 
 import { sampleClients } from './data/sampleClients';
 import ExecutorsPage from './components/Executors/ExecutorsPage';
+import EmployeePage from './components/Employees/EmployeePage';
+import RegularPaymentsPage from './components/RegularPayments/RegularPaymentsPage';
+import { PaymentChecker } from './components/RegularPayments/PaymentChecker';
 
 const ProtectedRoute = ({ element }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -24,7 +28,6 @@ const ProtectedRoute = ({ element }) => {
 };
 
 export default function App() {
-  // Начальный список клиентов из sampleClients
   const [clients, setClients] = useState(sampleClients);
 
   // Примеры справочников для формы клиента
@@ -89,6 +92,8 @@ export default function App() {
 
   return (
     <ThemeProvider>
+      <TransactionsProvider>
+        <PaymentChecker />
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route
@@ -102,6 +107,10 @@ export default function App() {
         <Route 
           path="/executors" 
           element={<ProtectedRoute element={<ExecutorsPage />} />}
+        />
+        <Route 
+            path="/employees" 
+            element={<ProtectedRoute element={<EmployeePage />} />}
         />
         <Route
           path="/journal"
@@ -118,6 +127,10 @@ export default function App() {
         <Route 
           path="/list" 
           element={<ProtectedRoute element={<TransactionsPage />} />}
+        />
+        <Route 
+            path="/regular" 
+            element={<ProtectedRoute element={<RegularPaymentsPage />} />}
         />
         <Route 
           path="/profile" 
@@ -150,7 +163,9 @@ export default function App() {
             />
           }
         />
+         
       </Routes>
+      </TransactionsProvider>
     </ThemeProvider>
   );
 }

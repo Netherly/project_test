@@ -1,101 +1,126 @@
 .currency-rates-page {
-  display: flex;
+    display: flex;
+    min-height: 100vh; 
 }
-
 
 .currency-rates-main-container {
-  background-color: var(--bg-color); 
-  color: var(--text-color); 
-}
-
-
-.currency-rates-header-container{
-  display: flex;
-  margin-bottom: 20px;
-  height: 60px;
-  background-color: var(--container-bg);
-  border-bottom: 1px solid var(--border--color);
-}
-
-.currency-rates-header-container h2{
-  border-right: 1px solid var(--border--color);
-  padding: 0px 35px 0px 35px;
-  height: 100%;
-  align-items: center;
-  font-size: 22px;
-  font-weight: 700;
-  text-transform: uppercase;
-  justify-content: center;
-}
-
-.currency-rates-table-container {
-  padding: 20px;
-  background-color: var(--container-bg);
-  color: var(--text-color);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  margin-top: 20px;
-  overflow-x: auto;
-}
-
-.currency-rates-table-wrapper {
-  overflow-x: auto;
-}
-
-.currency-rates-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-  min-width: 1200px;
-  table-layout: fixed;
-}
-
-.currency-rates-table th,
-.currency-rates-table td {
-  border: 1px solid var(--border--color, #ddd);
-  padding: 8px;
-  text-align: center;
-  font-size: 0.9em;
-  white-space: nowrap; 
-  color: var(--text-color);
-  width: calc(100% / 17); 
-  box-sizing: border-box; 
-}
-
-
-.currency-rates-table thead th {
-  background-color: var(--button-bg);
-  color: var(--text-color);
-  font-weight: bold;
-}
-
-.currency-rates-table tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.currency-rates-table tbody tr:hover td {
+    flex-grow: 1; 
+    background-color: var(--bg-color);
     color: var(--text-color);
 }
+
+
+.currency-rates-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    margin-bottom: 20px;
+    height: 60px;
+    background-color: var(--container-bg);
+    border-bottom: 1px solid var(--border--color);
+    border-radius: 8px; 
+}
+
+.currency-rates-header-title {
+    border-right: 1px solid var(--border--color);
+    padding: 0px 35px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-page-title);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0; 
+}
+
+
+.currency-rates-table-container {
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); 
+    overflow-x: auto; 
+}
+
+
+.currency-rates-table {
+    width: 100%;
+    border-collapse: separate; 
+    border-spacing: 0;
+    text-align: left;
+    table-layout: fixed;
+}
+
+
+.currency-rates-table thead {
+    background-color: var(--container-bg);
+    font-size: var(--font-size-table-header);
+}
+
+.currency-rates-table th {
+    padding: 12px 15px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    text-align: center;
+    border-right: 1px solid var(--bg-color);
+    border-bottom: 10px solid var(--bg-color);
+}
+
+
+.currency-rates-table thead tr th:first-child {
+    border-top-left-radius: 8px;
+}
+.currency-rates-table thead tr th:last-child {
+    border-top-right-radius: 8px;
+    border-right: none; 
+}
+
+
+.currency-rates-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+
+.currency-rates-table tbody tr:hover {
+    background-color: var(--input-border-focus);
+}
+
+.currency-rates-table td {
+    padding: 12px 15px;
+    text-align: center;
+    color: var(--text-color);
+    vertical-align: middle; 
+    border-bottom: 1px solid var(--bg-color);
+    border-top: 1px solid var(--bg-color);
+    border-right: 1px solid var(--bg-color);
+    white-space: normal;
+    word-wrap: break-word;
+    font-size: var(--font-size-table-text);
+}
+
+.currency-rates-table td:last-child {
+    border-right: none;
+}
+
 
 
 .currency-rates-editable-input {
-  width: 40px; 
-  padding: 5px;
-  border: 1px solid var(--input-border);
-  text-align: center;
-  font-size: 0.9em;
-  background-color: var(--input-bg);
-  color: var(--text-color);
+    width: 100%; 
+    box-sizing: border-box; 
+    padding: 6px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px; 
+    text-align: center;
+    font-size: 11px; 
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .currency-rates-editable-input:focus {
-  outline: none;
-  border-color: var(--input-border-focus);
-  box-shadow: 0 0 0 2px rgba(51, 157, 199, 0.3);
-}
-
-.currency-rates-editable-cell .currency-rates-editable-input:hover {
-    color: var(--text-color);
+    outline: none;
+    border-color: var(--input-border-focus);
+    box-shadow: 0 0 0 2px rgba(51, 157, 199, 0.3);
 }
 
 
@@ -105,7 +130,7 @@
     margin-top: 20px;
     justify-content: flex-end;
     width: 100%;
-    padding: 0 20px;
+    padding: 0; 
     box-sizing: border-box;
 }
 
@@ -128,19 +153,18 @@
 }
 
 .save-order-btn {
-    background: none;
-    border: 1px solid var(--input-bg);
+    background-color: var(--button-bg);
+    border: none;
     cursor: pointer;
     padding: 8px 16px;
-    color: var(--color-text);
-    background-color: var(--button-bg);
+    color: #fff; 
     font-weight: bold;
     border-radius: 6px;
     transition: all 0.2s ease;
 }
+
 .save-order-btn:hover {
-    background-color: var(--container-text-color);
-    color: var(--container-bg);
+    background-color: var(--accent-color); 
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

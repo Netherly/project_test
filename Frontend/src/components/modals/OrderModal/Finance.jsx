@@ -1,10 +1,22 @@
 import React from 'react';
-import { Controller } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import CustomSelect from '../../ui/CustomSelect';
 
-const Finance = ({ control, orderFields }) => {
-    
+const Finance = ({ control, orderFields, transactions = [] }) => {
+    const { watch } = useFormContext();
+    const currency = watch('currency_type');
 
+
+    const totalIncome = transactions
+      .filter(t => t.operation === 'Зачисление')
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const totalExpense = transactions
+      .filter(t => t.operation === 'Списание')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    const balance = totalIncome - totalExpense;
+   
     
     const currencyOptions = (orderFields?.currency || []).map(curr => ({
         value: curr,
@@ -20,7 +32,6 @@ const Finance = ({ control, orderFields }) => {
         Прибыль: "222222222",
         ПрибыльПроцентВыручки: "345345345",
         ПрибыльПроцентСуммы: "345345345345",
-        Чаевые: "345345345345",
         ПрибыльПлюсЧаевые: "345345345345",
         Оплата: "77777",
         ОплатаВалюта: "888888",
@@ -37,7 +48,6 @@ const Finance = ({ control, orderFields }) => {
         Прибыль: "Прибыль",
         ПрибыльПроцентВыручки: "Прибыль % от выручки",
         ПрибыльПроцентСуммы: "Прибыль % от суммы",
-        Чаевые: "Чаевые",
         ПрибыльПлюсЧаевые: "Прибыль + чаевые",
         Оплата: "Оплата",
         ОплатаВалюта: "Оплата валюта",
@@ -160,15 +170,104 @@ const Finance = ({ control, orderFields }) => {
                     </div>
                 )}
             />
+            <Controller
+                name="discount"
+                control={control}
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Скидка</div>
+                        <input {...field} type="number" className='tab-content-input' placeholder="..." />
+                    </div>
+                )}
+            />
+
+            <Controller
+                name="upsell"
+                control={control}
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Апсейл</div>
+                        <input {...field} type="number" className='tab-content-input' placeholder="..." />
+                    </div>
+                )}
+            />
+
+            <Controller
+                name="expenses"
+                control={control}
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Расходы</div>
+                        <input {...field} type="number" className='tab-content-input' placeholder="..." />
+                    </div>
+                )}
+            />
+
+            <Controller
+                name="tips"
+                control={control}
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Чаевые</div>
+                        <input {...field} type="number" className='tab-content-input' placeholder="..." />
+                    </div>
+                )}
+            />
             {Object.entries(maxData).map(([key, value]) => (
                 <div className="tab-content-row" key={key}>
                     <div className="tab-content-title">{fieldLabels[key]}</div>
                     <span className='modal-content-span-info'>{value}</span>
                 </div>
             ))}
-            <div className="tab-content-row">
-                <div className="tab-content-title">Журнал оплат</div>
-                <span className='modal-content-span-info'>В разработке...</span>
+
+            
+            
+            <Controller
+                name="payment_details"
+                control={control}
+                render={({ field }) => (
+                    <div className="tab-content-row-column">
+                        <div className="tab-content-title">Реквизиты для оплаты</div>
+                        <textarea {...field} className='workplan-textarea' placeholder="Введите реквизиты..."></textarea>
+                    </div>
+                )}
+            />
+
+            <div className="tab-content-row-column">
+                <div className="tab-content-title">Журнал операций</div>
+                <div className="payment-log-table">
+                    <div className="payment-log-header">
+                        <div>Дата и время</div>
+                        <div>Статья</div>
+                        <div>Подстатья</div>
+                        <div>Счет</div>
+                        <div>Сумма операции</div>
+                        <div style={{ width: '40px' }}></div> 
+                    </div>
+                    
+                    
+                    {transactions.length > 0 ? (
+                        transactions.map((trx) => (
+                            <div key={trx.id} className="payment-log-row">
+                                <input type="text" value={trx.date} readOnly />
+                                <input type="text" value={trx.category} readOnly />
+                                <input type="text" value={trx.subcategory} readOnly />
+                                <input type="text" value={trx.account} readOnly />
+                                <input 
+                                    type="text" 
+                                    value={`${trx.amount.toFixed(2)} ${trx.accountCurrency}`}
+                                    className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}
+                                    readOnly 
+                                />
+                                <div style={{ width: '40px' }}></div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="no-transactions" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                            Операции по этому заказу отсутствуют.
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

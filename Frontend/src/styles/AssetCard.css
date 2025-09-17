@@ -1,3 +1,12 @@
+:root {
+  --card-base-width: 24rem;      
+  --card-base-height: 16rem;     
+  --card-base-font-size: 1rem;   
+  --card-base-chip-width: 60px;    
+  --card-base-logo-width: 3.5rem;  
+  --card-base-chip-logo-width: 50px; 
+}
+
 .asset-card-wrapper {
   border-radius: 10px;
   padding: 0;
@@ -5,41 +14,44 @@
   cursor: pointer;
   transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
   perspective: 1000px;
-  height: 16rem;
-  min-width: 24rem;
+  width: calc(var(--card-base-width) * var(--card-scale));
+  height: calc(var(--card-base-height) * var(--card-scale));
+  font-size: calc(var(--card-base-font-size) * var(--card-scale));
   position: relative;
   overflow: hidden;
 }
 
 .asset-card-wrapper:hover {
   transform: translateY(-5px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
+              0 0 0 2px #478cff,
+              0 0 15px rgba(71, 140, 255, 0.5);
 }
 
-.card-size-medium .asset-card-wrapper {
-    min-width: 19rem;
+.card-size-large {
+  --card-scale: 1.0; 
 }
 
-.card-size-medium .card-number-back{
-  font-size: 1em;
+.card-size-medium {
+  --card-scale: 0.85; 
 }
 
-.card-size-small .asset-card-wrapper {
-    min-width: 17rem;
+.card-size-small {
+  --card-scale: 0.7; 
 }
 
-.card-size-small .card-top-left-name{
-  width: 100px;
+.card-chip,
+.card-chip-back {
+  width: calc(var(--card-base-chip-width) * var(--card-scale));
 }
 
-.card-size-small .card-balance-value{
-  font-size: 22px;
+.card-type-logo {
+  width: calc(var(--card-base-logo-width) * var(--card-scale));
 }
 
-.card-size-small .card-number-back{
-  font-size: 0.8em;
+.card-chip-logo-center-right {
+  width: calc(var(--card-base-chip-logo-width) * var(--card-scale));
 }
-
 
 .asset-card-inner {
   position: relative;

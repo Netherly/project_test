@@ -1,13 +1,61 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../../styles/AssetDetailsModal.css';
 
-const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) => {
+const designNameMap = {
+    'Монобанк': 'monobank-black',
+    'ПриватБанк': 'privatbank-green',
+    'Сбербанк': 'sberbank-light-green',
+    'Bybit': 'bybit-white',
+    'Рубин': 'ruby',
+    'Сапфир': 'saphire',
+    'Атлас': 'atlas',
+    '3Д': '3d',
+    'Красный': 'red',
+};
+
+const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fields, employees }) => {
     const [showPaymentSystem, setShowPaymentSystem] = useState(false);
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [exchangeRates, setExchangeRates] = useState(null);
     const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
     const [isEditingMainRequisite, setIsEditingMainRequisite] = useState(false);
-    const [currentRequisites, setCurrentRequisites] = useState(asset.requisites || []);
+    const [editableAsset, setEditableAsset] = useState({ ...asset });
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setEditableAsset(prev => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
+    
+    const handleRequisiteChange = (index, e) => {
+        const { name, value } = e.target;
+        const newRequisites = [...editableAsset.requisites];
+        newRequisites[index][name] = value;
+        setEditableAsset(prev => ({
+            ...prev,
+            requisites: newRequisites,
+        }));
+    };
+
+    
+    const handleAddRequisite = () => {
+        setEditableAsset(prev => ({
+            ...prev,
+            requisites: [...prev.requisites, { label: '', value: '' }],
+        }));
+    };
+
+    
+    const handleRemoveRequisite = (index) => {
+        const newRequisites = editableAsset.requisites.filter((_, i) => i !== index);
+        setEditableAsset(prev => ({
+            ...prev,
+            requisites: newRequisites,
+        }));
+    };
 
     const dragItem = useRef(null);
     const dragOverItem = useRef(null);
@@ -41,14 +89,11 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
         }
     }, []);
 
-    useEffect(() => {
-        setCurrentRequisites(asset.requisites || []);
-    }, [asset.requisites]);
-
+    
     if (!asset || !exchangeRates) return null;
 
-    const mainRequisite = currentRequisites.length > 0 ? currentRequisites[0] : null;
-    const otherRequisites = currentRequisites.slice(1);
+    const mainRequisite = editableAsset.requisites.length > 0 ? editableAsset.requisites[0] : null;
+    const otherRequisites = editableAsset.requisites.slice(1);
 
     const turnoverLimit = 1000;
     const currentTurnoverIncoming = asset.turnoverIncoming || 0;
@@ -140,13 +185,19 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
             return;
         }
 
-        const newRequisites = [...currentRequisites];
+        
+        const newRequisites = [...editableAsset.requisites];
         const [movedItem] = newRequisites.splice(draggedIndex, 1);
         newRequisites.splice(droppedIndex, 0, movedItem);
 
-        setCurrentRequisites(newRequisites);
-        setIsEditingMainRequisite(false);
         
+        setEditableAsset(prev => ({
+            ...prev,
+            requisites: newRequisites,
+        }));
+
+        setIsEditingMainRequisite(false);
+
         dragItem.current = null;
         dragOverItem.current = null;
     };
@@ -156,20 +207,22 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
     };
 
     const handleSave = () => {
-        onSave(asset.id, currentRequisites);
-        onClose();
+        const filteredRequisites = editableAsset.requisites.filter(
+            req => req.label.trim() !== '' || req.value.trim() !== ''
+        );
+        onSave({ ...editableAsset, requisites: filteredRequisites });
     };
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2>Актив "{asset.accountName}"</h2>
                     <div className="header-actions-right">
                         <span>{asset.currency}</span>
                         <div className="modal-header-actions">
                             <button className="options-button" onClick={handleMenuToggle}>
-                                &#x22EF;
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                             </button>
                             {showOptionsMenu && (
                                 <div className="options-menu">
@@ -177,7 +230,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
                                     <button className="menu-item delete-item" onClick={handleDeleteClick}>Удалить актив</button>
                                 </div>
                             )}
-                            <button className="modal-close-button" onClick={onClose}>&times;</button>
+                            <button className="modal-close-button" onClick={onClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                         </div>
                     </div>
                 </div>
@@ -244,17 +297,23 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
                         </div>
                     </div>
 
-                    <div className="modal-buttons-group">
-                        <button className="modal-button-outline">Дизайн карты</button>
-                        <button className="modal-button-outline" onClick={() => setShowPaymentSystem(!showPaymentSystem)}>
-                            Платежная система
-                        </button>
-                    </div>
-                    {showPaymentSystem && (
-                        <div className="payment-system-display">
-                            <p><strong>Платежная система:</strong> {asset.type}</p>
+                    <div className="modal-section turnover-section">
+                        <h3>Оборот за текущий месяц</h3>
+                        <div className="turnover-table">
+                            <div className="turnover-table-header">
+                                <span>Баланс на начал.</span>
+                                <span>Зачисления</span>
+                                <span>Списания</span>
+                                <span>Баланс на конец</span>
+                            </div>
+                            <div className="turnover-table-row">
+                                <span>{asset.turnoverStartBalance.toFixed(2)}</span>
+                                <span>{asset.turnoverIncoming.toFixed(2)}</span>
+                                <span>{asset.turnoverOutgoing.toFixed(2)}</span>
+                                <span>{asset.turnoverEndBalance.toFixed(2)}</span>
+                            </div>
                         </div>
-                    )}
+                    </div>
 
                     <div className="modal-section main-requisite-block">
                         <h3>Основной реквизит</h3>
@@ -280,7 +339,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
                                 </button>
                             </div>
                         ) : (
-                            <p>Основной реквизит не указан.</p>
+                            <p></p>
                         )}
                     </div>
 
@@ -306,24 +365,123 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave }) =>
                                 ))}
                             </div>
                         ) : (
-                            <p>Дополнительные реквизиты не указаны.</p>
+                            <p></p>
                         )}
                     </div>
-
-                    <div className="modal-section turnover-section">
-                        <h3>Оборот за текущий месяц</h3>
-                        <div className="turnover-table">
-                            <div className="turnover-table-header">
-                                <span>Баланс на начал.</span>
-                                <span>Зачисления</span>
-                                <span>Списания</span>
-                                <span>Баланс на конец</span>
+                    <div className="modal-section edit-section">
+                        <h3>Редактирование данных</h3>
+                        <div className="edit-form">
+                            {/* Наименование счета */}
+                            <div className="form-row">
+                                <label htmlFor="accountName" className="form-label">Наименование счета</label>
+                                <input
+                                    type="text"
+                                    id="accountName"
+                                    name="accountName"
+                                    value={editableAsset.accountName}
+                                    onChange={handleChange}
+                                    className="form-input"
+                                />
                             </div>
-                            <div className="turnover-table-row">
-                                <span>{asset.turnoverStartBalance.toFixed(2)}</span>
-                                <span>{asset.turnoverIncoming.toFixed(2)}</span>
-                                <span>{asset.turnoverOutgoing.toFixed(2)}</span>
-                                <span>{asset.turnoverEndBalance.toFixed(2)}</span>
+
+                            {/* Валюта */}
+                            <div className="form-row">
+                                <label htmlFor="currency" className="form-label">Валюта</label>
+                                <select
+                                    id="currency"
+                                    name="currency"
+                                    value={editableAsset.currency}
+                                    onChange={handleChange}
+                                    className="form-input"
+                                >
+                                    {fields?.currency?.map((item, index) => (
+                                        <option key={index} value={item}>{item}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Лимит оборота */}
+                            <div className="form-row">
+                                <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
+                                <input
+                                    type="number"
+                                    id="limitTurnover"
+                                    name="limitTurnover"
+                                    value={editableAsset.limitTurnover}
+                                    onChange={handleChange}
+                                    className="form-input"
+                                />
+                            </div>
+
+                            {/* Тип */}
+                            <div className="form-row">
+                                <label htmlFor="type" className="form-label">Тип</label>
+                                <select name="type" value={editableAsset.type} onChange={handleChange} className="form-input">
+                                    {fields?.type?.map((item, index) => (
+                                        <option key={index} value={item}>{item}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            {/* Платежная система */}
+                            <div className="form-row">
+                                <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
+                                <select name="paymentSystem" value={editableAsset.paymentSystem || ''} onChange={handleChange} className="form-input">
+                                    <option value="">Не выбрано</option>
+                                    {fields?.paymentSystem?.map((item, index) => (
+                                        <option key={index} value={item}>{item}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Дизайн */}
+                            <div className="form-row">
+                                <label htmlFor="design" className="form-label">Дизайн</label>
+                                <select name="design" value={editableAsset.design} onChange={handleChange} className="form-input">
+                                    <option value="">Не выбрано</option>
+                                    {fields?.cardDesigns?.map((design, index) => (
+                                        <option key={index} value={designNameMap[design.name]}>
+                                            {design.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                             {/* Сотрудник */}
+                            <div className="form-row">
+                                <label htmlFor="employee" className="form-label">Сотрудник</label>
+                                <select name="employee" value={editableAsset.employee} onChange={handleChange} className="form-input">
+                                    {employees?.map(emp => (
+                                        <option key={emp.id} value={emp.fullName}>
+                                            {emp.fullName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Редактирование реквизитов */}
+                            <div className="form-row">
+                                <label className="form-label">Реквизиты</label>
+                                {editableAsset.requisites.map((req, index) => (
+                                    <div key={index} className="requisite-item-edit">
+                                        <input
+                                            type="text" name="label" value={req.label}
+                                            onChange={(e) => handleRequisiteChange(index, e)}
+                                            placeholder="Название" className="form-input"
+                                        />
+                                        <input
+                                            type="text" name="value" value={req.value}
+                                            onChange={(e) => handleRequisiteChange(index, e)}
+                                            placeholder="Значение" className="form-input"
+                                        />
+                                        <button type="button" onClick={() => handleRemoveRequisite(index)} className="remove-requisite-button">
+                                            Удалить
+                                        </button>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={handleAddRequisite} className="add-requisite-button">
+                                    Добавить реквизит
+                                </button>
                             </div>
                         </div>
                     </div>

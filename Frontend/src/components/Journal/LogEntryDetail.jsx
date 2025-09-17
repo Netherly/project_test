@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../../styles/LogEntryDetails.css';
+import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 
-// Вспомогательная функция для расчета часов
 const calculateHours = (start, end) => {
     if (!start || !end) return '0:00';
     try {
@@ -21,11 +21,13 @@ const calculateHours = (start, end) => {
     }
 };
 
-const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate }) => {
-    // Состояние теперь хранит только редактируемые данные
+const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate, employees, orders }) => {
     const [editedEntry, setEditedEntry] = useState(entry || {});
+    const [initialEntry, setInitialEntry] = useState(entry || {});
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
 
-    // Эффект для автоматического пересчета часов при изменении времени
+    
     useEffect(() => {
         setEditedEntry(prevData => ({
             ...prevData,
@@ -36,15 +38,26 @@ const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate }) => 
     if (!entry) {
         return null;
     }
+    
+    
+    const hasUnsavedChanges = () => {
+        for (const key in initialEntry) {
+            if (editedEntry[key] !== initialEntry[key]) {
+                return true;
+            }
+        }
+        return false;
+    };
 
-    // Обработчик сохранения изменений
+    
     const handleSave = (e) => {
         e.preventDefault();
         onUpdate(editedEntry);
+        setInitialEntry(editedEntry); 
         onClose();
     };
 
-    // Обработчик изменений в полях ввода
+    
     const handleChange = (e) => {
         const { name, value } = e.target;
         setEditedEntry(prevData => ({
@@ -52,13 +65,37 @@ const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate }) => 
             [name]: value
         }));
     };
+    
+    
+    const handleOpenDeleteConfirmation = () => {
+        setShowDeleteConfirmation(true);
+    };
 
-    // Обработчики для кнопок действий
-    const handleDelete = () => {
-        if (window.confirm(`Вы уверены, что хотите удалить запись "${entry.description}"?`)) {
-            onDelete(entry.id);
+    const handleConfirmDelete = () => {
+        onDelete(entry.id);
+        onClose();
+        setShowDeleteConfirmation(false);
+    };
+    
+    const handleCancelDelete = () => {
+        setShowDeleteConfirmation(false);
+    };
+
+    const handleOpenCloseConfirmation = () => {
+        if (hasUnsavedChanges()) {
+            setShowCloseConfirmation(true);
+        } else {
             onClose();
         }
+    };
+    
+    const handleConfirmClose = () => {
+        onClose();
+        setShowCloseConfirmation(false);
+    };
+    
+    const handleCancelClose = () => {
+        setShowCloseConfirmation(false);
     };
 
     const handleDuplicate = () => {
@@ -67,106 +104,148 @@ const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate }) => 
     };
 
     return (
-        <div className="log-entry-details-overlay">
-            <div className="log-entry-details-modal">
-                <div className="log-entry-details-header">
-                    <h2>Редактировать запись</h2>
-                    <button className="modal-close-button" onClick={onClose}>&times;</button>
+        <>
+            
+            <div className="log-entry-details-overlay" onClick={handleOpenCloseConfirmation}>
+                <div className="log-entry-details-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="log-entry-details-header">
+                        <h2>Редактировать запись</h2>
+                        
+                        <button className="modal-close-button" onClick={handleOpenCloseConfirmation}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                    </div>
+
+                    <form className="log-entry-details-content" onSubmit={handleSave}>
+                        
+                        <div className="form-group">
+                            <label>№ заказа</label>
+                            <select
+                                id="orderNumber"
+                                name="orderNumber"
+                                value={editedEntry.orderNumber}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">Выберите заказ</option>
+                                {orders.map((order) => (
+                                    <option key={order.id} value={order.id}>
+                                        Заказ №{order.id}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Описание заказа</label>
+                            <input
+                                type="text"
+                                name="description"
+                                value={editedEntry.description || ''}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="executorRole">Исполнитель</label>
+                            <select
+                                name="executorRole"
+                                value={editedEntry.executorRole}
+                                onChange={handleChange}
+                            >
+                                <option value="">Выберите исполнителя</option>
+                                {employees.map((employee) => (
+                                    <option key={employee.id} value={employee.fullName}>
+                                        {employee.fullName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Дата работы</label>
+                            <input
+                                type="date"
+                                name="workDate"
+                                value={editedEntry.workDate || ''}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Часы</label>
+                            <input
+                                type="text"
+                                name="hours"
+                                value={editedEntry.hours || '0:00'}
+                                readOnly
+                                className="read-only-input"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Время начала</label>
+                            <input
+                                type="time"
+                                name="startTime"
+                                value={editedEntry.startTime || ''}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Время окончания</label>
+                            <input
+                                type="time"
+                                name="endTime"
+                                value={editedEntry.endTime || ''}
+                                onChange={handleChange}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Что было сделано?</label>
+                            <textarea
+                                name="workDone"
+                                value={editedEntry.workDone || ''}
+                                onChange={handleChange}
+                            ></textarea>
+                        </div>
+                        <div className="form-group">
+                            <label>Email исполнителя</label>
+                            <input
+                                type="email"
+                                name="email"
+                                value={editedEntry.email || ''}
+                                onChange={handleChange}
+                            />
+                        </div>
+
+                        
+                        <div className="form-actions-bottom">
+                            <button type="button" className="action-button delete-button" onClick={handleOpenDeleteConfirmation}>Удалить</button>
+                            <button type="button" className="action-button duplicate-button" onClick={handleDuplicate}>Дублировать</button>
+                            <button type="submit" className="action-button save-button">Сохранить</button>
+                        </div>
+                    </form>
                 </div>
-
-                <form className="log-entry-details-content" onSubmit={handleSave}>
-                    {/* Всегда отображаем поля для ввода */}
-                    <div className="form-group">
-                        <label>№ заказа</label>
-                        <input
-                            type="text"
-                            name="orderNumber"
-                            value={editedEntry.orderNumber || ''}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Описание заказа</label>
-                        <input
-                            type="text"
-                            name="description"
-                            value={editedEntry.description || ''}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Исполнитель роль</label>
-                        <input
-                            type="text"
-                            name="executorRole"
-                            value={editedEntry.executorRole || ''}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Дата работы</label>
-                        <input
-                            type="date"
-                            name="workDate"
-                            value={editedEntry.workDate || ''}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Часы</label>
-                        <input
-                            type="text"
-                            name="hours"
-                            value={editedEntry.hours || '0:00'}
-                            readOnly
-                            className="read-only-input"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Время начала</label>
-                        <input
-                            type="time"
-                            name="startTime"
-                            value={editedEntry.startTime || ''}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Время окончания</label>
-                        <input
-                            type="time"
-                            name="endTime"
-                            value={editedEntry.endTime || ''}
-                            onChange={handleChange}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Что было сделано?</label>
-                        <textarea
-                            name="workDone"
-                            value={editedEntry.workDone || ''}
-                            onChange={handleChange}
-                        ></textarea>
-                    </div>
-                    <div className="form-group">
-                        <label>Email исполнителя</label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={editedEntry.email || ''}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    {/* Всегда отображаем кнопки действий */}
-                    <div className="form-actions-bottom">
-                        <button type="button" className="action-button delete-button" onClick={handleDelete}>Удалить</button>
-                        <button type="button" className="action-button duplicate-button" onClick={handleDuplicate}>Дублировать</button>
-                        <button type="submit" className="action-button save-button">Сохранить</button>
-                    </div>
-                </form>
             </div>
-        </div>
+
+           
+            {showCloseConfirmation && (
+                <ConfirmationModal
+                    title="Сообщение"
+                    message="У вас есть несохраненные изменения. Вы уверены, что хотите закрыть без сохранения?"
+                    confirmText="Да"
+                    cancelText="Отмена"
+                    onConfirm={handleConfirmClose}
+                    onCancel={handleCancelClose}
+                />
+            )}
+            
+            
+            {showDeleteConfirmation && (
+                <ConfirmationModal
+                    title="Подтверждение удаления"
+                    message={`Вы уверены, что хотите удалить запись "${entry.description}"?`}
+                    confirmText="Удалить"
+                    cancelText="Отмена"
+                    onConfirm={handleConfirmDelete}
+                    onCancel={handleCancelDelete}
+                />
+            )}
+        </>
     );
 };
 
