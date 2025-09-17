@@ -1,5 +1,4 @@
 .currency-rates-page {
-<<<<<<< HEAD
     display: flex;
     min-height: 100vh; 
 }
@@ -122,105 +121,6 @@
     outline: none;
     border-color: var(--input-border-focus);
     box-shadow: 0 0 0 2px rgba(51, 157, 199, 0.3);
-=======
-  display: flex;
-}
-
-
-.currency-rates-main-container {
-  background-color: var(--bg-color); 
-  color: var(--text-color); 
-}
-
-
-.currency-rates-header-container{
-  display: flex;
-  margin-bottom: 20px;
-  height: 60px;
-  background-color: var(--container-bg);
-  border-bottom: 1px solid var(--border--color);
-}
-
-.currency-rates-header-container h2{
-  border-right: 1px solid var(--border--color);
-  padding: 0px 35px 0px 35px;
-  height: 100%;
-  align-items: center;
-  font-size: 22px;
-  font-weight: 700;
-  text-transform: uppercase;
-  justify-content: center;
-}
-
-.currency-rates-table-container {
-  padding: 20px;
-  background-color: var(--container-bg);
-  color: var(--text-color);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  margin-top: 20px;
-  overflow-x: auto;
-}
-
-.currency-rates-table-wrapper {
-  overflow-x: auto;
-}
-
-.currency-rates-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-  min-width: 1200px;
-  table-layout: fixed;
-}
-
-.currency-rates-table th,
-.currency-rates-table td {
-  border: 1px solid var(--border--color, #ddd);
-  padding: 8px;
-  text-align: center;
-  font-size: 0.9em;
-  white-space: nowrap; 
-  color: var(--text-color);
-  width: calc(100% / 17); 
-  box-sizing: border-box; 
-}
-
-
-.currency-rates-table thead th {
-  background-color: var(--button-bg);
-  color: var(--text-color);
-  font-weight: bold;
-}
-
-.currency-rates-table tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.currency-rates-table tbody tr:hover td {
-    color: var(--text-color);
-}
-
-
-.currency-rates-editable-input {
-  width: 40px; 
-  padding: 5px;
-  border: 1px solid var(--input-border);
-  text-align: center;
-  font-size: 0.9em;
-  background-color: var(--input-bg);
-  color: var(--text-color);
-}
-
-.currency-rates-editable-input:focus {
-  outline: none;
-  border-color: var(--input-border-focus);
-  box-shadow: 0 0 0 2px rgba(51, 157, 199, 0.3);
-}
-
-.currency-rates-editable-cell .currency-rates-editable-input:hover {
-    color: var(--text-color);
->>>>>>> update_last_changes
 }
 
 
@@ -230,11 +130,7 @@
     margin-top: 20px;
     justify-content: flex-end;
     width: 100%;
-<<<<<<< HEAD
     padding: 0; 
-=======
-    padding: 0 20px;
->>>>>>> update_last_changes
     box-sizing: border-box;
 }
 
@@ -257,33 +153,18 @@
 }
 
 .save-order-btn {
-<<<<<<< HEAD
     background-color: var(--button-bg);
     border: none;
     cursor: pointer;
     padding: 8px 16px;
     color: #fff; 
-=======
-    background: none;
-    border: 1px solid var(--input-bg);
-    cursor: pointer;
-    padding: 8px 16px;
-    color: var(--color-text);
-    background-color: var(--button-bg);
->>>>>>> update_last_changes
     font-weight: bold;
     border-radius: 6px;
     transition: all 0.2s ease;
 }
-<<<<<<< HEAD
 
 .save-order-btn:hover {
     background-color: var(--accent-color); 
-=======
-.save-order-btn:hover {
-    background-color: var(--container-text-color);
-    color: var(--container-bg);
->>>>>>> update_last_changes
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
