@@ -66,100 +66,7 @@ const formatSecondsToHours = (totalSeconds) => {
 };
 
 const ExecutorsPage = () => {
-<<<<<<< HEAD
-    const generateId = () => {
-        return 'P' + Math.random().toString(36).substring(2, 9);
-    };
-    const defaultPerformers = [
-        {
-            id: "P001",
-            orderNumber: "001",
-            orderStatus: "В работе",
-            orderStatusEmoji: "⏳",
-            orderDate: "2025-08-01",
-            description: "Оплата за товар #12345",
-            client: "Иванов И.И.",
-            clientHidden: false,
-            performer: "Петров П.П.",
-            performerRole: "Основной",
-            orderCurrency: "USD",
-            orderSum: 500.00,
-            hourlyRate: 25.00,
-            paymentBalance: 0.00,
-            workTime: 20,
-            paymentSum: 500.00,
-            paymentRemaining: 0.00,
-            accountingCurrency: "UAH",
-        },
-        {
-            id: "P002",
-            orderNumber: "002",
-            orderStatus: "Завершено",
-            orderStatusEmoji: "✅",
-            orderDate: "2025-07-25",
-            description: "Оплата поставщику за сырье",
-            client: "ООО 'Клиент'",
-            clientHidden: false,
-            performer: "Сидорова М.А.",
-            performerRole: "Соисполнитель",
-            orderCurrency: "EUR",
-            orderSum: 1200.00,
-            hourlyRate: 30.00,
-            paymentBalance: 1200.00,
-            workTime: 40,
-            paymentSum: 1200.00,
-            paymentRemaining: 0.00,
-            accountingCurrency: "UAH",
-        },
-        {
-            id: "P003",
-            orderNumber: "003",
-            orderStatus: "Ожидает оплаты",
-            orderStatusEmoji: "💰",
-            orderDate: "2025-08-05",
-            description: "Выплата зарплаты сотруднику",
-            client: "",
-            clientHidden: true,
-            performer: "Козлов А.С.",
-            performerRole: "Основной",
-            orderCurrency: "UAH",
-            orderSum: 25000.00,
-            hourlyRate: 200.00,
-            paymentBalance: 15000.00,
-            workTime: 50,
-            paymentSum: 10000.00,
-            paymentRemaining: 15000.00,
-            accountingCurrency: "UAH",
-        },
-        {
-            id: "P004",
-            orderNumber: "004",
-            orderStatus: "В работе",
-            orderStatusEmoji: "⏳",
-            orderDate: "2025-08-06",
-            description: "Разработка макета сайта",
-            client: "Иванов И.И.",
-            clientHidden: false,
-            performer: "Петров П.П.",
-            performerRole: "Соисполнитель",
-            orderCurrency: "USD",
-            orderSum: 800.00,
-            hourlyRate: 40.00,
-            paymentBalance: 200.00,
-            workTime: 20,
-            paymentSum: 600.00,
-            paymentRemaining: 200.00,
-            accountingCurrency: "UAH",
-        }
-    ];
-
-    const [executors, setExecutors] = useState(() => {
-        const savedExecutors = localStorage.getItem("executorsData");
-        return savedExecutors ? JSON.parse(savedExecutors) : defaultPerformers;
-    });
-=======
     const [executors, setExecutors] = useState(executorService.getExecutors());
->>>>>>> Alexander
     const [userSettings, setUserSettings] = useState({ currency: '₴' });
     const [editingOrder, setEditingOrder] = useState(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -167,48 +74,6 @@ const ExecutorsPage = () => {
     const [orders, setOrders] = useState([]);
     const [journalEntries, setJournalEntries] = useState([]);
     const [viewMode, setViewMode] = useState('card');
-<<<<<<< HEAD
-
-    const handleUpdateExecutor = (updatedOrder) => {
-        setExecutors(prevExecutors => 
-            prevExecutors.map(ex => ex.id === updatedOrder.id ? updatedOrder : ex)
-        );
-        setEditingOrder(null); // Закрываем модальное окно
-    };
-
-    const handleDeleteExecutor = (orderId) => {
-        setExecutors(prevExecutors => prevExecutors.filter(ex => ex.id !== orderId));
-        setEditingOrder(null); // Закрываем модальное окно
-    };
-
-    const handleDuplicateExecutor = (orderToDuplicate) => {
-        const newExecutor = {
-            ...orderToDuplicate,
-            id: generateId(), 
-            orderNumber: `${orderToDuplicate.orderNumber}-copy`,
-        };
-        setExecutors(prevExecutors => [...prevExecutors, newExecutor]);
-    };
-
-    const handleOpenEditModal = (order) => {
-        setEditingOrder(order);
-    };
-
-    const handleCloseEditModal = () => {
-        setEditingOrder(null);
-    };
-
-    
-    useEffect(() => {
-        localStorage.setItem("executorsData", JSON.stringify(executors));
-    }, [executors]);
-
-    const handleAddExecutor = (newExecutor) => {
-        setExecutors(prevExecutors => [...prevExecutors, newExecutor]);
-    };
-
-=======
->>>>>>> Alexander
     const [fields, setFields] = useState({ currency: [], role: [] });
     const [transactions, setTransactions] = useState([]);
     const [assets, setAssets] = useState([]);
@@ -312,15 +177,7 @@ const ExecutorsPage = () => {
             <Sidebar />
             <div className="executors-page-main-container">
                 <header className="executors-header-container">
-<<<<<<< HEAD
-                    <h1 className="executors-title">
-                    <PageHeaderIcon pageName="Исполнители" />
-                    Исполнители
-                    </h1>
-
-=======
                     <h1 className="executors-title">Исполнители</h1>
->>>>>>> Alexander
                     <div className="view-mode-buttons">
                         <button
                             className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
@@ -369,11 +226,7 @@ const ExecutorsPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-<<<<<<< HEAD
-                                    {executors.map((executor) => (
-=======
                                     {enrichedExecutors.map((executor) => (
->>>>>>> Alexander
                                         <tr key={executor.id} className="executor-row" onClick={() => handleOpenEditModal(executor)}>
                                             <td>{executor.orderNumber}</td>
                                             <td><span title={executor.orderStatus}>{executor.orderStatusEmoji}</span></td>
