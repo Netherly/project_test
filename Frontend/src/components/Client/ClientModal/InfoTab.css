@@ -1,0 +1,17 @@
+.info-tab .company-select-wrapper{
+  display:flex;
+  gap:8px;
+}
+.info-tab .add-company-btn{
+  all:unset;
+  width:28px;height:28px;
+  text-align:center;
+  font-size:18px;
+  line-height:28px;
+  border-radius:4px;
+  cursor:pointer;
+  background:#165a8d;
+  color:#fff;
+  transition:background .2s;
+}
+.info-tab .add-company-btn:hover{background:#1c6bb0;}

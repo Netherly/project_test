@@ -1,0 +1,51 @@
+/* Контейнер */
+.textarea-with-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: sans-serif;
+}
+
+/* Метка */
+.textarea-with-counter .label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #444;
+}
+
+/* Само поле */
+.textarea-input {
+  /* width: 100%;
+  min-height: 120px; */
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.textarea-input:focus {
+  outline: none;
+  border-color: #66afe9;
+  box-shadow: 0 0 4px rgba(102, 175, 233, 0.6);
+}
+
+/* Счётчик символов */
+.counter {
+  align-self: flex-end;
+  font-size: 12px;
+  color: #666;
+  transition: color 0.2s;
+}
+
+/* Предупреждение (80–90%) */
+.counter.warning {
+  color: #f0ad4e; /* оранжевый */
+}
+
+/* Критический (>=90%) */
+.counter.critical {
+  color: #d9534f; /* красный */
+  font-weight: 600;
+}

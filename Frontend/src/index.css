@@ -1,0 +1,91 @@
+body {
+	background-color: var(--bg-color);
+	color: var(--text-color);
+	transition: 0.3s ease-in-out;
+	background-size: cover;
+	background-position: center;
+	background-attachment: fixed;
+	transition: background 0.3s ease-in-out;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+:root {
+/* Светлая тема */
+	--bg-color: #F6F8FF;
+	--text-color: #DEE1ED;
+	--text-hover-color: ;
+	--container-bg: #0F2231;
+	--container-text-color: #7DADFF;
+	--container-hover-bg: #629CFF;
+	--container-hover-text-color: #39415A;
+	--button-bg: #19374D;
+	--button-text: #FFFFFF;
+	--btn-border-color: #284860;
+	--opacity-container: rgba(25, 33, 58, 0.1);
+}
+[data-theme="dark"] {
+/* Темная тема */
+	--page-bg: ;
+    --bg-color: #121524;
+    --bg-menu-color: #05071c;
+    --text-color: #F6F8FF;
+    --text-hover-color: ;
+    --container-bg: #22273b;
+    --container-text-color: #F6F8FF;
+    --container-hover-bg: #629CFF;
+    --container-hover-text-color: #7e8aa4;
+    --border--color: #121624;
+    --chips-color: #7F8BA4;
+    --button-bg: #2f364f;
+    --button-text: #19213A;
+    --input-bg: #242b45;
+    --input-border: #4A5568;
+    --input-border-focus: #339DC7;
+    --opacity-container: rgba(25, 33, 58, .7);
+}
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video, button {
+	margin: 0;
+	padding: 0;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+a {
+  all: unset;
+  cursor: pointer; 
+}
+.hidden-scroll {
+	overflow: auto;
+	scrollbar-width: none; 
+	-ms-overflow-style: none; 
+}
+.hidden-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.hidden-scroll::-webkit-scrollbar-thumb {
+    display: none;
+}

@@ -1,0 +1,160 @@
+/* ====== Общий лэйаут ====== */
+.clients-layout{
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+.clients-page{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ====== Обёртка таблицы ====== */
+.clients-table-wrapper{
+  flex: 1;
+  overflow: auto;
+  background: var(--container-bg);
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+/* ====== Таблица ====== */
+.clients-table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  text-align: left;
+}
+
+/* ячейки */
+.clients-table th,
+.clients-table td{
+  padding: 12px 15px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border--color);
+  border-right: 1px solid var(--border--color);
+}
+.clients-table th:last-child,
+.clients-table td:last-child{
+  border-right: none;
+}
+
+/* шапка */
+.clients-table thead{
+  background-color: var(--container-bg);
+  color: var(--text-color);
+}
+.clients-table th{
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background-color: var(--container-bg);
+  z-index: 1;
+}
+
+/* ховер строк */
+.clients-table tbody tr:hover{
+  background-color: #224158;
+}
+.clients-table tbody tr:last-child td{
+  border-bottom: none;
+}
+
+/* ====== Группы ====== */
+.group-row{
+  background-color: #2a2a3e;
+  cursor: pointer;
+  user-select: none;
+}
+.group-row td{
+  font-weight: bold;
+  color: #a0a0b0;
+  padding: 12px 16px;
+  font-size: 14px;
+  border-bottom: 2px solid #33334a;
+}
+.group-row:hover td{
+  background-color: #3a3a4e;
+}
+
+/* счётчик групп */
+.group-count{
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #444;
+  color: #a0a0b0;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* ====== Утилиты ====== */
+.ellipsis{
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+/* числовые колонки: 9 (в час), 10 (доля %) — вправо */
+.clients-table thead th:nth-child(9),
+.clients-table td:nth-child(9),
+.clients-table thead th:nth-child(10),
+.clients-table td:nth-child(10){
+  text-align: right;
+}
+
+/* клик по рефереру — подчёркивание на ховере */
+.ref-cell{ cursor: pointer; }
+.ref-cell:hover{ text-decoration: underline; }
+
+/* ресайзер колонок (если используешь span.resizer внутри th) */
+.resizer{
+  position: absolute;
+  top: 0; right: -4px;
+  width: 8px; height: 100%;
+  cursor: col-resize;
+}
+.resizer:hover{ background: rgba(255,255,255,.08); }
+
+/* скрыть старые тулбары (если встречаются) */
+.list-toolbar, .toolbar-search, .toolbar-stats{ display: none; }
+
+/* опционально: чипы для тегов и статус — в том же духе */
+.tags-cell{ display:flex; gap:6px; align-items:center; }
+.tag-chip{
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  background: #3a3a3c;
+  color: #fff;
+}
+.more-chip{
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  background: #444;
+  color: #ddd;
+}
+.status-pill{
+  display:inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background:#273246; color:#d7e2f5; border:1px solid #394966;
+}
+/* Утилита многоточия */
+.ellipsis{
+  display: inline-block;
+  max-width: 24ch;              /* ограничение на 24 символа */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  cursor: default;
+}

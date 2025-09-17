@@ -1,0 +1,59 @@
+.executor-card {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    background-color: var(--container-bg);
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 150px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.order-number {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.order-status-emoji {
+    font-size: 1.5em;
+}
+
+.card-body {
+    flex-grow: 1;
+}
+
+.order-date {
+    color: #bbb;
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+
+.order-description {
+    font-size: 1em;
+    margin-bottom: 8px;
+}
+
+.order-details p {
+    margin: 4px 0;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #444;
+    padding-top: 8px;
+}
+
+.order-sum, .payment-info {
+    display: flex;
+    flex-direction: column;
+}
