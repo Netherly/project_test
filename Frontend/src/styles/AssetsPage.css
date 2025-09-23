@@ -86,12 +86,13 @@
     font-size: var(--font-size-table-text);
 }
 
-.assets-table th:nth-child(5),
-.assets-table td:nth-child(5) {
+.assets-table th:nth-child(6),
+.assets-table td:nth-child(6) {
     border-right: 4px solid var(--bg-color);
+    width: 100px;
 }
 
-.assets-table td:nth-child(5){
+.assets-table td:nth-child(6){
     text-align: right;
 }
 

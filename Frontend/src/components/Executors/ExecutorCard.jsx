@@ -1,38 +1,65 @@
 import React from 'react';
-import '../../styles/ExecutorCard.css'; 
+import '../../styles/ExecutorCard.css';
 
-const ExecutorCard = ({ order, userSettings, onCardClick }) => {
-    const handleClick = () => {
-        onCardClick(order);
+const ExecutorCard = ({ order, onCardClick, onOpenOrderModal }) => {
+
+    const handleCardClick = () => {
+        if (onCardClick) {
+            onCardClick(order);
+        }
     };
 
+    const handleOpenModalClick = (event) => {
+        event.stopPropagation();
+        if (onOpenOrderModal) {
+            onOpenOrderModal(order.orderId);
+        }
+    };
     
     const paymentDue = order.calculatedPaymentDue || 0;
 
+    const truncateText = (text, maxLength) => {
+        if (!text) return 'Описание отсутствует';
+        if (text.length <= maxLength) return text;
+        return text.substr(0, maxLength) + '...';
+    };
+
     return (
-        <div className="executor-card" onClick={handleClick}>
+        <div className="executor-card" 
+             onClick={handleCardClick}
+             data-tooltip={order.orderStatus}> 
+
             <div className="card-header">
-                <span className="order-number">{order.orderNumber}</span>
-                <span className="order-status-emoji" title={order.orderStatus}>
-                    {order.orderStatusEmoji}
-                </span>
-            </div>
-            <div className="card-body">
-                <p className="order-date">{order.orderDate}</p>
-                <p className="order-description">{order.description}</p>
-                <div className="order-details">
-                    <p>Клиент: <strong>{order.clientHidden ? 'Скрыт' : order.client}</strong></p>
-                    <p>Роль: <strong>{order.performerRole}</strong></p>
+                <div className="status-and-number">
+                    <span className="order-status-emoji" title={order.orderStatus}>
+                        {order.orderStatusEmoji || '🔘'}
+                    </span>
+                    <span className="order-number-link" onClick={handleOpenModalClick}>
+                        Заказ № {order.orderId}
+                    </span>
+                </div>
+                <div className="date-and-arrow">
+                    <span className="order-date">{order.orderDate}</span>
                 </div>
             </div>
-            <div className="card-footer">
-                <div className="order-sum">
+
+            <p className="performer-role">Роль: {order.performerRole || 'Роль не указана'}</p>
+
+            <div className="card-body">
+                <p className="order-name">{order.orderName || 'Название заказа отсутствует'}</p>
+                <p>Клиент: <strong>{order.clientHidden ? 'Скрыт' : order.order_main_client}</strong></p>
+                <p className="order-description">{truncateText(order.orderDescription, 150)}</p>
+                <p>Время работы: <strong>{order.calculatedWorkTime || 'Не указано'}</strong></p>
+            </div>
+
+            <div className="executor-card-footer">
+                <div className="footer-amount">
                     <span>Сумма:</span>
                     <strong>{(order.orderSum || 0).toFixed(2)} {order.orderCurrency}</strong>
                 </div>
-                <div className="payment-info">
-                    <span>Остаток:</span>
-                    <strong>{paymentDue.toFixed(2)} {userSettings.currency}</strong>
+                <div className="footer-amount">
+                    <span>К оплате:</span>
+                    <strong>{paymentDue.toFixed(2)} {order.orderCurrency}</strong>
                 </div>
             </div>
         </div>

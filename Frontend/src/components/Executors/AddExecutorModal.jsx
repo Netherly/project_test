@@ -36,16 +36,29 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        const selectedEmployee = fields.employees.find(
+        emp => emp.fullName === formData.performer
+        );
+
+        
+        if (!selectedEmployee) {
+            console.error("Выбранный сотрудник не найден в списке!", formData.performer);
+            alert("Ошибка: выбранный сотрудник не найден. Пожалуйста, попробуйте снова.");
+            return;
+        }
+
         const newExecutor = {
             id: generateId(),
-            orderNumber: "",
+            orderNumber: formData.orderNumber,
             orderStatus: "В работе",
             orderStatusEmoji: "⏳",
-            orderDate: new Date().toISOString().split('T')[0],
+            orderDate:  formData.dateForPerformer || new Date().toISOString().split('T')[0],
             description: "",
             client: "",
             clientHidden: formData.hideClient,
-            performer: formData.performer,
+            performer: selectedEmployee.fullName, 
+            fullName: selectedEmployee.fullName,  
+            login: selectedEmployee.login,
             performerRole: formData.role,
             orderCurrency: formData.currency,
             orderSum: parseFloat(formData.amountInput) || 0,
@@ -57,7 +70,7 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
             accountingCurrency: "UAH",
         };
 
-        onAdd(newExecutor);
+        onAdd(newExecutor, formData.orderNumber);
         setHasUnsavedChanges(false); 
         onClose();
     };

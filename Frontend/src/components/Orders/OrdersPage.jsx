@@ -110,7 +110,36 @@ const OrdersPage = () => {
             <Sidebar />
             <div className="order-page-main-container">
                 <header className="order-header-container">
-                    <button type="button" className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>Создать заказ</button>
+                    <h1 className="order-title">
+                        <PageHeaderIcon pageName="Заказы" />
+                        Заказы
+                    </h1>
+                    <div className="view-mode-buttons">
+                        <button
+                            className={`view-mode-button ${viewMode === 'kanban' ? 'active' : ''}`}
+                            onClick={() => setViewMode('kanban')}
+                            title="Канбан вид"
+                        >
+                            &#x25A3;
+                        </button>
+                        <button
+                            className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
+                            onClick={() => setViewMode('table')}
+                            title="Табличный вид"
+                        >
+                            &#x2261;
+                        </button>
+                    </div>
+
+                    <ColumnVisibilityToggle
+                        stages={allStages}
+                        visibleStages={visibleOrderStages}
+                        onToggleStage={handleToggleStage}
+                    />
+
+                    <button className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>
+                        ➕ Создать заказ
+                    </button>
                 </header>
                 <DndProvider backend={HTML5Backend}>
                     <div className="stages-container" ref={stagesContainerRef}>

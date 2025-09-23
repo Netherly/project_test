@@ -88,6 +88,7 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites }) => {
                 <div className="asset-card-front">
                     <div className="card-top-left-name">
                         <span className="asset-name-top-left">{displayAccountName}</span>
+                        <span>{asset.employee}</span>
                     </div>
 
                     <div className="card-type-logo-container-top-right">

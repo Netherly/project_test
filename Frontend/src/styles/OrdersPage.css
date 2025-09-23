@@ -116,20 +116,44 @@
   border-radius: 3px;
   border: 1px solid;
   font-weight: 600;
-  width: 120px;
-  margin-top: 12px;
-  align-self: flex-end;
-  margin-right: 5px;
-  text-transform: uppercase;
-  padding: 5px 5px;
+  text-align: center;
+  line-height: 1.2;
 }
-.planned-date {
-  color: var(--text-color);
-  font-weight: 400;
-  font-size: 14px;
-  opacity: 0.8;
+
+.order-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  z-index: 87;
 }
-.order-left-content {
-  color: var(--text-color);
-  font-weight: 500;
+
+
+@keyframes slideUpFadeIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

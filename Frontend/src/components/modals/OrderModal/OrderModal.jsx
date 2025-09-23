@@ -630,13 +630,13 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
               )}
                </div>
               </div>
-                <div className="tags-section">
+                <div className="tags-section-header">
                   <Controller
                       control={control}
                       name="tags"
                       render={({ field: { onChange } }) => (
                       <>
-                          <div className="tag-input-container" ref={tagInputRef}>
+                          <div className="tag-input-container-header" ref={tagInputRef}>
                           <input
                               type="text"
                               placeholder="Добавить тег или выбрать"
@@ -648,11 +648,11 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                               autoComplete="off"
                           />
                           {showTagDropdown && (filteredTags.length > 0 || customTag.trim()) && (
-                              <div className="tag-dropdown" ref={tagDropdownRef}>
+                              <div className="tag-dropdown-header" ref={tagDropdownRef}>
                               {filteredTags.map(tag => (
                                   <div
                                   key={tag}
-                                  className="tag-dropdown-item"
+                                  className="tag-dropdown-item-header"
                                   onClick={() => handleTagSelect(tag, onChange)}
                                   >
                                   {tag}
@@ -660,7 +660,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                               ))}
                               {customTag.trim() && !defaultTags.includes(customTag) && !watchedTags.includes(customTag) && (
                                   <div
-                                  className="tag-dropdown-item tag-dropdown-custom"
+                                  className="tag-dropdown-item tag-dropdown-custom-header"
                                   onClick={() => handleTagSelect(customTag.trim(), onChange)}
                                   >
                                   Добавить: "{customTag}"
@@ -669,11 +669,11 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                               </div>
                           )}
                           </div>
-                          <div className="tag-chips-container">
+                          <div className="tag-chips-container-header">
                           {watchedTags.map((tag, index) => (
                               <span
                               key={index}
-                              className="tag-chips tag-order-chips"
+                              className="tag-chips tag-order-chips-header"
                               onClick={() => handleTagRemove(tag, onChange)}
                               >
                               {tag}
