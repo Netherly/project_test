@@ -359,18 +359,16 @@ const ExecutorsPage = () => {
                         assets={assets}
                     />
                 )}
-                {editingOrder && (
-                    <ExecutorEditModal 
-                        order={editingOrder}
-                        onUpdate={handleUpdateExecutor}
-                        onDelete={handleDeleteExecutor}
-                        onDuplicate={handleDuplicateExecutor}
-                        onClose={handleCloseEditModal}
-                        fields={formFields}
-                    />
-                )}
             </div>
         </div>
+        {isOrderModalOpen && (
+                <OrderModal
+                    order={selectedOrder}
+                    onClose={handleCloseOrderModal}
+                    journalEntries={journalEntries}
+                />
+            )}
+        </>
     );
 };
 
