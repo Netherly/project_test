@@ -89,7 +89,6 @@ const WorkPlan = ({ control }) => {
     append({ description: '', amount: '', specification: '', sale: false });
   };
 
-
   const handleCopyWorkRow = (index) => {
     const row = fields[index];
     const textToCopy = `Описание: ${row.description}, Сумма: ${row.amount}, ТЗ: ${row.specification}, Продажа: ${row.sale ? "Да" : "Нет"}`;

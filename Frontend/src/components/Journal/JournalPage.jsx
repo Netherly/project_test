@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../Sidebar";
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import "../../styles/JournalPage.css";
 import LogEntryDetails from "./LogEntryDetail";
 import AddLogEntryForm from "./AddLogEntryForm";

@@ -1,3 +1,9 @@
+<<<<<<< HEAD
+=======
+// =========================
+// Prisma — генератор и источник
+// =========================
+>>>>>>> update_last_changes
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +13,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+<<<<<<< HEAD
 model Employee {
   id        Int      @id @default(autoincrement())
   status    String?  @db.VarChar(50)
@@ -72,10 +79,309 @@ model Client {
 
 model Credential {
   id          Int      @id @default(autoincrement())
+=======
+// =========================
+// Enums
+// =========================
+enum ClientStatus {
+  active
+  paused
+  archived
+}
+
+enum OperationType {
+  DEPOSIT   // Зачисление
+  WITHDRAW  // Списание
+}
+
+// =========================
+/* TAGS: категории и справочник */
+// =========================
+
+model TagCategory {
+  id   String @id @default(uuid())
+  code String @unique @db.VarChar(50) // 'employees' | 'clients' | 'orders' | ...
+  name String @db.VarChar(100)
+
+  tags Tag[]
+}
+
+model Tag {
+  id    String @id @default(uuid())
+  name  String @db.VarChar(100)
+  color String @db.VarChar(16)
+
+  categoryId String
+  category   TagCategory @relation(fields: [categoryId], references: [id])
+
+  employees EmployeeTag[]
+  clients   ClientTag[]
+  orders    OrderTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, categoryId])
+}
+
+// =========================
+/* UNIVERSAL DICTIONARIES (Lists) */
+// =========================
+
+model Country {
+  id       String     @id @default(uuid())
+  name     String     @unique @db.VarChar(100)
+  iso2     String?    @unique @db.VarChar(2)
+  iso3     String?    @unique @db.VarChar(3)
+  isActive Boolean    @default(true)
+  order    Int        @default(0)
+  Employee Employee[]
+  Client   Client[]
+}
+
+model CurrencyDict {
+  id       String   @id @default(uuid())
+  code     String   @unique @db.VarChar(10) // "USD", "EUR", "UAH"...
+  name     String?  @db.VarChar(100)        // "US Dollar"
+  isActive Boolean  @default(true)
+  order    Int      @default(0)
+  Client   Client[]
+  Order    Order[]
+  assets   Asset[]
+}
+
+model ClientSourceDict {
+  id       String   @id @default(uuid())
+  name     String   @unique @db.VarChar(100)
+  isActive Boolean  @default(true)
+  order    Int      @default(0)
+  Client   Client[]
+}
+
+model ClientCategoryDict {
+  id       String   @id @default(uuid())
+  name     String   @unique @db.VarChar(100)
+  isActive Boolean  @default(true)
+  order    Int      @default(0)
+  Client   Client[]
+}
+
+model ExecutorRoleDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(100)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
+model AssetTypeDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(100)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+  assets   Asset[]
+}
+
+model PaymentSystemDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(100)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+  assets   Asset[]
+}
+
+model CardDesign {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(100)
+  imageUrl String? @db.VarChar(1000)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+  assets   Asset[]
+}
+
+model OrderIntervalDict {
+  id       String  @id @default(uuid())
+  value    String  @unique @db.VarChar(100)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+
+  categories OrderCategoryDict[]
+}
+
+model OrderCategoryDict {
+  id         String            @id @default(uuid())
+  intervalId String
+  interval   OrderIntervalDict @relation(fields: [intervalId], references: [id])
+
+  value String @db.VarChar(100)
+
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+
+  @@unique([intervalId, value])
+  @@index([intervalId])
+}
+
+model FinanceArticleDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(150)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+
+  subarticles FinanceSubarticleDict[]
+}
+
+model FinanceSubcategoryDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(150)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+
+  subarticles FinanceSubarticleDict[]
+}
+
+model FinanceSubarticleDict {
+  id String @id @default(uuid())
+
+  articleId String?
+  article   FinanceArticleDict? @relation(fields: [articleId], references: [id])
+
+  subcategoryId String?
+  subcategory   FinanceSubcategoryDict? @relation(fields: [subcategoryId], references: [id])
+
+  name String @db.VarChar(150)
+
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+
+  @@index([articleId])
+  @@index([subcategoryId])
+}
+
+// =========================
+/* Core */
+// =========================
+
+model Employee {
+  id        String  @id @default(uuid())
+  status    String? @db.VarChar(50)
+  full_name String? @db.VarChar(255)
+  phone     String? @db.VarChar(50)
+  email     String? @db.VarChar(100)
+  login     String  @unique @db.VarChar(100)
+  password  String  @db.VarChar(255)
+  folder    String? @db.VarChar(255)
+
+  countryId String?
+  country   Country? @relation(fields: [countryId], references: [id])
+
+  tasks   Task[]
+  clients Client[] @relation("ManagerClients")
+
+  tags    EmployeeTag[]
+  assets  Asset[]
+
+  @@index([countryId])
+}
+
+model Company {
+  id   String @id @default(uuid())
+  name String @db.VarChar(255)
+
+  clients     Client[]     @relation("CompanyClients")
+  tasks       Task[]
+  credentials Credential[]
+
+  transactions Transaction[] @relation("CompanyTransactions")
+  assets       Asset[]
+}
+
+model ClientGroup {
+  id    String @id @default(uuid())
+  name  String @unique @db.VarChar(100)
+  order Int    @default(0)
+
+  clients Client[]
+}
+
+model Client {
+  id      String       @id @default(uuid())
+  groupId String?
+  group   ClientGroup? @relation(fields: [groupId], references: [id])
+
+  name              String? @db.VarChar(255)
+  messenger_name    String? @db.VarChar(100)
+  intro_description String?
+  note              String?
+
+  categoryId String?
+  category   ClientCategoryDict? @relation(fields: [categoryId], references: [id])
+
+  sourceId String?
+  source   ClientSourceDict? @relation(fields: [sourceId], references: [id])
+
+  full_name String? @db.VarChar(255)
+
+  countryId String?
+  country   Country? @relation(fields: [countryId], references: [id])
+
+  currencyId String?
+  currency   CurrencyDict? @relation(fields: [currencyId], references: [id])
+
+  phone String? @db.VarChar(50)
+  email String? @db.VarChar(100)
+  city  String? @db.VarChar(100)
+
+  payment_details String?
+  hourly_rate     Float?
+  percent         Float?
+  share_info      String?
+
+  status ClientStatus @default(active)
+
+  referrer_id       String?
+  referrer          Client?  @relation("ClientReferrer", fields: [referrer_id], references: [id])
+  referrer_first_id String?
+  referrer_first    Client?  @relation("ClientFirstReferrer", fields: [referrer_first_id], references: [id])
+  referred          Client[] @relation("ClientReferrer")
+  firstReferred     Client[] @relation("ClientFirstReferrer")
+
+  manager_id String?
+  manager    Employee? @relation("ManagerClients", fields: [manager_id], references: [id])
+
+  company_id String?
+  company    Company? @relation("CompanyClients", fields: [company_id], references: [id])
+
+  chat_link   String?
+  photo_link  String?
+  folder_link String?
+
+  tasks       Task[]
+  credentials Credential[]
+  orders      Order[]
+
+  tags ClientTag[]
+
+  transactions Transaction[] @relation("ClientTransactions")
+
+  @@index([groupId])
+  @@index([manager_id])
+  @@index([company_id])
+  @@index([referrer_id])
+  @@index([referrer_first_id])
+  @@index([categoryId])
+  @@index([sourceId])
+  @@index([countryId])
+  @@index([currencyId])
+}
+
+model Credential {
+  id          String  @id @default(uuid())
+>>>>>>> update_last_changes
   login       String
   password    String
   description String?
 
+<<<<<<< HEAD
   clientId    Int?
   client      Client?  @relation(fields: [clientId], references: [id])
 
@@ -115,4 +421,286 @@ model Task {
   partnerPlanPercent Int?
   partnerPlanSum     Int?
   partnerDebt        Decimal? @db.Decimal(10,2)
+=======
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  @@index([clientId])
+  @@index([companyId])
+}
+
+// =========================
+/* Заказы */
+// =========================
+model Order {
+  id       String @id @default(uuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  title  String
+  amount Decimal? @db.Decimal(12, 2)
+
+  currencyId String?
+  currency   CurrencyDict? @relation(fields: [currencyId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  tags OrderTag[]
+
+  @@index([clientId, createdAt])
+  @@index([currencyId])
+}
+
+// =========================
+/* Tasks */
+// =========================
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  country      String?  @db.VarChar(100)
+  category     String?  @db.VarChar(100)
+  source       String?  @db.VarChar(100)
+  referer      String?  @db.VarChar(255)
+  refererFirst String?  @db.VarChar(255)
+  managerName  String?  @db.VarChar(255)
+  firstOrder   Boolean? @default(false)
+
+  partnerName        String?  @db.VarChar(255)
+  partnerDisabled    Boolean? @default(false)
+  partnerPayment     Decimal? @db.Decimal(10, 2)
+  partnerPlan        Int?
+  partnerPlanPercent Int?
+  partnerPlanSum     Int?
+  partnerDebt        Decimal? @db.Decimal(10, 2)
+}
+
+// =========================
+/* Exchange rates */
+// =========================
+model ExchangeRates {
+  id   String   @id @default(uuid())
+  date DateTime @unique
+  uah  Decimal  @db.Decimal(18, 8)
+  usd  Decimal  @db.Decimal(18, 8)
+  rub  Decimal  @db.Decimal(18, 8)
+  usdt Decimal  @db.Decimal(18, 8)
+
+  uah_rub  Decimal @db.Decimal(18, 8)
+  uah_usd  Decimal @db.Decimal(18, 8)
+  uah_usdt Decimal @db.Decimal(18, 8)
+
+  usd_uah  Decimal @db.Decimal(18, 8)
+  usd_rub  Decimal @db.Decimal(18, 8)
+  usd_usdt Decimal @db.Decimal(18, 8)
+
+  usdt_uah Decimal @db.Decimal(18, 8)
+  usdt_usd Decimal @db.Decimal(18, 8)
+  usdt_rub Decimal @db.Decimal(18, 8)
+
+  rub_uah  Decimal @db.Decimal(18, 8)
+  rub_usd  Decimal @db.Decimal(18, 8)
+  rub_usdt Decimal @db.Decimal(18, 8)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+// =========================
+/* Transactions */
+// =========================
+model Transaction {
+  id String @id @default(uuid())
+
+  date        DateTime
+
+  /// СТАРЫЕ СТРОКОВЫЕ ПОЛЯ: можно удалить после миграции UI на FKs
+  category    String?  @db.VarChar(100)
+  subcategory String?  @db.VarChar(100)
+
+  /// НОВЫЕ FK на словари (опционально, чтобы мигрировать без слома)
+  categoryId    String?
+  categoryDict  FinanceArticleDict?    @relation(fields: [categoryId], references: [id])
+
+  subcategoryId   String?
+  subcategoryDict FinanceSubarticleDict? @relation(fields: [subcategoryId], references: [id])
+
+  description String?
+
+  // Счёт (FK → Asset)
+  accountId String
+  account   Asset   @relation(fields: [accountId], references: [id])
+
+  // Валюта счёта (денормализация для истории)
+  accountCurrency String  @db.VarChar(10)
+
+  // Операция
+  operation OperationType
+
+  amount     Decimal  @db.Decimal(14, 2)
+  commission Decimal? @db.Decimal(14, 2)
+
+  counterparty           String?
+  counterpartyRequisites String?
+
+  // Заказ (FK → Order)
+  orderId       String?
+  order         Order?  @relation(fields: [orderId], references: [id])
+  orderNumber   String?
+  orderCurrency String? @db.VarChar(10)
+
+  // Пересчёты
+  sumUAH Decimal? @db.Decimal(14, 2)
+  sumUSD Decimal? @db.Decimal(14, 2)
+  sumRUB Decimal? @db.Decimal(14, 2)
+
+  sumByRatesOrderAmountCurrency Decimal? @db.Decimal(14, 2)
+  sumByRatesUAH                 Decimal? @db.Decimal(14, 2)
+  sumByRatesUSD                 Decimal? @db.Decimal(14, 2)
+  sumByRatesRUB                 Decimal? @db.Decimal(14, 2)
+
+  sentToCounterparty Boolean @default(false)
+  sendLion           Boolean @default(false)
+
+  balanceBefore Decimal? @db.Decimal(14, 2)
+  balanceAfter  Decimal? @db.Decimal(14, 2)
+
+  // Связи
+  clientId String?
+  client   Client? @relation("ClientTransactions", fields: [clientId], references: [id])
+
+  companyId String?
+  company   Company? @relation("CompanyTransactions", fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([accountId])
+  @@index([clientId])
+  @@index([companyId])
+  @@index([operation])
+  @@index([categoryId])
+  @@index([subcategoryId])
+}
+
+// =========================
+/* M:N таблицы для тегов */
+// =========================
+
+model EmployeeTag {
+  employeeId String
+  tagId      String
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  tag      Tag      @relation(fields: [tagId], references: [id])
+
+  @@id([employeeId, tagId])
+  @@index([tagId])
+}
+
+model ClientTag {
+  clientId String
+  tagId    String
+
+  client Client @relation(fields: [clientId], references: [id])
+  tag    Tag    @relation(fields: [tagId], references: [id])
+
+  @@id([clientId, tagId])
+  @@index([tagId])
+}
+
+model OrderTag {
+  orderId String
+  tagId   String
+
+  order Order @relation(fields: [orderId], references: [id])
+  tag   Tag   @relation(fields: [tagId], references: [id])
+
+  @@id([orderId, tagId])
+  @@index([tagId])
+}
+
+// =========================
+/* Assets */
+// =========================
+
+model Asset {
+  id          String  @id @default(uuid())
+
+  accountName String  @db.VarChar(255)
+  externalId  String? @db.VarChar(255)
+
+  currencyId String
+  currency   CurrencyDict @relation(fields: [currencyId], references: [id])
+
+  typeId  String?
+  type    AssetTypeDict? @relation(fields: [typeId], references: [id])
+
+  paymentSystemId String?
+  paymentSystem   PaymentSystemDict? @relation(fields: [paymentSystemId], references: [id])
+
+  cardDesignId String?
+  cardDesign   CardDesign? @relation(fields: [cardDesignId], references: [id])
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  companyId String?
+  company   Company?  @relation(fields: [companyId], references: [id])
+
+  balance              Decimal @default(0) @db.Decimal(14, 2)
+  turnoverStartBalance Decimal @default(0) @db.Decimal(14, 2)
+  turnoverIncoming     Decimal @default(0) @db.Decimal(14, 2)
+  turnoverOutgoing     Decimal @default(0) @db.Decimal(14, 2)
+  turnoverEndBalance   Decimal @default(0) @db.Decimal(14, 2)
+
+  balanceUAH   Decimal @default(0) @db.Decimal(14, 2)
+  lastEntryDate DateTime?
+
+  design String? @db.VarChar(100)
+
+  requisites AssetRequisite[]
+  // обратная связь для транзакций
+  Transaction Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([currencyId])
+  @@index([employeeId])
+  @@index([companyId])
+}
+
+model AssetRequisite {
+  id      String @id @default(uuid())
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [id])
+
+  label String @db.VarChar(100)
+  value String @db.VarChar(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assetId])
+>>>>>>> update_last_changes
 }

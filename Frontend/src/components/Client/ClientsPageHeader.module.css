@@ -30,19 +30,29 @@
 }
 
 /* Центр — поиск */
-.searchContainer { flex: 1; min-width: 260px; position: relative; z-index: 1010; }
+.searchContainer {
+  flex: 1;
+  min-width: 260px;
+  position: relative;
+  z-index: 1010;
+}
 
 .mainSearchBar {
+  position: relative; /* для внутренних абсолютных элементов при необходимости */
   display: flex;
   align-items: center;
-  /* width: 100%; */
   gap: 10px;
   border: 1px solid var(--border--color);
   border-radius: 12px;
   padding: 8px 10px;
   background: var(--container-bg);
 }
-.searchIcon { color: var(--chips-color); font-size: 18px; }
+
+.searchIcon {
+  color: var(--chips-color);
+  font-size: 18px;
+}
+
 .mainSearchInput {
   flex: 1;
   background: none;
@@ -51,12 +61,20 @@
   color: var(--chips-color);
   font-size: 16px;
   min-width: 100px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.mainSearchInput::placeholder { color: var(--chips-color); }
+
+.mainSearchInput::placeholder {
+  color: var(--chips-color);
+}
 
 /* Плашка «Итого» */
 .statPill {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--input-border);
   background: var(--container-hover-bg);
   color: var(--container-hover-text-color);
@@ -65,13 +83,22 @@
   white-space: nowrap;
   font-size: 13px;
 }
-.statPillLabel { opacity: .9; }
-.statPillValue { font-weight: 700; }
 
-/* Кнопка фильтра */
+.statPillLabel {
+  opacity: .9;
+}
+
+.statPillValue {
+  font-weight: 700;
+}
+
+/* Кнопка фильтра (если используешь иконку-Button) */
 .filterToggle {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   border: 1px solid var(--border--color);
   background: var(--bg-color);
@@ -79,9 +106,34 @@
   cursor: pointer;
   transition: background .2s, border-color .2s, color .2s, box-shadow .2s;
 }
-.filterToggle:hover { background: var(--container-hover-bg); color: var(--text-color); }
-.isOpen { border-color: var(--accent-color) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent); }
-.filterBadge { width: 8px; height: 8px; background:#e74c3c; border-radius:50%; margin-left: 6px; }
+
+.filterToggle:hover {
+  background: var(--container-hover-bg);
+  color: var(--text-color);
+}
+
+.isOpen {
+  border-color: var(--accent-color) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+.filterBadge {
+  width: 8px;
+  height: 8px;
+  background: #e74c3c;
+  border-radius: 50%;
+  margin-left: 6px;
+}
+
+/* Переключатель ▼/▲ — как в журнале */
+.toggleAdvancedSearch {
+  margin-left: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--chips-color);
+  user-select: none;
+  line-height: 1;
+}
 
 /* Правая кнопка */
 .addEntryButton {
@@ -95,7 +147,11 @@
   cursor: pointer;
   transition: background .2s, color .2s;
 }
-.addEntryButton:hover { background: var(--button-bg); color: var(--button-text); }
+
+.addEntryButton:hover {
+  background: var(--button-bg);
+  color: var(--button-text);
+}
 
 /* ===== Панель фильтров (снизу, поверх таблицы) ===== */
 .filtersPanel {
@@ -106,25 +162,40 @@
   padding: 14px;
   position: relative;
   z-index: 1200; /* ← поверх любого контента под ней */
-  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
 }
-.hidden { display: none; }
+
+.hidden {
+  display: none;
+}
 
 .advancedSearchFields {
   display: grid;
   grid-template-columns: repeat(2, minmax(260px, 1fr));
   gap: 16px;
 }
+
 @media (max-width: 900px) {
-  .advancedSearchFields { grid-template-columns: 1fr; }
+  .advancedSearchFields {
+    grid-template-columns: 1fr;
+  }
 }
 
-.searchFieldGroup { display: flex; flex-direction: column; position: relative; }
-.searchFieldGroup label { font-size: 13px; color: var(--chips-color); margin-bottom: 6px; }
+.searchFieldGroup {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.searchFieldGroup label {
+  font-size: 13px;
+  color: var(--chips-color);
+  margin-bottom: 6px;
+}
 
 .advancedSearchFields select,
 .advancedSearchFields input[type="date"],
-.advancedSearchFields input[type="text"]{
+.advancedSearchFields input[type="text"] {
   padding: 10px 44px 10px 12px; /* место под крестик + стрелку */
   background: var(--input-bg);
   border: 1px solid var(--input-border);
@@ -133,150 +204,302 @@
   font-size: 15px;
   outline: none;
 }
-.advancedSearchFields input::placeholder { color: var(--chips-color); }
+
+.advancedSearchFields input::placeholder {
+  color: var(--chips-color);
+}
 
 /* Крестик-очистка — до стрелки, по центру */
 .fieldClear {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 18px; height: 18px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 1px solid var(--input-border);
   background: var(--container-bg);
   color: var(--chips-color);
-  display: grid; place-items: center;
-  font-size: 14px; cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  cursor: pointer;
   transition: background .15s, color .15s, border-color .15s;
   user-select: none;
 }
-.clearBeforeCaret { right: 36px; }
-.fieldClear:hover { background: var(--button-bg); color: var(--button-text); border-color: var(--button-bg); }
 
-.dateFilterInline { display: flex; align-items: center; gap: 8px; }
-.dateRangeGroup .fieldClear { right: 10px; }
+.clearBeforeCaret {
+  right: 36px;
+}
+
+.fieldClear:hover {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-color: var(--button-bg);
+}
+
+.dateFilterInline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dateRangeGroup .fieldClear {
+  right: 10px;
+}
 
 /* Кнопки применить/сбросить */
 .searchButtons {
-  display: flex; justify-content: flex-end; gap: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
   margin-top: 16px;
 }
+
 .searchButtons button {
-  padding: 10px 20px; border: none; border-radius: 10px;
-  font-size: 16px; cursor: pointer; transition: background .2s, color .2s;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background .2s, color .2s;
 }
-.resetButton { background: transparent; color: var(--accent-color); border: 1px solid var(--accent-color); }
-.resetButton:hover { background: rgba(0,123,255,.1); }
-.searchButton { background: var(--button-bg); color: #fff; font-weight: 700; }
-.searchButton:hover { background: #fff; color: #000; }
+
+.resetButton {
+  background: transparent;
+  color: var(--accent-color);
+  border: 1px solid var(--accent-color);
+}
+
+.resetButton:hover {
+  background: rgba(0, 123, 255, .1);
+}
+
+.searchButton {
+  background: var(--button-bg);
+  color: #fff;
+  font-weight: 700;
+}
+
+.searchButton:hover {
+  background: #fff;
+  color: #000;
+}
 
 /* ===== Теги ===== */
-.tagsSelect { position: relative; }
+.tagsSelect {
+  position: relative;
+}
+
 .tagsInput {
   position: relative;
-  display: flex; align-items: center; justify-content: space-between;
-  min-height: 40px; padding: 6px 44px 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 6px 44px 6px 10px;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 10px;
   cursor: pointer;
   transition: border-color .2s, box-shadow .2s, background .2s;
 }
-.tagsInput.isOpen { border-color: var(--accent-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent); }
-.tagsChips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 72px; overflow: hidden; }
-.tagsPlaceholder { color: var(--chips-color); font-size: 14px; }
+
+.tagsInput.isOpen {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+.tagsChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 72px;
+  overflow: hidden;
+}
+
+.tagsPlaceholder {
+  color: var(--chips-color);
+  font-size: 14px;
+}
+
 .tagChip {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--container-hover-bg);
   color: var(--container-hover-text-color);
   border: 1px solid var(--input-border);
-  border-radius: 999px; padding: 4px 8px 4px 10px;
+  border-radius: 999px;
+  padding: 4px 8px 4px 10px;
   font-size: 13px;
 }
-.tagChipText { white-space: nowrap; }
+
+.tagChipText {
+  white-space: nowrap;
+}
+
 .tagChipRemove {
-  all: unset; display: inline-grid; place-items: center;
-  width: 16px; height: 16px; border-radius: 50%;
-  font-size: 14px; color: var(--chips-color);
+  all: unset;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--chips-color);
   cursor: pointer;
 }
-.tagChipRemove:hover { background: var(--container-hover-bg); color: var(--text-color); }
-.tagChipCount { background: transparent; border: 1px dashed var(--input-border); color: var(--chips-color); }
+
+.tagChipRemove:hover {
+  background: var(--container-hover-bg);
+  color: var(--text-color);
+}
+
+.tagChipCount {
+  background: transparent;
+  border: 1px dashed var(--input-border);
+  color: var(--chips-color);
+}
 
 .tagsClear {
   position: absolute;
   top: 50%;
   right: 34px;
   transform: translateY(-50%);
-  width: 18px; height: 18px; border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   border: 1px solid var(--input-border);
   background: var(--container-bg);
-  color: var(--chips-color); font-size: 14px;
-  display: grid; place-items: center; cursor: pointer;
+  color: var(--chips-color);
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
-.tagsClear:hover { background: var(--button-bg); color: var(--button-text); border-color: var(--button-bg); }
 
-.tagsCaret { color: var(--chips-color); position: absolute; right: 10px; }
+.tagsClear:hover {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-color: var(--button-bg);
+}
+
+.tagsCaret {
+  color: var(--chips-color);
+  position: absolute;
+  right: 10px;
+}
 
 /* Выпадашка тегов */
 .tagsDropdown {
   position: absolute; /* not-portal */
   top: calc(100% + 6px);
-  left: 0; right: 0;
+  left: 0;
+  right: 0;
   z-index: 20;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
   overflow: hidden;
   max-height: 320px;
 }
-.tagsDropdownPortal { position: static; } /* внутри host (fixed) */
+
+.tagsDropdownPortal {
+  position: static; /* внутри host (fixed) */
+}
 
 .tagsSticky {
-  position: sticky; top: 0;
+  position: sticky;
+  top: 0;
   background: var(--input-bg);
-  padding: 8px; border-bottom: 1px solid var(--input-border);
+  padding: 8px;
+  border-bottom: 1px solid var(--input-border);
 }
+
 .tagsSearch {
   width: 100%;
   border: 1px solid var(--input-border);
   background: var(--container-bg);
   color: var(--text-color);
-  border-radius: 10px; padding: 10px 12px; font-size: 14px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
   margin-bottom: 8px;
 }
-.tagsActions { display: flex; gap: 8px; }
+
+.tagsActions {
+  display: flex;
+  gap: 8px;
+}
+
 .tagsActions button {
   background: var(--container-hover-bg);
   color: var(--container-hover-text-color);
   border: 1px solid var(--input-border);
-  border-radius: 10px; padding: 6px 10px; cursor: pointer;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
   font-size: 13px;
 }
-.tagsActions button:hover { background: var(--button-bg); color: var(--button-text); border-color: var(--button-bg); }
+
+.tagsActions button:hover {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border-color: var(--button-bg);
+}
 
 .tagsOptions {
-  max-height: 260px; overflow: auto; padding: 8px;
-  display: grid; grid-template-columns: 1fr; gap: 6px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+
+  /* скроллбар */
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--chips-color) 35%, transparent) transparent;
 }
-.tagsOptions::-webkit-scrollbar { width: 10px; }
+
+.tagsOptions::-webkit-scrollbar {
+  width: 10px;
+}
+
 .tagsOptions::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--chips-color) 30%, transparent);
-  border-radius: 10px; border: 2px solid transparent; background-clip: content-box;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
+
 .tagsOptions::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--chips-color) 55%, transparent);
   background-clip: content-box;
 }
-.tagsEmpty { color: var(--chips-color); font-size: 14px; text-align: center; padding: 16px; }
+
+.tagsEmpty {
+  color: var(--chips-color);
+  font-size: 14px;
+  text-align: center;
+  padding: 16px;
+}
 
 /* Адаптив */
 @media (max-width: 900px) {
-  .clientsHeaderContainer { flex-wrap: wrap; height: auto; }
-  .searchContainer { order: 3; width: 100%; }
-  .headerDivider { display: none; }
-  .addEntryButton { order: 2; }
+  .clientsHeaderContainer {
+    flex-wrap: wrap;
+    height: auto;
+  }
+  .searchContainer {
+    order: 3;
+    width: 100%;
+  }
+  .headerDivider {
+    display: none;
+  }
+  .addEntryButton {
+    order: 2;
+  }
 }

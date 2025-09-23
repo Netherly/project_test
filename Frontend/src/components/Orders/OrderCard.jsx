@@ -9,7 +9,7 @@ const formatDate = (dateStr) => {
 const getUrgencyText = (urgencyValue) => {
   const urgencyMap = {
     "1": "Не горит",
-    "2": "Умеренно", 
+    "2": "Умеренно",
     "3": "Жопа уже подгорает",
     "4": "ЛИБО СДАЛ ЛИБО ШТРАФ"
   };
@@ -18,7 +18,16 @@ const getUrgencyText = (urgencyValue) => {
 
 const ItemTypes = { ORDER: "order" };
 
-const OrderCard = ({ order, index, stage, moveOrder, onClick, isDraggingRef }) => {
+const OrderCard = ({
+  order,
+  index,
+  stage,
+  moveOrder,
+  onClick,
+  isDraggingRef,
+  onDragStart,
+  onDragEnd
+}) => {
   const ref = useRef(null);
   const [expandedRegular, setExpandedRegular] = useState(false);
   const [expandedTech, setExpandedTech] = useState(false);
@@ -27,6 +36,7 @@ const OrderCard = ({ order, index, stage, moveOrder, onClick, isDraggingRef }) =
     type: ItemTypes.ORDER,
     item: () => {
       isDraggingRef.current = true;
+      if (onDragStart) onDragStart();
       return { id: order.id, index, stage };
     },
     collect: (monitor) => ({
@@ -34,6 +44,8 @@ const OrderCard = ({ order, index, stage, moveOrder, onClick, isDraggingRef }) =
     }),
     end: () => {
       isDraggingRef.current = false;
+
+      if (onDragEnd) onDragEnd();
     },
   });
 
@@ -78,8 +90,8 @@ const OrderCard = ({ order, index, stage, moveOrder, onClick, isDraggingRef }) =
       <div className={`tag-group ${className}`}>
         <div className="tag-chips-container">
           {visibleTags.map((tag, i) => (
-            <span 
-              key={i} 
+            <span
+              key={i}
               className={`tag-chips ${className === "tech-tags" ? "tech-tag" : ""}`}
             >
               {tag}
@@ -149,7 +161,7 @@ const OrderCard = ({ order, index, stage, moveOrder, onClick, isDraggingRef }) =
           setExpanded={setExpandedRegular}
           className="regular-tags"
         />
-        
+
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../Sidebar";
 import "../../styles/AssetsPage.css";
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";

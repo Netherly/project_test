@@ -61,7 +61,7 @@ const CompletingOrder = ({ control }) => {
       </div>
 
       <div className="tab-content-row">
-        <div className="tab-content-title">Отзыв</div>
+        <div className="tab-content-title">Журнал выполнения</div>
         <span className='modal-content-span-info'>В разработке...</span>
       </div>
 

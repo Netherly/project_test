@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../Sidebar';
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import '../../styles/CurrencyRates.css';
 
 const API_BASE_URL = '/api';
@@ -156,7 +157,10 @@ const CurrencyRates = () => {
             <Sidebar />
             <div className="currency-rates-main-container">
                 <header className="currency-rates-header-container">
-                    <h2 className='currency-rates-header-title'>Курсы валют</h2>
+                    <h2>
+                    <PageHeaderIcon pageName="Курс валют" />
+                    Курсы валют
+                    </h2>
                 </header>
                 <div className="currency-rates-table-container">
                     <div className="currency-rates-table-wrapper">

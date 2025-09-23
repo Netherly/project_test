@@ -1,5 +1,4 @@
 
-
 .log-entry-details-overlay {
     position: fixed;
     top: 0;
@@ -168,9 +167,6 @@
 .save-button:hover {
     background-color: var(--accent-color);
 }
-
-
-
 .log-entry-details-content select{
     flex-basis: 60%;
     width: 100%; 

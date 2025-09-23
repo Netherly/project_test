@@ -1,4 +1,4 @@
-
+/* AddLogEntryForm.css - ОБНОВЛЕНО */
 
 .form-overlay {
     position: fixed;
@@ -64,7 +64,7 @@
     padding-bottom: 20px;
 }
 
-
+/* Новые стили для двух-колоночного макета */
 .form-group {
     display: flex;
     align-items: center;
@@ -99,6 +99,13 @@
     -webkit-appearance: none; 
     -moz-appearance: none; 
     appearance: none;
+}
+
+.form-content input:focus,
+.form-content textarea:focus,
+.form-content select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
 }
 
 .form-content input:focus,

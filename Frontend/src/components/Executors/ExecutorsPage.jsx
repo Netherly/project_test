@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Sidebar from "../Sidebar";
-import AddExecutorModal from './AddExecutorModal.jsx';
+import AddExecutorModal from './AddExecutorModal.jsx'; 
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ExecutorCard from './ExecutorCard.jsx';
 import ExecutorEditModal from './ExecutorEditModal.jsx';
 import OrderModal from '../modals/OrderModal/OrderModal.jsx';
@@ -33,7 +34,7 @@ const getTransactions = () => {
         const saved = localStorage.getItem('transactionsData');
         return saved ? JSON.parse(saved) : [];
     } catch (error) {
-        console.error("Ошибка при чтении транзакций из localStorage:", error);
+        console.error("Ошибка при чтении транзакций из localStorage:", error);пше
         return [];
     }
 };
@@ -337,38 +338,39 @@ const ExecutorsPage = () => {
                         )}
                     </div>
 
-                    {isAddModalOpen && (
-                        <AddExecutorModal
-                            onAdd={handleAddExecutor}
-                            onClose={() => setIsAddModalOpen(false)}
-                            fields={formFields}
-                            orders={orders}
-                        />
-                    )}
-                    {editingOrder && (
-                        <ExecutorEditModal
-                            order={editingOrder}
-                            onUpdate={handleUpdateExecutor}
-                            onDelete={handleDeleteExecutor}
-                            onDuplicate={handleDuplicateExecutor}
-                            onClose={handleCloseEditModal}
-                            fields={formFields}
-                            orders={orders}
-                            transactions={transactions}
-                            assets={assets}
-                        />
-                    )}
-                </div>
+                {isAddModalOpen && (
+                    <AddExecutorModal 
+                        onAdd={handleAddExecutor} 
+                        onClose={() => setIsAddModalOpen(false)} 
+                        fields={formFields}
+                        orders={orders} 
+                    />
+                )}
+                {editingOrder && (
+                    <ExecutorEditModal 
+                        order={editingOrder}
+                        onUpdate={handleUpdateExecutor}  
+                        onDelete={handleDeleteExecutor}   
+                        onDuplicate={handleDuplicateExecutor} 
+                        onClose={handleCloseEditModal}
+                        fields={formFields}
+                        orders={orders}
+                        transactions={transactions}
+                        assets={assets}
+                    />
+                )}
+                {editingOrder && (
+                    <ExecutorEditModal 
+                        order={editingOrder}
+                        onUpdate={handleUpdateExecutor}
+                        onDelete={handleDeleteExecutor}
+                        onDuplicate={handleDuplicateExecutor}
+                        onClose={handleCloseEditModal}
+                        fields={formFields}
+                    />
+                )}
             </div>
-
-            {isOrderModalOpen && (
-                <OrderModal
-                    order={selectedOrder}
-                    onClose={handleCloseOrderModal}
-                    journalEntries={journalEntries}
-                />
-            )}
-        </>
+        </div>
     );
 };
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaSearch, FaFilter } from "react-icons/fa";
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import styles from "./ClientsPageHeader.module.css";
 
 /* ===========================
@@ -223,8 +224,24 @@ export default function ClientsPageHeader({
 
   const inputRef = useRef(null);
 
+  // Фокус при открытии панели (как в журнале)
   useEffect(() => { if (showAdvanced) inputRef.current?.focus(); }, [showAdvanced]);
-  useEffect(() => { onSearch?.(query.trim()); }, [query, onSearch]);
+
+  // Сборка превью для главной строки (как «Введите номер заказа, дату или слово» в журнале)
+  const preview = useMemo(() => {
+    const parts = [];
+    if (query) parts.push(query);
+    if (filters.currency) parts.push(`валюта:${filters.currency}`);
+    if (filters.status) parts.push(`статус:${filters.status}`);
+    if (filters.tags?.length) parts.push(`теги:${filters.tags.join(", ")}`);
+    if (filters.source) parts.push(`источник:${filters.source}`);
+    if (filters.country) parts.push(`страна:${filters.country}`);
+    if (filters.share) parts.push(`доля:${filters.share === "yes" ? "есть" : "нет"}`);
+    if (filters.dateFrom || filters.dateTo) {
+      parts.push(`дата:${filters.dateFrom || "…"}–${filters.dateTo || "…"}`);
+    }
+    return parts.join("  •  ");
+  }, [query, filters]);
 
   const handleChange = (field) => (eOrValue) => {
     const value = eOrValue?.target ? eOrValue.target.value : eOrValue;
@@ -234,6 +251,7 @@ export default function ClientsPageHeader({
   const handleApply = () => {
     onFilterChange?.(filters);
     onSearch?.(query.trim());
+    setShowAdvanced(false);
   };
 
   const handleReset = () => {
@@ -251,41 +269,47 @@ export default function ClientsPageHeader({
 
   return (
     <header className={styles.clientsHeaderContainer}>
-      <h1 className={styles.journalTitle}>КЛИЕНТЫ</h1>
+      <h1 className={styles.journalTitle}>
+        <PageHeaderIcon pageName="Клиенты" />
+        КЛИЕНТЫ
+      </h1>
       <span className={styles.headerDivider} aria-hidden="true" />
 
-      {/* Поиск */}
+      {/* Поиск — как в журнале: инпут показывает превью и открывает фильтры */}
       <div className={styles.searchContainer} role="search">
         <div className={styles.mainSearchBar}>
           <span className={styles.searchIcon} aria-hidden="true"><FaSearch /></span>
+
           <input
             ref={inputRef}
             type="text"
             className={styles.mainSearchInput}
-            placeholder="Поиск по всем полям…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleApply()}
-            aria-label="Поиск"
+            placeholder="Введите параметры поиска (откроются фильтры)"
+            value={preview}
+            onChange={() => {}}
+            onFocus={() => setShowAdvanced(true)}
+            readOnly
+            aria-label="Поиск по всем полям (настройки в фильтрах)"
           />
+
           <div className={styles.statPill} title={`Итого клиентов: ${total ?? 0}`}>
             <span className={styles.statPillLabel}>Итого клиентов </span>
             <span className={styles.statPillValue}>{total ?? 0}</span>
           </div>
-          <button
-            type="button"
-            className={`${styles.filterToggle} ${showAdvanced ? styles.isOpen : ""}`}
-            aria-expanded={showAdvanced}
-            aria-label={showAdvanced ? "Скрыть фильтры" : "Показать фильтры"}
+
+          <span
+            className={styles.toggleAdvancedSearch}
             onClick={() => setShowAdvanced(v => !v)}
+            role="button"
+            aria-label={showAdvanced ? "Скрыть фильтры" : "Показать фильтры"}
+            aria-expanded={showAdvanced}
             title="Фильтры"
           >
-            <FaFilter />
-            {hasActive && <span className={styles.filterBadge} aria-hidden="true" />}
-          </button>
+            {showAdvanced ? "▲" : "▼"}
+          </span>
         </div>
 
-        {/* Панель фильтров — СНИЗУ, поверх таблицы */}
+        {/* Панель фильтров — снизу, поверх таблицы (как в журнале) */}
         <div className={`${styles.filtersPanel} ${!showAdvanced ? styles.hidden : ""}`}>
           <div className={styles.advancedSearchFields}>
             <div className={styles.searchFieldGroup}>
