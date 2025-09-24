@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Sidebar from "../Sidebar";
-import AddExecutorModal from './AddExecutorModal.jsx'; 
+import ExecutorModal from './ExecutorModal/ExecutorModal.jsx';
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ExecutorCard from './ExecutorCard.jsx';
-import ExecutorEditModal from './ExecutorEditModal.jsx';
 import OrderModal from '../modals/OrderModal/OrderModal.jsx';
 import "../../styles/ExecutorsPage.css";
 import * as executorService from './executorService.jsx';
@@ -34,7 +33,7 @@ const getTransactions = () => {
         const saved = localStorage.getItem('transactionsData');
         return saved ? JSON.parse(saved) : [];
     } catch (error) {
-        console.error("Ошибка при чтении транзакций из localStorage:", error);пше
+        console.error("Ошибка при чтении транзакций из localStorage:", error);
         return [];
     }
 };
@@ -66,11 +65,26 @@ const formatSecondsToHours = (totalSeconds) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };
 
+const formatDate = (dateString) => {
+    if (!dateString) return 'Нет даты';
+    try {
+        
+        const date = new Date(dateString);
+        
+        if (isNaN(date.getTime())) {
+            return dateString; 
+        }
+        
+        return date.toISOString().split('T')[0];
+    } catch (error) {
+        return dateString; 
+    }
+};
+
 const ExecutorsPage = () => {
     const [executors, setExecutors] = useState(executorService.getExecutors());
     const [userSettings, setUserSettings] = useState({ currency: '₴' });
-    const [editingOrder, setEditingOrder] = useState(null);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [modalExecutor, setModalExecutor] = useState(null); 
     const [activeEmployees, setActiveEmployees] = useState([]);
     const [orders, setOrders] = useState([]);
     const [journalEntries, setJournalEntries] = useState([]);
@@ -82,9 +96,8 @@ const ExecutorsPage = () => {
     const [isOrderModalOpen, setOrderModalOpen] = useState(false);
 
 
-    const handleOpenOrderModal = (orderId) => { 
+    const handleOpenOrderModal = (orderId) => {
         const fullOrder = orders.find(o => String(o.id) === String(orderId));
-        
         if (fullOrder) {
             setSelectedOrder(fullOrder);
             setOrderModalOpen(true);
@@ -101,13 +114,10 @@ const ExecutorsPage = () => {
     useEffect(() => {
         setOrders(getOrders());
         setJournalEntries(getJournalEntries());
-
         setTransactions(getTransactions());
         setAssets(getAssets());
-
         const employeesFromStorage = JSON.parse(localStorage.getItem('employees')) || [];
         setActiveEmployees(employeesFromStorage.filter(emp => emp.status === 'active'));
-
         const savedFields = localStorage.getItem('fieldsData');
         if (savedFields) {
             try {
@@ -121,52 +131,64 @@ const ExecutorsPage = () => {
         }
     }, []);
 
-    const handleOpenEditModal = (order) => setEditingOrder(order);
-    const handleCloseEditModal = () => setEditingOrder(null);
+    const closeModal = () => setModalExecutor(null); 
 
-    const handleAddExecutor = (newExecutor, targetOrderId) => {
-
-        const targetOrder = orders.find(order => String(order.id) === String(targetOrderId));
-
-        if (!targetOrder) {
-            console.error("Не удалось найти заказ для добавления исполнителя.");
-            return;
-        }
-
-
-        const updatedPerformers = [...(targetOrder.performers || []), newExecutor];
-
-
-        const updatedOrders = orders.map(order =>
-            String(order.id) === String(targetOrderId)
-                ? { ...order, performers: updatedPerformers }
-                : order
-        );
-
+    
+    const generateId = () => 'perf_' + Date.now() + Math.random().toString(36).substring(2, 9);
+    
+    
+    const handleSaveExecutor = (executorData) => {
+        const isNew = !executorData.id;
+        
+        const updatedOrders = orders.map(order => {
+            
+            if (String(order.id) === String(executorData.orderNumber)) {
+                let updatedPerformers;
+                if (isNew) {
+                    
+                    const newExecutor = {
+                        ...executorData,
+                        id: generateId(),
+                        orderStatus: "В работе",
+                        orderStatusEmoji: "⏳",
+                        
+                        orderDate: formatDate(executorData.dateForPerformer || new Date()),
+                    };
+                    updatedPerformers = [...(order.performers || []), newExecutor];
+                } else {
+                    updatedPerformers = (order.performers || []).map(p =>
+                        String(p.id) === String(executorData.id) ? { ...p, ...executorData } : p
+                    );
+                }
+                return { ...order, performers: updatedPerformers };
+            }
+            return order;
+        });
 
         setOrders(updatedOrders);
-
-
         localStorage.setItem('ordersData', JSON.stringify(updatedOrders));
+        closeModal();
     };
+    
+    
+    const handleDeleteExecutor = (executorToDelete) => {
+        const updatedOrders = orders.map(order => {
+           
+            if (String(order.id) === String(executorToDelete.orderNumber)) {
 
-    const handleUpdateExecutor = (updatedOrder) => {
-        const updatedList = executorService.updateExecutor(updatedOrder);
-        setExecutors(updatedList);
-        setEditingOrder(null);
+                const updatedPerformers = (order.performers || []).filter(
+                    p => String(p.id) !== String(executorToDelete.id)
+                );
+                return { ...order, performers: updatedPerformers };
+            }
+            return order;
+        });
+
+        setOrders(updatedOrders);
+        localStorage.setItem('ordersData', JSON.stringify(updatedOrders));
+        closeModal();
     };
-
-    const handleDeleteExecutor = (orderId) => {
-        const updatedList = executorService.deleteExecutor(orderId);
-        setExecutors(updatedList);
-        setEditingOrder(null);
-    };
-
-    const handleDuplicateExecutor = (orderToDuplicate) => {
-        const updatedList = executorService.duplicateExecutor(orderToDuplicate);
-        setExecutors(updatedList);
-    };
-
+    
 
     const enrichedExecutors = useMemo(() => {
 
@@ -222,7 +244,6 @@ const ExecutorsPage = () => {
         currency: fields.currency,
     };
 
-
     return (
         <>
             <div className="executors-page">
@@ -230,42 +251,31 @@ const ExecutorsPage = () => {
                 <div className="executors-page-main-container">
                     <header className="executors-header-container">
                         <h1 className="executors-title">Исполнители</h1>
-                        <div className="view-mode-buttons">
-                            <button
-                                className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
-                                onClick={() => setViewMode('card')}
-                                title="Карточный вид"
-                            >
-                                &#x25A3;
-                            </button>
-                            <button
-                                className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
-                                onClick={() => setViewMode('table')}
-                                title="Табличный вид"
-                            >
-                                &#x2261;
-                            </button>
-                        </div>
+                         <div className="view-mode-buttons">
+                             <button
+                                 className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
+                                 onClick={() => setViewMode('card')}
+                                 title="Карточный вид"
+                             >
+                                 &#x25A3;
+                             </button>
+                             <button
+                                 className={`view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
+                                 onClick={() => setViewMode('table')}
+                                 title="Табличный вид"
+                             >
+                                 &#x2261;
+                             </button>
+                         </div>
                         <div className="add-executor-wrapper">
-                            <button className="add-executor-button" onClick={() => setIsAddModalOpen(true)}>
-                                <svg 
-                                    xmlns="http://www.w3.org/2000/svg" 
-                                    width="24" 
-                                    height="24" 
-                                    viewBox="0 0 24 24" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    strokeWidth="2" 
-                                    strokeLinecap="round" 
-                                    strokeLinejoin="round" 
-                                    className="lucide lucide-plus-icon lucide-plus">
-                                        <path d="M5 12h14" /><path d="M12 5v14" />
-                                </svg> 
+                            <button className="add-executor-button" onClick={() => setModalExecutor({})}> {/* ИЗМЕНЕНО */}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus">
+                                    <path d="M5 12h14" /><path d="M12 5v14" />
+                                </svg>
                                 Добавить исполнителя
                             </button>
                         </div>
                     </header>
-
                     <div className="executors-content">
                         {viewMode === 'table' && (
                             <div className="executors-table-container">
@@ -292,30 +302,29 @@ const ExecutorsPage = () => {
                                     </thead>
                                     <tbody>
                                         {enrichedExecutors.map((executor) => (
-                                            <tr key={executor.id} className="executor-row" onClick={() => handleOpenEditModal(executor)}>
+                                            <tr key={executor.id} className="executor-row" onClick={() => setModalExecutor(executor)}> {/* ИЗМЕНЕНО */}
                                                 <td>{executor.orderNumber}</td>
                                                 <td><span title={executor.orderStatus}>{executor.orderStatusEmoji}</span></td>
-                                                <td>{executor.orderDate}</td>
+                                                <td>{formatDate(executor.orderDate)}</td>
                                                 <td>{executor.orderDescription}</td>
                                                 <td>{executor.clientHidden ? "Не заполнено" : executor.order_main_client}</td>
                                                 <td>{executor.performer}</td>
                                                 <td>{executor.performerRole}</td>
                                                 <td>{executor.orderCurrency}</td>
-                                                <td>{executor.orderSum.toFixed(2)}</td>
-                                                <td>{executor.hourlyRate.toFixed(2)}</td>
-                                                <td>{executor.calculatedPaymentDue.toFixed(2)}</td>
+                                                <td>{executor.orderSum}</td>
+                                                <td>{executor.hourlyRate}</td>
+                                                <td>{executor.calculatedPaymentDue}</td>
                                                 <td>{executor.calculatedWorkTime}</td>
-                                                <td>{executor.orderSum.toFixed(2)}</td>
-                                                <td>{executor.hourlyRate.toFixed(2)}</td>
-                                                <td>{executor.paymentSum.toFixed(2)}</td>
-                                                <td>{executor.calculatedPaymentDue.toFixed(2)}</td>
+                                                <td>{executor.orderSum}</td>
+                                                <td>{executor.hourlyRate}</td>
+                                                <td>{executor.paymentSum}</td>
+                                                <td>{executor.calculatedPaymentDue}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         )}
-                        
                         {viewMode === 'card' && (
                             <div className="executors-cards-container">
                                 {Object.entries(executorsByPerformer).map(([performerName, orders]) => (
@@ -327,8 +336,9 @@ const ExecutorsPage = () => {
                                                     key={order.id}
                                                     order={order}
                                                     userSettings={userSettings}
-                                                    onCardClick={handleOpenEditModal}
+                                                    onCardClick={setModalExecutor}
                                                     onOpenOrderModal={handleOpenOrderModal}
+                                                    formatDate={formatDate}
                                                 />
                                             ))}
                                         </div>
@@ -337,37 +347,26 @@ const ExecutorsPage = () => {
                             </div>
                         )}
                     </div>
-
-                {isAddModalOpen && (
-                    <AddExecutorModal 
-                        onAdd={handleAddExecutor} 
-                        onClose={() => setIsAddModalOpen(false)} 
-                        fields={formFields}
-                        orders={orders} 
-                    />
-                )}
-                {editingOrder && (
-                    <ExecutorEditModal 
-                        order={editingOrder}
-                        onUpdate={handleUpdateExecutor}  
-                        onDelete={handleDeleteExecutor}   
-                        onDuplicate={handleDuplicateExecutor} 
-                        onClose={handleCloseEditModal}
-                        fields={formFields}
-                        orders={orders}
-                        transactions={transactions}
-                        assets={assets}
-                    />
-                )}
+                    {modalExecutor && (
+                        <ExecutorModal
+                            key={modalExecutor.id || 'new-executor'}
+                            executor={modalExecutor.id ? modalExecutor : null}
+                            onSave={handleSaveExecutor}
+                            onDelete={handleDeleteExecutor}
+                            onClose={closeModal}
+                            orders={orders}
+                            fields={formFields}
+                        />
+                    )}
+                </div>
             </div>
-        </div>
-        {isOrderModalOpen && (
-                <OrderModal
-                    order={selectedOrder}
-                    onClose={handleCloseOrderModal}
-                    journalEntries={journalEntries}
-                />
-            )}
+            {isOrderModalOpen && (
+                <OrderModal
+                    order={selectedOrder}
+                    onClose={handleCloseOrderModal}
+                    journalEntries={journalEntries}
+                />
+            )}
         </>
     );
 };

@@ -639,7 +639,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                         <div className="tag-input-container-header" ref={tagInputRef}>
                           <input
                             type="text"
-                            placeholder="Добавить тег или выбрать"
+                            placeholder="Добавить тег"
                             className="input-tag"
                             value={customTag}
                             onChange={handleTagInputChange}

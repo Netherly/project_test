@@ -1,7 +1,7 @@
 import React from 'react';
 import '../../styles/ExecutorCard.css';
 
-const ExecutorCard = ({ order, onCardClick, onOpenOrderModal }) => {
+const ExecutorCard = ({ order, onCardClick, onOpenOrderModal, formatDate }) => {
 
     const handleCardClick = () => {
         if (onCardClick) {
@@ -39,7 +39,7 @@ const ExecutorCard = ({ order, onCardClick, onOpenOrderModal }) => {
                     </span>
                 </div>
                 <div className="date-and-arrow">
-                    <span className="order-date">{order.orderDate}</span>
+                    <span className="order-date">{formatDate(order.orderDate)}</span>
                 </div>
             </div>
 
