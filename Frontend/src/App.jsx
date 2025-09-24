@@ -14,8 +14,12 @@ import AssetsPage from "./components/Assets/AssetsPage";
 import TransactionsPage from "./components/Transaction/TransactionsPage";
 import Profile from "./components/Profile/Profile";
 import FieldsPage from "./pages/FieldsPage"; 
+
 import AccessSettings from "./components/AccessSettings/AccessSettingsPage";
 import TasksPage from "./components/TasksPage/TasksPage"
+
+import EmployeePage from './components/Employees/EmployeePage';
+
 
 import { sampleClients } from './data/sampleClients';
 import ExecutorsPage from './components/Executors/ExecutorsPage';
@@ -120,6 +124,10 @@ export default function App() {
         <Route 
           path="/currency-rates"
           element={<ProtectedRoute element={<CurrencyRates />} />}
+        />
+         <Route 
+          path="/employees" 
+          element={<ProtectedRoute element={<EmployeePage />} />}
         />
         <Route 
           path="/assets" 

@@ -27,7 +27,6 @@ function MultiTagSelect({
     return qq ? options.filter(o => o.toLowerCase().includes(qq)) : options;
   }, [options, q]);
 
-  // host для портала
   useEffect(() => {
     if (!usePortal) return;
     const host = document.createElement("div");
@@ -43,7 +42,6 @@ function MultiTagSelect({
     };
   }, [usePortal]);
 
-  // позиционирование (вниз/вверх + клампы)
   const placeDropdown = () => {
     if (!usePortal || !open || !triggerRef.current || !hostRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
@@ -77,7 +75,6 @@ function MultiTagSelect({
     };
   }, [open]);
 
-  // закрытие по клику вне (учитываем портал) + ESC
   useEffect(() => {
     const onDocClick = (e) => {
       const inTrigger = wrapRef.current?.contains(e.target);
@@ -180,7 +177,6 @@ function MultiTagSelect({
           )}
         </div>
 
-        {/* крестик ДО стрелки и по центру */}
         {value.length > 0 && (
           <button
             type="button"
@@ -214,6 +210,7 @@ export default function ClientsPageHeader({
   countryOptions  = [],
   onFilterChange,
 }) {
+  // query оставляем для совместимости, но ввод через главный инпут отключаем
   const [query, setQuery] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
