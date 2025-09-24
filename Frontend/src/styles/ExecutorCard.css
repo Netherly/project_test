@@ -1,66 +1,143 @@
 .executor-card {
-    border: 1px solid var(--border-color);
+    background-color: var(--container-bg); 
     border-radius: 8px;
     padding: 16px;
-    background-color: var(--container-bg);
-    color: #eee;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    min-height: 150px;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    min-height: 250px; 
+    overflow: visible;
+    position: relative;
 }
 
-.executor-card:hover{
-     transform: translateY(-5px);
-     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
+.executor-card:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
               0 0 0 2px #478cff,
               0 0 15px rgba(71, 140, 255, 0.5);
+}
+
+.executor-card[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 10px); 
+    left: 50%; 
+    transform: translateX(-50%); 
+    background-color: var(--container-bg); 
+    color: #fff; 
+    padding: 8px 12px;
+    border-radius: 6px;
+    white-space: nowrap; 
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: center;
+    
+    opacity: 0; 
+    visibility: hidden;
+    pointer-events: none; 
+    transition: opacity 0.3s ease, bottom 0.3s ease, visibility 0.3s ease;
+    z-index: 10; 
+}
+
+
+
+.executor-card:hover[data-tooltip]::before,
+.executor-card:hover[data-tooltip]::after {
+    opacity: 1;
+    visibility: visible;
+    bottom: calc(100% + 5px); 
+}
+
+
+.order-number-link {
+    font-weight: bold;
+    color: var(--input-border-focus);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.order-number-link:hover {
+    color: #fff;
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-}
-
-.order-number {
-    font-size: 1.2em;
+    width: 100%;
+    font-size: 1.1em; 
     font-weight: bold;
 }
 
+.status-and-number, .date-and-arrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .order-status-emoji {
-    font-size: 1.5em;
+    font-size: 1.2em;
 }
 
+
+
+/* Роль */
+.performer-role {
+    width: 100%;
+    font-weight: bold;
+    margin: 8px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+/* Основное содержимое */
 .card-body {
-    flex-grow: 1;
+    margin: 12px 0;
+    flex-grow: 1; 
 }
 
-.order-date {
-    color: #bbb;
-    font-size: 0.9em;
-    margin-bottom: 4px;
-}
-
-.order-description {
-    font-size: 1em;
-    margin-bottom: 8px;
-}
-
-.order-details p {
+.card-body p {
     margin: 4px 0;
 }
 
-.card-footer {
+.order-name {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 8px !important;
+}
+
+.order-description {
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 2.8em; 
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+/* Нижняя часть (футер) */
+.executor-card-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-top: 1px solid #444;
-    padding-top: 8px;
+    width: 100%;
+    margin-top: auto; 
+    padding-top: 12px;
+    border-top: 1px solid rgba(128, 128, 128, 0.3);
 }
 
-.order-sum, .payment-info {
+.footer-amount {
     display: flex;
     flex-direction: column;
+}
+
+.footer-amount span {
+    font-size: 0.9em;
+}
+
+.footer-amount strong {
+    font-size: 1.1em;
 }

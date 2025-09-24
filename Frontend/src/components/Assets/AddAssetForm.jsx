@@ -176,7 +176,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                         {activeTab === 'general' && (
                             <div className="tab-content">
                                 <div className="form-row">
-                                    <label htmlFor="accountName" className="form-label">Наименование счета</label>
+                                    <label htmlFor="accountName" className="form-label">Наименование</label>
                                     <input
                                         type="text"
                                         id="accountName"
@@ -185,7 +185,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                         onChange={handleChange}
                                         placeholder="Например, ПриватБанк - Ключ к счету"
                                         required
-                                        className="form-input"
+                                        className="form-input1"
                                     />
                                 </div>
                                 <div className="form-row">
@@ -196,7 +196,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                         value={formData.currency}
                                         onChange={handleChange}
                                         required
-                                        className="form-input"
+                                        className="form-input1"
                                     >
                                         <option value="" disabled>Выберите валюту</option>
                                         {fields?.currency?.map((item, index) => (
@@ -213,7 +213,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                         value={formData.limitTurnover}
                                         onChange={handleChange}
                                         placeholder="Введите лимит оборота"
-                                        className="form-input"
+                                        className="form-input1"
                                     />
                                 </div>
                                 <div className="form-row">
@@ -224,7 +224,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                         value={formData.type}
                                         onChange={handleChange}
                                         required
-                                        className="form-input"
+                                        className="form-input1"
                                     >
                                         <option value="" disabled>Выберите тип</option>
                                         {fields?.type?.map((item, index) => (
@@ -239,7 +239,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                         name="paymentSystem"
                                         value={formData.paymentSystem}
                                         onChange={handleChange}
-                                        className="form-input"
+                                        className="form-input1"
                                     >
                                         <option value="">Не выбрано</option>
                                         {fields?.paymentSystem?.map((item, index) => (
@@ -254,7 +254,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                         name="design"
                                         value={formData.design}
                                         onChange={handleChange}
-                                        className="form-input"
+                                        className="form-input1"
                                     >
                                         <option value="">Не выбрано</option>
                                         {fields?.cardDesigns?.map((design, index) => (
@@ -272,7 +272,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                         value={formData.employee}
                                         onChange={handleChange}
                                         required
-                                        className="form-input"
+                                        className="form-input1"
                                     >
                                         <option value="" disabled>Выберите сотрудника</option>
                                     {employees && employees.map(emp => (
@@ -296,7 +296,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                                 value={req.label}
                                                 onChange={(e) => handleRequisiteChange(index, e)}
                                                 placeholder="Например, Ключ к счету"
-                                                className="form-input"
+                                                className="form-input1"
                                             />
                                         </div>
                                         <div className="form-row-inner">
@@ -307,7 +307,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                                 value={req.value}
                                                 onChange={(e) => handleRequisiteChange(index, e)}
                                                 placeholder="Введите значение"
-                                                className="form-input"
+                                                className="form-input1"
                                             />
                                         </div>
                                         {formData.requisites.length > 1 && (

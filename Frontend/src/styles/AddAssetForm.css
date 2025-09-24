@@ -125,13 +125,13 @@
     text-align: right;
 }
 
-.form-input {
+.form-input1 {
+    background-color: var(--bg-menu-color);
+    border: none;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
     flex-basis: 70%;
     width: 100%;
     padding: 10px 12px;
-    background-color: var(--bg-color);
-    border: 1px solid var(--border--color);
-    border-radius: 6px;
     color: var(--text-color);
     font-size: 15px;
     outline: none;

@@ -472,14 +472,9 @@
   display: flex;
   justify-content: flex-start;
   align-items: flex-start;
-  z-index: 9999;
+  z-index: 87;
 }
 
-.order-modal-content {
-  background-color: var(--container-bg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  z-index: 10000;
-}
 
 @keyframes slideUpFadeIn {
   from {

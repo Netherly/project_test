@@ -630,58 +630,57 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
               )}
                </div>
               </div>
-                <div className="tags-section">
+                <div className="tags-section-header">
                   <Controller
-                      control={control}
-                      name="tags"
-                      render={({ field: { onChange } }) => (
+                    control={control}
+                    name="tags"
+                    render={({ field: { onChange } }) => (
                       <>
-                          <div className="tag-input-container" ref={tagInputRef}>
+                        <div className="tag-input-container-header" ref={tagInputRef}>
                           <input
-                              type="text"
-                              placeholder="Добавить тег или выбрать"
-                              className="input-tag"
-                              value={customTag}
-                              onChange={handleTagInputChange}
-                              onKeyDown={(e) => handleCustomTagAdd(e, onChange)}
-                              onFocus={handleTagInputFocus}
-                              autoComplete="off"
+                            type="text"
+                            placeholder="Добавить тег"
+                            className="input-tag"
+                            value={customTag}
+                            onChange={handleTagInputChange}
+                            onKeyDown={(e) => handleCustomTagAdd(e, onChange)}
+                            onFocus={handleTagInputFocus}
+                            autoComplete="off"
                           />
                           {showTagDropdown && (filteredTags.length > 0 || customTag.trim()) && (
-                              <div className="tag-dropdown" ref={tagDropdownRef}>
+                            <div className="tag-dropdown-header" ref={tagDropdownRef}>
                               {filteredTags.map(tag => (
-                                  <div
+                                <div
                                   key={tag}
-                                  className="tag-dropdown-item"
+                                  className="tag-dropdown-item-header"
                                   onClick={() => handleTagSelect(tag, onChange)}
-                                  >
+                                >
                                   {tag}
-                                  </div>
+                                </div>
                               ))}
                               {customTag.trim() && !defaultTags.includes(customTag) && !watchedTags.includes(customTag) && (
-                                  <div
-                                  className="tag-dropdown-item tag-dropdown-custom"
+                                <div
+                                  className="tag-dropdown-item tag-dropdown-custom-header"
                                   onClick={() => handleTagSelect(customTag.trim(), onChange)}
-                                  >
+                                >
                                   Добавить: "{customTag}"
-                                  </div>
+                                </div>
                               )}
-                              </div>
+                            </div>
                           )}
-                          </div>
-                          <div className="tag-chips-container">
-                          {watchedTags.map((tag, index) => (
-                              <span
-                              key={index}
-                              className="tag-chips tag-order-chips"
-                              onClick={() => handleTagRemove(tag, onChange)}
-                              >
-                              {tag}
-                              </span>
-                          ))}
-                          </div>
+                        </div>
+                        
+                        {watchedTags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="tag-chips tag-order-chips-header"
+                            onClick={() => handleTagRemove(tag, onChange)}
+                          >
+                            {tag}
+                          </span>
+                        ))}
                       </>
-                      )}
+                    )}
                   />
                 </div>
                 <div className="developing-stages-container">

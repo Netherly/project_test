@@ -238,7 +238,7 @@ const OrdersPage = () => {
                         onToggleStage={handleToggleStage}
                     />
 
-                    <button className="create-order-btn" onClick={() => setShowCreateModal(true)}>
+                    <button className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>
                         ➕ Создать заказ
                     </button>
                 </header>
