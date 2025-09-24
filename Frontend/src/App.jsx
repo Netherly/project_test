@@ -18,8 +18,6 @@ import FieldsPage from "./pages/FieldsPage";
 import AccessSettings from "./components/AccessSettings/AccessSettingsPage";
 import TasksPage from "./components/TasksPage/TasksPage"
 
-import EmployeePage from './components/Employees/EmployeePage';
-
 
 import { sampleClients } from './data/sampleClients';
 import ExecutorsPage from './components/Executors/ExecutorsPage';
