@@ -1,1217 +1,867 @@
-import React, { useState, useRef, useEffect } from "react";
+// src/pages/FieldsPage.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import "../styles/Fields.css";
+import { fetchFields, saveFields } from "../api/fields";
+import { fileUrl } from "../api/http";
+import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 
-const fieldsData = {
-    orderFields: {
-        currency: []
-    },
-    executorFields: {
-        currency: [],
-        role: []
-    },
-    clientFields: {
-        source: [],
-        category: [],
-        country: [],
-        currency: [],
-        tag: []
-    },
-    employeeFields: {
-        country: []
-    },
-    assetsFields: {
-        currency: [],
-        type: [],
-        paymentSystem: [],
-        cardDesigns: []
-    },
-    financeFields: {
-        subcategory: [],
-    }
-};
+/* =========================
+   Константы и утилиты
+   ========================= */
+const MAX_IMAGE_BYTES = 500 * 1024;
+const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const tidy = (v) => String(v ?? "").trim();
+const isHex = (c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(c || ""));
 
-const tabsConfig = [
-    { key: 'orderFields', label: 'Поля заказа' },
-    { key: 'executorFields', label: 'Поля исполнителя' },
-    { key: 'clientFields', label: 'Поля клиента' },
-    { key: 'employeeFields', label: 'Поля сотрудника' },
-    { key: 'assetsFields', label: 'Поля активов' },
-    { key: 'financeFields', label: 'Поля финансов' }
+const tabs = [
+  { key: "order", label: "Поля заказа" },
+  { key: "executor", label: "Поля исполнителя" },
+  { key: "client", label: "Поля клиента" },
+  { key: "employee", label: "Поля сотрудника" },
+  { key: "assets", label: "Поля активов" },
+  { key: "finance", label: "Поля финансов" },
 ];
 
-const initialValues = {
+/* =========================
+   Нормализация (бэк → фронт)
+   ========================= */
+
+const normStrs = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((v) => (typeof v === "string" ? tidy(v) : tidy(v?.name ?? v?.value)))
+    .filter(Boolean);
+
+const normIntervals = (arr) =>
+  (Array.isArray(arr) ? arr : []).map((it) => ({
+    id: it?.id || rid(),
+    intervalValue: tidy(it?.intervalValue ?? it?.value ?? it),
+  }));
+
+const normCategories = (arr) =>
+  (Array.isArray(arr) ? arr : []).map((it) => ({
+    categoryInterval: tidy(it?.categoryInterval ?? it?.interval ?? it?.group),
+    categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
+  }));
+
+const normArticles = (arr) =>
+  (Array.isArray(arr) ? arr : []).map((it) => ({
+    articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
+  }));
+
+const normSubarticles = (arr) =>
+  (Array.isArray(arr) ? arr : []).map((it) => ({
+    subarticleInterval: tidy(it?.subarticleInterval ?? it?.interval ?? it?.group),
+    subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
+  }));
+
+const normDesigns = (arr) =>
+  (Array.isArray(arr) ? arr : []).map((d) => ({
+    id: d?.id || rid(),
+    name: tidy(d?.name),
+    url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
+    size: d?.size ?? null,
+  }));
+
+// независимые теги {id,name,color}
+const normTags = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((t) => {
+      if (typeof t === "string") return { id: rid(), name: tidy(t), color: "#ffffff" };
+      return {
+        id: t?.id || rid(),
+        name: tidy(t?.name ?? t?.value),
+        color: isHex(t?.color) ? t.color : "#ffffff",
+      };
+    })
+    .filter((t) => t.name !== "");
+
+function normalizeFromBackend(payload) {
+  const data = payload?.ok && payload?.data ? payload.data : payload || {};
+  return {
     orderFields: {
-        intervals: [{ intervalValue: '' }],
-        categories: [{ categoryInterval: '', categoryValue: '' }],
-        currency: []
+      intervals: normIntervals(data?.orderFields?.intervals),
+      categories: normCategories(data?.orderFields?.categories),
+      currency: normStrs(data?.orderFields?.currency),
+      // независимые наборы тегов в заказах
+      tags: normTags(data?.orderFields?.tags),           // «общие теги заказа»
+      techTags: normTags(data?.orderFields?.techTags),   // теги технологий
+      taskTags: normTags(data?.orderFields?.taskTags),   // теги задач
     },
     executorFields: {
-        currency: [],
-        role: []
+      currency: normStrs(data?.executorFields?.currency),
+      role: normStrs(data?.executorFields?.role),
     },
     clientFields: {
-        source: [],
-        category: [],
-        country: [],
-        currency: [],
-        tag: []
+      source: normStrs(data?.clientFields?.source),
+      category: normStrs(data?.clientFields?.category),
+      country: normStrs(data?.clientFields?.country),
+      currency: normStrs(data?.clientFields?.currency),
+      // теги клиента (независимые)
+      tags: normTags(data?.clientFields?.tags ?? data?.clientFields?.tag),
     },
     employeeFields: {
-        country: []
+      country: normStrs(data?.employeeFields?.country),
+      // теги сотрудника (независимые)
+      tags: normTags(data?.employeeFields?.tags),
     },
     assetsFields: {
-        currency: [],
-        type: [],
-        paymentSystem: [],
-        cardDesigns: []
+      currency: normStrs(data?.assetsFields?.currency),
+      type: normStrs(data?.assetsFields?.type),
+      paymentSystem: normStrs(data?.assetsFields?.paymentSystem),
+      cardDesigns: normDesigns(data?.assetsFields?.cardDesigns),
     },
     financeFields: {
-        articles: [{ articleValue: '' }],
-        subarticles: [{ subarticleInterval: '', subarticleValue: '' }],
-        subcategory: []
-    }
-};
-
-const IntervalFields = ({
-    intervals,
-    onIntervalChange,
-    onAddInterval,
-    onRemoveInterval
-}) => {
-    return (
-        <div className="field-row">
-            <label className="field-label">Интервал</label>
-            <div className="category-fields-container">
-                {intervals.map((interval, index) => (
-                    <div key={index} className="category-field-group">
-                        <div className="category-container">
-                            <div className="category-full">
-                                <input
-                                    type="text"
-                                    value={interval.intervalValue || ''}
-                                    onChange={(e) => {
-                                        e.stopPropagation();
-                                        onIntervalChange(index, 'intervalValue', e.target.value);
-                                    }}
-                                    placeholder="Введите интервал"
-                                    className="text-input"
-                                />
-                            </div>
-                            {intervals.length > 1 && (
-                                <button
-                                    className="remove-category-btn"
-                                    onClick={() => onRemoveInterval(index)}
-                                    title="Удалить интервал"
-                                >
-                                    ×
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                <button className="add-category-btn" onClick={onAddInterval}>
-                    + Добавить интервал
-                </button>
-            </div>
-        </div>
-    );
-};
-
-const CategoryFields = ({
-    categories,
-    onCategoryChange,
-    onAddCategory,
-    onRemoveCategory,
-    openDropdowns,
-    onToggleDropdown,
-    availableIntervals
-}) => {
-    return (
-        <div className="field-row category-field">
-            <label className="field-label">Категория</label>
-            <div className="category-fields-container">
-                {categories.map((category, index) => (
-                    <div key={index} className="category-field-group">
-                        <div className="category-container">
-                            <div className="category-left">
-                                <div className="dropdown-container">
-                                    <div
-                                        className={`dropdown-trigger-category ${category.categoryInterval ? 'has-value' : ''}`}
-                                        onClick={(e) => onToggleDropdown(index, e)}
-                                    >
-                                        <span className="dropdown-value">
-                                            {category.categoryInterval || 'Выберите интервал'}
-                                        </span>
-                                        <span className={`dropdown-arrow ${openDropdowns[`category-${index}-interval`] ? 'open' : ''}`}>▼</span>
-                                    </div>
-                                    <div className={`dropdown-menu ${openDropdowns[`category-${index}-interval`] ? 'open' : ''}`}>
-                                        {availableIntervals.length > 0 ? (
-                                            availableIntervals.map((option, optionIndex) => (
-                                                <div
-                                                    key={optionIndex}
-                                                    className={`dropdown-option ${category.categoryInterval === option ? 'selected' : ''}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onCategoryChange(index, 'categoryInterval', option);
-                                                    }}
-                                                >
-                                                    {option}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="dropdown-option disabled-option">
-                                                Сначала добавьте интервалы
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="category-right">
-                                <input
-                                    type="text"
-                                    value={category.categoryValue || ''}
-                                    onChange={(e) => {
-                                        e.stopPropagation();
-                                        onCategoryChange(index, 'categoryValue', e.target.value);
-                                    }}
-                                    placeholder="Введите значение"
-                                    className="text-input"
-                                />
-                            </div>
-                            {categories.length > 1 && (
-                                <button
-                                    className="remove-category-btn"
-                                    onClick={() => onRemoveCategory(index)}
-                                    title="Удалить категорию"
-                                >
-                                    ×
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                <button className="add-category-btn" onClick={onAddCategory}>
-                    + Добавить категорию
-                </button>
-            </div>
-        </div>
-    );
-};
-
-const ArticleFields = ({
-    articles,
-    onArticleChange,
-    onAddArticle,
-    onRemoveArticle
-}) => {
-    return (
-        <div className="field-row">
-            <label className="field-label">Статья</label>
-            <div className="category-fields-container">
-                {articles.map((article, index) => (
-                    <div key={index} className="category-field-group">
-                        <div className="category-container">
-                            <div className="category-full">
-                                <input
-                                    type="text"
-                                    value={article.articleValue || ''}
-                                    onChange={(e) => {
-                                        e.stopPropagation();
-                                        onArticleChange(index, 'articleValue', e.target.value);
-                                    }}
-                                    placeholder="Введите статью"
-                                    className="text-input"
-                                />
-                            </div>
-                            {articles.length > 1 && (
-                                <button
-                                    className="remove-category-btn"
-                                    onClick={() => onRemoveArticle(index)}
-                                    title="Удалить статью"
-                                >
-                                    ×
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                <button className="add-category-btn" onClick={onAddArticle}>
-                    + Добавить статью
-                </button>
-            </div>
-        </div>
-    );
-};
-
-const SubarticleFields = ({
-    subarticles,
-    onSubarticleChange,
-    onAddSubarticle,
-    onRemoveSubarticle,
-    openDropdowns,
-    onToggleDropdown,
-    availableArticles,
-    fieldsData
-}) => {
-    return (
-        <div className="field-row article-field">
-            <label className="field-label">Подстатья</label>
-            <div className="category-fields-container">
-                {subarticles.map((subarticle, index) => (
-                    <div key={index} className="category-field-group">
-                        <div className="category-container">
-                            <div className="category-left">
-                                <div className="dropdown-container">
-                                    <div
-                                        className={`dropdown-trigger-article ${subarticle.subarticleInterval ? 'has-value' : ''}`}
-                                        onClick={(e) => onToggleDropdown(index, e)}
-                                    >
-                                        <span className="dropdown-value">
-                                            {subarticle.subarticleInterval || 'Выберите статью'}
-                                        </span>
-                                        <span className={`dropdown-arrow ${openDropdowns[`subarticle-${index}-interval`] ? 'open' : ''}`}>▼</span>
-                                    </div>
-                                    <div className={`dropdown-menu ${openDropdowns[`subarticle-${index}-interval`] ? 'open' : ''}`}>
-                                        {availableArticles.length > 0 ? (
-                                            availableArticles.map((option, optionIndex) => (
-                                                <div
-                                                    key={optionIndex}
-                                                    className={`dropdown-option ${subarticle.subarticleInterval === option ? 'selected' : ''}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        onSubarticleChange(index, 'subarticleInterval', option);
-                                                    }}
-                                                >
-                                                    {option}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="dropdown-option disabled-option">
-                                                Сначала добавьте статьи
-                                            </div>
-                                        )}
-                                        {fieldsData.financeFields.subcategory.map((option, optionIndex) => (
-                                            <div
-                                                key={`subcategory-${optionIndex}`}
-                                                className={`dropdown-option ${subarticle.subarticleInterval === option ? 'selected' : ''}`}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onSubarticleChange(index, 'subarticleInterval', option);
-                                                }}
-                                            >
-                                                {option}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="category-right">
-                                <input
-                                    type="text"
-                                    value={subarticle.subarticleValue || ''}
-                                    onChange={(e) => {
-                                        e.stopPropagation();
-                                        onSubarticleChange(index, 'subarticleValue', e.target.value);
-                                    }}
-                                    placeholder="Введите значение"
-                                    className="text-input"
-                                />
-                            </div>
-                            {subarticles.length > 1 && (
-                                <button
-                                    className="remove-category-btn"
-                                    onClick={() => onRemoveSubarticle(index)}
-                                    title="Удалить подстатью"
-                                >
-                                    ×
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
-                <button className="add-category-btn" onClick={onAddSubarticle}>
-                    + Добавить подстатью
-                </button>
-            </div>
-        </div>
-    );
-};
-
-const EditableList = ({ items, onAdd, onRemove, placeholder }) => {
-    return (
-        <div className="category-fields-container">
-            {items.map((item, index) => (
-                <div key={index} className="category-field-group">
-                    <div className="category-container">
-                        <div className="category-full">
-                            <input
-                                type="text"
-                                value={item}
-                                onChange={(e) => {
-                                    const newValue = e.target.value;
-                                    const newItems = [...items];
-                                    newItems[index] = newValue;
-                                    onAdd(newItems);
-                                }}
-                                placeholder={placeholder}
-                                className="text-input"
-                            />
-                        </div>
-                        <button
-                            className="remove-category-btn"
-                            onClick={() => onRemove(index)}
-                            title="Удалить"
-                        >
-                            ×
-                        </button>
-                    </div>
-                </div>
-            ))}
-            <button
-                className="add-category-btn"
-                onClick={() => onAdd([...items, ''])}
-            >
-                + Добавить
-            </button>
-        </div>
-    );
-};
-
-const CardDesignUpload = ({ cardDesigns, onAdd, onRemove }) => {
-    const fileInputRefs = useRef([]);
-
-    const handleFileUpload = (event, index) => {
-        const files = Array.from(event.target.files);
-
-        if (files.length > 0) {
-            const file = files[0];
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const newDesigns = [...cardDesigns];
-                    newDesigns[index] = {
-                        ...newDesigns[index],
-                        id: newDesigns[index]?.id || Date.now() + Math.random(),
-                        url: e.target.result,
-                        size: file.size
-                    };
-                    onAdd(newDesigns);
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-        event.target.value = '';
-    };
-
-    const handleNameChange = (index, newName) => {
-        const newDesigns = [...cardDesigns];
-        newDesigns[index] = {
-            ...newDesigns[index],
-            name: newName
-        };
-        onAdd(newDesigns);
-    };
-
-    const addNewCardDesign = () => {
-        const newDesigns = [...cardDesigns, { name: '', url: '', id: Date.now() + Math.random() }];
-        onAdd(newDesigns);
-    };
-
-    const designs = cardDesigns.length > 0 ? cardDesigns : [{ name: '', url: '', id: Date.now() }];
-
-    return (
-        <div className="category-fields-container">
-            {designs.map((design, index) => (
-                <div key={design.id || index} className="category-field-group">
-                    <div className="card-design-row">
-                        <div className="card-design-input">
-                            <input
-                                type="text"
-                                value={design.name || ''}
-                                onChange={(e) => {
-                                    e.stopPropagation();
-                                    handleNameChange(index, e.target.value);
-                                }}
-                                placeholder="Введите название дизайна"
-                                className="text-input"
-                            />
-                        </div>
-                        <div className="card-design-upload">
-                            {design.url ? (
-                                <div className="card-design-item">
-                                    <div className="card-design-preview">
-                                        <img
-                                            src={design.url}
-                                            alt={design.name}
-                                            className="card-design-image"
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        ref={el => fileInputRefs.current[index] = el}
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => handleFileUpload(e, index)}
-                                        style={{ display: 'none' }}
-                                    />
-                                    <button
-                                        className="upload-design-btn"
-                                        onClick={() => fileInputRefs.current[index]?.click()}
-                                    >
-                                        + Загрузить изображение
-                                    </button>
-                                </>
-                            )}
-                        </div>
-                        {(designs.length > 1 || design.url) && (
-                            <button
-                                className="remove-category-btn"
-                                onClick={() => onRemove(index)}
-                                title="Удалить дизайн"
-                            >
-                                ×
-                            </button>
-                        )}
-                    </div>
-                </div>
-            ))}
-            <button className="add-category-btn" onClick={addNewCardDesign}>
-                + Добавить дизайн карты
-            </button>
-        </div>
-    );
-};
-
-function Fields() {
-    const [selectedValues, setSelectedValues] = useState(initialValues);
-    const [savedValues, setSavedValues] = useState(initialValues);
-    const [hasChanges, setHasChanges] = useState(false);
-    const [activeTab, setActiveTab] = useState('orderFields');
-    const [openDropdowns, setOpenDropdowns] = useState({});
-    const containerRef = useRef(null);
-
-    useEffect(() => {
-        const saved = localStorage.getItem("fieldsData");
-
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                const normalizedData = {
-                    ...initialValues,
-                    orderFields: {
-                        ...initialValues.orderFields,
-                        ...parsed.orderFields,
-                        intervals: Array.isArray(parsed.orderFields?.intervals)
-                            ? parsed.orderFields.intervals
-                            : [{ intervalValue: '' }],
-                        categories: Array.isArray(parsed.orderFields?.categories)
-                            ? parsed.orderFields.categories
-                            : [{ categoryInterval: '', categoryValue: '' }],
-                        currency: Array.isArray(parsed.orderFields?.currency)
-                            ? parsed.orderFields.currency
-                            : []
-                    },
-                    executorFields: {
-                        ...initialValues.executorFields,
-                        ...parsed.executorFields,
-                        currency: Array.isArray(parsed.executorFields?.currency) ? parsed.executorFields.currency : [],
-                        role: Array.isArray(parsed.executorFields?.role) ? parsed.executorFields.role : []
-                    },
-                    clientFields: {
-                        ...initialValues.clientFields,
-                        ...parsed.clientFields,
-                        source: Array.isArray(parsed.clientFields?.source) ? parsed.clientFields.source : [],
-                        category: Array.isArray(parsed.clientFields?.category) ? parsed.clientFields.category : [],
-                        country: Array.isArray(parsed.clientFields?.country) ? parsed.clientFields.country : [],
-                        currency: Array.isArray(parsed.clientFields?.currency) ? parsed.clientFields.currency : [],
-                        tag: Array.isArray(parsed.clientFields?.tag) ? parsed.clientFields.tag : []
-                    },
-                    employeeFields: {
-                        ...initialValues.employeeFields,
-                        ...parsed.employeeFields,
-                        country: Array.isArray(parsed.employeeFields?.country) ? parsed.employeeFields.country : []
-                    },
-                    assetsFields: {
-                        ...initialValues.assetsFields,
-                        ...parsed.assetsFields,
-                        currency: Array.isArray(parsed.assetsFields?.currency) ? parsed.assetsFields.currency : [],
-                        type: Array.isArray(parsed.assetsFields?.type) ? parsed.assetsFields.type : [],
-                        paymentSystem: Array.isArray(parsed.assetsFields?.paymentSystem) ? parsed.assetsFields.paymentSystem : [],
-                        cardDesigns: Array.isArray(parsed.assetsFields?.cardDesigns) ? parsed.assetsFields.cardDesigns : []
-                    },
-                    financeFields: {
-                        ...initialValues.financeFields,
-                        ...parsed.financeFields,
-                        articles: Array.isArray(parsed.financeFields?.articles)
-                            ? parsed.financeFields.articles
-                            : [{ articleValue: '' }],
-                        subarticles: Array.isArray(parsed.financeFields?.subarticles)
-                            ? parsed.financeFields.subarticles
-                            : [{ subarticleInterval: '', subarticleValue: '' }],
-                        subcategory: Array.isArray(parsed.financeFields?.subcategory)
-                            ? parsed.financeFields.subcategory
-                            : []
-                    }
-                };
-                setSelectedValues(normalizedData);
-                setSavedValues(normalizedData);
-            } catch (error) {
-                console.error('Error parsing saved data:', error);
-                setSelectedValues(initialValues);
-                setSavedValues(initialValues);
-            }
-        }
-    }, []);
-
-    const checkForChanges = (newValues) => {
-        const changed = JSON.stringify(newValues) !== JSON.stringify(savedValues);
-        if (hasChanges !== changed) {
-            setHasChanges(changed);
-        }
-    };
-
-    const handleSave = () => {
-        setSavedValues(selectedValues);
-        setHasChanges(false);
-        localStorage.setItem("fieldsData", JSON.stringify(selectedValues));
-    };
-
-    const handleCancel = () => {
-        const saved = localStorage.getItem("fieldsData");
-
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            setSelectedValues(parsed);
-            setSavedValues(parsed);
-        }
-
-        setHasChanges(false);
-        setOpenDropdowns({});
-    };
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
-                setOpenDropdowns({});
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    const handleSelect = (fieldGroup, fieldName, value) => {
-        const newValues = {
-            ...selectedValues,
-            [fieldGroup]: {
-                ...selectedValues[fieldGroup],
-                [fieldName]: value
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-
-        setOpenDropdowns(prev => ({
-            ...prev,
-            [`${fieldGroup}-${fieldName}`]: false
-        }));
-    };
-
-    const handleInputChange = (fieldGroup, fieldName, value) => {
-        const newValues = {
-            ...selectedValues,
-            [fieldGroup]: {
-                ...selectedValues[fieldGroup],
-                [fieldName]: value
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const handleIntervalChange = (index, field, value) => {
-        const currentIntervals = selectedValues.orderFields.intervals || [{ intervalValue: '' }];
-        const newIntervals = [...currentIntervals];
-        newIntervals[index] = {
-            ...newIntervals[index],
-            [field]: value
-        };
-
-        const newValues = {
-            ...selectedValues,
-            orderFields: {
-                ...selectedValues.orderFields,
-                intervals: newIntervals
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const handleCategoryChange = (index, field, value) => {
-        const currentCategories = selectedValues.orderFields.categories || [{ categoryInterval: '', categoryValue: '' }];
-        const newCategories = [...currentCategories];
-        newCategories[index] = {
-            ...newCategories[index],
-            [field]: value
-        };
-
-        const newValues = {
-            ...selectedValues,
-            orderFields: {
-                ...selectedValues.orderFields,
-                categories: newCategories
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-
-        if (field === 'categoryInterval') {
-            setOpenDropdowns(prev => ({
-                ...prev,
-                [`category-${index}-interval`]: false
-            }));
-        }
-    };
-
-    const handleArticleChange = (index, field, value) => {
-        const currentArticles = selectedValues.financeFields.articles || [{ articleValue: '' }];
-        const newArticles = [...currentArticles];
-        newArticles[index] = {
-            ...newArticles[index],
-            [field]: value
-        };
-
-        const newValues = {
-            ...selectedValues,
-            financeFields: {
-                ...selectedValues.financeFields,
-                articles: newArticles
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const handleSubarticleChange = (index, field, value) => {
-        const currentSubarticles = selectedValues.financeFields.subarticles || [{ subarticleInterval: '', subarticleValue: '' }];
-        const newSubarticles = [...currentSubarticles];
-        newSubarticles[index] = {
-            ...newSubarticles[index],
-            [field]: value
-        };
-
-        const newValues = {
-            ...selectedValues,
-            financeFields: {
-                ...selectedValues.financeFields,
-                subarticles: newSubarticles
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-
-        if (field === 'subarticleInterval') {
-            setOpenDropdowns(prev => ({
-                ...prev,
-                [`subarticle-${index}-interval`]: false
-            }));
-        }
-    };
-
-    const addInterval = () => {
-        const currentIntervals = selectedValues.orderFields.intervals || [{ intervalValue: '' }];
-        const newIntervals = [...currentIntervals, { intervalValue: '' }];
-        const newValues = {
-            ...selectedValues,
-            orderFields: {
-                ...selectedValues.orderFields,
-                intervals: newIntervals
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const addCategory = () => {
-        const currentCategories = selectedValues.orderFields.categories || [{ categoryInterval: '', categoryValue: '' }];
-        const newCategories = [...currentCategories, { categoryInterval: '', categoryValue: '' }];
-        const newValues = {
-            ...selectedValues,
-            orderFields: {
-                ...selectedValues.orderFields,
-                categories: newCategories
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const addArticle = () => {
-        const currentArticles = selectedValues.financeFields.articles || [{ articleValue: '' }];
-        const newArticles = [...currentArticles, { articleValue: '' }];
-        const newValues = {
-            ...selectedValues,
-            financeFields: {
-                ...selectedValues.financeFields,
-                articles: newArticles
-            }
-        };
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const addSubarticle = () => {
-        const currentSubarticles = selectedValues.financeFields.subarticles || [{ subarticleInterval: '', subarticleValue: '' }];
-        const newSubarticles = [...currentSubarticles, { subarticleInterval: '', subarticleValue: '' }];
-        const newValues = {
-            ...selectedValues,
-            financeFields: {
-                ...selectedValues.financeFields,
-                subarticles: newSubarticles
-            }
-        };
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const removeInterval = (index) => {
-        const currentIntervals = selectedValues.orderFields.intervals || [{ intervalValue: '' }];
-        if (currentIntervals.length <= 1) return;
-
-        const newIntervals = currentIntervals.filter((_, i) => i !== index);
-        const newValues = {
-            ...selectedValues,
-            orderFields: {
-                ...selectedValues.orderFields,
-                intervals: newIntervals
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const removeCategory = (index) => {
-        const currentCategories = selectedValues.orderFields.categories || [{ categoryInterval: '', categoryValue: '' }];
-        if (currentCategories.length <= 1) return;
-
-        const newCategories = currentCategories.filter((_, i) => i !== index);
-        const newValues = {
-            ...selectedValues,
-            orderFields: {
-                ...selectedValues.orderFields,
-                categories: newCategories
-            }
-        };
-
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const removeArticle = (index) => {
-        const currentArticles = selectedValues.financeFields.articles || [{ articleValue: '' }];
-        if (currentArticles.length <= 1) return;
-
-        const newArticles = currentArticles.filter((_, i) => i !== index);
-        const newValues = {
-            ...selectedValues,
-            financeFields: {
-                ...selectedValues.financeFields,
-                articles: newArticles
-            }
-        };
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const removeSubarticle = (index) => {
-        const currentSubarticles = selectedValues.financeFields.subarticles || [{ subarticleInterval: '', subarticleValue: '' }];
-        if (currentSubarticles.length <= 1) return;
-
-        const newSubarticles = currentSubarticles.filter((_, i) => i !== index);
-        const newValues = {
-            ...selectedValues,
-            financeFields: {
-                ...selectedValues.financeFields,
-                subarticles: newSubarticles
-            }
-        };
-        setSelectedValues(newValues);
-        checkForChanges(newValues);
-    };
-
-    const toggleDropdown = (fieldGroup, fieldName, event) => {
-        event.stopPropagation();
-        const key = `${fieldGroup}-${fieldName}`;
-        setOpenDropdowns(prev => {
-            const newDropdowns = {};
-            newDropdowns[key] = !prev[key];
-            return newDropdowns;
-        });
-    };
-
-    const toggleCategoryDropdown = (index, event) => {
-        event.stopPropagation();
-        const key = `category-${index}-interval`;
-        setOpenDropdowns(prev => {
-            const newDropdowns = {};
-            newDropdowns[key] = !prev[key];
-            return newDropdowns;
-        });
-    };
-
-    const toggleSubarticleDropdown = (index, event) => {
-        event.stopPropagation();
-        const key = `subarticle-${index}-interval`;
-        setOpenDropdowns(prev => {
-            const newDropdowns = {};
-            newDropdowns[key] = !prev[key];
-            return newDropdowns;
-        });
-    };
-
-    const getAvailableIntervals = () => {
-        const intervals = selectedValues.orderFields.intervals || [];
-        return intervals
-            .map(interval => interval.intervalValue)
-            .filter(value => value && value.trim() !== '');
-    };
-
-    const getAvailableArticles = () => {
-        const articles = selectedValues.financeFields.articles || [];
-        return articles
-            .map(article => article.articleValue)
-            .filter(value => value && value.trim() !== '');
-    };
-
-    const DropdownField = ({ fieldGroup, fieldName, label, options, placeholder, disabled = false }) => {
-        const key = `${fieldGroup}-${fieldName}`;
-        const isOpen = openDropdowns[key];
-        const selectedValue = selectedValues[fieldGroup][fieldName];
-
-        return (
-            <div className={`field-row simple-field ${disabled ? 'disabled' : ''}`}>
-                <label className="field-label">{label}</label>
-                <div className="dropdown-container">
-                    <div
-                        className={`dropdown-trigger-simple ${selectedValue ? 'has-value' : ''} ${disabled ? 'disabled' : ''}`}
-                        onClick={(e) => !disabled && toggleDropdown(fieldGroup, fieldName, e)}
-                    >
-                        <span className="dropdown-value">
-                            {selectedValue || placeholder}
-                        </span>
-                        <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
-                    </div>
-                    <div className={`dropdown-menu ${isOpen && !disabled ? 'open' : ''}`}>
-                        {options.map((option, index) => (
-                            <div
-                                key={index}
-                                className={`dropdown-option ${selectedValue === option ? 'selected' : ''}`}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelect(fieldGroup, fieldName, option);
-                                }}
-                            >
-                                {option}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    const renderActiveTabFields = () => {
-        switch (activeTab) {
-            case 'orderFields':
-                return (
-                    <div className="fields-vertical-grid">
-                        <IntervalFields
-                            intervals={selectedValues.orderFields.intervals || [{ intervalValue: '' }]}
-                            onIntervalChange={handleIntervalChange}
-                            onAddInterval={addInterval}
-                            onRemoveInterval={removeInterval}
-                        />
-
-                        <CategoryFields
-                            categories={selectedValues.orderFields.categories || [{ categoryInterval: '', categoryValue: '' }]}
-                            onCategoryChange={handleCategoryChange}
-                            onAddCategory={addCategory}
-                            onRemoveCategory={removeCategory}
-                            openDropdowns={openDropdowns}
-                            onToggleDropdown={toggleCategoryDropdown}
-                            availableIntervals={getAvailableIntervals()}
-                        />
-                        <div className="field-row">
-                            <label className="field-label">Валюта</label>
-                            <EditableList
-                                items={selectedValues.orderFields.currency || []}
-                                onAdd={(newItems) => handleInputChange('orderFields', 'currency', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.orderFields.currency || []).filter((_, i) => i !== index);
-                                    handleInputChange('orderFields', 'currency', newItems);
-                                }}
-                                placeholder="Введите значение валюты"
-                            />
-                        </div>
-                    </div>
-                );
-
-            case 'executorFields':
-                return (
-                    <div className="fields-vertical-grid">
-                        <div className="field-row">
-                            <label className="field-label">Валюта</label>
-                            <EditableList
-                                items={selectedValues.executorFields.currency || []}
-                                onAdd={(newItems) => handleInputChange('executorFields', 'currency', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.executorFields.currency || []).filter((_, i) => i !== index);
-                                    handleInputChange('executorFields', 'currency', newItems);
-                                }}
-                                placeholder="Введите значение валюты"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Роль</label>
-                            <EditableList
-                                items={selectedValues.executorFields.role || []}
-                                onAdd={(newItems) => handleInputChange('executorFields', 'role', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.executorFields.role || []).filter((_, i) => i !== index);
-                                    handleInputChange('executorFields', 'role', newItems);
-                                }}
-                                placeholder="Введите роль"
-                            />
-                        </div>
-                    </div>
-                );
-            case 'clientFields':
-                return (
-                    <div className="fields-vertical-grid">
-                        <div className="field-row">
-                            <label className="field-label">Категория</label>
-                            <EditableList
-                                items={selectedValues.clientFields.category || []}
-                                onAdd={(newItems) => handleInputChange('clientFields', 'category', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.clientFields.category || []).filter((_, i) => i !== index);
-                                    handleInputChange('clientFields', 'category', newItems);
-                                }}
-                                placeholder="Введите категорию"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Источник</label>
-                            <EditableList
-                                items={selectedValues.clientFields.source || []}
-                                onAdd={(newItems) => handleInputChange('clientFields', 'source', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.clientFields.source || []).filter((_, i) => i !== index);
-                                    handleInputChange('clientFields', 'source', newItems);
-                                }}
-                                placeholder="Введите источник"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Страна</label>
-                            <EditableList
-                                items={selectedValues.clientFields.country || []}
-                                onAdd={(newItems) => handleInputChange('clientFields', 'country', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.clientFields.country || []).filter((_, i) => i !== index);
-                                    handleInputChange('clientFields', 'country', newItems);
-                                }}
-                                placeholder="Введите страну"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Валюта</label>
-                            <EditableList
-                                items={selectedValues.clientFields.currency || []}
-                                onAdd={(newItems) => handleInputChange('clientFields', 'currency', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.clientFields.currency || []).filter((_, i) => i !== index);
-                                    handleInputChange('clientFields', 'currency', newItems);
-                                }}
-                                placeholder="Введите валюту"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Тег</label>
-                            <EditableList
-                                items={selectedValues.clientFields.tag || []}
-                                onAdd={(newItems) => handleInputChange('clientFields', 'tag', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.clientFields.tag || []).filter((_, i) => i !== index);
-                                    handleInputChange('clientFields', 'tag', newItems);
-                                }}
-                                placeholder="Введите тег"
-                            />
-                        </div>
-                    </div>
-                );
-            case 'employeeFields':
-                return (
-                    <div className="fields-vertical-grid">
-                        <div className="field-row">
-                            <label className="field-label">Страна</label>
-                            <EditableList
-                                items={selectedValues.employeeFields.country || []}
-                                onAdd={(newItems) => handleInputChange('employeeFields', 'country', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.employeeFields.country || []).filter((_, i) => i !== index);
-                                    handleInputChange('employeeFields', 'country', newItems);
-                                }}
-                                placeholder="Введите страну"
-                            />
-                        </div>
-                    </div>
-                );
-            case 'assetsFields':
-                return (
-                    <div className="fields-vertical-grid">
-                        <div className="field-row">
-                            <label className="field-label">Валюта счета</label>
-                            <EditableList
-                                items={selectedValues.assetsFields.currency || []}
-                                onAdd={(newItems) => handleInputChange('assetsFields', 'currency', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.assetsFields.currency || []).filter((_, i) => i !== index);
-                                    handleInputChange('assetsFields', 'currency', newItems);
-                                }}
-                                placeholder="Введите валюту счета"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Тип</label>
-                            <EditableList
-                                items={selectedValues.assetsFields.type || []}
-                                onAdd={(newItems) => handleInputChange('assetsFields', 'type', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.assetsFields.type || []).filter((_, i) => i !== index);
-                                    handleInputChange('assetsFields', 'type', newItems);
-                                }}
-                                placeholder="Введите тип"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Платежная система</label>
-                            <EditableList
-                                items={selectedValues.assetsFields.paymentSystem || []}
-                                onAdd={(newItems) => handleInputChange('assetsFields', 'paymentSystem', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.assetsFields.paymentSystem || []).filter((_, i) => i !== index);
-                                    handleInputChange('assetsFields', 'paymentSystem', newItems);
-                                }}
-                                placeholder="Введите платежную систему"
-                            />
-                        </div>
-                        <div className="field-row">
-                            <label className="field-label">Дизайн карты</label>
-                            <CardDesignUpload
-                                cardDesigns={selectedValues.assetsFields.cardDesigns || []}
-                                onAdd={(newItems) => handleInputChange('assetsFields', 'cardDesigns', newItems)}
-                                onRemove={(index) => {
-                                    const newItems = (selectedValues.assetsFields.cardDesigns || []).filter((_, i) => i !== index);
-                                    handleInputChange('assetsFields', 'cardDesigns', newItems);
-                                }}
-                            />
-                        </div>
-                    </div>
-                );
-            case 'financeFields':
-                return (
-                    <div className="fields-vertical-grid">
-                        <ArticleFields
-                            articles={selectedValues.financeFields?.articles || [{ articleValue: '' }]}
-                            onArticleChange={handleArticleChange}
-                            onAddArticle={addArticle}
-                            onRemoveArticle={removeArticle}
-                        />
-                        <SubarticleFields
-                            subarticles={selectedValues.financeFields?.subarticles || [{ subarticleInterval: '', subarticleValue: '' }]}
-                            onSubarticleChange={handleSubarticleChange}
-                            onAddSubarticle={addSubarticle}
-                            onRemoveSubarticle={removeSubarticle}
-                            openDropdowns={openDropdowns}
-                            onToggleDropdown={toggleSubarticleDropdown}
-                            availableArticles={getAvailableArticles()}
-                            fieldsData={fieldsData}
-                        />
-                    </div>
-                );
-            default:
-                return null;
-        }
-    };
-    
-    return (
-        <div ref={containerRef} className="fields-main-container">
-            <Sidebar />
-        <div className="fields-main-container-wrapper">
-            <div className="header">
-                <div className="header-content">
-                    <div className="header-left">
-                        <h1 className="lists-title">СПИСКИ</h1>
-                    </div>
-                    <div className="header-actions">
-                        {hasChanges && (
-                            <>
-                                <button className="save-btn" onClick={handleSave}>
-                                    Сохранить
-                                </button>
-                                <button className="cancel-btn" onClick={handleCancel}>
-                                    Отменить
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="fields-container">
-                <div className="main-content-wrapper">
-                    <div className="tabs-content-wrapper">
-                        <div className="tabs-container">
-                            {tabsConfig.map((tab) => (
-                                <button
-                                    key={tab.key}
-                                    className={`tab-button ${activeTab === tab.key ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setActiveTab(tab.key);
-                                        setOpenDropdowns({});
-                                    }}
-                                >
-                                    {tab.label}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="fields-content">
-                            <div className="fields-box">
-                                {renderActiveTabFields()}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            </div>
-        </div>
-    );
+      articles: normArticles(data?.financeFields?.articles),
+      subarticles: normSubarticles(data?.financeFields?.subarticles),
+      subcategory: normStrs(data?.financeFields?.subcategory),
+    },
+  };
 }
 
-export default Fields;
+/* =========================
+   Сериализация (фронт → бэк)
+   ========================= */
+
+const serStrs = (arr) => (Array.isArray(arr) ? arr : []).map((v) => tidy(v)).filter(Boolean);
+const serIntervals = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value) }))
+    .filter((x) => x.value !== "");
+const serCategories = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it) => ({ categoryInterval: tidy(it?.categoryInterval), categoryValue: tidy(it?.categoryValue) }))
+    .filter((x) => x.categoryInterval && x.categoryValue);
+const serArticles = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it) => ({ articleValue: tidy(it?.articleValue) }))
+    .filter((x) => x.articleValue !== "");
+const serSubarticles = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it) => ({ subarticleInterval: tidy(it?.subarticleInterval), subarticleValue: tidy(it?.subarticleValue) }))
+    .filter((x) => x.subarticleInterval && x.subarticleValue);
+const serDesigns = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((d) => ({ id: d?.id || rid(), name: tidy(d?.name), url: tidy(d?.url), size: d?.size ?? null }))
+    .filter((d) => d.name && d.url);
+const serTags = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((t) => ({ id: t?.id || rid(), name: tidy(t?.name), color: isHex(t?.color) ? t.color : "#ffffff" }))
+    .filter((t) => t.name);
+
+function serializeForSave(v) {
+  return {
+    orderFields: {
+      intervals: serIntervals(v?.orderFields?.intervals),
+      categories: serCategories(v?.orderFields?.categories),
+      currency: serStrs(v?.orderFields?.currency),
+      tags: serTags(v?.orderFields?.tags),
+      techTags: serTags(v?.orderFields?.techTags),
+      taskTags: serTags(v?.orderFields?.taskTags),
+    },
+    executorFields: {
+      currency: serStrs(v?.executorFields?.currency),
+      role: serStrs(v?.executorFields?.role),
+    },
+    clientFields: {
+      source: serStrs(v?.clientFields?.source),
+      category: serStrs(v?.clientFields?.category),
+      country: serStrs(v?.clientFields?.country),
+      currency: serStrs(v?.clientFields?.currency),
+      tags: serTags(v?.clientFields?.tags),
+    },
+    employeeFields: {
+      country: serStrs(v?.employeeFields?.country),
+      tags: serTags(v?.employeeFields?.tags),
+    },
+    assetsFields: {
+      currency: serStrs(v?.assetsFields?.currency),
+      type: serStrs(v?.assetsFields?.type),
+      paymentSystem: serStrs(v?.assetsFields?.paymentSystem),
+      cardDesigns: serDesigns(v?.assetsFields?.cardDesigns),
+    },
+    financeFields: {
+      articles: serArticles(v?.financeFields?.articles),
+      subarticles: serSubarticles(v?.financeFields?.subarticles),
+      subcategory: serStrs(v?.financeFields?.subcategory),
+    },
+  };
+}
+
+/* =========================
+   Подкомпоненты UI
+   ========================= */
+
+// base text input list (строки)
+const EditableList = ({ items = [], placeholder, onChange, onRemove }) => (
+  <div className="category-fields-container">
+    {(items || []).map((val, i) => (
+      <div key={i} className="category-field-group">
+        <div className="category-container">
+          <div className="category-full">
+            <input
+              className="text-input"
+              type="text"
+              value={val}
+              placeholder={placeholder}
+              onChange={(e) => {
+                const next = [...items];
+                next[i] = e.target.value;
+                onChange(next);
+              }}
+            />
+          </div>
+          <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
+        </div>
+      </div>
+    ))}
+    <button className="add-category-btn" onClick={() => onChange([...(items || []), ""])}>+ Добавить</button>
+  </div>
+);
+
+// интервалы
+const IntervalFields = ({ intervals, onChange, onAdd, onRemove }) => (
+  <div className="field-row">
+    <label className="field-label">Интервал</label>
+    <div className="category-fields-container">
+      {(intervals || []).map((it, i) => (
+        <div key={it.id || i} className="category-field-group">
+          <div className="category-container">
+            <div className="category-full">
+              <input
+                className="text-input"
+                type="text"
+                value={it.intervalValue ?? ""}
+                placeholder="Введите интервал"
+                onChange={(e) => {
+                  const next = [...intervals];
+                  next[i] = { ...next[i], intervalValue: e.target.value };
+                  onChange(next);
+                }}
+              />
+            </div>
+            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
+          </div>
+        </div>
+      ))}
+      <button className="add-category-btn" onClick={onAdd}>+ Добавить интервал</button>
+    </div>
+  </div>
+);
+
+// категории (интервал + значение)
+const CategoryFields = ({ categories, intervalsOptions, onChange, onAdd, onRemove }) => (
+  <div className="field-row category-field">
+    <label className="field-label">Категория</label>
+    <div className="category-fields-container">
+      {(categories || []).map((c, i) => (
+        <div key={i} className="category-field-group">
+          <div className="category-container">
+            <div className="category-left">
+              <div className="dropdown-container">
+                <select
+                  className="text-input"
+                  value={c.categoryInterval || ""}
+                  onChange={(e) => {
+                    const next = [...categories];
+                    next[i] = { ...next[i], categoryInterval: e.target.value };
+                    onChange(next);
+                  }}
+                >
+                  <option value="">Выберите интервал…</option>
+                  {intervalsOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="category-right">
+              <input
+                className="text-input"
+                type="text"
+                value={c.categoryValue || ""}
+                placeholder="Введите значение"
+                onChange={(e) => {
+                  const next = [...categories];
+                  next[i] = { ...next[i], categoryValue: e.target.value };
+                  onChange(next);
+                }}
+              />
+            </div>
+            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
+          </div>
+        </div>
+      ))}
+      <button className="add-category-btn" onClick={onAdd}>+ Добавить категорию</button>
+    </div>
+  </div>
+);
+
+// статьи
+const ArticleFields = ({ articles, onChange, onAdd, onRemove }) => (
+  <div className="field-row">
+    <label className="field-label">Статья</label>
+    <div className="category-fields-container">
+      {(articles || []).map((a, i) => (
+        <div key={i} className="category-field-group">
+          <div className="category-container">
+            <div className="category-full">
+              <input
+                className="text-input"
+                type="text"
+                value={a.articleValue || ""}
+                placeholder="Введите статью"
+                onChange={(e) => {
+                  const next = [...articles];
+                  next[i] = { ...next[i], articleValue: e.target.value };
+                  onChange(next);
+                }}
+              />
+            </div>
+            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
+          </div>
+        </div>
+      ))}
+      <button className="add-category-btn" onClick={onAdd}>+ Добавить статью</button>
+    </div>
+  </div>
+);
+
+// подстатьи: выбор интервала = статья или подкатегория
+const SubarticleFields = ({ subarticles, articleOptions, subcategoryOptions, onChange, onAdd, onRemove }) => (
+  <div className="field-row article-field">
+    <label className="field-label">Подстатья</label>
+    <div className="category-fields-container">
+      {(subarticles || []).map((s, i) => (
+        <div key={i} className="category-field-group">
+          <div className="category-container">
+            <div className="category-left">
+              <select
+                className="text-input"
+                value={s.subarticleInterval || ""}
+                onChange={(e) => {
+                  const next = [...subarticles];
+                  next[i] = { ...next[i], subarticleInterval: e.target.value };
+                  onChange(next);
+                }}
+              >
+                <option value="">Выберите статью/подкатегорию…</option>
+                {articleOptions.map((name) => (
+                  <option key={`art-${name}`} value={name}>{name}</option>
+                ))}
+                {subcategoryOptions.map((name) => (
+                  <option key={`sub-${name}`} value={name}>{name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="category-right">
+              <input
+                className="text-input"
+                type="text"
+                value={s.subarticleValue || ""}
+                placeholder="Введите значение"
+                onChange={(e) => {
+                  const next = [...subarticles];
+                  next[i] = { ...next[i], subarticleValue: e.target.value };
+                  onChange(next);
+                }}
+              />
+            </div>
+            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
+          </div>
+        </div>
+      ))}
+      <button className="add-category-btn" onClick={onAdd}>+ Добавить подстатью</button>
+    </div>
+  </div>
+);
+
+// независимые теги {id,name,color}
+const TagList = ({ title, tags = [], onChange }) => {
+  const add = () => onChange([...(tags || []), { id: rid(), name: "", color: "#ffffff" }]);
+  const upd = (i, patch) => {
+    const next = [...(tags || [])];
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const del = (i) => onChange(tags.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="field-row">
+      {title && <label className="field-label">{title}</label>}
+      <div className="category-fields-container">
+        {(tags || []).map((t, i) => (
+          <div key={t.id || i} className="category-field-group">
+            <div className="category-container">
+              <div className="category-left">
+                <input
+                  className="text-input"
+                  type="text"
+                  placeholder="Название тега"
+                  value={t.name}
+                  onChange={(e) => upd(i, { name: e.target.value })}
+                />
+              </div>
+              <div className="category-right" style={{ flex: "0 0 120px", display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="color"
+                  value={t.color || "#ffffff"}
+                  onChange={(e) => upd(i, { color: e.target.value })}
+                  title="Цвет"
+                  style={{ width: 40, height: 32, border: "none", background: "transparent", cursor: "pointer" }}
+                />
+                <input
+                  className="text-input"
+                  type="text"
+                  value={t.color || "#ffffff"}
+                  onChange={(e) => upd(i, { color: e.target.value })}
+                  placeholder="#ffffff"
+                />
+              </div>
+              <button className="remove-category-btn" onClick={() => del(i)} title="Удалить">×</button>
+            </div>
+          </div>
+        ))}
+        <button className="add-category-btn" onClick={add}>+ Добавить тег</button>
+      </div>
+    </div>
+  );
+};
+
+// Загрузка дизайнов карт
+const CardDesignUpload = ({ items = [], onChange, onRemove, onError }) => {
+  const inputRefs = useRef([]);
+
+  const safeUrl = (u) => {
+    const s = tidy(u);
+    if (!s) return "";
+    if (s.startsWith("data:") || /^https?:\/\//i.test(s)) return s;
+    try { return fileUrl(s); } catch { return s; }
+  };
+
+  const ensure = (arr, i) => {
+    const next = [...arr];
+    next[i] = { id: next[i]?.id || rid(), name: next[i]?.name || "", url: next[i]?.url || "", size: next[i]?.size ?? null };
+    return next;
+    };
+
+  const trigger = (i) => inputRefs.current[i]?.click();
+
+  const onFile = (e, i) => {
+    const f = (e.target.files || [])[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      onError?.("Неверный формат", "Выберите изображение.");
+      e.target.value = "";
+      return;
+    }
+    if (f.size > MAX_IMAGE_BYTES) {
+      onError?.("Файл слишком большой", `Максимум ${(MAX_IMAGE_BYTES / 1024).toFixed(0)} KB`);
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const next = ensure(items, i);
+      next[i] = { ...next[i], url: ev.target.result, size: f.size };
+      onChange(next);
+    };
+    reader.onerror = () => onError?.("Ошибка чтения", "Не удалось прочитать файл.");
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+
+  const add = () => onChange([...(items || []), { id: rid(), name: "", url: "", size: null }]);
+
+  return (
+    <div className="category-fields-container">
+      {(items || []).map((d, i) => (
+        <div key={d.id || i} className="category-field-group">
+          <div className="card-design-row">
+            <div className="card-design-input">
+              <input
+                className="text-input"
+                type="text"
+                value={d.name || ""}
+                placeholder="Название дизайна"
+                onChange={(e) => {
+                  const next = ensure(items, i);
+                  next[i] = { ...next[i], name: e.target.value };
+                  onChange(next);
+                }}
+              />
+            </div>
+            <div className="card-design-upload">
+              <input
+                ref={(el) => (inputRefs.current[i] = el)}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => onFile(e, i)}
+              />
+              <div className="card-design-preview" title="Кликните, чтобы заменить" onClick={() => trigger(i)}>
+                {d.url ? (
+                  <img className="card-design-image" src={safeUrl(d.url)} alt={d.name || "design"} />
+                ) : (
+                  <div className="card-design-placeholder upload-design-btn">+ Загрузить изображение</div>
+                )}
+              </div>
+              <div className="card-design-actions" style={{ marginLeft: 8 }}>
+                <button className="upload-design-btn" onClick={() => trigger(i)}>Заменить</button>
+                <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button className="add-category-btn" onClick={add}>+ Добавить дизайн карты</button>
+    </div>
+  );
+};
+
+/* =========================
+   Основной компонент
+   ========================= */
+function FieldsPage() {
+  const [data, setData] = useState(null);
+  const [saved, setSaved] = useState(null);
+  const [active, setActive] = useState("order");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [modal, setModal] = useState({ open: false });
+
+  const hasChanges = useMemo(() => JSON.stringify(data) !== JSON.stringify(saved), [data, saved]);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const raw = await fetchFields();
+        const norm = normalizeFromBackend(raw);
+        setData(norm);
+        setSaved(norm);
+      } catch (e) {
+        setModal({
+          open: true,
+          title: "Ошибка загрузки",
+          message: e?.message || "Не удалось получить данные.",
+          confirmText: "OK",
+          onConfirm: () => setModal({ open: false }),
+        });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const patch = (path, value) => {
+    setData((prev) => {
+      const next = structuredClone(prev);
+      const parts = path.split(".");
+      let obj = next;
+      for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
+      obj[parts.at(-1)] = value;
+      return next;
+    });
+  };
+
+  const save = async () => {
+    try {
+      setSaving(true);
+      const payload = serializeForSave(data);
+      await saveFields(payload);
+      const raw = await fetchFields();
+      const norm = normalizeFromBackend(raw);
+      setData(norm);
+      setSaved(norm);
+    } catch (e) {
+      setModal({
+        open: true,
+        title: "Ошибка сохранения",
+        message: e?.message || "Не удалось сохранить изменения.",
+        confirmText: "OK",
+        onConfirm: () => setModal({ open: false }),
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancel = () => setData(saved);
+
+  /* ======== Рендер ======== */
+  if (loading || !data) {
+    return (
+      <div className="fields-main-container">
+        <Sidebar />
+        <div className="fields-main-container-wrapper">
+          <div className="header">
+            <div className="header-content">
+              <div className="header-left"><h1 className="lists-title">СПИСКИ</h1></div>
+              <div className="header-actions"><span className="loading-label">Загрузка…</span></div>
+            </div>
+          </div>
+          <div className="fields-container" />
+        </div>
+      </div>
+    );
+  }
+
+  const intervalsOptions = (data.orderFields.intervals || [])
+    .map((i) => tidy(i.intervalValue))
+    .filter(Boolean);
+
+  const articleOptions = (data.financeFields.articles || [])
+    .map((a) => tidy(a.articleValue))
+    .filter(Boolean);
+
+  return (
+    <div className="fields-main-container">
+      <Sidebar />
+      <div className="fields-main-container-wrapper">
+        <div className="header">
+          <div className="header-content">
+            <div className="header-left"><h1 className="lists-title">СПИСКИ</h1></div>
+            <div className="header-actions">
+              {saving && <span className="loading-label">Сохранение…</span>}
+              {hasChanges && !saving && (
+                <>
+                  <button className="save-btn" onClick={save}>Сохранить</button>
+                  <button className="cancel-btn" onClick={cancel}>Отменить</button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="fields-container">
+          <div className="main-content-wrapper">
+            <div className="tabs-content-wrapper">
+              <div className="tabs-container">
+                {tabs.map((t) => (
+                  <button
+                    key={t.key}
+                    className={`tab-button ${active === t.key ? "active" : ""}`}
+                    onClick={() => setActive(t.key)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="fields-content">
+                <div className="fields-box">
+                  {/* Заказ */}
+                  {active === "order" && (
+                    <div className="fields-vertical-grid">
+                      <IntervalFields
+                        intervals={data.orderFields.intervals}
+                        onChange={(v) => patch("orderFields.intervals", v)}
+                        onAdd={() => patch("orderFields.intervals", [...data.orderFields.intervals, { id: rid(), intervalValue: "" }])}
+                        onRemove={(i) => patch("orderFields.intervals", data.orderFields.intervals.filter((_, idx) => idx !== i))}
+                      />
+
+                      <CategoryFields
+                        categories={data.orderFields.categories}
+                        intervalsOptions={intervalsOptions}
+                        onChange={(v) => patch("orderFields.categories", v)}
+                        onAdd={() => patch("orderFields.categories", [...data.orderFields.categories, { categoryInterval: "", categoryValue: "" }])}
+                        onRemove={(i) => patch("orderFields.categories", data.orderFields.categories.filter((_, idx) => idx !== i))}
+                      />
+
+                      <div className="field-row">
+                        <label className="field-label">Валюта</label>
+                        <EditableList
+                          items={data.orderFields.currency}
+                          placeholder="Введите валюту"
+                          onChange={(v) => patch("orderFields.currency", v)}
+                          onRemove={(i) => patch("orderFields.currency", data.orderFields.currency.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+
+                      <TagList title="Теги заказа" tags={data.orderFields.tags} onChange={(v) => patch("orderFields.tags", v)} />
+                      <TagList title="Теги технологий (заказ)" tags={data.orderFields.techTags} onChange={(v) => patch("orderFields.techTags", v)} />
+                      <TagList title="Теги задач (заказ)" tags={data.orderFields.taskTags} onChange={(v) => patch("orderFields.taskTags", v)} />
+                    </div>
+                  )}
+
+                  {/* Исполнитель */}
+                  {active === "executor" && (
+                    <div className="fields-vertical-grid">
+                      <div className="field-row">
+                        <label className="field-label">Валюта</label>
+                        <EditableList
+                          items={data.executorFields.currency}
+                          placeholder="Введите валюту"
+                          onChange={(v) => patch("executorFields.currency", v)}
+                          onRemove={(i) => patch("executorFields.currency", data.executorFields.currency.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Роль</label>
+                        <EditableList
+                          items={data.executorFields.role}
+                          placeholder="Введите роль"
+                          onChange={(v) => patch("executorFields.role", v)}
+                          onRemove={(i) => patch("executorFields.role", data.executorFields.role.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Клиент */}
+                  {active === "client" && (
+                    <div className="fields-vertical-grid">
+                      <div className="field-row">
+                        <label className="field-label">Источник</label>
+                        <EditableList
+                          items={data.clientFields.source}
+                          placeholder="Введите источник"
+                          onChange={(v) => patch("clientFields.source", v)}
+                          onRemove={(i) => patch("clientFields.source", data.clientFields.source.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Категория</label>
+                        <EditableList
+                          items={data.clientFields.category}
+                          placeholder="Введите категорию"
+                          onChange={(v) => patch("clientFields.category", v)}
+                          onRemove={(i) => patch("clientFields.category", data.clientFields.category.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Страна</label>
+                        <EditableList
+                          items={data.clientFields.country}
+                          placeholder="Введите страну"
+                          onChange={(v) => patch("clientFields.country", v)}
+                          onRemove={(i) => patch("clientFields.country", data.clientFields.country.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Валюта</label>
+                        <EditableList
+                          items={data.clientFields.currency}
+                          placeholder="Введите валюту"
+                          onChange={(v) => patch("clientFields.currency", v)}
+                          onRemove={(i) => patch("clientFields.currency", data.clientFields.currency.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+
+                      <TagList title="Теги клиента" tags={data.clientFields.tags} onChange={(v) => patch("clientFields.tags", v)} />
+                    </div>
+                  )}
+
+                  {/* Сотрудник */}
+                  {active === "employee" && (
+                    <div className="fields-vertical-grid">
+                      <div className="field-row">
+                        <label className="field-label">Страна</label>
+                        <EditableList
+                          items={data.employeeFields.country}
+                          placeholder="Введите страну"
+                          onChange={(v) => patch("employeeFields.country", v)}
+                          onRemove={(i) => patch("employeeFields.country", data.employeeFields.country.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <TagList title="Теги сотрудника" tags={data.employeeFields.tags} onChange={(v) => patch("employeeFields.tags", v)} />
+                    </div>
+                  )}
+
+                  {/* Активы */}
+                  {active === "assets" && (
+                    <div className="fields-vertical-grid">
+                      <div className="field-row">
+                        <label className="field-label">Валюта счёта</label>
+                        <EditableList
+                          items={data.assetsFields.currency}
+                          placeholder="Введите валюту"
+                          onChange={(v) => patch("assetsFields.currency", v)}
+                          onRemove={(i) => patch("assetsFields.currency", data.assetsFields.currency.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Тип</label>
+                        <EditableList
+                          items={data.assetsFields.type}
+                          placeholder="Введите тип"
+                          onChange={(v) => patch("assetsFields.type", v)}
+                          onRemove={(i) => patch("assetsFields.type", data.assetsFields.type.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Платёжная система</label>
+                        <EditableList
+                          items={data.assetsFields.paymentSystem}
+                          placeholder="Введите платежную систему"
+                          onChange={(v) => patch("assetsFields.paymentSystem", v)}
+                          onRemove={(i) => patch("assetsFields.paymentSystem", data.assetsFields.paymentSystem.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label className="field-label">Дизайн карты</label>
+                        <CardDesignUpload
+                          items={data.assetsFields.cardDesigns}
+                          onChange={(v) => patch("assetsFields.cardDesigns", v)}
+                          onRemove={(i) => patch("assetsFields.cardDesigns", data.assetsFields.cardDesigns.filter((_, idx) => idx !== i))}
+                          onError={(title, message) =>
+                            setModal({ open: true, title, message, confirmText: "OK", onConfirm: () => setModal({ open: false }) })
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Финансы */}
+                  {active === "finance" && (
+                    <div className="fields-vertical-grid">
+                      <ArticleFields
+                        articles={data.financeFields.articles}
+                        onChange={(v) => patch("financeFields.articles", v)}
+                        onAdd={() => patch("financeFields.articles", [...data.financeFields.articles, { articleValue: "" }])}
+                        onRemove={(i) => patch("financeFields.articles", data.financeFields.articles.filter((_, idx) => idx !== i))}
+                      />
+
+                      <div className="field-row">
+                        <label className="field-label">Подкатегория</label>
+                        <EditableList
+                          items={data.financeFields.subcategory}
+                          placeholder="Введите подкатегорию"
+                          onChange={(v) => patch("financeFields.subcategory", v)}
+                          onRemove={(i) => patch("financeFields.subcategory", data.financeFields.subcategory.filter((_, idx) => idx !== i))}
+                        />
+                      </div>
+
+                      <SubarticleFields
+                        subarticles={data.financeFields.subarticles}
+                        articleOptions={articleOptions}
+                        subcategoryOptions={data.financeFields.subcategory}
+                        onChange={(v) => patch("financeFields.subarticles", v)}
+                        onAdd={() => patch("financeFields.subarticles", [...data.financeFields.subarticles, { subarticleInterval: "", subarticleValue: "" }])}
+                        onRemove={(i) => patch("financeFields.subarticles", data.financeFields.subarticles.filter((_, idx) => idx !== i))}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {modal.open && (
+        <ConfirmationModal
+          title={modal.title}
+          message={modal.message}
+          confirmText={modal.confirmText || "OK"}
+          cancelText={modal.cancelText || "Закрыть"}
+          onConfirm={modal.onConfirm}
+          onCancel={modal.onCancel || (() => setModal({ open: false }))}
+        />
+      )}
+    </div>
+  );
+}
+
+export default FieldsPage;
