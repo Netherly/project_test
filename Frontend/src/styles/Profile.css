@@ -95,7 +95,7 @@
 }
 
 /* Основные инпуты */
-.profile-fields input[type="text"],
+/* .profile-fields input[type="text"],
 .profile-fields input[type="password"],
 .profile-fields input[type="email"],
 .profile-fields select:not(.requisites-select) {
@@ -104,13 +104,13 @@
     border: 1px solid #37474f;
     padding: 8px;
     border-radius: 4px;
-}
+} */
 
-input[name="nickname"],
+/* input[name="nickname"],
 input[name="password"],
 input[name="email"] {
     width: 270px;
-}
+} */
 
 /* Таблицы */
 .hourly-pay-table,

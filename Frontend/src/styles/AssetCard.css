@@ -90,7 +90,10 @@
   position: relative; 
 }
 
-
+.card-top-left-name{
+  display: flex;
+  flex-direction: column;
+}
 .card-top-right-actions {
   position: absolute;
   top: 10px;

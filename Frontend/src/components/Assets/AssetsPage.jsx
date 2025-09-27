@@ -469,9 +469,11 @@ const AssetsPage = () => {
                                         <th rowSpan="2">Баланс</th>
                                         <th rowSpan="2">Свободный</th>
                                         <th rowSpan="2">Реквизиты</th>
+                                        <th rowSpan="2">Сотрудник</th>
                                         <th colSpan="4" className="turnover-header">Оборот за текущий месяц</th>
                                     </tr>
                                     <tr>
+                                        <th>Лимит оборота</th>
                                         <th>Баланс на начал.</th>
                                         <th>Зачисления</th>
                                         <th>Списания</th>
@@ -485,6 +487,8 @@ const AssetsPage = () => {
                                                 <td colSpan="2">{currency}</td>
                                                 <td>{data.totalBalance.toFixed(2)}</td>
                                                 <td>{data.totalBalanceUAH.toFixed(2)}</td>
+                                                <td></td>
+                                                <td></td>
                                                 <td></td>
                                                 <td>{data.totalTurnoverStartBalance.toFixed(2)}</td>
                                                 <td>{data.totalTurnoverIncoming.toFixed(2)}</td>
@@ -521,6 +525,8 @@ const AssetsPage = () => {
                                                             ></span>
                                                         </div>
                                                     </td>
+                                                    <td>{asset.employee}</td>
+                                                    <td>{asset.limitTurnover}</td>
                                                     <td>{asset.turnoverStartBalance.toFixed(2)}</td>
                                                     <td>{asset.turnoverIncoming.toFixed(2)}</td>
                                                     <td>{asset.turnoverOutgoing.toFixed(2)}</td>
@@ -529,7 +535,7 @@ const AssetsPage = () => {
                                             ))}
                                             {index < Object.keys(assetsByCurrency).length - 1 && (
                                                 <tr className="table-section-divider">
-                                                    <td colSpan="9"></td>
+                                                    <td colSpan="11"></td>
                                                 </tr>
                                             )}
                                         </React.Fragment>
