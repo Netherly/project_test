@@ -1,227 +1,145 @@
-
-<<<<<<< Updated upstream
+/* ===== Overlay ===== */
 .employee-modal-overlay {
   position: fixed;
   top: 0;
-  left: 72px;
+  left: 72px;                 /* ширина сайдбара */
   width: calc(100% - 72px);
-=======
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
->>>>>>> Stashed changes
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7); 
+  background-color: rgba(0, 0, 0, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
-<<<<<<< Updated upstream
-  z-index: 87;
-=======
   z-index: 1000;
->>>>>>> Stashed changes
   opacity: 0;
   transition: opacity 0.3s ease;
 }
-
-<<<<<<< Updated upstream
 .employee-modal-overlay.open {
-=======
-.modal-overlay.open {
->>>>>>> Stashed changes
   opacity: 1;
 }
 
-
+/* ===== Modal shell ===== */
 .employee-modal.tri-layout {
   display: flex;
-  width: 100%; 
+  width: 100%;
   height: 100vh;
-  
-<<<<<<< Updated upstream
-  background: var(--bg-color); 
-  color: var(--chips-color);
-=======
-  background: #2a2a3e; 
-  color: #e0e0e0;
->>>>>>> Stashed changes
-  
+  background: var(--bg-color);
+  color: var(--chips-color, var(--text-color));
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  overflow: hidden; 
-  
-  
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  overflow: hidden;
   transform: scale(0.95);
   opacity: 0;
   transition: transform 0.3s ease-out, opacity 0.3s ease-out;
 }
-
-<<<<<<< Updated upstream
 .employee-modal-overlay.open .employee-modal.tri-layout {
-=======
-.modal-overlay.open .employee-modal.tri-layout {
->>>>>>> Stashed changes
   transform: scale(1);
   opacity: 1;
 }
 
-
+/* ===== Columns ===== */
 .left-panel {
-  flex: 0 0 700px; 
+  flex: 0 0 700px;
   display: flex;
-<<<<<<< Updated upstream
-  flex-direction: column; 
-=======
   flex-direction: column;
-  background-color: #2a2a3e; 
-  border-right: 1px solid #444; 
->>>>>>> Stashed changes
+  background-color: var(--container-bg);
+  border-right: 1px solid var(--border--color);
 }
-
 
 .chat-panel-wrapper {
-  flex: 1 1 auto; 
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-<<<<<<< Updated upstream
-=======
-  background-color: #252538; 
-  border-right: 1px solid #444;
->>>>>>> Stashed changes
+  background-color: var(--container-bg);
+  border-right: 1px solid var(--border--color);
 }
 
-
 .actions-panel {
-  flex: 0 0 300px; 
+  flex: 0 0 300px;
   display: flex;
   flex-direction: column;
-<<<<<<< Updated upstream
-=======
-  background-color: #2a2a3e; 
->>>>>>> Stashed changes
+  background-color: var(--container-bg);
   padding: 15px;
 }
 
-
-<<<<<<< Updated upstream
-.chat-placeholder{
-  background-color: var(--container-bg);
-}
-
-=======
->>>>>>> Stashed changes
+/* ===== Placeholders ===== */
 .chat-placeholder,
 .actions-placeholder {
   display: flex;
   justify-content: center;
   align-items: center;
-<<<<<<< Updated upstream
-=======
-  color: #888;
-  background-color: #1e1e2d; 
->>>>>>> Stashed changes
+  color: var(--muted-text, #888);
+  background-color: var(--bg-color);
   text-align: center;
   padding: 20px;
   height: 100%;
 }
 
-
-<<<<<<< Updated upstream
+/* ===== Body / Tabs / Form ===== */
 .employee-modal-body {
   flex-grow: 1;
   overflow-y: auto;
-=======
-.modal-body {
-  flex-grow: 1;
-  overflow-y: auto;
   padding: 24px;
-  background: #1e1e2d;
->>>>>>> Stashed changes
+  background: var(--bg-color);
 }
 
 .tab-section {
   display: grid;
-<<<<<<< Updated upstream
-  gap: 16px 24px;
-  padding: 24px;
-=======
   grid-template-columns: 1fr 1fr;
   gap: 16px 24px;
->>>>>>> Stashed changes
 }
 
+/* поле формы (label + control) */
 .form-field {
   display: flex;
-<<<<<<< Updated upstream
   flex-direction: row;
   align-items: flex-start;
-  padding: 8px 0;
   gap: 15px;
-=======
-  flex-direction: column;
->>>>>>> Stashed changes
+  padding: 8px 0;
 }
-.form-field.full-width, .form-fieldset {
+.form-field.full-width,
+.form-fieldset {
   grid-column: 1 / -1;
   border: none;
 }
+
 .form-field label {
-<<<<<<< Updated upstream
-  align-items: center;
   width: 220px;
   font-weight: 500;
   font-size: 14px;
-  color: var(--chips-color);
-  flex-shrink: 0;
+  color: var(--chips-color, var(--text-color));
   padding-top: 4px;
+  flex-shrink: 0;
 }
 
 .form-field input,
-.form-field select{
+.form-field select {
   background-color: var(--container-bg);
-    border: none;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    color: var(--container-text-color);
-    padding: 10px 12px;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
-    min-width: 170px;
+  border: none;
+  outline: none;
+  appearance: none;
+  color: var(--container-text-color, var(--text-color));
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(128,128,128,0.3);
+  min-width: 170px;
 }
 
 .form-field textarea {
+  background-color: var(--container-bg);
   border: 1px solid #555;
   border-radius: 4px;
   padding: 10px 12px;
-=======
-  font-size: 13px;
-  color: #c0c0c0;
-  margin-bottom: 6px;
-}
-.form-field input,
-.form-field select,
-.form-field textarea {
-  background: #252538;
-  border: 1px solid #555;
-  border-radius: 4px;
-  padding: 10px 12px;
-  color: #e0e0e0;
->>>>>>> Stashed changes
+  color: var(--container-text-color, var(--text-color));
   font-size: 14px;
-  transition: border-color 0.2s;
 }
+
 .form-field input:focus,
 .form-field select:focus,
 .form-field textarea:focus {
   outline: none;
-<<<<<<< Updated upstream
-=======
-  border-color: #6a6aff;
->>>>>>> Stashed changes
+  border-color: var(--input-border-focus, #6a6aff);
 }
+
+/* ошибки */
 .error {
   font-size: 12px;
   color: #ff8a8a;
@@ -231,15 +149,14 @@
   border-color: #ff8a8a !important;
 }
 
-<<<<<<< Updated upstream
-=======
-/* Кнопки "Сбросить" / "Сохранить" */
+/* ===== Bottom actions ===== */
 .form-actions-bottom {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid #444; 
+  border-top: 1px solid var(--border--color);
+  background: var(--container-bg);
 }
 .form-actions-bottom button {
   all: unset;
@@ -251,7 +168,7 @@
 }
 .form-actions-bottom button[type="submit"] {
   background: #6a6aff;
-  color: white;
+  color: #fff;
 }
 .form-actions-bottom button[type="submit"]:hover {
   background: #5a5aff;
@@ -267,17 +184,12 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
->>>>>>> Stashed changes
 
-/* Стили для табов */
+/* ===== Tabs nav ===== */
 .tabs-nav {
   padding: 0 16px;
-<<<<<<< Updated upstream
-  background: var(--bg-menu-color);
-=======
-  border-top: 1px solid #444;
-  background: #2a2a3e;
->>>>>>> Stashed changes
+  background: var(--bg-menu-color, var(--container-bg));
+  border-top: 1px solid var(--border--color);
 }
 .tabs-nav ul {
   display: flex;
@@ -293,16 +205,27 @@
   color: #a0a0b0;
   font-size: 0.9rem;
   transition: all 0.2s;
-  position: relative;
   border-bottom: 3px solid transparent;
 }
 .tabs-nav li.active button {
-  color: #ffffff;
-  font-weight: 400;
+  color: #fff;
+  font-weight: 500;
+  border-bottom-color: var(--input-border-focus, #6a6aff);
 }
 .tabs-nav li button:hover {
-  color: #ffffff;
+  color: #fff;
 }
 .tabs-nav li.error button {
-  box-shadow: inset 0 -3px 0 #c0392b; 
+  box-shadow: inset 0 -3px 0 #c0392b;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1200px) {
+  .left-panel { flex-basis: 560px; }
+  .actions-panel { flex-basis: 280px; }
+}
+@media (max-width: 992px) {
+  .tab-section { grid-template-columns: 1fr; }
+  .form-field { flex-direction: column; }
+  .form-field label { width: 100%; padding-top: 0; }
 }

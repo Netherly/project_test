@@ -1,5 +1,5 @@
 // src/pages/FieldsPage.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
 import "../styles/Fields.css";
 import { fetchFields, saveFields } from "../api/fields";
@@ -14,23 +14,84 @@ const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const tidy = (v) => String(v ?? "").trim();
 const isHex = (c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(c || ""));
 
-const tabs = [
-  { key: "order", label: "Поля заказа" },
-  { key: "executor", label: "Поля исполнителя" },
-  { key: "client", label: "Поля клиента" },
-  { key: "employee", label: "Поля сотрудника" },
-  { key: "assets", label: "Поля активов" },
-  { key: "finance", label: "Поля финансов" },
+const uniqStrs = (arr) => {
+  const seen = new Set();
+  const out = [];
+  for (const raw of arr || []) {
+    const v = tidy(raw);
+    if (!v) continue;
+    const k = v.toLowerCase();
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(v);
+    }
+  }
+  return out;
+};
+
+const uniqTags = (arr) => {
+  const seen = new Set();
+  const out = [];
+  for (const t of arr || []) {
+    const name = tidy(t?.name);
+    if (!name) continue;
+    const color = isHex(t?.color) ? t.color : "#ffffff";
+    const k = name.toLowerCase();
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push({ id: t?.id || rid(), name, color });
+    }
+  }
+  return out;
+};
+
+const safeFileUrl = (u) => {
+  if (!u) return "";
+  const s = tidy(u);
+  if (s.startsWith("data:")) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  try { return fileUrl(s); } catch { return s; }
+};
+
+const tabsConfig = [
+  { key: "orderFields", label: "Поля заказа" },
+  { key: "executorFields", label: "Поля исполнителя" },
+  { key: "clientFields", label: "Поля клиента" },
+  { key: "employeeFields", label: "Поля сотрудника" },
+  { key: "assetsFields", label: "Поля активов" },
+  { key: "financeFields", label: "Поля финансов" },
 ];
+
+/* =========================
+   Стартовые значения
+   ========================= */
+const initialValues = {
+  orderFields: {
+    intervals: [{ intervalValue: "" }],
+    categories: [{ categoryInterval: "", categoryValue: "" }],
+    currency: [],
+    tags: [],
+    techTags: [],
+    taskTags: [],
+  },
+  executorFields: { currency: [], role: [] },
+  clientFields: { source: [], category: [], country: [], currency: [], tags: [] },
+  employeeFields: { country: [], tags: [] },
+  assetsFields: { currency: [], type: [], paymentSystem: [], cardDesigns: [] },
+  financeFields: {
+    articles: [{ articleValue: "" }],
+    subarticles: [{ subarticleInterval: "", subarticleValue: "" }],
+    subcategory: [],
+  },
+};
 
 /* =========================
    Нормализация (бэк → фронт)
    ========================= */
-
 const normStrs = (arr) =>
-  (Array.isArray(arr) ? arr : [])
-    .map((v) => (typeof v === "string" ? tidy(v) : tidy(v?.name ?? v?.value)))
-    .filter(Boolean);
+  uniqStrs((Array.isArray(arr) ? arr : []).map((v) =>
+    typeof v === "string" ? tidy(v) : tidy(v?.name ?? v?.value)
+  ));
 
 const normIntervals = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
@@ -63,55 +124,51 @@ const normDesigns = (arr) =>
     size: d?.size ?? null,
   }));
 
-// независимые теги {id,name,color}
 const normTags = (arr) =>
-  (Array.isArray(arr) ? arr : [])
-    .map((t) => {
-      if (typeof t === "string") return { id: rid(), name: tidy(t), color: "#ffffff" };
-      return {
-        id: t?.id || rid(),
-        name: tidy(t?.name ?? t?.value),
-        color: isHex(t?.color) ? t.color : "#ffffff",
-      };
-    })
-    .filter((t) => t.name !== "");
+  uniqTags((Array.isArray(arr) ? arr : []).map((t) => {
+    if (typeof t === "string") return { id: rid(), name: tidy(t), color: "#ffffff" };
+    return { id: t?.id || rid(), name: tidy(t?.name ?? t?.value), color: isHex(t?.color) ? t.color : "#ffffff" };
+  }));
 
-function normalizeFromBackend(payload) {
-  const data = payload?.ok && payload?.data ? payload.data : payload || {};
+function normalizeFromBackend(input) {
+  const data = input?.ok && input?.data ? input.data : input || {};
   return {
     orderFields: {
+      ...initialValues.orderFields,
       intervals: normIntervals(data?.orderFields?.intervals),
       categories: normCategories(data?.orderFields?.categories),
       currency: normStrs(data?.orderFields?.currency),
-      // независимые наборы тегов в заказах
-      tags: normTags(data?.orderFields?.tags),           // «общие теги заказа»
-      techTags: normTags(data?.orderFields?.techTags),   // теги технологий
-      taskTags: normTags(data?.orderFields?.taskTags),   // теги задач
+      tags: normTags(data?.orderFields?.tags),
+      techTags: normTags(data?.orderFields?.techTags),
+      taskTags: normTags(data?.orderFields?.taskTags),
     },
     executorFields: {
+      ...initialValues.executorFields,
       currency: normStrs(data?.executorFields?.currency),
       role: normStrs(data?.executorFields?.role),
     },
     clientFields: {
+      ...initialValues.clientFields,
       source: normStrs(data?.clientFields?.source),
       category: normStrs(data?.clientFields?.category),
       country: normStrs(data?.clientFields?.country),
       currency: normStrs(data?.clientFields?.currency),
-      // теги клиента (независимые)
       tags: normTags(data?.clientFields?.tags ?? data?.clientFields?.tag),
     },
     employeeFields: {
+      ...initialValues.employeeFields,
       country: normStrs(data?.employeeFields?.country),
-      // теги сотрудника (независимые)
       tags: normTags(data?.employeeFields?.tags),
     },
     assetsFields: {
+      ...initialValues.assetsFields,
       currency: normStrs(data?.assetsFields?.currency),
       type: normStrs(data?.assetsFields?.type),
       paymentSystem: normStrs(data?.assetsFields?.paymentSystem),
       cardDesigns: normDesigns(data?.assetsFields?.cardDesigns),
     },
     financeFields: {
+      ...initialValues.financeFields,
       articles: normArticles(data?.financeFields?.articles),
       subarticles: normSubarticles(data?.financeFields?.subarticles),
       subcategory: normStrs(data?.financeFields?.subcategory),
@@ -122,8 +179,7 @@ function normalizeFromBackend(payload) {
 /* =========================
    Сериализация (фронт → бэк)
    ========================= */
-
-const serStrs = (arr) => (Array.isArray(arr) ? arr : []).map((v) => tidy(v)).filter(Boolean);
+const serStrs = (arr) => uniqStrs((Array.isArray(arr) ? arr : []).map((v) => tidy(v)));
 const serIntervals = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value) }))
@@ -144,246 +200,186 @@ const serDesigns = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .map((d) => ({ id: d?.id || rid(), name: tidy(d?.name), url: tidy(d?.url), size: d?.size ?? null }))
     .filter((d) => d.name && d.url);
-const serTags = (arr) =>
-  (Array.isArray(arr) ? arr : [])
-    .map((t) => ({ id: t?.id || rid(), name: tidy(t?.name), color: isHex(t?.color) ? t.color : "#ffffff" }))
-    .filter((t) => t.name);
+const serTags = (arr) => uniqTags(arr);
 
-function serializeForSave(v) {
+function serializeForSave(values) {
   return {
     orderFields: {
-      intervals: serIntervals(v?.orderFields?.intervals),
-      categories: serCategories(v?.orderFields?.categories),
-      currency: serStrs(v?.orderFields?.currency),
-      tags: serTags(v?.orderFields?.tags),
-      techTags: serTags(v?.orderFields?.techTags),
-      taskTags: serTags(v?.orderFields?.taskTags),
+      intervals: serIntervals(values?.orderFields?.intervals),
+      categories: serCategories(values?.orderFields?.categories),
+      currency: serStrs(values?.orderFields?.currency),
+      tags: serTags(values?.orderFields?.tags),
+      techTags: serTags(values?.orderFields?.techTags),
+      taskTags: serTags(values?.orderFields?.taskTags),
     },
     executorFields: {
-      currency: serStrs(v?.executorFields?.currency),
-      role: serStrs(v?.executorFields?.role),
+      currency: serStrs(values?.executorFields?.currency),
+      role: serStrs(values?.executorFields?.role),
     },
     clientFields: {
-      source: serStrs(v?.clientFields?.source),
-      category: serStrs(v?.clientFields?.category),
-      country: serStrs(v?.clientFields?.country),
-      currency: serStrs(v?.clientFields?.currency),
-      tags: serTags(v?.clientFields?.tags),
+      source: serStrs(values?.clientFields?.source),
+      category: serStrs(values?.clientFields?.category),
+      country: serStrs(values?.clientFields?.country),
+      currency: serStrs(values?.clientFields?.currency),
+      tags: serTags(values?.clientFields?.tags),
     },
     employeeFields: {
-      country: serStrs(v?.employeeFields?.country),
-      tags: serTags(v?.employeeFields?.tags),
+      country: serStrs(values?.employeeFields?.country),
+      tags: serTags(values?.employeeFields?.tags),
     },
     assetsFields: {
-      currency: serStrs(v?.assetsFields?.currency),
-      type: serStrs(v?.assetsFields?.type),
-      paymentSystem: serStrs(v?.assetsFields?.paymentSystem),
-      cardDesigns: serDesigns(v?.assetsFields?.cardDesigns),
+      currency: serStrs(values?.assetsFields?.currency),
+      type: serStrs(values?.assetsFields?.type),
+      paymentSystem: serStrs(values?.assetsFields?.paymentSystem),
+      cardDesigns: serDesigns(values?.assetsFields?.cardDesigns),
     },
     financeFields: {
-      articles: serArticles(v?.financeFields?.articles),
-      subarticles: serSubarticles(v?.financeFields?.subarticles),
-      subcategory: serStrs(v?.financeFields?.subcategory),
+      articles: serArticles(values?.financeFields?.articles),
+      subarticles: serSubarticles(values?.financeFields?.subarticles),
+      subcategory: serStrs(values?.financeFields?.subcategory),
     },
   };
 }
 
 /* =========================
-   Подкомпоненты UI
+   Общие справочники и операции
+   ========================= */
+const SHARED_STRING_MAP = {
+  currency: [
+    ["orderFields", "currency"],
+    ["executorFields", "currency"],
+    ["clientFields", "currency"],
+    ["assetsFields", "currency"],
+  ],
+  country: [
+    ["clientFields", "country"],
+    ["employeeFields", "country"],
+  ],
+};
+
+function clone(v) {
+  return JSON.parse(JSON.stringify(v));
+}
+
+function removeValueEverywhere(values, key, valueToRemove) {
+  const next = clone(values);
+  const targets = SHARED_STRING_MAP[key] || [];
+  for (const [group, field] of targets) {
+    const arr = Array.isArray(next?.[group]?.[field]) ? next[group][field] : [];
+    next[group][field] = arr.filter((v) => v !== valueToRemove);
+  }
+  return next;
+}
+
+function renameValueEverywhere(values, key, oldVal, newVal) {
+  const next = clone(values);
+  const targets = SHARED_STRING_MAP[key] || [];
+  for (const [group, field] of targets) {
+    let arr = Array.isArray(next?.[group]?.[field]) ? next[group][field] : [];
+    arr = arr.map((v) => (v === oldVal ? newVal : v));
+    arr = uniqStrs(arr);
+    next[group][field] = arr;
+  }
+  return next;
+}
+
+/* =========================
+   Подкомпоненты
    ========================= */
 
-// base text input list (строки)
-const EditableList = ({ items = [], placeholder, onChange, onRemove }) => (
-  <div className="category-fields-container">
-    {(items || []).map((val, i) => (
-      <div key={i} className="category-field-group">
-        <div className="category-container">
-          <div className="category-full">
-            <input
-              className="text-input"
-              type="text"
-              value={val}
-              placeholder={placeholder}
-              onChange={(e) => {
-                const next = [...items];
-                next[i] = e.target.value;
-                onChange(next);
-              }}
-            />
-          </div>
-          <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
-        </div>
-      </div>
-    ))}
-    <button className="add-category-btn" onClick={() => onChange([...(items || []), ""])}>+ Добавить</button>
-  </div>
-);
+// Универсальный список строк с onCommit (blur)
+const EditableList = ({ items = [], onChange, onRemove, placeholder, onCommit }) => {
+  const refs = useRef([]);
+  const originalsRef = useRef({}); // index -> original value on focus
 
-// интервалы
-const IntervalFields = ({ intervals, onChange, onAdd, onRemove }) => (
-  <div className="field-row">
-    <label className="field-label">Интервал</label>
+  const add = () => {
+    const next = [...(items || []), ""];
+    onChange(next);
+    setTimeout(() => refs.current[next.length - 1]?.focus(), 0);
+  };
+
+  const handleFocus = (i, val) => {
+    originalsRef.current[i] = val;
+  };
+
+  const handleBlur = (i, val) => {
+    const oldVal = originalsRef.current[i];
+    delete originalsRef.current[i];
+    if (typeof onCommit === "function") {
+      onCommit(i, oldVal, val);
+    } else {
+      onChange(uniqStrs(items));
+    }
+  };
+
+  return (
     <div className="category-fields-container">
-      {(intervals || []).map((it, i) => (
-        <div key={it.id || i} className="category-field-group">
+      {(items || []).map((item, index) => (
+        <div key={`${index}`} className="category-field-group">
           <div className="category-container">
             <div className="category-full">
               <input
-                className="text-input"
+                ref={(el) => (refs.current[index] = el)}
                 type="text"
-                value={it.intervalValue ?? ""}
-                placeholder="Введите интервал"
+                value={item}
+                onFocus={() => handleFocus(index, item)}
                 onChange={(e) => {
-                  const next = [...intervals];
-                  next[i] = { ...next[i], intervalValue: e.target.value };
-                  onChange(next);
+                  const newItems = [...(items || [])];
+                  newItems[index] = e.target.value;
+                  onChange(newItems);
                 }}
+                onBlur={(e) => handleBlur(index, e.target.value)}
+                placeholder={placeholder}
+                className="text-input"
               />
             </div>
-            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
+            <button type="button" className="remove-category-btn" onClick={() => onRemove(index, item)} title="Удалить">
+              ×
+            </button>
           </div>
         </div>
       ))}
-      <button className="add-category-btn" onClick={onAdd}>+ Добавить интервал</button>
+      <button type="button" className="add-category-btn" onClick={add}>
+        + Добавить
+      </button>
     </div>
-  </div>
-);
+  );
+};
 
-// категории (интервал + значение)
-const CategoryFields = ({ categories, intervalsOptions, onChange, onAdd, onRemove }) => (
-  <div className="field-row category-field">
-    <label className="field-label">Категория</label>
-    <div className="category-fields-container">
-      {(categories || []).map((c, i) => (
-        <div key={i} className="category-field-group">
-          <div className="category-container">
-            <div className="category-left">
-              <div className="dropdown-container">
-                <select
-                  className="text-input"
-                  value={c.categoryInterval || ""}
-                  onChange={(e) => {
-                    const next = [...categories];
-                    next[i] = { ...next[i], categoryInterval: e.target.value };
-                    onChange(next);
-                  }}
-                >
-                  <option value="">Выберите интервал…</option>
-                  {intervalsOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="category-right">
-              <input
-                className="text-input"
-                type="text"
-                value={c.categoryValue || ""}
-                placeholder="Введите значение"
-                onChange={(e) => {
-                  const next = [...categories];
-                  next[i] = { ...next[i], categoryValue: e.target.value };
-                  onChange(next);
-                }}
-              />
-            </div>
-            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
-          </div>
-        </div>
-      ))}
-      <button className="add-category-btn" onClick={onAdd}>+ Добавить категорию</button>
-    </div>
-  </div>
-);
-
-// статьи
-const ArticleFields = ({ articles, onChange, onAdd, onRemove }) => (
-  <div className="field-row">
-    <label className="field-label">Статья</label>
-    <div className="category-fields-container">
-      {(articles || []).map((a, i) => (
-        <div key={i} className="category-field-group">
-          <div className="category-container">
-            <div className="category-full">
-              <input
-                className="text-input"
-                type="text"
-                value={a.articleValue || ""}
-                placeholder="Введите статью"
-                onChange={(e) => {
-                  const next = [...articles];
-                  next[i] = { ...next[i], articleValue: e.target.value };
-                  onChange(next);
-                }}
-              />
-            </div>
-            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
-          </div>
-        </div>
-      ))}
-      <button className="add-category-btn" onClick={onAdd}>+ Добавить статью</button>
-    </div>
-  </div>
-);
-
-// подстатьи: выбор интервала = статья или подкатегория
-const SubarticleFields = ({ subarticles, articleOptions, subcategoryOptions, onChange, onAdd, onRemove }) => (
-  <div className="field-row article-field">
-    <label className="field-label">Подстатья</label>
-    <div className="category-fields-container">
-      {(subarticles || []).map((s, i) => (
-        <div key={i} className="category-field-group">
-          <div className="category-container">
-            <div className="category-left">
-              <select
-                className="text-input"
-                value={s.subarticleInterval || ""}
-                onChange={(e) => {
-                  const next = [...subarticles];
-                  next[i] = { ...next[i], subarticleInterval: e.target.value };
-                  onChange(next);
-                }}
-              >
-                <option value="">Выберите статью/подкатегорию…</option>
-                {articleOptions.map((name) => (
-                  <option key={`art-${name}`} value={name}>{name}</option>
-                ))}
-                {subcategoryOptions.map((name) => (
-                  <option key={`sub-${name}`} value={name}>{name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="category-right">
-              <input
-                className="text-input"
-                type="text"
-                value={s.subarticleValue || ""}
-                placeholder="Введите значение"
-                onChange={(e) => {
-                  const next = [...subarticles];
-                  next[i] = { ...next[i], subarticleValue: e.target.value };
-                  onChange(next);
-                }}
-              />
-            </div>
-            <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
-          </div>
-        </div>
-      ))}
-      <button className="add-category-btn" onClick={onAdd}>+ Добавить подстатью</button>
-    </div>
-  </div>
-);
-
-// независимые теги {id,name,color}
+// Теги {id,name,color}
 const TagList = ({ title, tags = [], onChange }) => {
-  const add = () => onChange([...(tags || []), { id: rid(), name: "", color: "#ffffff" }]);
+  const nameRefs = useRef([]);
+
+  const add = () => {
+    const next = [...(tags || []), { id: rid(), name: "", color: "#ffffff" }];
+    onChange(next);
+    setTimeout(() => nameRefs.current[next.length - 1]?.focus(), 0);
+  };
+
   const upd = (i, patch) => {
     const next = [...(tags || [])];
     next[i] = { ...next[i], ...patch };
     onChange(next);
   };
+
+  const blurName = (i) => {
+    const val = tidy(tags[i]?.name);
+    if (!val) {
+      onChange(tags.filter((_, idx) => idx !== i));
+      return;
+    }
+    const next = [...tags];
+    next[i] = { ...next[i], name: val };
+    onChange(uniqTags(next));
+  };
+
+  const blurColor = (i) => {
+    const val = tags[i]?.color;
+    const next = [...tags];
+    next[i] = { ...next[i], color: isHex(val) ? val : "#ffffff" };
+    onChange(next);
+  };
+
   const del = (i) => onChange(tags.filter((_, idx) => idx !== i));
 
   return (
@@ -395,18 +391,21 @@ const TagList = ({ title, tags = [], onChange }) => {
             <div className="category-container">
               <div className="category-left">
                 <input
+                  ref={(el) => (nameRefs.current[i] = el)}
                   className="text-input"
                   type="text"
                   placeholder="Название тега"
                   value={t.name}
                   onChange={(e) => upd(i, { name: e.target.value })}
+                  onBlur={() => blurName(i)}
                 />
               </div>
               <div className="category-right" style={{ flex: "0 0 120px", display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   type="color"
-                  value={t.color || "#ffffff"}
+                  value={isHex(t.color) ? t.color : "#ffffff"}
                   onChange={(e) => upd(i, { color: e.target.value })}
+                  onBlur={() => blurColor(i)}
                   title="Цвет"
                   style={{ width: 40, height: 32, border: "none", background: "transparent", cursor: "pointer" }}
                 />
@@ -415,106 +414,323 @@ const TagList = ({ title, tags = [], onChange }) => {
                   type="text"
                   value={t.color || "#ffffff"}
                   onChange={(e) => upd(i, { color: e.target.value })}
+                  onBlur={() => blurColor(i)}
                   placeholder="#ffffff"
                 />
               </div>
-              <button className="remove-category-btn" onClick={() => del(i)} title="Удалить">×</button>
+              <button type="button" className="remove-category-btn" onClick={() => del(i)} title="Удалить">
+                ×
+              </button>
             </div>
           </div>
         ))}
-        <button className="add-category-btn" onClick={add}>+ Добавить тег</button>
+        <button type="button" className="add-category-btn" onClick={add}>
+          + Добавить тег
+        </button>
       </div>
     </div>
   );
 };
 
-// Загрузка дизайнов карт
-const CardDesignUpload = ({ items = [], onChange, onRemove, onError }) => {
-  const inputRefs = useRef([]);
+// Интервалы
+const IntervalFields = ({ intervals = [], onIntervalChange, onAddInterval, onRemoveInterval }) => (
+  <div className="field-row">
+    <label className="field-label">Интервал</label>
+    <div className="category-fields-container">
+      {(intervals || []).map((interval, index) => (
+        <div key={interval?.id || index} className="category-field-group">
+          <div className="category-container">
+            <div className="category-full">
+              <input
+                type="text"
+                value={interval?.intervalValue || ""}
+                onChange={(e) => onIntervalChange(index, "intervalValue", e.target.value)}
+                placeholder="Введите интервал"
+                className="text-input"
+              />
+            </div>
+            <button type="button" className="remove-category-btn" onClick={() => onRemoveInterval(index)} title="Удалить интервал">
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="add-category-btn" onClick={onAddInterval}>
+        + Добавить интервал
+      </button>
+    </div>
+  </div>
+);
 
-  const safeUrl = (u) => {
-    const s = tidy(u);
-    if (!s) return "";
-    if (s.startsWith("data:") || /^https?:\/\//i.test(s)) return s;
-    try { return fileUrl(s); } catch { return s; }
+// Категории
+const CategoryFields = ({
+  categories = [],
+  onCategoryChange,
+  onAddCategory,
+  onRemoveCategory,
+  openDropdowns = {},
+  onToggleDropdown,
+  availableIntervals = [],
+}) => (
+  <div className="field-row category-field">
+    <label className="field-label">Категория</label>
+    <div className="category-fields-container">
+      {(categories || []).map((category, index) => (
+        <div key={index} className="category-field-group">
+          <div className="category-container">
+            <div className="category-left">
+              <div className="dropdown-container">
+                <div
+                  className={`dropdown-trigger-category ${category.categoryInterval ? "has-value" : ""}`}
+                  onClick={(e) => onToggleDropdown(index, e)}
+                >
+                  <span className="dropdown-value">{category.categoryInterval || "Выберите интервал"}</span>
+                  <span className={`dropdown-arrow ${openDropdowns[`category-${index}-interval`] ? "open" : ""}`}>▼</span>
+                </div>
+                <div className={`dropdown-menu ${openDropdowns[`category-${index}-interval`] ? "open" : ""}`}>
+                  {(availableIntervals || []).length > 0 ? (
+                    availableIntervals.map((option, optionIndex) => (
+                      <div
+                        key={optionIndex}
+                        className={`dropdown-option ${category.categoryInterval === option ? "selected" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCategoryChange(index, "categoryInterval", option);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="dropdown-option disabled-option">Сначала добавьте интервалы</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="category-right">
+              <input
+                type="text"
+                value={category.categoryValue || ""}
+                onChange={(e) => onCategoryChange(index, "categoryValue", e.target.value)}
+                placeholder="Введите значение"
+                className="text-input"
+              />
+            </div>
+            <button type="button" className="remove-category-btn" onClick={() => onRemoveCategory(index)} title="Удалить категорию">
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="add-category-btn" onClick={onAddCategory}>
+        + Добавить категорию
+      </button>
+    </div>
+  </div>
+);
+
+// Статьи
+const ArticleFields = ({ articles = [], onArticleChange, onAddArticle, onRemoveArticle }) => (
+  <div className="field-row">
+    <label className="field-label">Статья</label>
+    <div className="category-fields-container">
+      {(articles || []).map((article, index) => (
+        <div key={index} className="category-field-group">
+          <div className="category-container">
+            <div className="category-full">
+              <input
+                type="text"
+                value={article.articleValue || ""}
+                onChange={(e) => onArticleChange(index, "articleValue", e.target.value)}
+                placeholder="Введите статью"
+                className="text-input"
+              />
+            </div>
+            <button type="button" className="remove-category-btn" onClick={() => onRemoveArticle(index)} title="Удалить статью">
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="add-category-btn" onClick={onAddArticle}>
+        + Добавить статью
+      </button>
+    </div>
+  </div>
+);
+
+// Подстатьи
+const SubarticleFields = ({
+  subarticles = [],
+  onSubarticleChange,
+  onAddSubarticle,
+  onRemoveSubarticle,
+  openDropdowns = {},
+  onToggleDropdown,
+  availableArticles = [],
+  availableSubcategories = [],
+}) => (
+  <div className="field-row article-field">
+    <label className="field-label">Подстатья</label>
+    <div className="category-fields-container">
+      {(subarticles || []).map((subarticle, index) => (
+        <div key={index} className="category-field-group">
+          <div className="category-container">
+            <div className="category-left">
+              <div className="dropdown-container">
+                <div
+                  className={`dropdown-trigger-article ${subarticle.subarticleInterval ? "has-value" : ""}`}
+                  onClick={(e) => onToggleDropdown(index, e)}
+                >
+                  <span className="dropdown-value">{subarticle.subarticleInterval || "Выберите статью/подкатегорию"}</span>
+                  <span className={`dropdown-arrow ${openDropdowns[`subarticle-${index}-interval`] ? "open" : ""}`}>▼</span>
+                </div>
+                <div className={`dropdown-menu ${openDropdowns[`subarticle-${index}-interval`] ? "open" : ""}`}>
+                  {(availableArticles || []).map((option, optionIndex) => (
+                    <div
+                      key={`art-${optionIndex}`}
+                      className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSubarticleChange(index, "subarticleInterval", option);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                  {(availableSubcategories || []).map((option, optionIndex) => (
+                    <div
+                      key={`subcat-${optionIndex}`}
+                      className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSubarticleChange(index, "subarticleInterval", option);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="category-right">
+              <input
+                type="text"
+                value={subarticle.subarticleValue || ""}
+                onChange={(e) => onSubarticleChange(index, "subarticleValue", e.target.value)}
+                placeholder="Введите значение"
+                className="text-input"
+              />
+            </div>
+            <button type="button" className="remove-category-btn" onClick={() => onRemoveSubarticle(index)} title="Удалить подстатью">
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="add-category-btn" onClick={onAddSubarticle}>
+        + Добавить подстатью
+      </button>
+    </div>
+  </div>
+);
+
+// Дизайны карт
+const CardDesignUpload = ({ cardDesigns = [], onAdd, onRemove, onError }) => {
+  const fileInputRefs = useRef([]);
+
+  const ensureDesign = (arr, index) => {
+    const copy = [...arr];
+    copy[index] = {
+      id: copy[index]?.id || rid(),
+      name: copy[index]?.name || "",
+      url: copy[index]?.url || "",
+      size: copy[index]?.size ?? null,
+    };
+    return copy;
   };
 
-  const ensure = (arr, i) => {
-    const next = [...arr];
-    next[i] = { id: next[i]?.id || rid(), name: next[i]?.name || "", url: next[i]?.url || "", size: next[i]?.size ?? null };
-    return next;
-    };
+  const triggerFile = (i) => fileInputRefs.current[i]?.click();
 
-  const trigger = (i) => inputRefs.current[i]?.click();
+  const handleFileUpload = (event, index) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    const file = files[0];
 
-  const onFile = (e, i) => {
-    const f = (e.target.files || [])[0];
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      onError?.("Неверный формат", "Выберите изображение.");
-      e.target.value = "";
+    if (!file.type.startsWith("image/")) {
+      onError?.({ title: "Неверный формат файла", message: "Выберите изображение." });
+      event.target.value = "";
       return;
     }
-    if (f.size > MAX_IMAGE_BYTES) {
-      onError?.("Файл слишком большой", `Максимум ${(MAX_IMAGE_BYTES / 1024).toFixed(0)} KB`);
-      e.target.value = "";
+    if (file.size > MAX_IMAGE_BYTES) {
+      onError?.({ title: "Слишком большой файл", message: `Максимум ${(MAX_IMAGE_BYTES / 1024).toFixed(0)} КБ.` });
+      event.target.value = "";
       return;
     }
+
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const next = ensure(items, i);
-      next[i] = { ...next[i], url: ev.target.result, size: f.size };
-      onChange(next);
+    reader.onload = (e) => {
+      const next = ensureDesign(cardDesigns, index);
+      next[index] = { ...next[index], url: e.target.result, size: file.size };
+      onAdd(next);
     };
-    reader.onerror = () => onError?.("Ошибка чтения", "Не удалось прочитать файл.");
-    reader.readAsDataURL(f);
-    e.target.value = "";
+    reader.onerror = () => onError?.({ title: "Ошибка чтения", message: "Не удалось прочитать файл." });
+    reader.readAsDataURL(file);
+    event.target.value = "";
   };
 
-  const add = () => onChange([...(items || []), { id: rid(), name: "", url: "", size: null }]);
+  const handleNameChange = (index, newName) => {
+    const next = ensureDesign(cardDesigns, index);
+    next[index] = { ...next[index], name: newName };
+    onAdd(next);
+  };
+
+  const addEmpty = () => onAdd([...(cardDesigns || []), { id: rid(), name: "", url: "", size: null }]);
 
   return (
     <div className="category-fields-container">
-      {(items || []).map((d, i) => (
-        <div key={d.id || i} className="category-field-group">
+      {(cardDesigns || []).map((design, index) => (
+        <div key={design.id || index} className="category-field-group">
           <div className="card-design-row">
             <div className="card-design-input">
               <input
-                className="text-input"
                 type="text"
-                value={d.name || ""}
-                placeholder="Название дизайна"
-                onChange={(e) => {
-                  const next = ensure(items, i);
-                  next[i] = { ...next[i], name: e.target.value };
-                  onChange(next);
-                }}
+                value={design.name || ""}
+                onChange={(e) => handleNameChange(index, e.target.value)}
+                placeholder="Введите название дизайна"
+                className="text-input"
               />
             </div>
             <div className="card-design-upload">
               <input
-                ref={(el) => (inputRefs.current[i] = el)}
+                ref={(el) => (fileInputRefs.current[index] = el)}
                 type="file"
                 accept="image/*"
+                onChange={(e) => handleFileUpload(e, index)}
                 style={{ display: "none" }}
-                onChange={(e) => onFile(e, i)}
               />
-              <div className="card-design-preview" title="Кликните, чтобы заменить" onClick={() => trigger(i)}>
-                {d.url ? (
-                  <img className="card-design-image" src={safeUrl(d.url)} alt={d.name || "design"} />
-                ) : (
-                  <div className="card-design-placeholder upload-design-btn">+ Загрузить изображение</div>
-                )}
-              </div>
-              <div className="card-design-actions" style={{ marginLeft: 8 }}>
-                <button className="upload-design-btn" onClick={() => trigger(i)}>Заменить</button>
-                <button className="remove-category-btn" onClick={() => onRemove(i)} title="Удалить">×</button>
-              </div>
+              {design.url ? (
+                <div className="card-design-item">
+                  <div className="card-design-preview" title="Кликните, чтобы заменить" onClick={() => triggerFile(index)}>
+                    <img src={safeFileUrl(design.url)} alt={design.name || "design"} className="card-design-image" />
+                  </div>
+                  <div className="card-design-actions">
+                    <button type="button" className="upload-design-btn" onClick={() => triggerFile(index)}>Заменить</button>
+                    <button type="button" className="remove-category-btn" onClick={() => onRemove(index)} title="Удалить">×</button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="upload-design-btn" onClick={() => triggerFile(index)}>
+                  + Загрузить изображение
+                </button>
+              )}
             </div>
           </div>
         </div>
       ))}
-      <button className="add-category-btn" onClick={add}>+ Добавить дизайн карты</button>
+      <button type="button" className="add-category-btn" onClick={addEmpty}>
+        + Добавить дизайн карты
+      </button>
     </div>
   );
 };
@@ -523,111 +739,494 @@ const CardDesignUpload = ({ items = [], onChange, onRemove, onError }) => {
    Основной компонент
    ========================= */
 function FieldsPage() {
-  const [data, setData] = useState(null);
-  const [saved, setSaved] = useState(null);
-  const [active, setActive] = useState("order");
+  const [selectedValues, setSelectedValues] = useState(initialValues);
+  const [savedValues, setSavedValues] = useState(initialValues);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [activeTab, setActiveTab] = useState("orderFields");
+  const [openDropdowns, setOpenDropdowns] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [modal, setModal] = useState({ open: false });
+  const [pendingTab, setPendingTab] = useState(null);
 
-  const hasChanges = useMemo(() => JSON.stringify(data) !== JSON.stringify(saved), [data, saved]);
+  const [modal, setModal] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "OK",
+    cancelText: "Отмена",
+    onConfirm: null,
+    onCancel: null,
+  });
 
+  const containerRef = useRef(null);
+
+  const openErrorModal = (title, message) => {
+    setModal({
+      open: true,
+      title,
+      message,
+      confirmText: "OK",
+      cancelText: "Закрыть",
+      onConfirm: () => setModal((m) => ({ ...m, open: false })),
+      onCancel: () => setModal((m) => ({ ...m, open: false })),
+    });
+  };
+
+  const openChoiceModal = ({ title, message, onSave, onDiscard }) => {
+    setModal({
+      open: true,
+      title,
+      message,
+      confirmText: "Сохранить",
+      cancelText: "Не сохранять",
+      onConfirm: async () => {
+        setModal((m) => ({ ...m, open: false }));
+        await onSave?.();
+      },
+      onCancel: () => {
+        setModal((m) => ({ ...m, open: false }));
+        onDiscard?.();
+      },
+    });
+  };
+
+  const applyAndCheck = (next) => {
+    setSelectedValues(next);
+    setHasChanges(JSON.stringify(next) !== JSON.stringify(savedValues));
+  };
+
+  // загрузка
   useEffect(() => {
+    let mounted = true;
     (async () => {
       setLoading(true);
       try {
         const raw = await fetchFields();
-        const norm = normalizeFromBackend(raw);
-        setData(norm);
-        setSaved(norm);
+        const normalized = normalizeFromBackend(raw);
+        if (!mounted) return;
+        setSelectedValues(normalized);
+        setSavedValues(normalized);
+        setHasChanges(false);
       } catch (e) {
-        setModal({
-          open: true,
-          title: "Ошибка загрузки",
-          message: e?.message || "Не удалось получить данные.",
-          confirmText: "OK",
-          onConfirm: () => setModal({ open: false }),
-        });
+        openErrorModal("Ошибка загрузки списков", e?.message || "Не удалось получить данные с сервера.");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     })();
+    return () => { mounted = false; };
   }, []);
 
-  const patch = (path, value) => {
-    setData((prev) => {
-      const next = structuredClone(prev);
-      const parts = path.split(".");
-      let obj = next;
-      for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]];
-      obj[parts.at(-1)] = value;
-      return next;
-    });
-  };
+  // клики вне контейнера — закрыть выпадашки
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) setOpenDropdowns({});
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const save = async () => {
+  // ===== Сохранение / Отмена =====
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      setSaving(true);
-      const payload = serializeForSave(data);
+      const payload = serializeForSave(selectedValues);
       await saveFields(payload);
       const raw = await fetchFields();
-      const norm = normalizeFromBackend(raw);
-      setData(norm);
-      setSaved(norm);
+      const normalized = normalizeFromBackend(raw);
+      setSelectedValues(normalized);
+      setSavedValues(normalized);
+      setHasChanges(false);
+      setOpenDropdowns({});
+      if (pendingTab) {
+        setActiveTab(pendingTab);
+        setPendingTab(null);
+      }
     } catch (e) {
-      setModal({
-        open: true,
-        title: "Ошибка сохранения",
-        message: e?.message || "Не удалось сохранить изменения.",
-        confirmText: "OK",
-        onConfirm: () => setModal({ open: false }),
-      });
+      openErrorModal("Ошибка сохранения", e?.message || "Не удалось сохранить изменения.");
     } finally {
       setSaving(false);
     }
   };
 
-  const cancel = () => setData(saved);
+  const handleCancelAll = () => {
+    setSelectedValues(savedValues);
+    setHasChanges(false);
+    setOpenDropdowns({});
+  };
 
-  /* ======== Рендер ======== */
-  if (loading || !data) {
-    return (
-      <div className="fields-main-container">
-        <Sidebar />
-        <div className="fields-main-container-wrapper">
-          <div className="header">
-            <div className="header-content">
-              <div className="header-left"><h1 className="lists-title">СПИСКИ</h1></div>
-              <div className="header-actions"><span className="loading-label">Загрузка…</span></div>
+  // ===== Переключение вкладок с подтверждением =====
+  const onTabClick = (tabKey) => {
+    if (tabKey === activeTab) return;
+    if (!hasChanges) {
+      setActiveTab(tabKey);
+      setOpenDropdowns({});
+      return;
+    }
+    setPendingTab(tabKey);
+    openChoiceModal({
+      title: "Сохранить изменения?",
+      message: "Вы изменили данные. Сохранить перед переключением вкладки?",
+      onSave: handleSave,
+      onDiscard: () => {
+        setSelectedValues(savedValues);
+        setHasChanges(false);
+        setActiveTab(tabKey);
+        setPendingTab(null);
+        setOpenDropdowns({});
+      },
+    });
+  };
+
+  // ===== Обновление полей =====
+  const handleInputChange = (fieldGroup, fieldName, value) => {
+    const next = { ...selectedValues, [fieldGroup]: { ...selectedValues[fieldGroup], [fieldName]: value } };
+    applyAndCheck(next);
+  };
+
+  // фабрика коммита для общих справочников (валюта/страна)
+  const commitShared = (path, sharedKey) => (index, oldVal, newVal) => {
+    const oldT = tidy(oldVal);
+    const newT = tidy(newVal);
+    // если редактируем новую строку (старое пустое) — это ЛОКАЛЬНОЕ добавление
+    if (!oldT) {
+      const [group, field] = path;
+      const curr = Array.isArray(selectedValues?.[group]?.[field]) ? selectedValues[group][field] : [];
+      const nextArr = uniqStrs(curr);
+      const next = { ...selectedValues, [group]: { ...selectedValues[group], [field]: nextArr } };
+      applyAndCheck(next);
+      return;
+    }
+    // если новое пустое — удалить значение везде
+    if (!newT) {
+      const next = removeValueEverywhere(selectedValues, sharedKey, oldT);
+      applyAndCheck(next);
+      return;
+    }
+    // обычное переименование во всех списках этого справочника
+    const next = renameValueEverywhere(selectedValues, sharedKey, oldT, newT);
+    applyAndCheck(next);
+  };
+
+  // Order
+  const handleIntervalChange = (index, field, value) => {
+    const copy = [...(selectedValues.orderFields.intervals || [])];
+    copy[index] = { ...copy[index], [field]: value };
+    handleInputChange("orderFields", "intervals", copy);
+  };
+  const handleCategoryChange = (index, field, value) => {
+    const copy = [...(selectedValues.orderFields.categories || [])];
+    copy[index] = { ...copy[index], [field]: value };
+    handleInputChange("orderFields", "categories", copy);
+    if (field === "categoryInterval") setOpenDropdowns((prev) => ({ ...prev, [`category-${index}-interval`]: false }));
+  };
+  const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { intervalValue: "" }]);
+  const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { categoryInterval: "", categoryValue: "" }]);
+  const removeInterval = (idx) => handleInputChange("orderFields", "intervals", (selectedValues.orderFields.intervals || []).filter((_, i) => i !== idx));
+  const removeCategory = (idx) => handleInputChange("orderFields", "categories", (selectedValues.orderFields.categories || []).filter((_, i) => i !== idx));
+
+  // Finance
+  const handleArticleChange = (index, field, value) => {
+    const copy = [...(selectedValues.financeFields.articles || [])];
+    copy[index] = { ...copy[index], [field]: value };
+    handleInputChange("financeFields", "articles", copy);
+  };
+  const handleSubarticleChange = (index, field, value) => {
+    const copy = [...(selectedValues.financeFields.subarticles || [])];
+    copy[index] = { ...copy[index], [field]: value };
+    handleInputChange("financeFields", "subarticles", copy);
+    if (field === "subarticleInterval") setOpenDropdowns((prev) => ({ ...prev, [`subarticle-${index}-interval`]: false }));
+  };
+  const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { articleValue: "" }]);
+  const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { subarticleInterval: "", subarticleValue: "" }]);
+  const removeArticle = (idx) => handleInputChange("financeFields", "articles", (selectedValues.financeFields.articles || []).filter((_, i) => i !== idx));
+  const removeSubarticle = (idx) => handleInputChange("financeFields", "subarticles", (selectedValues.financeFields.subarticles || []).filter((_, i) => i !== idx));
+
+  // Card designs
+  const updateCardDesigns = (newItems) => handleInputChange("assetsFields", "cardDesigns", newItems);
+  const removeCardDesign = (idx) => updateCardDesigns((selectedValues.assetsFields.cardDesigns || []).filter((_, i) => i !== idx));
+
+  // dropdown toggles
+  const toggleCategoryDropdown = (index, e) => {
+    e.stopPropagation();
+    const key = `category-${index}-interval`;
+    setOpenDropdowns((prev) => ({ [key]: !prev[key] }));
+  };
+  const toggleSubarticleDropdown = (index, e) => {
+    e.stopPropagation();
+    const key = `subarticle-${index}-interval`;
+    setOpenDropdowns((prev) => ({ [key]: !prev[key] }));
+  };
+
+  // опции
+  const intervalsOptions = useMemo(
+    () => (selectedValues.orderFields.intervals || []).map((i) => tidy(i.intervalValue)).filter(Boolean),
+    [selectedValues.orderFields.intervals]
+  );
+  const articleOptions = useMemo(
+    () => (selectedValues.financeFields.articles || []).map((a) => tidy(a.articleValue)).filter(Boolean),
+    [selectedValues.financeFields.articles]
+  );
+
+  // удаление общих значений одновременно во всех местах
+  const removeStringItemEverywhere = (key, value) => applyAndCheck(removeValueEverywhere(selectedValues, key, value));
+
+  // ===== Рендер активной вкладки =====
+  const renderActiveTabFields = () => {
+    switch (activeTab) {
+      case "orderFields":
+        return (
+          <div className="fields-vertical-grid">
+            <IntervalFields
+              intervals={selectedValues.orderFields.intervals || []}
+              onIntervalChange={handleIntervalChange}
+              onAddInterval={addInterval}
+              onRemoveInterval={removeInterval}
+            />
+            <CategoryFields
+              categories={selectedValues.orderFields.categories || []}
+              onCategoryChange={handleCategoryChange}
+              onAddCategory={addCategory}
+              onRemoveCategory={removeCategory}
+              openDropdowns={openDropdowns}
+              onToggleDropdown={toggleCategoryDropdown}
+              availableIntervals={intervalsOptions}
+            />
+            <div className="field-row">
+              <label className="field-label">Валюта</label>
+              <EditableList
+                items={selectedValues.orderFields.currency || []}
+                onChange={(newItems) => handleInputChange("orderFields", "currency", newItems)}
+                onCommit={commitShared(["orderFields", "currency"], "currency")}
+                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                placeholder="Введите валюту"
+              />
+            </div>
+            <TagList
+              title="Теги заказа"
+              tags={selectedValues.orderFields.tags || []}
+              onChange={(v) => handleInputChange("orderFields", "tags", v)}
+            />
+            <TagList
+              title="Теги технологий (заказ)"
+              tags={selectedValues.orderFields.techTags || []}
+              onChange={(v) => handleInputChange("orderFields", "techTags", v)}
+            />
+            <TagList
+              title="Теги задач (заказ)"
+              tags={selectedValues.orderFields.taskTags || []}
+              onChange={(v) => handleInputChange("orderFields", "taskTags", v)}
+            />
+          </div>
+        );
+
+      case "executorFields":
+        return (
+          <div className="fields-vertical-grid">
+            <div className="field-row">
+              <label className="field-label">Валюта</label>
+              <EditableList
+                items={selectedValues.executorFields.currency || []}
+                onChange={(newItems) => handleInputChange("executorFields", "currency", newItems)}
+                onCommit={commitShared(["executorFields", "currency"], "currency")}
+                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                placeholder="Введите валюту"
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Роль</label>
+              <EditableList
+                items={selectedValues.executorFields.role || []}
+                onChange={(newItems) => handleInputChange("executorFields", "role", newItems)}
+                onRemove={(index) => {
+                  const list = selectedValues.executorFields.role || [];
+                  handleInputChange("executorFields", "role", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите роль"
+              />
             </div>
           </div>
-          <div className="fields-container" />
-        </div>
-      </div>
-    );
-  }
+        );
 
-  const intervalsOptions = (data.orderFields.intervals || [])
-    .map((i) => tidy(i.intervalValue))
-    .filter(Boolean);
+      case "clientFields":
+        return (
+          <div className="fields-vertical-grid">
+            <div className="field-row">
+              <label className="field-label">Категория</label>
+              <EditableList
+                items={selectedValues.clientFields.category || []}
+                onChange={(newItems) => handleInputChange("clientFields", "category", newItems)}
+                onRemove={(index) => {
+                  const list = selectedValues.clientFields.category || [];
+                  handleInputChange("clientFields", "category", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите категорию"
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Источник</label>
+              <EditableList
+                items={selectedValues.clientFields.source || []}
+                onChange={(newItems) => handleInputChange("clientFields", "source", newItems)}
+                onRemove={(index) => {
+                  const list = selectedValues.clientFields.source || [];
+                  handleInputChange("clientFields", "source", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите источник"
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Страна</label>
+              <EditableList
+                items={selectedValues.clientFields.country || []}
+                onChange={(newItems) => handleInputChange("clientFields", "country", newItems)}
+                onCommit={commitShared(["clientFields", "country"], "country")}
+                onRemove={(_, value) => removeStringItemEverywhere("country", value)}
+                placeholder="Введите страну"
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Валюта</label>
+              <EditableList
+                items={selectedValues.clientFields.currency || []}
+                onChange={(newItems) => handleInputChange("clientFields", "currency", newItems)}
+                onCommit={commitShared(["clientFields", "currency"], "currency")}
+                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                placeholder="Введите валюту"
+              />
+            </div>
+            <TagList
+              title="Теги клиента"
+              tags={selectedValues.clientFields.tags || []}
+              onChange={(v) => handleInputChange("clientFields", "tags", v)}
+            />
+          </div>
+        );
 
-  const articleOptions = (data.financeFields.articles || [])
-    .map((a) => tidy(a.articleValue))
-    .filter(Boolean);
+      case "employeeFields":
+        return (
+          <div className="fields-vertical-grid">
+            <div className="field-row">
+              <label className="field-label">Страна</label>
+              <EditableList
+                items={selectedValues.employeeFields.country || []}
+                onChange={(newItems) => handleInputChange("employeeFields", "country", newItems)}
+                onCommit={commitShared(["employeeFields", "country"], "country")}
+                onRemove={(_, value) => removeStringItemEverywhere("country", value)}
+                placeholder="Введите страну"
+              />
+            </div>
+            <TagList
+              title="Теги сотрудника"
+              tags={selectedValues.employeeFields.tags || []}
+              onChange={(v) => handleInputChange("employeeFields", "tags", v)}
+            />
+          </div>
+        );
+
+      case "assetsFields":
+        return (
+          <div className="fields-vertical-grid">
+            <div className="field-row">
+              <label className="field-label">Валюта счета</label>
+              <EditableList
+                items={selectedValues.assetsFields.currency || []}
+                onChange={(newItems) => handleInputChange("assetsFields", "currency", newItems)}
+                onCommit={commitShared(["assetsFields", "currency"], "currency")}
+                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                placeholder="Введите валюту счета"
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Тип</label>
+              <EditableList
+                items={selectedValues.assetsFields.type || []}
+                onChange={(newItems) => handleInputChange("assetsFields", "type", newItems)}
+                onRemove={(index) => {
+                  const list = selectedValues.assetsFields.type || [];
+                  handleInputChange("assetsFields", "type", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите тип"
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Платежная система</label>
+              <EditableList
+                items={selectedValues.assetsFields.paymentSystem || []}
+                onChange={(newItems) => handleInputChange("assetsFields", "paymentSystem", newItems)}
+                onRemove={(index) => {
+                  const list = selectedValues.assetsFields.paymentSystem || [];
+                  handleInputChange("assetsFields", "paymentSystem", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите платежную систему"
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Дизайн карты</label>
+              <CardDesignUpload
+                cardDesigns={selectedValues.assetsFields.cardDesigns || []}
+                onAdd={(newItems) => updateCardDesigns(newItems)}
+                onRemove={removeCardDesign}
+                onError={({ title, message }) => openErrorModal(title, message)}
+              />
+            </div>
+          </div>
+        );
+
+      case "financeFields":
+        return (
+          <div className="fields-vertical-grid">
+            <ArticleFields
+              articles={selectedValues.financeFields?.articles || []}
+              onArticleChange={handleArticleChange}
+              onAddArticle={addArticle}
+              onRemoveArticle={removeArticle}
+            />
+            <div className="field-row">
+              <label className="field-label">Подкатегория</label>
+              <EditableList
+                items={selectedValues.financeFields.subcategory || []}
+                onChange={(newItems) => handleInputChange("financeFields", "subcategory", newItems)}
+                onRemove={(index) => {
+                  const list = selectedValues.financeFields.subcategory || [];
+                  handleInputChange("financeFields", "subcategory", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите подкатегорию"
+              />
+            </div>
+            <SubarticleFields
+              subarticles={selectedValues.financeFields?.subarticles || []}
+              onSubarticleChange={handleSubarticleChange}
+              onAddSubarticle={addSubarticle}
+              onRemoveSubarticle={removeSubarticle}
+              openDropdowns={openDropdowns}
+              onToggleDropdown={toggleSubarticleDropdown}
+              availableArticles={articleOptions}
+              availableSubcategories={selectedValues.financeFields?.subcategory || []}
+            />
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="fields-main-container">
+    <div ref={containerRef} className="fields-main-container">
       <Sidebar />
       <div className="fields-main-container-wrapper">
         <div className="header">
           <div className="header-content">
-            <div className="header-left"><h1 className="lists-title">СПИСКИ</h1></div>
+            <div className="header-left">
+              <h1 className="header-title">СПИСКИ</h1>
+            </div>
             <div className="header-actions">
+              {loading && <span className="loading-label">Загрузка…</span>}
               {saving && <span className="loading-label">Сохранение…</span>}
-              {hasChanges && !saving && (
+              {hasChanges && !saving && !loading && (
                 <>
-                  <button className="save-btn" onClick={save}>Сохранить</button>
-                  <button className="cancel-btn" onClick={cancel}>Отменить</button>
+                  <button type="button" className="save-btn" onClick={handleSave}>Сохранить</button>
+                  <button type="button" className="cancel-btn" onClick={handleCancelAll}>Отменить</button>
                 </>
               )}
             </div>
@@ -638,212 +1237,20 @@ function FieldsPage() {
           <div className="main-content-wrapper">
             <div className="tabs-content-wrapper">
               <div className="tabs-container">
-                {tabs.map((t) => (
+                {tabsConfig.map((tab) => (
                   <button
-                    key={t.key}
-                    className={`tab-button ${active === t.key ? "active" : ""}`}
-                    onClick={() => setActive(t.key)}
+                    key={tab.key}
+                    className={`tab-button ${activeTab === tab.key ? "active" : ""}`}
+                    onClick={() => onTabClick(tab.key)}
+                    type="button"
                   >
-                    {t.label}
+                    {tab.label}
                   </button>
                 ))}
               </div>
 
               <div className="fields-content">
-                <div className="fields-box">
-                  {/* Заказ */}
-                  {active === "order" && (
-                    <div className="fields-vertical-grid">
-                      <IntervalFields
-                        intervals={data.orderFields.intervals}
-                        onChange={(v) => patch("orderFields.intervals", v)}
-                        onAdd={() => patch("orderFields.intervals", [...data.orderFields.intervals, { id: rid(), intervalValue: "" }])}
-                        onRemove={(i) => patch("orderFields.intervals", data.orderFields.intervals.filter((_, idx) => idx !== i))}
-                      />
-
-                      <CategoryFields
-                        categories={data.orderFields.categories}
-                        intervalsOptions={intervalsOptions}
-                        onChange={(v) => patch("orderFields.categories", v)}
-                        onAdd={() => patch("orderFields.categories", [...data.orderFields.categories, { categoryInterval: "", categoryValue: "" }])}
-                        onRemove={(i) => patch("orderFields.categories", data.orderFields.categories.filter((_, idx) => idx !== i))}
-                      />
-
-                      <div className="field-row">
-                        <label className="field-label">Валюта</label>
-                        <EditableList
-                          items={data.orderFields.currency}
-                          placeholder="Введите валюту"
-                          onChange={(v) => patch("orderFields.currency", v)}
-                          onRemove={(i) => patch("orderFields.currency", data.orderFields.currency.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-
-                      <TagList title="Теги заказа" tags={data.orderFields.tags} onChange={(v) => patch("orderFields.tags", v)} />
-                      <TagList title="Теги технологий (заказ)" tags={data.orderFields.techTags} onChange={(v) => patch("orderFields.techTags", v)} />
-                      <TagList title="Теги задач (заказ)" tags={data.orderFields.taskTags} onChange={(v) => patch("orderFields.taskTags", v)} />
-                    </div>
-                  )}
-
-                  {/* Исполнитель */}
-                  {active === "executor" && (
-                    <div className="fields-vertical-grid">
-                      <div className="field-row">
-                        <label className="field-label">Валюта</label>
-                        <EditableList
-                          items={data.executorFields.currency}
-                          placeholder="Введите валюту"
-                          onChange={(v) => patch("executorFields.currency", v)}
-                          onRemove={(i) => patch("executorFields.currency", data.executorFields.currency.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Роль</label>
-                        <EditableList
-                          items={data.executorFields.role}
-                          placeholder="Введите роль"
-                          onChange={(v) => patch("executorFields.role", v)}
-                          onRemove={(i) => patch("executorFields.role", data.executorFields.role.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Клиент */}
-                  {active === "client" && (
-                    <div className="fields-vertical-grid">
-                      <div className="field-row">
-                        <label className="field-label">Источник</label>
-                        <EditableList
-                          items={data.clientFields.source}
-                          placeholder="Введите источник"
-                          onChange={(v) => patch("clientFields.source", v)}
-                          onRemove={(i) => patch("clientFields.source", data.clientFields.source.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Категория</label>
-                        <EditableList
-                          items={data.clientFields.category}
-                          placeholder="Введите категорию"
-                          onChange={(v) => patch("clientFields.category", v)}
-                          onRemove={(i) => patch("clientFields.category", data.clientFields.category.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Страна</label>
-                        <EditableList
-                          items={data.clientFields.country}
-                          placeholder="Введите страну"
-                          onChange={(v) => patch("clientFields.country", v)}
-                          onRemove={(i) => patch("clientFields.country", data.clientFields.country.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Валюта</label>
-                        <EditableList
-                          items={data.clientFields.currency}
-                          placeholder="Введите валюту"
-                          onChange={(v) => patch("clientFields.currency", v)}
-                          onRemove={(i) => patch("clientFields.currency", data.clientFields.currency.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-
-                      <TagList title="Теги клиента" tags={data.clientFields.tags} onChange={(v) => patch("clientFields.tags", v)} />
-                    </div>
-                  )}
-
-                  {/* Сотрудник */}
-                  {active === "employee" && (
-                    <div className="fields-vertical-grid">
-                      <div className="field-row">
-                        <label className="field-label">Страна</label>
-                        <EditableList
-                          items={data.employeeFields.country}
-                          placeholder="Введите страну"
-                          onChange={(v) => patch("employeeFields.country", v)}
-                          onRemove={(i) => patch("employeeFields.country", data.employeeFields.country.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <TagList title="Теги сотрудника" tags={data.employeeFields.tags} onChange={(v) => patch("employeeFields.tags", v)} />
-                    </div>
-                  )}
-
-                  {/* Активы */}
-                  {active === "assets" && (
-                    <div className="fields-vertical-grid">
-                      <div className="field-row">
-                        <label className="field-label">Валюта счёта</label>
-                        <EditableList
-                          items={data.assetsFields.currency}
-                          placeholder="Введите валюту"
-                          onChange={(v) => patch("assetsFields.currency", v)}
-                          onRemove={(i) => patch("assetsFields.currency", data.assetsFields.currency.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Тип</label>
-                        <EditableList
-                          items={data.assetsFields.type}
-                          placeholder="Введите тип"
-                          onChange={(v) => patch("assetsFields.type", v)}
-                          onRemove={(i) => patch("assetsFields.type", data.assetsFields.type.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Платёжная система</label>
-                        <EditableList
-                          items={data.assetsFields.paymentSystem}
-                          placeholder="Введите платежную систему"
-                          onChange={(v) => patch("assetsFields.paymentSystem", v)}
-                          onRemove={(i) => patch("assetsFields.paymentSystem", data.assetsFields.paymentSystem.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label className="field-label">Дизайн карты</label>
-                        <CardDesignUpload
-                          items={data.assetsFields.cardDesigns}
-                          onChange={(v) => patch("assetsFields.cardDesigns", v)}
-                          onRemove={(i) => patch("assetsFields.cardDesigns", data.assetsFields.cardDesigns.filter((_, idx) => idx !== i))}
-                          onError={(title, message) =>
-                            setModal({ open: true, title, message, confirmText: "OK", onConfirm: () => setModal({ open: false }) })
-                          }
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Финансы */}
-                  {active === "finance" && (
-                    <div className="fields-vertical-grid">
-                      <ArticleFields
-                        articles={data.financeFields.articles}
-                        onChange={(v) => patch("financeFields.articles", v)}
-                        onAdd={() => patch("financeFields.articles", [...data.financeFields.articles, { articleValue: "" }])}
-                        onRemove={(i) => patch("financeFields.articles", data.financeFields.articles.filter((_, idx) => idx !== i))}
-                      />
-
-                      <div className="field-row">
-                        <label className="field-label">Подкатегория</label>
-                        <EditableList
-                          items={data.financeFields.subcategory}
-                          placeholder="Введите подкатегорию"
-                          onChange={(v) => patch("financeFields.subcategory", v)}
-                          onRemove={(i) => patch("financeFields.subcategory", data.financeFields.subcategory.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-
-                      <SubarticleFields
-                        subarticles={data.financeFields.subarticles}
-                        articleOptions={articleOptions}
-                        subcategoryOptions={data.financeFields.subcategory}
-                        onChange={(v) => patch("financeFields.subarticles", v)}
-                        onAdd={() => patch("financeFields.subarticles", [...data.financeFields.subarticles, { subarticleInterval: "", subarticleValue: "" }])}
-                        onRemove={(i) => patch("financeFields.subarticles", data.financeFields.subarticles.filter((_, idx) => idx !== i))}
-                      />
-                    </div>
-                  )}
-                </div>
+                <div className="fields-box">{renderActiveTabFields()}</div>
               </div>
             </div>
           </div>
@@ -854,10 +1261,10 @@ function FieldsPage() {
         <ConfirmationModal
           title={modal.title}
           message={modal.message}
-          confirmText={modal.confirmText || "OK"}
-          cancelText={modal.cancelText || "Закрыть"}
+          confirmText={modal.confirmText}
+          cancelText={modal.cancelText}
           onConfirm={modal.onConfirm}
-          onCancel={modal.onCancel || (() => setModal({ open: false }))}
+          onCancel={modal.onCancel}
         />
       )}
     </div>
