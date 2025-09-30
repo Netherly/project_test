@@ -2,17 +2,23 @@
   "name": "my-crm",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/server.js",
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "test": "jest",
+    "start": "node src/server.js",
+    "build": "echo \"no build step\"",
+    "postinstall": "prisma generate",
+    "seed": "node prisma/seed.js",
     "dev": "npx prisma generate && npx prisma db push && nodemon src/server.js",
     "dev:db": "npx prisma generate && npx prisma db push",
+    "test": "jest",
     "lint": "eslint src/**/*.{js}",
-    "format": "prettier --write src/**/*.{js,json,md}",
-    "prepare": "husky install"
+    "format": "prettier --write src/**/*.{js,json,md}"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "keywords": [],
   "author": "",
