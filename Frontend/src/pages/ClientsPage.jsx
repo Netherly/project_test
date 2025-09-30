@@ -4,15 +4,16 @@ import React, {
   useMemo,
   useEffect,
   useLayoutEffect,
-  useRef
-} from 'react';
-import Sidebar from '../components/Sidebar';
-import ClientModal from '../components/Client/ClientModal/ClientModal';
-import ClientsPageHeader from '../components/Client/ClientsPageHeader';
-import '../styles/ClientsPage.css';
-import { sampleClients } from '../data/sampleClients';
+  useRef,
+} from "react";
+import Sidebar from "../components/Sidebar";
+import ClientModal from "../components/Client/ClientModal/ClientModal";
+import ClientsPageHeader from "../components/Client/ClientsPageHeader";
+import "../styles/ClientsPage.css";
+import { sampleClients } from "../data/sampleClients";
+import { fetchClients, saveClient as saveClientApi } from "../api/clients";
 
-const STORAGE_KEY = 'clientsTableWidths';
+const STORAGE_KEY = "clientsTableWidths";
 const MIN_W = 24;
 
 /* ====== UI helpers ====== */
@@ -22,14 +23,14 @@ function TagsCell({ tags = [] }) {
   const rest = tags.length - visible.length;
 
   return (
-    <div className="tags-cell" title={tags.map(t => t.name).join(', ')}>
+    <div className="tags-cell" title={tags.map((t) => t.name).join(", ")}>
       {visible.map((t) => (
         <span
-          key={t.name}
+          key={`${t.name}-${t.color || "nc"}`}
           className="tag-chip"
           style={{
-            background: t.color || 'var(--chips-bg)',
-            color: t.textColor || 'var(--chips-text)'
+            background: t.color || "var(--chips-bg)",
+            color: t.textColor || "var(--chips-text)",
           }}
           title={t.name}
         >
@@ -42,25 +43,28 @@ function TagsCell({ tags = [] }) {
 }
 
 const STATUS_MAP = {
-  active: { text: 'Активен', cls: 'status--active' },
-  inactive: { text: 'Неактивен', cls: 'status--inactive' },
-  paused: { text: 'Пауза', cls: 'status--paused' },
-  prospect: { text: 'Потенциальный', cls: 'status--prospect' },
-  lead: { text: 'Лид', cls: 'status--lead' },
-  blacklist: { text: 'Блэклист', cls: 'status--blacklist' }
+  active: { text: "Активен", cls: "status--active" },
+  inactive: { text: "Неактивен", cls: "status--inactive" },
+  paused: { text: "Пауза", cls: "status--paused" },
+  prospect: { text: "Потенциальный", cls: "status--prospect" },
+  lead: { text: "Лид", cls: "status--lead" },
+  blacklist: { text: "Блэклист", cls: "status--blacklist" },
 };
 function StatusPill({ value }) {
   if (!value) return <span className="ellipsis">—</span>;
   const key = String(value).toLowerCase();
-  const m = STATUS_MAP[key] || { text: value, cls: 'status--neutral' };
-  return <span className={`status-pill ${m.cls}`} title={value}>{m.text}</span>;
+  const m = STATUS_MAP[key] || { text: value, cls: "status--neutral" };
+  return (
+    <span className={`status-pill ${m.cls}`} title={value}>
+      {m.text}
+    </span>
+  );
 }
 
 const Ellipsis = ({ value }) => {
   const text = Array.isArray(value)
-    ? value.map(t => t.name).join(', ')
-    : String(value ?? '—');
-
+    ? value.map((t) => t.name).join(", ")
+    : String(value ?? "—");
   return (
     <span className="ellipsis" title={text}>
       {text}
@@ -69,35 +73,58 @@ const Ellipsis = ({ value }) => {
 };
 
 export default function ClientsPage({
+  // пропсы остаются как фоллбек, но теперь основной источник — API
   clients = sampleClients,
-  onSaveClient = async c => c,
+  onSaveClient, // не используется (сохраняем через API внутри страницы)
   onAddCompany = () => {},
   companies = [],
   employees = [],
   referrers = [],
   countries = [],
-  currencies = []
+  currencies = [],
 }) {
-  /* === состояния фильтров === */
-  const [search, setSearch]                 = useState('');
-  const [currencyFilter, setCurrencyFilter] = useState('');
-  const [statusFilter, setStatusFilter]     = useState('');
-  const [tagFilter, setTagFilter]           = useState([]); // массив выбранных тегов
-  const [sourceFilter, setSourceFilter]     = useState('');
-  const [dateFrom, setDateFrom]             = useState('');
-  const [dateTo, setDateTo]                 = useState('');
+  /* === фильтры === */
+  const [search, setSearch] = useState("");
+  const [currencyFilter, setCurrencyFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState([]); // массив названий тегов
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  /* список клиентов */
-  const [list, setList] = useState(clients);
+  /* === загрузка данных === */
+  const [loading, setLoading] = useState(true);
+  const [list, setList] = useState([]);
 
-  /* === фильтрация строк === */
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await fetchClients();
+        if (!mounted) return;
+        setList(Array.isArray(data) && data.length ? data : clients);
+      } catch (e) {
+        console.error("fetchClients failed:", e);
+        if (mounted) setList(clients); // фоллбек на локальные
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // один раз при монтировании
+
+  /* === фильтрация === */
   const filteredRows = useMemo(() => {
-    return list
-      .filter(c => {
+    return (list || [])
+      .filter((c) => {
         if (!search) return true;
         const parts = [
           c.name,
-          ...(c.tags || []).map(t => t.name),
+          ...(c.tags || []).map((t) => t.name),
           c.note,
           c.intro_description,
           c.source,
@@ -110,64 +137,93 @@ export default function ClientsPage({
           c.referrer_first_name,
           c.status,
           c.last_order_date,
-          ...(c.credentials || []).flatMap(cr => [cr.login, cr.description])
+          ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
         ];
-        const text = parts.join(' ').toLowerCase();
+        const text = parts.join(" ").toLowerCase();
         return text.includes(search.toLowerCase());
       })
-      .filter(c => !currencyFilter || c.currency === currencyFilter)
-      .filter(c => !statusFilter   || c.status === statusFilter)
-      .filter(c => !tagFilter.length || (c.tags || []).some(t => tagFilter.includes(t.name)))
-      .filter(c => !sourceFilter || c.source === sourceFilter)
-      .filter(c => {
-        if (dateFrom && c.last_order_date !== '—' && new Date(c.last_order_date) < new Date(dateFrom)) return false;
-        if (dateTo   && c.last_order_date !== '—' && new Date(c.last_order_date) > new Date(dateTo)) return false;
+      .filter((c) => !currencyFilter || c.currency === currencyFilter)
+      .filter((c) => !statusFilter || c.status === statusFilter)
+      .filter(
+        (c) =>
+          !tagFilter.length ||
+          (c.tags || []).some((t) => tagFilter.includes(t.name))
+      )
+      .filter((c) => !sourceFilter || c.source === sourceFilter)
+      .filter((c) => {
+        if (
+          dateFrom &&
+          c.last_order_date !== "—" &&
+          new Date(c.last_order_date) < new Date(dateFrom)
+        )
+          return false;
+        if (
+          dateTo &&
+          c.last_order_date !== "—" &&
+          new Date(c.last_order_date) > new Date(dateTo)
+        )
+          return false;
         return true;
       });
-  }, [list, search, currencyFilter, statusFilter, tagFilter, sourceFilter, dateFrom, dateTo]);
+  }, [
+    list,
+    search,
+    currencyFilter,
+    statusFilter,
+    tagFilter,
+    sourceFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
-  /* === опции для селектов === */
+  /* === опции селектов === */
   const currencyOptions = useMemo(
-    () => currencies.length
-      ? currencies
-      : Array.from(new Set(list.map(c => c.currency))).filter(Boolean),
+    () =>
+      currencies.length
+        ? currencies
+        : Array.from(new Set(list.map((c) => c.currency))).filter(Boolean),
     [currencies, list]
   );
   const statusOptions = useMemo(
-    () => Array.from(new Set(list.map(c => c.status))).filter(Boolean),
+    () => Array.from(new Set(list.map((c) => c.status))).filter(Boolean),
     [list]
   );
   const tagOptions = useMemo(
-    () => Array.from(new Set(list.flatMap(c => (c.tags || []).map(t => t.name)))).filter(Boolean),
+    () =>
+      Array.from(
+        new Set(list.flatMap((c) => (c.tags || []).map((t) => t.name)))
+      ).filter(Boolean),
     [list]
   );
   const sourceOptions = useMemo(
-    () => Array.from(new Set(list.map(c => c.source))).filter(Boolean),
+    () => Array.from(new Set(list.map((c) => c.source))).filter(Boolean),
     [list]
   );
 
   /* === заголовки и ширины === */
   const headers = [
-    'Клиент',
-    'Теги',
-    'Вводное описание',
-    'Источник',
-    'ФИО',
-    'Страна',
-    'Валюта',
-    'Ставка в час',
-    'Доля %',
-    'Реферер',
-    'Реферер первый',
-    'Статус',
-    'Дата последнего заказа'
+    "Клиент",
+    "Теги",
+    "Вводное описание",
+    "Источник",
+    "ФИО",
+    "Страна",
+    "Валюта",
+    "Ставка в час",
+    "Доля %",
+    "Реферер",
+    "Реферер первый",
+    "Статус",
+    "Дата последнего заказа",
   ];
   const COLS = headers.length;
 
   const load = () => {
     try {
       const arr = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return Array.isArray(arr) && arr.length === COLS ? arr : Array(COLS).fill(null);
+      return Array.isArray(arr) && arr.length === COLS
+        ? arr
+        : Array(COLS).fill(null);
     } catch {
       return Array(COLS).fill(null);
     }
@@ -176,80 +232,93 @@ export default function ClientsPage({
   const wrapRef = useRef(null);
 
   useLayoutEffect(() => {
-    if (colWidths.every(w => w == null) && wrapRef.current) {
+    if (colWidths.every((w) => w == null) && wrapRef.current) {
       const total = wrapRef.current.clientWidth || 1200;
       const w = Math.floor(total / COLS);
       setColWidths(Array(COLS).fill(w));
     }
-  }, [wrapRef, colWidths, COLS]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wrapRef, COLS]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(colWidths));
   }, [colWidths]);
 
-  /* === лог по credential логинам у отфильтрованных === */
+  /* === лог по credential логинам у отфильтрованных (для отладки) === */
   useEffect(() => {
-    const logins = filteredRows.flatMap(c => (c.credentials || []).map(cr => cr.login));
-    console.log('Filtered credentials logins:', logins);
+    const logins = filteredRows.flatMap((c) =>
+      (c.credentials || []).map((cr) => cr.login)
+    );
+    console.log("Filtered credentials logins:", logins);
   }, [filteredRows]);
 
-  /* === прочее === */
-  const [showModal, setShow]   = useState(false);
-  const [active, setActive]    = useState(null);
-  const [expanded, setExp]     = useState({ 1: true, 2: true, 3: true });
+  /* === модалка/редактирование === */
+  const [showModal, setShow] = useState(false);
+  const [active, setActive] = useState(null);
+  const [expanded, setExp] = useState({ 1: true, 2: true, 3: true });
 
-  const idMap = useMemo(() => new Map(list.map(c => [c.id, c])), [list]);
+  const idMap = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
 
-  const openEdit = c => { setActive(c); setShow(true); };
-  const openRef  = (id, e) => {
+  const openEdit = (c) => {
+    setActive(c);
+    setShow(true);
+  };
+  const openRef = (id, e) => {
     e.stopPropagation();
     const r = idMap.get(id);
     r && openEdit(r);
   };
 
-  const save = async data => {
-    const s = await onSaveClient(data);
-    setList(prev => {
-      const idx = prev.findIndex(x => x.id === s.id);
-      if (idx !== -1) {
-        const copy = [...prev];
-        copy[idx] = s;
-        return copy;
-      }
-      return [s, ...prev];
-    });
-    setShow(false);
+  const save = async (data) => {
+    try {
+      const saved = await saveClientApi(data);
+      setList((prev) => {
+        const idx = prev.findIndex((x) => x.id === saved.id);
+        if (idx !== -1) {
+          const copy = [...prev];
+          copy[idx] = saved;
+          return copy;
+        }
+        return [saved, ...prev];
+      });
+      setShow(false);
+    } catch (e) {
+      console.error("saveClient failed:", e);
+      // тут можно показать тост/модалку
+    }
   };
 
   const onDown = (i, e) => {
     e.preventDefault();
     const startX = e.clientX;
     const startW = colWidths[i];
-    const move = ev => {
+    const move = (ev) => {
       const next = Math.max(startW + (ev.clientX - startX), MIN_W);
-      setColWidths(prev => {
+      setColWidths((prev) => {
         const arr = [...prev];
         arr[i] = next;
         return arr;
       });
     };
     const up = () => {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
     };
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
   };
 
-  const groups = { 1: 'Партнёры', 2: 'Наши клиенты', 3: 'По ситуации' };
+  const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
 
   return (
     <div className="clients-layout">
       <Sidebar />
       <div className="clients-page">
-        {/* шапка с поиском, фильтрами и статистикой */}
         <ClientsPageHeader
-          onAdd={() => { setActive(null); setShow(true); }}
+          onAdd={() => {
+            setActive(null);
+            setShow(true);
+          }}
           onSearch={setSearch}
           total={filteredRows.length}
           currencyOptions={currencyOptions}
@@ -266,121 +335,111 @@ export default function ClientsPage({
           }}
         />
 
-        {/* таблица */}
         <div ref={wrapRef} className="clients-table-wrapper">
-          <table className="clients-table">
-            <thead className="fixed-task-panel">
-              <tr>
-                {headers.map((h, i) => (
-                  <th key={h} style={{ position: 'relative', width: colWidths[i] }}>
-                    {h}
-                    <span className="resizer" onMouseDown={e => onDown(i, e)} />
-                  </th>
+          {loading ? (
+            <div className="table-loader">Загрузка…</div>
+          ) : (
+            <table className="clients-table">
+              <thead className="fixed-task-panel">
+                <tr>
+                  {headers.map((h, i) => (
+                    <th
+                      key={h}
+                      style={{ position: "relative", width: colWidths[i] }}
+                    >
+                      {h}
+                      <span
+                        className="resizer"
+                        onMouseDown={(e) => onDown(i, e)}
+                      />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {Object.entries(groups).map(([gid, gname]) => (
+                  <React.Fragment key={gid}>
+                    <tr
+                      className="group-row"
+                      onClick={() =>
+                        setExp((p) => ({ ...p, [gid]: !p[gid] }))
+                      }
+                    >
+                      <td colSpan={COLS}>
+                        {expanded[gid] ? "▼" : "▶"} {gid}. {gname}{" "}
+                        <span className="group-count">
+                          {
+                            filteredRows.filter(
+                              (c) => String(c.group) === gid
+                            ).length
+                          }
+                        </span>
+                      </td>
+                    </tr>
+
+                    {expanded[gid] &&
+                      filteredRows
+                        .filter((c) => String(c.group) === gid)
+                        .map((c) => (
+                          <tr key={c.id} onClick={() => openEdit(c)}>
+                            <td style={{ width: colWidths[0] }}>
+                              <Ellipsis value={c.name} />
+                            </td>
+                            <td style={{ width: colWidths[1] }}>
+                              <TagsCell tags={c.tags} />
+                            </td>
+                            <td style={{ width: colWidths[2] }}>
+                              <Ellipsis value={c.intro_description} />
+                            </td>
+                            <td style={{ width: colWidths[3] }}>
+                              <Ellipsis value={c.source} />
+                            </td>
+                            <td style={{ width: colWidths[4] }}>
+                              <Ellipsis value={c.full_name} />
+                            </td>
+                            <td style={{ width: colWidths[5] }}>
+                              <Ellipsis value={c.country} />
+                            </td>
+                            <td style={{ width: colWidths[6] }}>
+                              <Ellipsis value={c.currency} />
+                            </td>
+                            <td style={{ width: colWidths[7] }} className="num">
+                              {c.hourly_rate ?? "—"}
+                            </td>
+                            <td style={{ width: colWidths[8] }} className="num">
+                              {c.percent ?? "—"}
+                            </td>
+                            <td
+                              className="ref-cell"
+                              style={{ width: colWidths[9] }}
+                              onClick={(e) => openRef(c.referrer_id, e)}
+                            >
+                              <Ellipsis value={c.referrer_name} />
+                            </td>
+                            <td
+                              className="ref-cell"
+                              style={{ width: colWidths[10] }}
+                              onClick={(e) => openRef(c.referrer_first_id, e)}
+                            >
+                              <Ellipsis value={c.referrer_first_name} />
+                            </td>
+                            <td style={{ width: colWidths[11] }}>
+                              <StatusPill value={c.status} />
+                            </td>
+                            <td style={{ width: colWidths[12] }}>
+                              <Ellipsis value={c.last_order_date || "—"} />
+                            </td>
+                          </tr>
+                        ))}
+                  </React.Fragment>
                 ))}
-              </tr>
-            </thead>
-
-            <tbody>
-              {Object.entries(groups).map(([gid, gname]) => (
-                <React.Fragment key={gid}>
-                  <tr
-                    className="group-row"
-                    onClick={() => setExp(p => ({ ...p, [gid]: !p[gid] }))}
-                  >
-                    <td colSpan={COLS}>
-                      {expanded[gid] ? '▼' : '▶'} {gid}. {gname}{' '}
-                      <span className="group-count">
-                        {filteredRows.filter(c => String(c.group) === gid).length}
-                      </span>
-                    </td>
-                  </tr>
-
-                  {expanded[gid] &&
-                    filteredRows
-                      .filter(c => String(c.group) === gid)
-                      .map(c => (
-                        <tr key={c.id} onClick={() => openEdit(c)}>
-                          {/* 1 Клиент */}
-                          <td style={{ width: colWidths[0] }}>
-                            <Ellipsis value={c.name} />
-                          </td>
-
-                          {/* 2 Теги */}
-                          <td style={{ width: colWidths[1] }}>
-                            <TagsCell tags={c.tags} />
-                          </td>
-
-                          {/* 3 Вводное описание */}
-                          <td style={{ width: colWidths[2] }}>
-                            <Ellipsis value={c.intro_description} />
-                          </td>
-
-                          {/* 4 Источник */}
-                          <td style={{ width: colWidths[3] }}>
-                            <Ellipsis value={c.source} />
-                          </td>
-
-                          {/* 5 ФИО */}
-                          <td style={{ width: colWidths[4] }}>
-                            <Ellipsis value={c.full_name} />
-                          </td>
-
-                          {/* 6 Страна */}
-                          <td style={{ width: colWidths[5] }}>
-                            <Ellipsis value={c.country} />
-                          </td>
-
-                          {/* 7 Валюта */}
-                          <td style={{ width: colWidths[6] }}>
-                            <Ellipsis value={c.currency} />
-                          </td>
-
-                          {/* 8 Ставка в час */}
-                          <td style={{ width: colWidths[7] }} className="num">
-                            {c.hourly_rate ?? '—'}
-                          </td>
-
-                          {/* 9 Доля % */}
-                          <td style={{ width: colWidths[8] }} className="num">
-                            {c.percent ?? '—'}
-                          </td>
-
-                          {/* 10 Реферер */}
-                          <td
-                            className="ref-cell"
-                            style={{ width: colWidths[9] }}
-                            onClick={e => openRef(c.referrer_id, e)}
-                          >
-                            <Ellipsis value={c.referrer_name} />
-                          </td>
-
-                          {/* 11 Реферер первый */}
-                          <td
-                            className="ref-cell"
-                            style={{ width: colWidths[10] }}
-                            onClick={e => openRef(c.referrer_first_id, e)}
-                          >
-                            <Ellipsis value={c.referrer_first_name} />
-                          </td>
-
-                          {/* 12 Статус */}
-                          <td style={{ width: colWidths[11] }}>
-                            <StatusPill value={c.status} />
-                          </td>
-
-                          {/* 13 Дата последнего заказа */}
-                          <td style={{ width: colWidths[12] }}>
-                            <Ellipsis value={c.last_order_date || '—'} />
-                          </td>
-                        </tr>
-                      ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          )}
         </div>
 
-        {filteredRows.length === 0 && (
+        {!loading && filteredRows.length === 0 && (
           <div className="empty-state">Клиенты не найдены</div>
         )}
 
