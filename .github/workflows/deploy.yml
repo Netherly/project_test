@@ -1,5 +1,6 @@
 name: deploy-crm
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
 
