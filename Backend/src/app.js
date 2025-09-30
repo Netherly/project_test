@@ -6,7 +6,7 @@ const app = express();
 const routes = require('./routes/index');
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+   origin: ['http://gsse.work', 'https://gsse.work', 'http://localhost:5173'],
   credentials: true
 }));
 
