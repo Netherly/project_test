@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-     
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -29,14 +28,12 @@ jobs:
           cd "${{ env.FE_DIR }}"
           printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env || true
 
-  
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
         run: |
           npm ci || npm install
           npm run build || npm run build:prod || echo "no build script"
 
-   
       - name: Detect FE_OUT
         run: |
           if [ -d "${{ env.FE_DIR }}/dist" ]; then echo "FE_OUT=dist" >> $GITHUB_ENV; else echo "FE_OUT=build" >> $GITHUB_ENV; fi
@@ -44,7 +41,6 @@ jobs:
           test -d "${{ env.FE_DIR }}/${{ env.FE_OUT }}" || (echo "Build dir not found" && exit 1)
           find "${{ env.FE_DIR }}/${{ env.FE_OUT }}" -maxdepth 1 -type f | head -n 10
 
-     
       - name: Fail if bundle contains localhost:3000
         run: |
           set -e
@@ -55,7 +51,6 @@ jobs:
           fi
           echo "OK: bundle does not contain localhost:3000"
 
-     
       - name: Pack frontend build
         run: |
           tar -C "${{ env.FE_DIR }}" -czf frontend.tgz "${{ env.FE_OUT }}"
@@ -88,13 +83,12 @@ jobs:
             mkdir -p .releases/frontend_new
             tar -xzf frontend.tgz -C .releases/frontend_new
             if [ -d ".releases/frontend_new/${{ env.FE_OUT }}" ]; then
-              rsync -a --delete ".releases/frontend_new/${{ env.FE_OUT }}/" "crm-frontend/"
+              rsync -a --delete --exclude '.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "crm-frontend/"
             else
-              rsync -a --delete ".releases/frontend_new/" "crm-frontend/"
+              rsync -a --delete --exclude '.well-known' ".releases/frontend_new/" "crm-frontend/"
             fi
             rm -f frontend.tgz
 
-     
       - name: Pack backend source
         run: |
           set -e
@@ -133,7 +127,6 @@ jobs:
             rm -rf .releases/backend_new
             mkdir -p .releases/backend_new
             tar -xzf backend.tgz -C .releases/backend_new
-            # В архиве папка backend/ или Backend/ — снимем верхний уровень
             if [ -d ".releases/backend_new/backend" ]; then
               rsync -a --delete ".releases/backend_new/backend/" "crm-backend/"
             elif [ -d ".releases/backend_new/Backend" ]; then
@@ -143,7 +136,6 @@ jobs:
             fi
             rm -f backend.tgz
 
-    
       - name: Write backend .env on server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -158,7 +150,6 @@ jobs:
             EOF
             chmod 640 /var/www/crm-backend/.env
 
-     
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -191,9 +182,7 @@ jobs:
             npm ci --omit=dev || npm install --omit=dev
             npx prisma generate || true
             npx prisma migrate deploy || npx prisma db push || true
-            # сидер при наличии
             npm run seed || true
-            # старт через npm start, иначе node src/server.js
             if npm run | grep -qE " start"; then
               pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start
             else
@@ -202,7 +191,6 @@ jobs:
             fi
             pm2 save
 
-      
       - name: Backend health check
         uses: appleboy/ssh-action@v1.0.3
         with:
