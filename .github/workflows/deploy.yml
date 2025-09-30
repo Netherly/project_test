@@ -36,44 +36,68 @@ jobs:
         run: |
           if [ -d "${{ env.FE_DIR }}/dist" ]; then echo "FE_OUT=dist" >> $GITHUB_ENV; else echo "FE_OUT=build" >> $GITHUB_ENV; fi
 
+      - name: SSH smoke test
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: 'echo ok'
+
       - name: Ensure dirs exist on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             mkdir -p /var/www/crm-frontend
             mkdir -p /var/www/crm-backend
 
-      - name: Upload frontend build
+      - name: Upload frontend build (flatten)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "${{ env.FE_DIR }}/${{ env.FE_OUT }}/*"
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "${{ env.FE_DIR }}/${{ env.FE_OUT }}/**"
           target: "/var/www/crm-frontend/"
+          overwrite: true
+          strip_components: 2
 
-      - name: Upload backend source
+      - name: Upload backend source (flatten, skip node_modules)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "${{ env.BE_DIR }}/*"
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "${{ env.BE_DIR }}/**"
           target: "/var/www/crm-backend/"
+          overwrite: true
+          strip_components: 1
+          rm: false
+          exclude: |
+            **/node_modules/**
+            **/.git/**
+            **/.github/**
+            **/.env*
 
       - name: Write backend env
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             cat > /var/www/crm-backend/.env << 'EOF'
             ${{ secrets.BACKEND_ENV }}
@@ -84,8 +108,9 @@ jobs:
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             if ! command -v node >/dev/null 2>&1; then
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -100,11 +125,12 @@ jobs:
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             cd /var/www/crm-backend
             npm ci --omit=dev || npm install --omit=dev
-            npm run build || echo "no backend build"
+            npm run build || true
             pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start
             pm2 save
