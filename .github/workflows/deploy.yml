@@ -21,10 +21,22 @@ jobs:
           if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> $GITHUB_ENV; else echo "FE_DIR=frontend" >> $GITHUB_ENV; fi
           if [ -d Backend ]; then echo "BE_DIR=Backend" >> $GITHUB_ENV; else echo "BE_DIR=backend" >> $GITHUB_ENV; fi
 
+      # 1) Проверяем, что секрет задан
+      - name: Ensure FRONTEND_ENV is present
+        run: |
+          if [ -z "${{ secrets.FRONTEND_ENV }}" ]; then
+            echo "::error ::FRONTEND_ENV secret is empty. Put for Vite: 'VITE_API_URL=https://gsse.work/api'"
+            exit 1
+          fi
+
+      # 2) Пишем .env и показываем первые строки
       - name: Write frontend env
         run: |
           cd "${{ env.FE_DIR }}"
-          printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env || true
+          printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env
+          echo "----- .env (first lines) -----"
+          head -n 5 .env || true
+          echo "--------------------------------"
 
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
@@ -35,6 +47,24 @@ jobs:
       - name: Detect frontend output dir
         run: |
           if [ -d "${{ env.FE_DIR }}/dist" ]; then echo "FE_OUT=dist" >> $GITHUB_ENV; else echo "FE_OUT=build" >> $GITHUB_ENV; fi
+          echo "FE_DIR=${{ env.FE_DIR }} FE_OUT=${{ env.FE_OUT }}"
+
+      # 3) Проверяем, что в бандле нет localhost и есть gsse.work/api
+      - name: Verify API url baked into bundle
+        run: |
+          echo "Searching for 'localhost:3000' in bundle..."
+          if grep -R "localhost:3000" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" -n; then
+            echo "::error ::Bundle contains 'localhost:3000'. Check FRONTEND_ENV and api.js"
+            exit 1
+          else
+            echo "OK: no 'localhost:3000' found."
+          fi
+          echo "Searching for 'gsse.work/api' in bundle..."
+          if ! grep -R "gsse.work/api" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" -n >/dev/null 2>&1; then
+            echo "::warning ::Didn't find 'gsse.work/api' in minified bundle. If you use relative '/api', that's fine."
+          else
+            echo "OK: found 'gsse.work/api' in bundle."
+          fi
 
       - name: SSH smoke test
         uses: appleboy/ssh-action@v1.0.3
@@ -69,6 +99,7 @@ jobs:
           source: "${{ env.FE_DIR }}/${{ env.FE_OUT }}/**"
           target: "/var/www/crm-frontend/"
           overwrite: true
+          rm: true
           strip_components: 2
 
       - name: Upload backend source (flatten, skip node_modules)
@@ -84,7 +115,6 @@ jobs:
           overwrite: true
           strip_components: 1
           rm: true
-
           exclude: |
             **/node_modules/**
             **/.git/**
