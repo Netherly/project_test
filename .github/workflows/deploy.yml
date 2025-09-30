@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-deploy:   
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -15,8 +15,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ secrets.NODE_VERSION || '20' }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Write frontend env
         run: |
@@ -26,7 +24,7 @@ jobs:
       - name: Install & Build frontend
         working-directory: ./frontend
         run: |
-          npm ci
+          npm ci || npm install
           npm run build
 
       - name: Ensure dirs exist on server
@@ -97,7 +95,7 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             cd /var/www/crm-backend
-            npm ci --omit=dev
+            npm ci --omit=dev || npm install --omit=dev
             npm run build || echo "no backend build"
             pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start
             pm2 save
