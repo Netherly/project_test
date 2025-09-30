@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/LoginPage.css";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
+import { api } from "../api/api"; // <-- если путь другой, поправьте импорт
 
 function LoginPage() {
   const [login, setLogin] = useState("");
@@ -26,39 +27,23 @@ function LoginPage() {
 
   const navigate = useNavigate();
 
-  // основной логин: API + dev-фолбэк
+  // основной логин: API + тестовый фолбэк user/123456
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      // прямой fetch, чтобы не тянуть сюда ещё один слой абстракции
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ login, password }),
-      });
-
-      if (!res.ok) {
-        // если 401 — неуспешный логин; остальные ошибки попробуем обработать как текст
-        if (res.status === 401) throw new Error("Неверный логин или пароль");
-        let text = "";
-        try {
-          text = await res.text();
-        } catch {}
-        throw new Error(text || `Ошибка входа (HTTP ${res.status})`);
-      }
-
-      const data = await res.json().catch(() => ({}));
+      // 1) Пытаемся залогиниться через общий API-клиент
+      const data = await api.login({ login, password }); // ожидаем { token, ... }
       if (data?.token) localStorage.setItem("token", data.token);
       localStorage.setItem("isAuthenticated", "true");
       navigate("/home");
       return;
     } catch (err) {
-      // dev-фолбэк для стенда без бэка
-      if (login === "a" && password === "a") {
+      // 2) Тестовый фолбэк для стенда без бэка
+      if (login === "user" && password === "123456") {
+        localStorage.setItem("token", "dev-token-user-123456");
         localStorage.setItem("isAuthenticated", "true");
         navigate("/home");
         return;
@@ -77,7 +62,7 @@ function LoginPage() {
 
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
-    // здесь можно вставить POST на /api/auth/register
+    // здесь при необходимости можно вызвать api.register(regData)
     const link = `https://t.me/pridumatLink${Math.floor(Math.random() * 100000)}`;
     setTelegramLink(link);
     setShowConfirm(true);
@@ -198,7 +183,11 @@ function LoginPage() {
                 />
                 <p>
                   🌐 Подобрать никнейм можно с{" "}
-                  <a href="https://science.involta.ru/glossary" target="_blank" rel="noreferrer">
+                  <a
+                    href="https://science.involta.ru/glossary"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     сайта
                   </a>
                 </p>
