@@ -83,7 +83,8 @@ jobs:
           target: "/var/www/crm-backend/"
           overwrite: true
           strip_components: 1
-          rm: false
+          rm: true
+
           exclude: |
             **/node_modules/**
             **/.git/**
