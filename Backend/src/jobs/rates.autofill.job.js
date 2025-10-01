@@ -1,22 +1,33 @@
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const cron = require('node-cron')
+const { copyLatestToDate, todayYMD_EuropeWarsaw } = require('../services/rates.autofill.service')
 
-function todayYMD_EuropeWarsaw() {
-  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Warsaw' })
-}
+const schedule = process.env.RATES_CRON_SCHEDULE || '1 0 * * *'
+const timezone = process.env.RATES_CRON_TZ || 'Europe/Warsaw'
 
-async function copyLatestToDate(ymd) {
-  const latest = await prisma.rates.findFirst({
-    orderBy: { date: 'desc' }
-  })
-  if (!latest) return false
-  await prisma.rates.create({
-    data: {
-      date: ymd,
-      value: latest.value
+const task = cron.schedule(
+  schedule,
+  async () => {
+    try {
+      const ymd = todayYMD_EuropeWarsaw()
+      const created = await copyLatestToDate(ymd)
+      if (created) {
+        console.log(`[rates.autofill] created copy for ${ymd}`)
+      } else {
+        console.log(`[rates.autofill] no source row to copy (skipped)`)
+      }
+    } catch (e) {
+      console.error('[rates.autofill] failed:', e)
     }
-  })
-  return true
+  },
+  {
+    timezone,
+    scheduled: false,
+  }
+)
+
+function initRatesAutofillJob() {
+  task.start()
+  console.log(`[rates.autofill] cron scheduled: "${schedule}" (${timezone})`)
 }
 
-module.exports = { todayYMD_EuropeWarsaw, copyLatestToDate }
+module.exports = { initRatesAutofillJob }
