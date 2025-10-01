@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+     
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -83,9 +84,9 @@ jobs:
             mkdir -p .releases/frontend_new
             tar -xzf frontend.tgz -C .releases/frontend_new
             if [ -d ".releases/frontend_new/${{ env.FE_OUT }}" ]; then
-              rsync -a --delete --exclude '.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "crm-frontend/"
+              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "crm-frontend/"
             else
-              rsync -a --delete --exclude '.well-known' ".releases/frontend_new/" "crm-frontend/"
+              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/" "crm-frontend/"
             fi
             rm -f frontend.tgz
 
