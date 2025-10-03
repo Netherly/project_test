@@ -1,4 +1,4 @@
-.modal-overlay {
+.assets-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -11,7 +11,7 @@
     z-index: 1000;
 }
 
-.modal-content {
+.assets-modal-content {
     background-color: var(--bg-menu-color);
     border-radius: 8px 0 0 8px;
     padding: 20px 30px;
@@ -195,58 +195,6 @@
 
 .payment-system-display p {
     margin: 0;
-}
-
-
-.requisites-block h3 {
-    margin-top: 0;
-}
-
-.requisites-table {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--border--color);
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-.requisites-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    border-bottom: 1px solid var(--border--color);
-}
-
-.requisites-row:last-child {
-    border-bottom: none;
-}
-
-.requisites-item {
-    display: flex;
-    flex-direction: column;
-    padding: 10px 15px;
-    border-right: 1px solid var(--border--color);
-    background-color: var(--container-bg);
-}
-
-.requisites-item:last-child {
-    border-right: none;
-}
-
-.requisites-item label {
-    font-size: 12px;
-    color: var(--chips-color);
-    margin-bottom: 2px;
-}
-
-.requisites-item span {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--container-text-color);
-    word-break: break-all;
-}
-
-.empty-requisite-cell {
-    min-height: 30px;
 }
 
 .modal-footer {
@@ -487,80 +435,6 @@
 }
 
 
-
-.main-requisite-block .main-requisite-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 15px;
-    border: 1px solid var(--border--color);
-    border-radius: 6px;
-    margin-bottom: 10px;
-    position: relative;
-}
-
-.main-requisite-item label {
-    font-size: 12px;
-    color: var(--chips-color);
-    margin-right: 10px;
-}
-
-.main-requisite-item span {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--container-text-color);
-    word-break: break-all;
-    flex-grow: 1;
-}
-
-.edit-requisite-button {
-    background: none;
-    border: none;
-    font-size: 18px;
-    color: var(--chips-color);
-    cursor: pointer;
-    margin-left: 10px;
-    transition: color 0.2s ease;
-    padding: 0;
-    line-height: 1;
-}
-
-.edit-requisite-button:hover {
-    color: var(--text-color);
-}
-
-
-.other-requisites-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.other-requisite-item {
-    display: flex;
-    gap: 10px;
-    padding: 10px 15px;
-    border: 1px solid var(--border--color);
-    border-radius: 6px;
-    align-items: center;
-}
-
-.other-requisite-item label {
-    font-size: 12px;
-    color: var(--chips-color);
-    flex-shrink: 0; 
-}
-
-.other-requisite-item span {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--container-text-color);
-    word-break: break-all;
-    flex-grow: 1;
-}
-
-
-
 .main-requisite-item.editable,
 .other-requisite-item.editable {
     cursor: grab;
@@ -591,86 +465,137 @@
     color: var(--container-text-color);
 }
 
+
+.main-requisite-block, .requisites-block {
+    margin-bottom: 25px;
+}
+
+/* --- Заголовок секции (название + кнопки управления) --- */
+
 .requisites-header {
     display: flex;
-    gap: 10px;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    border-bottom: 1px solid var(--border--color);
+    padding-bottom: 8px;
 }
 
 .requisites-header h3 {
     margin: 0;
     border: none;
-}
-
-.add-requisite-icon-button,
-.remove-requisite-icon-button {
-    background: #333;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
     padding: 0;
 }
 
-.add-requisite-icon-button:hover,
-.remove-requisite-icon-button:hover {
-    background: #555;
+.requisite-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.remove-requisite-icon-button {
-    background-color: #e53935;
-    margin-left: 10px;
-}
-.remove-requisite-icon-button:hover {
-    background-color: #c62828;
-}
+/* --- Контейнер для одного реквизита (и основного, и дополнительного) --- */
 
 .requisite-item {
     display: flex;
-    align-items: center;
     flex-direction: row;
-    justify-content: space-between;
-    padding: 8px;
-    border: 1px solid var(--bg-color);
-    border-radius: 4px;
-    margin-bottom: 5px;
+    align-items: center;
+    gap: 15px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    min-height: 40px; 
 }
 
-.requisite-item.editable {
-    cursor: grab;
-    transition: all 0.2s ease-in-out;
-}
+/* --- Вид реквизита в режиме просмотра --- */
 
 .requisite-item label {
-    font-weight: bold;
-    margin-right: 10px;
+    color: var(--chips-color);
+    font-size: 14px;
+    flex-shrink: 0;
 }
 
 .requisite-item span {
+    color: var(--text-color);
+    font-size: 14px;
+    font-weight: 500;
     word-break: break-all;
 }
 
 
+/* --- Стили для режима РЕДАКТИРОВАНИЯ --- */
+
 .requisite-item.editable {
     display: grid;
-    grid-template-columns: 1fr 2fr auto;
+    grid-template-columns: auto 1fr 2fr auto; /* Иконка | Поле "Название" | Поле "Значение" | Кнопка "Удалить" */
     gap: 10px;
+    align-items: center;
+    background-color: rgba(69, 137, 193, 0.1);
+    border-color: var(--button-bg);
 }
 
+/* Поля ввода в режиме редактирования */
 .requisite-input {
     width: 100%;
-    padding: 6px;
+    padding: 6px 10px;
     border-radius: 4px;
-    background-color: transparent;
+    background-color: var(--bg-menu-color);
+    border: 1px solid var(--border--color);
+    color: var(--text-color);
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.requisite-input:focus {
+    outline: none;
+    border-color: var(--button-bg);
+}
+
+
+/* --- Иконки и кнопки управления --- */
+
+/* Иконка для перетаскивания (Drag & Drop) */
+.drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: #888;
+}
+.requisite-item.dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+}
+.requisite-item.drag-over {
+    background-color: rgba(69, 137, 193, 0.2);
+}
+
+/* Общий стиль для всех кнопок-иконок */
+.edit-requisite-button,
+.add-requisite-icon-button,
+.remove-requisite-icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
     border: none;
-    color: white;
+    color: var(--chips-color);
+    cursor: pointer;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.edit-requisite-button:hover,
+.add-requisite-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+}
+
+.remove-requisite-icon-button {
+    color: #ff5252;
+    margin-left: 15px;
+}
+.remove-requisite-icon-button:hover {
+    background-color: rgba(255, 82, 82, 0.15);
+    color: #ff1744;
 }

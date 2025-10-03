@@ -4,8 +4,25 @@ import AddTransactionModal from "./AddTransactionModal";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ViewEditTransactionModal from "./ViewEditTransactionModal";
 import "../../styles/TransactionsPage.css";
+import { useTransactions } from "../../context/TransactionsContext";
+import FormattedDate from "../FormattedDate.jsx";
 
 const TransactionsPage = () => {
+
+    const {
+        orders, 
+        counterparties,
+    } = useTransactions();
+
+    const formatNumberWithSpaces = (num) => {
+        if (num === null || num === undefined || isNaN(Number(num))) {
+            return '0.00';
+        }
+        const fixedNum = Number(num).toFixed(2);
+        const parts = fixedNum.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        return parts.join('.');
+    };
     const defaultTransactions = [
         {
             id: "T001",
@@ -92,7 +109,7 @@ const TransactionsPage = () => {
         if (savedTransactions) {
             try {
                 const parsedTransactions = JSON.parse(savedTransactions);
-                return [...parsedTransactions].sort(
+                return parsedTransactions.flat().sort(
                     (a, b) => new Date(b.date) - new Date(a.date)
                 );
             } catch (e) {
@@ -244,11 +261,11 @@ const TransactionsPage = () => {
                                 <th>Подстатья</th>
                                 <th>Описание</th>
                                 <th>Счет</th>
-                                <th>Валюта счета</th>
+                                <th>Валюта</th>
                                 <th>Операция</th>
                                 <th>Сумма операции</th>
                                 <th>Контрагент</th>
-                                <th>Реквизиты контрагента</th>
+                                <th>Реквизиты</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -258,7 +275,7 @@ const TransactionsPage = () => {
                                     className="transaction-row"
                                     onClick={() => handleTransactionClick(transaction)}
                                 >
-                                    <td>{transaction.date}</td>
+                                    <td><FormattedDate dateString={transaction.date} /></td>
                                     <td>{transaction.category}</td>
                                     <td>{transaction.subcategory}</td>
                                     <td>{transaction.description}</td>
@@ -278,7 +295,7 @@ const TransactionsPage = () => {
                                                 : "amount-negative"
                                         }
                                     >
-                                        {transaction.amount.toFixed(2)}
+                                        {formatNumberWithSpaces(transaction.amount)}
                                     </td>
                                     <td>{transaction.counterparty}</td>
                                     <td>
@@ -307,6 +324,8 @@ const TransactionsPage = () => {
                     onClose={() => setIsAddModalOpen(false)}
                     assets={assets} 
                     financeFields={financeFields}
+                    orders={orders}
+                    counterparties={counterparties}
                 />
             )}
 
@@ -322,6 +341,8 @@ const TransactionsPage = () => {
                     }}
                     assets={assets} 
                     financeFields={financeFields}
+                    orders={orders}
+                    counterparties={counterparties}
                 />
             )}
         </div>

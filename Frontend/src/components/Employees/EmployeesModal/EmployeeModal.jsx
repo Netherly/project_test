@@ -135,7 +135,7 @@ export default function EmployeeModal({
               {activeTab === 'general'    && <GeneralInfoTab employeeFields={allFields.employeeFields} />}
               {activeTab === 'contacts'   && <ContactsTab />}
               {activeTab === 'requisites' && <RequisitesTab />}
-              {activeTab === 'finances'   && <FinancesTab isNew={isNew} />}
+              {activeTab === 'finances'   && <FinancesTab isNew={isNew} employee={safeEmployee} />}
               {activeTab === 'orders'     && <OrdersTab isNew={isNew} employee={safeEmployee} />}
             </form>
           </FormProvider>

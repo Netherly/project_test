@@ -1,10 +1,9 @@
-
-
 import React from 'react';
 import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
+import './RequisitesTab.css'; 
+import { X } from 'lucide-react';
 
 const CURRENCIES = ['UAH', 'RUB', 'USDT', 'USD'];
-
 
 const CurrencySection = ({ currency }) => {
   const { control } = useFormContext();
@@ -18,36 +17,50 @@ const CurrencySection = ({ currency }) => {
   return (
     <div className="currency-section">
       <h4>{currency}</h4>
-      {fields.map((item, index) => (
-        <div key={item.id} className="card-entry">
-          <Controller
-            name={`${fieldArrayName}[${index}].bank`}
-            control={control}
-            defaultValue={item.bank || ''}
-            render={({ field }) => (
-              <input {...field} placeholder={index === 0 ? 'Банк (основной)' : `Банк ${index + 1}`} />
-            )}
-          />
-          <Controller
-            name={`${fieldArrayName}[${index}].card`}
-            control={control}
-            defaultValue={item.card || ''}
-            render={({ field }) => (
-              <input {...field} placeholder={index === 0 ? 'Карта (основная)' : `Карта ${index + 1}`} />
-            )}
-          />
-          <button type="button" className="remove-btn" onClick={() => remove(index)}>
-            -
-          </button>
-        </div>
-      ))}
-      <button type="button" className="add-btn" onClick={() => append({ bank: '', card: '' })}>
+      <div className="requisites-cards-container">
+        {fields.map((item, index) => (
+          <div key={item.id} className="card-entry">
+            <div className="input-group">
+              <Controller
+                name={`${fieldArrayName}[${index}].bank`}
+                control={control}
+                defaultValue={item.bank || ''}
+                render={({ field }) => (
+                  <input {...field} placeholder="Банк" />
+                )}
+              />
+              <Controller
+                name={`${fieldArrayName}[${index}].card`}
+                control={control}
+                defaultValue={item.card || ''}
+                render={({ field }) => (
+                  <input {...field} placeholder="Номер карты / Кошелек" />
+                )}
+              />
+              <Controller
+                name={`${fieldArrayName}[${index}].owner`}
+                control={control}
+                defaultValue={item.owner || ''}
+                render={({ field }) => (
+                  <input {...field} placeholder="Владелец (Ф.И.О)" />
+                )}
+              />
+            </div>
+            <button type="button" className="remove-btn" onClick={() => remove(index)}>
+              <X />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button 
+        type="button" 
+        className="add-btn" 
+        onClick={() => append({ bank: '', card: '', owner: '' })}>
         + Добавить карту
       </button>
     </div>
   );
 };
-
 
 export default function RequisitesTab() {
   return (

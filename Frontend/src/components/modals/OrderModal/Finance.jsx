@@ -244,7 +244,6 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                         <div>Подстатья</div>
                         <div>Счет</div>
                         <div>Сумма операции</div>
-                        <div style={{ width: '40px' }}></div> 
                     </div>
                     
                     

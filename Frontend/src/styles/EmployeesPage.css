@@ -20,11 +20,7 @@
 }
 
 .employees-title {
-<<<<<<< Updated upstream
     font-size: var(--font-size-page-title);
-=======
-    font-size: 22px;
->>>>>>> Stashed changes
     font-weight: 700;
     margin: 0;
     padding: 0 35px;
@@ -72,17 +68,12 @@
 .employees-table-container {
     overflow-x: auto;
     background-color: var(--container-bg);
-<<<<<<< Updated upstream
-=======
-    border-radius: 8px;
->>>>>>> Stashed changes
     margin-top: 20px;
 }
 
 .employees-table {
     width: 100%;
     border-collapse: collapse;
-<<<<<<< Updated upstream
     text-align: left;
 }
 
@@ -90,12 +81,6 @@
     font-size: var(--font-size-table-text);
 }
 
-=======
-    font-size: 14px;
-    text-align: left;
-}
-
->>>>>>> Stashed changes
 .employees-table th,
 .employees-table td {
     padding: 12px 15px;
@@ -112,10 +97,7 @@
 .employees-table thead {
     background-color: var(--container-bg);
     color: var(--text-color);
-<<<<<<< Updated upstream
     font-size: var(--font-size-table-header);
-=======
->>>>>>> Stashed changes
 }
 
 .employees-table th {
@@ -126,11 +108,7 @@
 }
 
 .employees-table tbody tr:hover {
-<<<<<<< Updated upstream
     background-color: var(--input-border-focus);
-=======
-    background-color: #224158;
->>>>>>> Stashed changes
 }
 
 .employees-table tbody tr:last-child td {
@@ -138,34 +116,20 @@
 }
 
 .group-header {
-<<<<<<< Updated upstream
     background-color: var(--bg-color);
-=======
-    background-color: #2a2a3e;
->>>>>>> Stashed changes
     cursor: pointer;
     user-select: none;
 }
 
-<<<<<<< Updated upstream
 .group-header td:hover{
     background-color: #1e2a3e;;
-=======
-.group-header:hover {
-    background-color: #3a3a4e;
->>>>>>> Stashed changes
 }
 
 .group-header td {
     font-weight: bold;
     color: #a0a0b0;
     padding: 12px 16px;
-<<<<<<< Updated upstream
     font-size: 12px;
-=======
-    font-size: 14px;
-    border-bottom: 2px solid #33334a;
->>>>>>> Stashed changes
 }
 
 .collapse-icon {
@@ -188,24 +152,12 @@
     font-size: 12px;
 }
 
-<<<<<<< Updated upstream
 .employees-card-view {
     width: 100%;
 }
 .card-group {
     margin-bottom: 20px;
 }
-=======
-/* Стили для карточного вида */
-.employees-card-view {
-    width: 100%;
-}
-
-.card-group {
-    margin-bottom: 20px;
-}
-
->>>>>>> Stashed changes
 .card-group-header {
     cursor: pointer;
     padding: 10px;
@@ -214,24 +166,14 @@
     font-weight: bold;
     color: #a0a0a0;
 }
-<<<<<<< Updated upstream
 .cards-container {
     margin-top: 10px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-=======
-
-.cards-container {
-    margin-top: 10px;
-    display: grid;
-    
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
->>>>>>> Stashed changes
     gap: 16px; 
     padding: 0 10px;
 }
 
-<<<<<<< Updated upstream
 .employees-card-view {
     width: 100%;
 }
@@ -264,30 +206,16 @@
     transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
     display: flex;
     flex-direction: row;
-=======
-.employee-card {
-    background-color: #1c1c1e;
-    border-radius: 12px;
-    padding: 16px;
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
-    display: flex;
-    flex-direction: column;
->>>>>>> Stashed changes
     align-items: flex-start;
     gap: 12px; 
     border: 1px solid #3a3a3c;
 }
 
 .employee-card:hover {
-<<<<<<< Updated upstream
     transform: translateY(-5px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
                 0 0 0 2px #478cff,
                 0 0 15px rgba(71, 140, 255, 0.5);
-=======
-    background-color: #2c2c2e;
->>>>>>> Stashed changes
 }
 
 .card-avatar {
@@ -295,7 +223,6 @@
     height: 48px;
     border-radius: 50%;
     object-fit: cover; 
-<<<<<<< Updated upstream
     background-color: #3a3a3c;
     flex-shrink: 0;
 }
@@ -316,24 +243,11 @@
 }
 
 .card-full-name {
-=======
-    background-color: #3a3a3c; 
-}
-
-.card-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.card-tag {
->>>>>>> Stashed changes
     font-size: 14px;
     font-weight: 600;
     color: #e5e5ea;
 }
 
-<<<<<<< Updated upstream
 
 .card-birthdate {
     font-size: 12px;
@@ -389,9 +303,4 @@
 .card-balance {
     font-size: 14px;
     font-weight: 500;
-=======
-.card-name {
-    font-size: 12px;
-    color: #8e8e93;
->>>>>>> Stashed changes
 }

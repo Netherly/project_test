@@ -5,6 +5,7 @@ import AddRegularPaymentModal from "./AddRegularPaymentModal";
 import ViewEditRegularPaymentModal from "./ViewEditRegularPaymentModal"; 
 import "../../styles/RegularPaymentsPage.css";
 import * as paymentApi from './regularPayments';
+import FormattedDate from "../FormattedDate";
 
 const RegularPaymentsPage = () => {
     const [regularPayments, setRegularPayments] = useState([]);

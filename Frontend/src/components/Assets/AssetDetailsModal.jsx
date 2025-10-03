@@ -18,7 +18,6 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [exchangeRates, setExchangeRates] = useState(null);
     const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
-    // Состояние для режима редактирования всех реквизитов
     const [isEditingRequisites, setIsEditingRequisites] = useState(false);
     const [editableAsset, setEditableAsset] = useState({ ...asset });
 
@@ -45,10 +44,20 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
             ...prev,
             requisites: [...prev.requisites, { label: '', value: '' }],
         }));
-        // Автоматически включаем режим редактирования при добавлении
         if (!isEditingRequisites) {
             setIsEditingRequisites(true);
         }
+    };
+
+    const handleRequisitesSave = () => {
+        const filteredRequisites = editableAsset.requisites.filter(
+            req => req.label.trim() !== '' || req.value.trim() !== ''
+        );
+        setEditableAsset(prev => ({
+            ...prev,
+            requisites: filteredRequisites
+        }));
+        setIsEditingRequisites(false);
     };
 
     const handleRemoveRequisite = (index) => {
@@ -208,8 +217,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
     const otherRequisites = editableAsset.requisites.slice(1);
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="assets-modal-overlay" onClick={onClose}>
+            <div className="assets-modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2>"{asset.accountName}"</h2>
                     <div className="header-actions-right">
@@ -309,18 +318,9 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                         </div>
                     </div>
                     
-                    {/* --- ИЗМЕНЕННЫЙ БЛОК РЕКВИЗИТОВ --- */}
+                    
                     <div className="modal-section main-requisite-block">
-                        <div className="requisites-header">
-                            <h3>Основной реквизит</h3>
-                            <button
-                                className="edit-requisite-button"
-                                onClick={() => setIsEditingRequisites(!isEditingRequisites)}
-                                title={isEditingRequisites ? "Завершить редактирование" : "Редактировать реквизиты"}
-                            >
-                                {isEditingRequisites ? '✔' : '✎'}
-                            </button>
-                        </div>
+                        <h3>Основной реквизит</h3>
                         {mainRequisite && (
                             <div
                                 className={`requisite-item ${isEditingRequisites ? 'editable' : ''}`}
@@ -332,22 +332,25 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 onDrop={handleDrop}
                                 onDragOver={allowDrop}
                             >
+                                {isEditingRequisites && (
+                                    <span className="drag-handle" title="Перетянуть">
+                                        <svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="2.5" cy="2.5" r="1.5"/><circle cx="9.5" cy="2.5" r="1.5"/>
+                                            <circle cx="2.5" cy="10" r="1.5"/><circle cx="9.5" cy="10" r="1.5"/>
+                                            <circle cx="2.5" cy="17.5" r="1.5"/><circle cx="9.5" cy="17.5" r="1.5"/>
+                                        </svg>
+                                    </span>
+                                )}
                                 {isEditingRequisites ? (
                                     <>
                                         <input
-                                            type="text"
-                                            name="label"
-                                            value={mainRequisite.label}
-                                            onChange={(e) => handleRequisiteChange(0, e)}
-                                            placeholder="Название"
+                                            type="text" name="label" value={mainRequisite.label}
+                                            onChange={(e) => handleRequisiteChange(0, e)} placeholder="Название"
                                             className="requisite-input"
                                         />
                                         <input
-                                            type="text"
-                                            name="value"
-                                            value={mainRequisite.value}
-                                            onChange={(e) => handleRequisiteChange(0, e)}
-                                            placeholder="Значение"
+                                            type="text" name="value" value={mainRequisite.value}
+                                            onChange={(e) => handleRequisiteChange(0, e)} placeholder="Значение"
                                             className="requisite-input"
                                         />
                                         <button onClick={() => handleRemoveRequisite(0)} className="remove-requisite-icon-button">✖</button>
@@ -365,7 +368,18 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                     <div className="modal-section requisites-block">
                         <div className="requisites-header">
                             <h3>Дополнительные реквизиты</h3>
-                            <button onClick={handleAddRequisite} className="add-requisite-icon-button" title="Добавить реквизит">+</button>
+                            <div className="requisite-header-controls">
+                               {isEditingRequisites && (
+                                    <button onClick={handleAddRequisite} className="add-requisite-icon-button" title="Добавить реквизит">+</button>
+                               )}
+                                <button
+                                    className="edit-requisite-button"
+                                    onClick={isEditingRequisites ? handleRequisitesSave : () => setIsEditingRequisites(true)}
+                                    title={isEditingRequisites ? "Сохранить реквизиты" : "Редактировать реквизиты"}
+                                >
+                                    {isEditingRequisites ? '✔' : '✎'}
+                                </button>
+                            </div>
                         </div>
                         {otherRequisites.length > 0 && (
                             <div className="other-requisites-list">
@@ -383,22 +397,25 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                             onDrop={handleDrop}
                                             onDragOver={allowDrop}
                                         >
+                                            {isEditingRequisites && (
+                                                <span className="drag-handle" title="Перетянуть">
+                                                    <svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                        <circle cx="2.5" cy="2.5" r="1.5"/><circle cx="9.5" cy="2.5" r="1.5"/>
+                                                        <circle cx="2.5" cy="10" r="1.5"/><circle cx="9.5" cy="10" r="1.5"/>
+                                                        <circle cx="2.5" cy="17.5" r="1.5"/><circle cx="9.5" cy="17.5" r="1.5"/>
+                                                    </svg>
+                                                </span>
+                                            )}
                                             {isEditingRequisites ? (
                                                 <>
                                                     <input
-                                                        type="text"
-                                                        name="label"
-                                                        value={item.label}
-                                                        onChange={(e) => handleRequisiteChange(originalIndex, e)}
-                                                        placeholder="Название"
+                                                        type="text" name="label" value={item.label}
+                                                        onChange={(e) => handleRequisiteChange(originalIndex, e)} placeholder="Название"
                                                         className="requisite-input"
                                                     />
                                                     <input
-                                                        type="text"
-                                                        name="value"
-                                                        value={item.value}
-                                                        onChange={(e) => handleRequisiteChange(originalIndex, e)}
-                                                        placeholder="Значение"
+                                                        type="text" name="value" value={item.value}
+                                                        onChange={(e) => handleRequisiteChange(originalIndex, e)} placeholder="Значение"
                                                         className="requisite-input"
                                                     />
                                                     <button onClick={() => handleRemoveRequisite(originalIndex)} className="remove-requisite-icon-button">✖</button>

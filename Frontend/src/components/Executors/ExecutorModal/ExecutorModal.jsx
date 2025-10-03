@@ -16,7 +16,8 @@ import '../../../styles/ExecutorModal.css';
 
 export default function ExecutorModal({
   executor, 
-  orders,   
+  orders,
+  journalEntries,   
   fields,  
   onClose,
   onSave,
@@ -30,6 +31,7 @@ export default function ExecutorModal({
   const [isOpen, setIsOpen] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
 
   useEffect(() => {
     const timer = setTimeout(() => setIsOpen(true), 10);
@@ -157,8 +159,8 @@ export default function ExecutorModal({
               <div className="tab-content-wrapper">
                 {activeTab === 'dashboard' && <DashboardTab />}
                 {activeTab === 'general'   && <GeneralInfoTab orders={orders} fields={fields} />}
-                {activeTab === 'journal'   && <JournalTab isNew={isNew} executor={safeExecutor} />}
-                {activeTab === 'finances'  && <FinancesTab fields={fields} />}
+                {activeTab === 'journal'   && <JournalTab isNew={isNew} executor={safeExecutor} journalEntries={journalEntries} />}
+                {activeTab === 'finances'  && <FinancesTab isNew={isNew} executor={safeExecutor} />}
               </div>
 
             </form>
