@@ -2,21 +2,23 @@
   "name": "my-crm",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/server.js",
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "test": "jest",
-<<<<<<< HEAD
-    "dev": "nodemon src/server.js",
-=======
+    "start": "node src/server.js",
+    "build": "echo \"no build step\"",
+    "postinstall": "prisma generate",
+    "seed": "node prisma/seed.js",
     "dev": "npx prisma generate && npx prisma db push && nodemon src/server.js",
     "dev:db": "npx prisma generate && npx prisma db push",
->>>>>>> update_last_changes
+    "test": "jest",
     "lint": "eslint src/**/*.{js}",
-    "format": "prettier --write src/**/*.{js,json,md}",
-    "prepare": "husky install"
+    "format": "prettier --write src/**/*.{js,json,md}"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "keywords": [],
   "author": "",
@@ -25,18 +27,13 @@
     "@prisma/client": "^6.9.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
-<<<<<<< HEAD
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
-=======
     "dayjs": "^1.11.18",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
     "path": "^0.12.7",
->>>>>>> update_last_changes
     "prisma": "^6.9.0"
   },
   "devDependencies": {
@@ -50,14 +47,10 @@
     "prettier": "^3.5.3",
     "supertest": "^7.1.1"
   },
-<<<<<<< HEAD
-  "lint-staged": "{\r\n    src/**/*.{js}: eslint"
-=======
   "lint-staged": {
     "src/**/*.{js,json,md}": [
       "prettier --write",
       "eslint --fix"
     ]
   }
->>>>>>> update_last_changes
 }

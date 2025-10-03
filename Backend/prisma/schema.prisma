@@ -1,9 +1,6 @@
-<<<<<<< HEAD
-=======
 // =========================
 // Prisma — генератор и источник
 // =========================
->>>>>>> update_last_changes
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,73 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-<<<<<<< HEAD
-model Employee {
-  id        Int      @id @default(autoincrement())
-  status    String?  @db.VarChar(50)
-  full_name String?  @db.VarChar(255)
-  phone     String?  @db.VarChar(50)
-  email     String?  @db.VarChar(100)
-  login     String   @db.VarChar(100) @unique
-  password  String   @db.VarChar(255)
-  folder    String?  @db.VarChar(255)
-
-  tasks     Task[]
-  clients   Client[] @relation("ManagerClients")
-}
-
-model Company {
-  id          Int         @id @default(autoincrement())
-  name        String      @db.VarChar(255)
-  clients     Client[]    @relation("CompanyClients")
-  tasks       Task[]
-  credentials Credential[]
-}
-
-model Client {
-  id                 Int      @id @default(autoincrement())
-  name               String?  @db.VarChar(255)
-  messenger_name     String?  @db.VarChar(100)
-  intro_description  String?
-  note               String?
-  category           String?  @db.VarChar(100)
-  source             String?  @db.VarChar(100)
-  full_name          String?  @db.VarChar(255)
-  phone              String?  @db.VarChar(50)
-  email              String?  @db.VarChar(100)
-  country            String?  @db.VarChar(100)
-  city               String?  @db.VarChar(100)
-  currency           String?  @db.VarChar(10)
-
-  payment_details    String?
-  hourly_rate        Float?
-  percent            Float?
-  share_info         String?
-
-  referrer           String?
-  referrer_id        Int?
-  referrer_first     String?
-  referrer_first_id  Int?
-
-  manager_name       String?                        // Просто текстове ім’я
-  manager_id         Int?                          
-  manager            Employee? @relation("ManagerClients", fields: [manager_id], references: [id])
-
-  company_name       String?                        // Просто назва компанії
-  company_id         Int?
-  company            Company?  @relation("CompanyClients", fields: [company_id], references: [id])
-
-  chat_link          String?
-  photo_link         String?
-  folder_link        String?
-
-  tasks              Task[]
-  credentials        Credential[]
-}
-
-model Credential {
-  id          Int      @id @default(autoincrement())
-=======
 // =========================
 // Enums
 // =========================
@@ -90,17 +20,17 @@ enum ClientStatus {
 }
 
 enum OperationType {
-  DEPOSIT   // Зачисление
-  WITHDRAW  // Списание
+  DEPOSIT // Зачисление
+  WITHDRAW // Списание
 }
 
 // =========================
-/* TAGS: категории и справочник */
+// TAGS
 // =========================
 
 model TagCategory {
   id   String @id @default(uuid())
-  code String @unique @db.VarChar(50) // 'employees' | 'clients' | 'orders' | ...
+  code String @unique @db.VarChar(50)
   name String @db.VarChar(100)
 
   tags Tag[]
@@ -125,28 +55,28 @@ model Tag {
 }
 
 // =========================
-/* UNIVERSAL DICTIONARIES (Lists) */
+// UNIVERSAL DICTIONARIES
 // =========================
 
 model Country {
-  id       String     @id @default(uuid())
-  name     String     @unique @db.VarChar(100)
-  iso2     String?    @unique @db.VarChar(2)
-  iso3     String?    @unique @db.VarChar(3)
-  isActive Boolean    @default(true)
-  order    Int        @default(0)
-  Employee Employee[]
-  Client   Client[]
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  iso2      String?    @unique @db.VarChar(2)
+  iso3      String?    @unique @db.VarChar(3)
+  isActive  Boolean    @default(true)
+  order     Int        @default(0)
+  employees Employee[]
+  clients   Client[]
 }
 
 model CurrencyDict {
   id       String   @id @default(uuid())
-  code     String   @unique @db.VarChar(10) // "USD", "EUR", "UAH"...
-  name     String?  @db.VarChar(100)        // "US Dollar"
+  code     String   @unique @db.VarChar(10)
+  name     String?  @db.VarChar(100)
   isActive Boolean  @default(true)
   order    Int      @default(0)
-  Client   Client[]
-  Order    Order[]
+  clients  Client[]
+  orders   Order[]
   assets   Asset[]
 }
 
@@ -155,7 +85,7 @@ model ClientSourceDict {
   name     String   @unique @db.VarChar(100)
   isActive Boolean  @default(true)
   order    Int      @default(0)
-  Client   Client[]
+  clients  Client[]
 }
 
 model ClientCategoryDict {
@@ -163,7 +93,7 @@ model ClientCategoryDict {
   name     String   @unique @db.VarChar(100)
   isActive Boolean  @default(true)
   order    Int      @default(0)
-  Client   Client[]
+  clients  Client[]
 }
 
 model ExecutorRoleDict {
@@ -212,8 +142,7 @@ model OrderCategoryDict {
   intervalId String
   interval   OrderIntervalDict @relation(fields: [intervalId], references: [id])
 
-  value String @db.VarChar(100)
-
+  value    String  @db.VarChar(100)
   isActive Boolean @default(true)
   order    Int     @default(0)
 
@@ -222,12 +151,12 @@ model OrderCategoryDict {
 }
 
 model FinanceArticleDict {
-  id       String  @id @default(uuid())
-  name     String  @unique @db.VarChar(150)
-  isActive Boolean @default(true)
-  order    Int     @default(0)
-
-  subarticles FinanceSubarticleDict[]
+  id           String                  @id @default(uuid())
+  name         String                  @unique @db.VarChar(150)
+  isActive     Boolean                 @default(true)
+  order        Int                     @default(0)
+  transactions Transaction[]
+  subarticles  FinanceSubarticleDict[]
 }
 
 model FinanceSubcategoryDict {
@@ -250,15 +179,16 @@ model FinanceSubarticleDict {
 
   name String @db.VarChar(150)
 
-  isActive Boolean @default(true)
-  order    Int     @default(0)
+  isActive     Boolean       @default(true)
+  order        Int           @default(0)
+  transactions Transaction[]
 
   @@index([articleId])
   @@index([subcategoryId])
 }
 
 // =========================
-/* Core */
+// CORE
 // =========================
 
 model Employee {
@@ -277,8 +207,8 @@ model Employee {
   tasks   Task[]
   clients Client[] @relation("ManagerClients")
 
-  tags    EmployeeTag[]
-  assets  Asset[]
+  tags   EmployeeTag[]
+  assets Asset[]
 
   @@index([countryId])
 }
@@ -358,8 +288,7 @@ model Client {
   tasks       Task[]
   credentials Credential[]
   orders      Order[]
-
-  tags ClientTag[]
+  tags        ClientTag[]
 
   transactions Transaction[] @relation("ClientTransactions")
 
@@ -376,52 +305,10 @@ model Client {
 
 model Credential {
   id          String  @id @default(uuid())
->>>>>>> update_last_changes
   login       String
   password    String
   description String?
 
-<<<<<<< HEAD
-  clientId    Int?
-  client      Client?  @relation(fields: [clientId], references: [id])
-
-  companyId   Int?
-  company     Company? @relation(fields: [companyId], references: [id])
-}
-
-model Task {
-  id                 Int      @id @default(autoincrement())
-  title              String
-  description        String
-  status             String   @default("pending")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  employeeId         Int
-  employee           Employee @relation(fields: [employeeId], references: [id])
-
-  clientId           Int?
-  client             Client?  @relation(fields: [clientId], references: [id])
-
-  companyId          Int?
-  company            Company? @relation(fields: [companyId], references: [id])
-
-  country            String?  @db.VarChar(100)
-  category           String?  @db.VarChar(100)
-  source             String?  @db.VarChar(100)
-  referer            String?  @db.VarChar(255)
-  refererFirst       String?  @db.VarChar(255)
-  managerName        String?  @db.VarChar(255)
-  firstOrder         Boolean? @default(false)
-
-  partnerName        String?  @db.VarChar(255)
-  partnerDisabled    Boolean? @default(false)
-  partnerPayment     Decimal? @db.Decimal(10,2)
-  partnerPlan        Int?
-  partnerPlanPercent Int?
-  partnerPlanSum     Int?
-  partnerDebt        Decimal? @db.Decimal(10,2)
-=======
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
 
@@ -433,7 +320,7 @@ model Task {
 }
 
 // =========================
-/* Заказы */
+// ORDERS
 // =========================
 model Order {
   id       String @id @default(uuid())
@@ -448,14 +335,16 @@ model Order {
 
   createdAt DateTime @default(now())
 
-  tags OrderTag[]
+  tags         OrderTag[]
+  transactions Transaction[] // обратная сторона Transaction.order
 
   @@index([clientId, createdAt])
   @@index([currencyId])
+  @@map("orders") // чтобы не конфликтовать с SQL-ключевым ORDER
 }
 
 // =========================
-/* Tasks */
+// TASKS
 // =========================
 model Task {
   id          String   @id @default(uuid())
@@ -492,7 +381,7 @@ model Task {
 }
 
 // =========================
-/* Exchange rates */
+// EXCHANGE RATES
 // =========================
 model ExchangeRates {
   id   String   @id @default(uuid())
@@ -525,34 +414,34 @@ model ExchangeRates {
 }
 
 // =========================
-/* Transactions */
+// TRANSACTIONS
 // =========================
 model Transaction {
   id String @id @default(uuid())
 
-  date        DateTime
+  date DateTime
 
-  /// СТАРЫЕ СТРОКОВЫЕ ПОЛЯ: можно удалить после миграции UI на FKs
-  category    String?  @db.VarChar(100)
-  subcategory String?  @db.VarChar(100)
+  // старые строковые поля (оставлены для обратной совместимости)
+  category    String? @db.VarChar(100)
+  subcategory String? @db.VarChar(100)
 
-  /// НОВЫЕ FK на словари (опционально, чтобы мигрировать без слома)
-  categoryId    String?
-  categoryDict  FinanceArticleDict?    @relation(fields: [categoryId], references: [id])
+  // новые словари
+  categoryId   String?
+  categoryDict FinanceArticleDict? @relation(fields: [categoryId], references: [id])
 
   subcategoryId   String?
   subcategoryDict FinanceSubarticleDict? @relation(fields: [subcategoryId], references: [id])
 
   description String?
 
-  // Счёт (FK → Asset)
+  // счёт (FK → Asset)
   accountId String
-  account   Asset   @relation(fields: [accountId], references: [id])
+  account   Asset  @relation(fields: [accountId], references: [id])
 
-  // Валюта счёта (денормализация для истории)
-  accountCurrency String  @db.VarChar(10)
+  // валюта счёта (денормализация)
+  accountCurrency String @db.VarChar(10)
 
-  // Операция
+  // тип операции
   operation OperationType
 
   amount     Decimal  @db.Decimal(14, 2)
@@ -561,13 +450,13 @@ model Transaction {
   counterparty           String?
   counterpartyRequisites String?
 
-  // Заказ (FK → Order)
+  // связь с заказом
   orderId       String?
   order         Order?  @relation(fields: [orderId], references: [id])
   orderNumber   String?
   orderCurrency String? @db.VarChar(10)
 
-  // Пересчёты
+  // пересчёты
   sumUAH Decimal? @db.Decimal(14, 2)
   sumUSD Decimal? @db.Decimal(14, 2)
   sumRUB Decimal? @db.Decimal(14, 2)
@@ -583,7 +472,7 @@ model Transaction {
   balanceBefore Decimal? @db.Decimal(14, 2)
   balanceAfter  Decimal? @db.Decimal(14, 2)
 
-  // Связи
+  // связи клиент/компания
   clientId String?
   client   Client? @relation("ClientTransactions", fields: [clientId], references: [id])
 
@@ -603,7 +492,7 @@ model Transaction {
 }
 
 // =========================
-/* M:N таблицы для тегов */
+// TAG RELATIONS
 // =========================
 
 model EmployeeTag {
@@ -640,11 +529,11 @@ model OrderTag {
 }
 
 // =========================
-/* Assets */
+// ASSETS
 // =========================
 
 model Asset {
-  id          String  @id @default(uuid())
+  id String @id @default(uuid())
 
   accountName String  @db.VarChar(255)
   externalId  String? @db.VarChar(255)
@@ -652,8 +541,8 @@ model Asset {
   currencyId String
   currency   CurrencyDict @relation(fields: [currencyId], references: [id])
 
-  typeId  String?
-  type    AssetTypeDict? @relation(fields: [typeId], references: [id])
+  typeId String?
+  type   AssetTypeDict? @relation(fields: [typeId], references: [id])
 
   paymentSystemId String?
   paymentSystem   PaymentSystemDict? @relation(fields: [paymentSystemId], references: [id])
@@ -665,7 +554,7 @@ model Asset {
   employee   Employee? @relation(fields: [employeeId], references: [id])
 
   companyId String?
-  company   Company?  @relation(fields: [companyId], references: [id])
+  company   Company? @relation(fields: [companyId], references: [id])
 
   balance              Decimal @default(0) @db.Decimal(14, 2)
   turnoverStartBalance Decimal @default(0) @db.Decimal(14, 2)
@@ -673,14 +562,13 @@ model Asset {
   turnoverOutgoing     Decimal @default(0) @db.Decimal(14, 2)
   turnoverEndBalance   Decimal @default(0) @db.Decimal(14, 2)
 
-  balanceUAH   Decimal @default(0) @db.Decimal(14, 2)
+  balanceUAH    Decimal   @default(0) @db.Decimal(14, 2)
   lastEntryDate DateTime?
 
   design String? @db.VarChar(100)
 
-  requisites AssetRequisite[]
-  // обратная связь для транзакций
-  Transaction Transaction[]
+  requisites   AssetRequisite[]
+  transactions Transaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -702,5 +590,4 @@ model AssetRequisite {
   updatedAt DateTime @updatedAt
 
   @@index([assetId])
->>>>>>> update_last_changes
 }

@@ -1,22 +1,23 @@
+/* ==== Layout ==== */
 .employees-page {
-    display: flex;
-    min-height: 100vh;
-    color: var(--text-color);
-    background-color: var(--bg-color);
+  display: flex;
+  min-height: 100vh;
+  color: var(--text-color);
+  background-color: var(--bg-color);
 }
 
 .employees-page-main-container {
-    flex-grow: 1;
-    padding: 0;
+  flex-grow: 1;
+  padding: 0;
 }
 
-
+/* ==== Header ==== */
 .employees-header-container {
-    display: flex;
-    align-items: stretch;
-    height: 60px;
-    background-color: var(--container-bg);
-    border-bottom: 1px solid var(--border--color);
+  display: flex;
+  align-items: stretch;
+  height: 60px;
+  background-color: var(--container-bg);
+  border-bottom: 1px solid var(--border--color);
 }
 
 .employees-title {
@@ -29,42 +30,69 @@
     border-right: 1px solid var(--border--color);
 }
 
-.employees-search {
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    border-right: 1px solid var(--border--color);
+/* Кнопки переключения вида */
+.view-mode-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-right: 1px solid var(--border--color);
 }
 
-.employees-search-input {
-    border: 1px solid var(--border--color);
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    padding: 8px 12px;
-    border-radius: 4px;
+.view-mode-button {
+  border: none;
+  background: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  height: 100%;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 16px;
 }
 
+.view-mode-button:hover,
+.view-mode-button.active {
+  background-color: var(--input-border-focus, #224158);
+}
+
+/* Кнопка добавления */
 .add-employee-button {
-    background-color: var(--container-bg);
-    color: var(--text-color);
-    border: none;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-    padding: 0 25px 0 55px;
-    border-left: 1px solid var(--border--color);
-    height: 100%;
+  background-color: var(--container-bg);
+  color: var(--text-color);
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 0 25px 0 55px;
+  border-left: 1px solid var(--border--color);
+  height: 100%;
 }
 
 .add-employee-button:hover {
-    background-color: #335d7a;
+  background-color: #335d7a;
 }
 
-/* Table styles */
+/* ==== States ==== */
+.employees-loading,
+.employees-error {
+  padding: 12px 16px;
+  margin: 12px 16px 0;
+  border-radius: 8px;
+  background: var(--container-bg);
+  border: 1px solid var(--border--color);
+}
+
+.employees-error {
+  color: #ffb4b4;
+  border-color: rgba(255, 80, 80, 0.35);
+}
+
+/* ==== Table view ==== */
 .employees-table-container {
     overflow-x: auto;
     background-color: var(--container-bg);
@@ -83,15 +111,15 @@
 
 .employees-table th,
 .employees-table td {
-    padding: 12px 15px;
-    white-space: nowrap;
-    border-bottom: 1px solid var(--border--color);
-    border-right: 1px solid var(--border--color);
+  padding: 12px 15px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border--color);
+  border-right: 1px solid var(--border--color);
 }
 
 .employees-table th:last-child,
 .employees-table td:last-child {
-    border-right: none;
+  border-right: none;
 }
 
 .employees-table thead {
@@ -101,10 +129,11 @@
 }
 
 .employees-table th {
-    font-weight: 600;
-    position: sticky;
-    top: 0;
-    background-color: var(--container-bg);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background-color: var(--container-bg);
+  z-index: 1;
 }
 
 .employees-table tbody tr:hover {
@@ -112,9 +141,10 @@
 }
 
 .employees-table tbody tr:last-child td {
-    border-bottom: none;
+  border-bottom: none;
 }
 
+/* Групповые строки в таблице */
 .group-header {
     background-color: var(--bg-color);
     cursor: pointer;
@@ -133,23 +163,23 @@
 }
 
 .collapse-icon {
-    display: inline-block;
-    margin-right: 12px;
-    transition: transform 0.2s ease-in-out;
-    font-size: 10px;
+  display: inline-block;
+  margin-right: 12px;
+  transition: transform 0.2s ease-in-out;
+  font-size: 10px;
 }
 
 .collapse-icon.collapsed {
-    transform: rotate(-90deg);
+  transform: rotate(-90deg);
 }
 
 .group-count {
-    margin-left: 8px;
-    padding: 2px 6px;
-    background-color: #444;
-    color: #a0a0b0;
-    border-radius: 4px;
-    font-size: 12px;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background-color: #444;
+  color: #a0a0b0;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 .employees-card-view {
@@ -159,12 +189,16 @@
     margin-bottom: 20px;
 }
 .card-group-header {
-    cursor: pointer;
-    padding: 10px;
-    user-select: none;
-    font-size: 16px;
-    font-weight: bold;
-    color: #a0a0a0;
+  cursor: pointer;
+  padding: 10px 16px;
+  user-select: none;
+  font-size: 16px;
+  font-weight: bold;
+  color: #a0a0a0;
+  background: var(--container-bg);
+  border: 1px solid var(--border--color);
+  border-radius: 8px;
+  margin: 12px 10px 0;
 }
 .cards-container {
     margin-top: 10px;
@@ -228,18 +262,19 @@
 }
 
 .card-details {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    flex-grow: 1;
-    min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-grow: 1;
+  min-height: 48px;
+  gap: 6px;
 }
 
 .card-header {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
 }
 
 .card-full-name {
@@ -250,54 +285,55 @@
 
 
 .card-birthdate {
-    font-size: 12px;
-    color: #8e8e93; 
-    white-space: nowrap; 
+  font-size: 12px;
+  color: #8e8e93;
+  white-space: nowrap;
 }
 
 .card-login-wrapper {
-    margin: 4px 0;
+  margin: 2px 0 4px;
 }
 
 .card-login {
-    font-size: 16px;
-    font-weight: bold;
-    color: #e5e5ea;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e5ea;
 }
 
 .card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    width: 100%;
-    margin-top: 8px;
-    border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+  margin-top: 6px;
+  border: none;
 }
 
 .card-label {
-    font-size: 12px;
-    color: #8e8e93;
-    margin-right: 5px;
+  font-size: 12px;
+  color: #8e8e93;
+  margin-right: 5px;
 }
 
 .card-tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
 }
 
 .tag-chip {
-    color: #1c1c1e;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 500;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
 }
 
 .card-balance-container {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .card-balance {
