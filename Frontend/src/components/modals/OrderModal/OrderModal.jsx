@@ -30,7 +30,7 @@ const stages = [
 
 const defaultTags = ["Срочный", "В приоритете", "На паузе", "Клиент VIP"];
 
-const tabs = ["Сводка","Основная информация", "План работ", "Участники", "Финансы", "Выполнение заказа", "Завершение заказа"];
+const tabs = ["Сводка","Основное", "Планы", "Участники", "Финансы", "Выполнение", "Завершение"];
 
 
 const newOrderDefaults = {
@@ -758,14 +758,14 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
             <div className='order-modal-body-section'>
                   <div className="tab-content">
                     {activeTab === "Сводка" && <OrderSummary />}
-                    {activeTab === "Основная информация" && (
+                    {activeTab === "Основное" && (
                       <GeneralInformation
                         control={control}
                         orderFields={orderFields}
                         mode={mode}
                       />
                     )}
-                    {activeTab === "План работ" && (
+                    {activeTab === "Планы" && (
                       <WorkPlan
                         control={control}
                         mode={mode}
@@ -773,8 +773,8 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                     )}
                     {activeTab === "Участники" && <Participants control={control} mode={mode} clientsData={sampleClients} employeesData={executorFormFields.employees} onOpenAddExecutorModal={() => setIsAddExecutorModalOpen(true)} />}
                     {activeTab === "Финансы" && <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions}  />}
-                    {activeTab === "Выполнение заказа" && <OrderExecution control={control} mode={mode} />}
-                    {activeTab === "Завершение заказа" && <CompletingOrder control={control} mode={mode} />}
+                    {activeTab === "Выполнение" && <OrderExecution control={control} mode={mode} />}
+                    {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} />}
                   </div>
             </div>
           </form>
@@ -831,6 +831,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
             employees={employees}
         />
       )}
+      
       {isAddExecutorModalOpen && (
                 <AddExecutorModal
                     onAdd={handleAddExecutor}

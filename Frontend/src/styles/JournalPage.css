@@ -14,7 +14,8 @@
 .journal-header-container {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
+    padding-left: 15px;
     position: relative;
     height: 60px;
     background-color: var(--container-bg);
@@ -29,7 +30,7 @@
     align-items: center;
     margin: 0;
     color: var(--text-color);
-    padding: 0px 35px 0px 35px;
+    padding: 0px 15px 0px 0px;
     border-right: 1px solid var(--border--color);
     height: 100%;
 }
@@ -44,12 +45,39 @@
     border-collapse: separate;
     table-layout: fixed; 
 }
+.journal-table :nth-child(1){
+    width: 21px;
+}
+.journal-table :nth-child(2){
+    width: 32px;
+}
+.journal-table :nth-child(3){
+    width: 40%;
+}
+.journal-table :nth-child(4){
+    width: 135px;
+}
+.journal-table :nth-child(5){
+    width: 98px;
+}
+.journal-table :nth-child(6){
+    width: 61px;
+}
+.journal-table :nth-child(7){
+    width: 61px;
+}
+.journal-table :nth-child(8){
+    width: 45px;
+}
+.journal-table :nth-child(9){
+    width: 60%;
+}
 
 
 .journal-table th,
 .journal-table td {
     padding: 14px 16px;
-    text-align: left;
+    
     border-bottom: 1px solid var(--border--color);
     color: var(--text-color);
     text-overflow: ellipsis;
@@ -67,7 +95,7 @@
     font-weight: 500;
     font-size: var(--font-size-table-header);
     border-right: 1px solid var(--bg-color);
-    border-bottom: 10px solid var(--bg-color);
+    border-bottom: 5px solid var(--bg-color);
 }
 
 
@@ -126,6 +154,7 @@
     color: var(--chips-color);
     font-size: 16px;
     padding: 0;
+    padding-left: 25px;
 }
 
 .main-search-input::placeholder {
@@ -154,21 +183,23 @@
     box-sizing: border-box; 
 
     /* Остальные стили для сетки остаются */
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 15px;
+    
 }
 
 .search-field-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     position: relative;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .search-field-group label {
     font-size: 13px;
     color: var(--chips-color);
-    margin-bottom: 5px;
+    margin-bottom: 15px;
+    font-weight: 700;
+    width: 30%;
 }
 
 .advanced-search-fields input {
@@ -179,6 +210,8 @@
     color: var(--text-color);
     font-size: 15px;
     outline: none;
+    width: 100%;
+    margin-bottom: 15px;
 }
 
 .advanced-search-fields input::placeholder {
@@ -188,7 +221,7 @@
 .clear-input {
     position: absolute;
     right: 10px;
-    top: 60%; 
+    top: 35%; 
     transform: translateY(-50%);
     cursor: pointer;
     color: var(--chips-color);

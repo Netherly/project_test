@@ -1,4 +1,4 @@
-
+// journalApi.jsx
 
 const JOURNAL_KEY = 'journalEntries'; 
 
@@ -38,7 +38,15 @@ export const getOrders = () => {
 export const getLogEntries = () => {
     try {
         const savedLogs = localStorage.getItem(JOURNAL_KEY);
-        return savedLogs ? JSON.parse(savedLogs) : [];
+        // Добавление заглушек для новых полей, отсутствующих в старых данных
+        const entries = savedLogs ? JSON.parse(savedLogs) : [];
+        return entries.map(entry => ({
+            // Поля, необходимые для фильтрации, но которых может не быть в старых данных
+            role: entry.role || entry.executorRole, // Используем executorRole как роль, если роль не задана
+            adminApproved: entry.adminApproved || (Math.random() > 0.66 ? "Одобрено" : Math.random() > 0.33 ? "Не одобрено" : "Ожидает"),
+            source: entry.source || "СРМ", // Заглушка для источника отчета
+            ...entry,
+        }));
     } catch (error) {
         console.error("Ошибка при чтении записей журнала из localStorage:", error);
         return [];
@@ -46,7 +54,7 @@ export const getLogEntries = () => {
 };
 
 /**
- * Сохраняет массив записей журнала в localStorage.
+ * Сохраняет текущий массив записей журнала в localStorage.
  * @param {Array} entries - Массив записей для сохранения.
  */
 const saveLogEntries = (entries) => {
@@ -55,6 +63,27 @@ const saveLogEntries = (entries) => {
     } catch (error) {
         console.error("Ошибка при сохранении записей журнала в localStorage:", error);
     }
+};
+
+// Добавляем статичные роли по умолчанию для фильтра
+const DEFAULT_ROLES = ["Фронтендер", "Бэкендер", "Менеджер", "Дизайнер", "Тестировщик"];
+
+/**
+ * Получает уникальные роли исполнителей из записей журнала.
+ * @returns {Array<string>} Массив уникальных ролей.
+ */
+export const getAvailableRoles = () => {
+    const allEntries = getLogEntries();
+    const uniqueRoles = new Set(DEFAULT_ROLES);
+
+    allEntries.forEach(entry => {
+        // Используем поле executorRole для извлечения ролей, так как в исходной структуре нет отдельного поля 'role'
+        if (entry.executorRole) {
+            uniqueRoles.add(entry.executorRole);
+        }
+    });
+
+    return Array.from(uniqueRoles).sort();
 };
 
 /**
@@ -67,6 +96,8 @@ export const addLogEntry = (newEntryData) => {
     const entryToAdd = {
         id: Date.now(), // Генерируем уникальный ID на основе времени
         status: newEntryData.status || "Лид", // Статус по умолчанию
+        adminApproved: "Ожидает", // Дефолтное значение для нового поля
+        source: newEntryData.source || "СРМ", // Дефолтное значение для нового поля
         ...newEntryData,
     };
     const updatedEntries = [entryToAdd, ...allEntries];

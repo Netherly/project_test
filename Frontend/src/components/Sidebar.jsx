@@ -26,16 +26,58 @@ import ReportWebm from "../assets/menu-icons/Отчеты.webm";
 import EmployesWebm from "../assets/menu-icons/Сотрудники.webm";
 import TransactionJson from "../assets/menu-icons/транзакциии json.json";
 import AssetsNewJson from "../assets/menu-icons/активы json.json";
-import DashboardJson from "../assets/menu-icons/дашборд json.json";
+import DashboardJson from "../assets/menu-icons/Дашборд.webm";
 
 
-const MediaIcon = ({ src, alt, className }) => {
-  // Если webm
+const MediaIcon = ({ src, alt, className, active }) => {
+  const lottieRef = React.useRef(null);
+  const cycleCountRef = React.useRef(0);
+  const pauseTimerRef = React.useRef(null);
+
+  const handleComplete = () => {
+    cycleCountRef.current += 1;
+
+    if (cycleCountRef.current < 2) {
+      // перезапуск анимации
+      lottieRef.current?.goToAndPlay(0);
+    } else {
+      // пауза 30 секунд
+      pauseTimerRef.current = setTimeout(() => {
+        cycleCountRef.current = 0;
+        lottieRef.current?.goToAndPlay(0);
+      }, 30000);
+    }
+  };
+
+  React.useEffect(() => {
+    const lottie = lottieRef.current;
+    if (!lottie) return;
+
+    if (active) {
+      cycleCountRef.current = 0;
+      lottie.goToAndPlay(0);
+    } else {
+      lottie.stop();
+      cycleCountRef.current = 0;
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current);
+        pauseTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current);
+        pauseTimerRef.current = null;
+      }
+    };
+  }, [active]);
+
   if (typeof src === "string" && src.endsWith(".webm")) {
     return (
       <video
         src={src}
-        autoPlay
+        autoPlay={active}
         loop
         muted
         playsInline
@@ -44,14 +86,23 @@ const MediaIcon = ({ src, alt, className }) => {
     );
   }
 
-  // Если JSON-анимация
   if (typeof src === "object" && src !== null) {
-    return <Lottie animationData={src} loop={true} className={className} />;
+    return (
+      <Lottie
+        lottieRef={lottieRef}
+        animationData={src}
+        loop={false}
+        autoplay={false}
+        onComplete={handleComplete}
+        className={className}
+      />
+    );
   }
 
-  // Всё остальное — картинка
   return <img src={src} alt={alt} className={className} />;
 };
+
+
 
 const Sidebar = () => {
   const location = useLocation();
@@ -134,7 +185,7 @@ const Sidebar = () => {
                 to={path}
                 onClick={() => setActiveMenu(null)}
               >
-                {icon && <MediaIcon src={icon} alt={name} className="submenu-icon" />}
+                {icon && <MediaIcon src={icon} alt={name} className="submenu-icon" active={location.pathname === path} />}
                 <span>{name}</span>
               </NavLink>
             </li>
@@ -147,7 +198,7 @@ const Sidebar = () => {
   return (
     <>
       <nav className="sidebar">
-        <NavLink className="avatar-link">
+        <div className="avatar-link">
           <img src="/avatar.jpg" alt="Profile" className="avatar-sidebar" />
           <div className="avatar-dropdown">
             <div className="avatar-info">
@@ -162,13 +213,11 @@ const Sidebar = () => {
               </div>
             </div>
             <div className="avatar-actions">
-              <NavLink to="/profile" className="avatar-action">
-                Профиль
-              </NavLink>
+              <NavLink to="/profile" className="avatar-action">Профиль</NavLink>
               <button className="avatar-action">Выход</button>
             </div>
           </div>
-        </NavLink>
+        </div>
 
         <div className="scrollable-menu hidden-scroll">
           <ul className="menu">
@@ -197,12 +246,12 @@ const Sidebar = () => {
                       className={isExactActive ? "active" : ""}
                       onClick={() => setActiveMenu(null)}
                     >
-                      <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" />
+                      <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" active={isItemActive} />
                       <span>{item.name}</span>
                     </NavLink>
                   ) : (
                     <div className={`submenu-toggle ${isParentActive ? "parent-active" : ""}`}>
-                      <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" />
+                      <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" active={isItemActive} />
                       <span>{item.name}</span>
                     </div>
                   )}
