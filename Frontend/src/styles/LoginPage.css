@@ -82,6 +82,7 @@
 }
 .register-link {
     cursor: pointer;
+    text-decoration: underline;
 }
 
 .register-modal {
@@ -100,8 +101,7 @@
 }
 .register-form {
     display: flex;
-    flex-direction: column;
-    flex: 1;              
+    flex-direction: column;       
 }
 
 @keyframes slideIn {
@@ -111,7 +111,6 @@
 
 .register-modal input {
     flex-basis: 70%;
-    width: 70%; 
     padding: 10px 12px;
     background-color: var(--bg-menu-color);
     border: none;
@@ -123,6 +122,11 @@
     -webkit-appearance: none; 
     -moz-appearance: none; 
     appearance: none;
+}
+
+.register-modal input.input-error {
+    border-bottom-color: #ff4d4f !important; 
+    box-shadow: 0 1px 0 0 #ff4d4f; 
 }
 
 .register-modal input:focus {
@@ -138,15 +142,31 @@
     color: #2e7dff;
     text-decoration: none;
 }
-.form-fields {
+.form-register-fields {
     display: flex;
     flex-direction: column;
-    
+    margin-bottom: 35px;  
     gap: 15px;
 }
-
+.form-register-group{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start; 
+    margin-bottom: 15px;
+}
+.form-register-group label {
+    font-weight: 500;
+    flex-basis: 25%;
+    padding-top: 10px;
+}
+.username-hint {
+    width: 100%; 
+    padding-top: 5px;
+}
 .form-actions {
-    margin-top: auto;     /* прижимаем вниз */
+    margin-top: auto;
     padding-top: 20px;
     border-top: 1px solid var(--border--color);
 }
@@ -161,8 +181,20 @@
     font-weight: 700;
     cursor: pointer;
     transition: opacity 0.2s ease;
+    margin-top: 25px;
 }
 
 .form-actions button:hover {
     opacity: 0.9;
+}
+.validation-hint{
+display: flex;
+}
+.validation-hint{
+    display: block;
+    width: 100%; 
+    color: #ff4d4f;
+    font-size: 0.85em;
+    margin-top: 5px; 
+    padding-left: 30%;
 }
