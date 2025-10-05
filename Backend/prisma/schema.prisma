@@ -1,6 +1,3 @@
-// =========================
-// Prisma — генератор и источник
-// =========================
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,9 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// =========================
-// Enums
-// =========================
 enum ClientStatus {
   active
   paused
@@ -20,13 +14,9 @@ enum ClientStatus {
 }
 
 enum OperationType {
-  DEPOSIT // Зачисление
-  WITHDRAW // Списание
+  DEPOSIT
+  WITHDRAW
 }
-
-// =========================
-// TAGS
-// =========================
 
 model TagCategory {
   id   String @id @default(uuid())
@@ -53,10 +43,6 @@ model Tag {
 
   @@unique([name, categoryId])
 }
-
-// =========================
-// UNIVERSAL DICTIONARIES
-// =========================
 
 model Country {
   id        String     @id @default(uuid())
@@ -187,10 +173,6 @@ model FinanceSubarticleDict {
   @@index([subcategoryId])
 }
 
-// =========================
-// CORE
-// =========================
-
 model Employee {
   id        String  @id @default(uuid())
   status    String? @db.VarChar(50)
@@ -204,13 +186,39 @@ model Employee {
   countryId String?
   country   Country? @relation(fields: [countryId], references: [id])
 
-  tasks   Task[]
-  clients Client[] @relation("ManagerClients")
+  telegramId            String?   @unique @db.VarChar(100)
+  telegramUserId        BigInt?   @unique @db.BigInt
+  telegramChatId        BigInt?   @unique @db.BigInt
+  telegramUsername      String?   @db.VarChar(100)
+  telegramLinkedAt      DateTime?
+  telegramVerified      Boolean   @default(false)
+  telegramVerifyCode    String?   @db.VarChar(12)
+  telegramCodeExpiresAt DateTime?
 
-  tags   EmployeeTag[]
-  assets Asset[]
+  tasks   Task[]
+  clients Client[]      @relation("ManagerClients")
+  tags    EmployeeTag[]
+  assets  Asset[]
+
+  telegramLinkTickets TelegramLinkTicket[]
 
   @@index([countryId])
+}
+
+model TelegramLinkTicket {
+  id         String    @id @default(uuid())
+  code       String    @unique @db.VarChar(12)
+  tgUserId   BigInt    @db.BigInt
+  tgChatId   BigInt    @db.BigInt
+  tgUsername String?   @db.VarChar(100)
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  @@index([tgUserId])
+  @@index([expiresAt])
 }
 
 model Company {
@@ -319,9 +327,6 @@ model Credential {
   @@index([companyId])
 }
 
-// =========================
-// ORDERS
-// =========================
 model Order {
   id       String @id @default(uuid())
   clientId String
@@ -336,16 +341,13 @@ model Order {
   createdAt DateTime @default(now())
 
   tags         OrderTag[]
-  transactions Transaction[] // обратная сторона Transaction.order
+  transactions Transaction[]
 
   @@index([clientId, createdAt])
   @@index([currencyId])
-  @@map("orders") // чтобы не конфликтовать с SQL-ключевым ORDER
+  @@map("orders")
 }
 
-// =========================
-// TASKS
-// =========================
 model Task {
   id          String   @id @default(uuid())
   title       String
@@ -380,9 +382,6 @@ model Task {
   partnerDebt        Decimal? @db.Decimal(10, 2)
 }
 
-// =========================
-// EXCHANGE RATES
-// =========================
 model ExchangeRates {
   id   String   @id @default(uuid())
   date DateTime @unique
@@ -413,19 +412,14 @@ model ExchangeRates {
   @@index([date])
 }
 
-// =========================
-// TRANSACTIONS
-// =========================
 model Transaction {
   id String @id @default(uuid())
 
   date DateTime
 
-  // старые строковые поля (оставлены для обратной совместимости)
   category    String? @db.VarChar(100)
   subcategory String? @db.VarChar(100)
 
-  // новые словари
   categoryId   String?
   categoryDict FinanceArticleDict? @relation(fields: [categoryId], references: [id])
 
@@ -434,14 +428,11 @@ model Transaction {
 
   description String?
 
-  // счёт (FK → Asset)
   accountId String
   account   Asset  @relation(fields: [accountId], references: [id])
 
-  // валюта счёта (денормализация)
   accountCurrency String @db.VarChar(10)
 
-  // тип операции
   operation OperationType
 
   amount     Decimal  @db.Decimal(14, 2)
@@ -450,13 +441,11 @@ model Transaction {
   counterparty           String?
   counterpartyRequisites String?
 
-  // связь с заказом
   orderId       String?
   order         Order?  @relation(fields: [orderId], references: [id])
   orderNumber   String?
   orderCurrency String? @db.VarChar(10)
 
-  // пересчёты
   sumUAH Decimal? @db.Decimal(14, 2)
   sumUSD Decimal? @db.Decimal(14, 2)
   sumRUB Decimal? @db.Decimal(14, 2)
@@ -472,7 +461,6 @@ model Transaction {
   balanceBefore Decimal? @db.Decimal(14, 2)
   balanceAfter  Decimal? @db.Decimal(14, 2)
 
-  // связи клиент/компания
   clientId String?
   client   Client? @relation("ClientTransactions", fields: [clientId], references: [id])
 
@@ -490,10 +478,6 @@ model Transaction {
   @@index([categoryId])
   @@index([subcategoryId])
 }
-
-// =========================
-// TAG RELATIONS
-// =========================
 
 model EmployeeTag {
   employeeId String
@@ -527,10 +511,6 @@ model OrderTag {
   @@id([orderId, tagId])
   @@index([tagId])
 }
-
-// =========================
-// ASSETS
-// =========================
 
 model Asset {
   id String @id @default(uuid())
