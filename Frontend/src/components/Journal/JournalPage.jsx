@@ -4,10 +4,8 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import "../../styles/JournalPage.css";
 import LogEntryDetails from "./LogEntryDetail";
 import AddLogEntryForm from "./AddLogEntryForm";
-<<<<<<< HEAD
-=======
 import FormattedDate from "../FormattedDate.jsx";
->>>>>>> Alexander
+
 
 import {
     getLogEntries,
