@@ -3,6 +3,7 @@ import Sidebar from '../Sidebar';
 import Modal from '../AlertModal/Modal';
 import '../../styles/CurrencyRates.css';
 import { getRatesList, upsertRates } from '../../api/rates';
+import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon';
 
 const PAGE_SIZE = 50;
 
@@ -401,11 +402,13 @@ function CurrencyRates() {
       <div className="currency-rates-main-container">
         <header
           className="currency-rates-header-container"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}
         >
-          <h2 style={{ margin: 0 }}>Курсы валют</h2>
+          <h2 className="currency-rates-header-title">
+            <PageHeaderIcon pageName={"Курс валют"}/>
+            Курсы валют
+            </h2>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="currency-rates-header-actions">
             {/* <span style={{ opacity: 0.8, fontSize: 12 }}>
               Показано {shownCount} из {total}
             </span>
@@ -443,8 +446,8 @@ function CurrencyRates() {
                 <tr>
                   <th>Дата</th>
                   <th>UAH</th>
-                  <th>USD</th>
-                  <th>RUB</th>
+                  <th>USD ✎</th>
+                  <th>RUB ✎</th>
                   <th>USDT</th>
                   <th>UAH:RUB</th>
                   <th>UAH:USD</th>
