@@ -91,11 +91,45 @@
 }
 
 .transactions-table thead tr th:first-child {
+    width: 100px;
+}
+
+.transactions-table thead tr th:nth-child(2) {
+    width: 150px;
+}
+.transactions-table thead tr th:nth-child(3) {
+    width: 150px;
+}
+
+.transactions-table thead tr th:nth-child(5) {
+    width: 150px;
+}
+
+.transactions-table thead tr th:nth-child(6) {
+   width: 100px;
+}
+
+.transactions-table thead tr th:nth-child(7) {
+    width: 100px;
+}
+
+.transactions-table thead tr th:nth-child(8) {
+    width: 100px;
+}
+
+.transactions-table thead tr th:nth-child(9) {
+    width: 150px;
+}
+
+.transactions-table thead tr th:nth-child(10) {
+    width: 100px;
+}
+.transactions-table thead tr th:last-child {
     
 }
 
-.transactions-table thead tr th:last-child {
-    
+.transactions-table tbody tr td:nth-child(9){
+    text-align: left;
 }
 
 .transactions-table tbody tr.transaction-row {

@@ -6,6 +6,7 @@ import ExecutorCard from './ExecutorCard.jsx';
 import OrderModal from '../modals/OrderModal/OrderModal.jsx';
 import "../../styles/ExecutorsPage.css";
 import * as executorService from './executorService.jsx';
+import FormattedDate from "../FormattedDate.jsx";
 
 
 const getOrders = () => {
@@ -305,7 +306,7 @@ const ExecutorsPage = () => {
                                             <tr key={executor.id} className="executor-row" onClick={() => setModalExecutor(executor)}> {/* ИЗМЕНЕНО */}
                                                 <td>{executor.orderNumber}</td>
                                                 <td><span title={executor.orderStatus}>{executor.orderStatusEmoji}</span></td>
-                                                <td>{formatDate(executor.orderDate)}</td>
+                                                <td><FormattedDate dateString={executor.orderDate}/></td>
                                                 <td>{executor.orderDescription}</td>
                                                 <td>{executor.clientHidden ? "Не заполнено" : executor.order_main_client}</td>
                                                 <td>{executor.performer}</td>
@@ -354,6 +355,7 @@ const ExecutorsPage = () => {
                             onSave={handleSaveExecutor}
                             onDelete={handleDeleteExecutor}
                             onClose={closeModal}
+                            journalEntries={journalEntries}
                             orders={orders}
                             fields={formFields}
                         />

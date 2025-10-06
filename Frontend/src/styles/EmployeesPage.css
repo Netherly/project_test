@@ -21,13 +21,13 @@
 }
 
 .employees-title {
-  font-size: var(--font-size-page-title, 22px);
-  font-weight: 700;
-  margin: 0;
-  padding: 0 35px;
-  display: flex;
-  align-items: center;
-  border-right: 1px solid var(--border--color);
+    font-size: var(--font-size-page-title);
+    font-weight: 700;
+    margin: 0;
+    padding: 0 35px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border--color);
 }
 
 /* Кнопки переключения вида */
@@ -94,17 +94,19 @@
 
 /* ==== Table view ==== */
 .employees-table-container {
-  overflow-x: auto;
-  background-color: var(--container-bg);
-  border-radius: 8px;
-  margin-top: 20px;
+    overflow-x: auto;
+    background-color: var(--container-bg);
+    margin-top: 20px;
 }
 
 .employees-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: var(--font-size-table-text, 14px);
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.employees-table td{
+    font-size: var(--font-size-table-text);
 }
 
 .employees-table th,
@@ -121,9 +123,9 @@
 }
 
 .employees-table thead {
-  background-color: var(--container-bg);
-  color: var(--text-color);
-  font-size: var(--font-size-table-header, 14px);
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    font-size: var(--font-size-table-header);
 }
 
 .employees-table th {
@@ -135,7 +137,7 @@
 }
 
 .employees-table tbody tr:hover {
-  background-color: var(--input-border-focus, #224158);
+    background-color: var(--input-border-focus);
 }
 
 .employees-table tbody tr:last-child td {
@@ -144,20 +146,20 @@
 
 /* Групповые строки в таблице */
 .group-header {
-  background-color: var(--bg-color);
-  cursor: pointer;
-  user-select: none;
+    background-color: var(--bg-color);
+    cursor: pointer;
+    user-select: none;
 }
 
-.group-header:hover {
-  background-color: #1e2a3e;
+.group-header td:hover{
+    background-color: #1e2a3e;;
 }
 
 .group-header td {
-  font-weight: bold;
-  color: #a0a0b0;
-  padding: 12px 16px;
-  font-size: 12px;
+    font-weight: bold;
+    color: #a0a0b0;
+    padding: 12px 16px;
+    font-size: 12px;
 }
 
 .collapse-icon {
@@ -180,15 +182,12 @@
   font-size: 12px;
 }
 
-/* ==== Card view ==== */
 .employees-card-view {
-  width: 100%;
+    width: 100%;
 }
-
 .card-group {
-  margin-bottom: 20px;
+    margin-bottom: 20px;
 }
-
 .card-group-header {
   cursor: pointer;
   padding: 10px 16px;
@@ -201,41 +200,65 @@
   border-radius: 8px;
   margin: 12px 10px 0;
 }
-
 .cards-container {
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  padding: 0 10px;
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px; 
+    padding: 0 10px;
 }
 
-/* Карточка сотрудника */
+.employees-card-view {
+    width: 100%;
+}
+.card-group {
+    margin-bottom: 20px;
+}
+.card-group-header {
+    cursor: pointer;
+    padding: 10px;
+    user-select: none;
+    font-size: 16px;
+    font-weight: bold;
+    color: #a0a0a0;
+}
+.cards-container {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px; 
+    padding: 0 10px;
+}
+
+
+
 .employee-card {
-  background-color: var(--container-bg);
-  border-radius: 12px;
-  padding: 16px;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out, transform 0.15s ease-in-out;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 12px;
-  border: 1px solid #3a3a3c;
+    background-color: var(--container-bg);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px; 
+    border: 1px solid #3a3a3c;
 }
 
 .employee-card:hover {
-  background-color: #2c3e50;
-  transform: translateY(-2px);
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15),
+                0 0 0 2px #478cff,
+                0 0 15px rgba(71, 140, 255, 0.5);
 }
 
 .card-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  background-color: #3a3a3c;
-  flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover; 
+    background-color: #3a3a3c;
+    flex-shrink: 0;
 }
 
 .card-details {
@@ -255,10 +278,11 @@
 }
 
 .card-full-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e5e5ea;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e5e5ea;
 }
+
 
 .card-birthdate {
   font-size: 12px;
@@ -313,6 +337,6 @@
 }
 
 .card-balance {
-  font-size: 14px;
-  font-weight: 500;
+    font-size: 14px;
+    font-weight: 500;
 }

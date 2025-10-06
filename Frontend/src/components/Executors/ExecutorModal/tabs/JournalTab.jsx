@@ -1,50 +1,59 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
+export default function JournalTab({ executor, journalEntries, isNew }) {
+    
+    const executorWorkLog = useMemo(() => {
+        // Проверяем наличие журнала и имени исполнителя
+        // В объекте executor имя приходит в поле 'performer'
+        if (!journalEntries || !executor?.performer) {
+            return [];
+        }
 
-const executorTransactions = [
-    {id: 1, date: '2023-10-26 12:30', category: 'Оплата', subcategory: 'Аванс', account: 'Основной', amount: 5000, accountCurrency: 'UAH', operation: 'Зачисление'},
-    {id: 2, date: '2023-10-27 15:00', category: 'Оплата', subcategory: 'Бонус', account: 'Основной', amount: 1500, accountCurrency: 'UAH', operation: 'Зачисление'},
-];
+        // 1. Фильтруем все записи журнала напрямую
+        const filteredLogs = journalEntries.filter(
+            // Сравниваем 'executorRole' из записи журнала с именем 'performer'
+            (entry) => entry.executorRole === executor.performer
+        );
 
+        // 2. Сортируем отфильтрованные записи по дате (от новых к старым)
+        return filteredLogs.sort((a, b) => new Date(b.workDate) - new Date(a.workDate));
 
-export default function JournalTab({ isNew, executor }) {
-  if (isNew) {
-    return (
-      <div className="placeholder-tab">
-        <p>Журнал операций будет доступен после сохранения исполнителя.</p>
-      </div>
-    );
-  }
+    }, [journalEntries, executor]); // Зависимости: массив журнала и объект исполнителя
 
-  
-
-  return (
-    <div className="tab-content-row-column">
-        <div className="tab-content-title">Журнал операций</div>
-        <div className="executor-payment-log-table">
-            <div className="executor-payment-log-header">
-                <div>Дата и время</div>
-                <div>Статья</div>
-                <div>Подстатья</div>
-                <div>Счет</div>
-                <div>Сумма операции</div>
+    if (isNew) {
+        return (
+            <div className="placeholder-tab">
+                <p>Журнал выполнения будет доступен после сохранения исполнителя.</p>
             </div>
-            
-            {executorTransactions.map((trx) => (
-                <div key={trx.id} className="executor-payment-log-row">
-                    <input type="text" value={trx.date} readOnly />
-                    <input type="text" value={trx.category} readOnly />
-                    <input type="text" value={trx.subcategory} readOnly />
-                    <input type="text" value={trx.account} readOnly /> 
-                    <input 
-                        type="text" 
-                        value={`${trx.amount.toFixed(2)} ${trx.accountCurrency}`}
-                        className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}
-                        readOnly 
-                    />
+        );
+    }
+
+    return (
+        <div className="tab-content-row-column">
+            <div className="tab-content-title">Журнал выполнения</div>
+
+            {executorWorkLog.length > 0 ? (
+                <div className="executor-work-log-table">
+                    <div className="executor-work-log-header">
+                        <div>Номер заказа</div> 
+                        <div>Дата работы</div>
+                        <div>Часы</div>
+                        <div>Что было сделано?</div>
+                    </div>
+                    {executorWorkLog.map((log) => (
+                        <div key={log.id} className="executor-work-log-row">
+                            <div>{log.orderNumber || '-'}</div>
+                            <div>{new Date(log.workDate).toLocaleDateString() || '-'}</div>
+                            <div>{log.hours || '-'}</div>
+                            <div>{log.workDone || '-'}</div>
+                        </div>
+                    ))}
                 </div>
-            ))}
+            ) : (
+                <div className="placeholder-tab">
+                    <p>Для этого исполнителя нет записей о выполненных работах.</p>
+                </div>
+            )}
         </div>
-    </div>
-  );
+    );
 }

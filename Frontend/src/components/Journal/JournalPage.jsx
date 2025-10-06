@@ -4,6 +4,10 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import "../../styles/JournalPage.css";
 import LogEntryDetails from "./LogEntryDetail";
 import AddLogEntryForm from "./AddLogEntryForm";
+<<<<<<< HEAD
+=======
+import FormattedDate from "../FormattedDate.jsx";
+>>>>>>> Alexander
 
 import {
     getLogEntries,
@@ -395,7 +399,7 @@ const JournalPage = () => {
                                     <td>{entry.description}</td>
                                     
                                     <td>{entry.executorRole}</td>
-                                    <td>{entry.workDate}</td>
+                                    <td><FormattedDate dateString={entry.workDate}/></td>
                                     <td>{entry.startTime}</td>
                                     <td>{entry.endTime}</td>
                                     <td>{entry.hours}</td>

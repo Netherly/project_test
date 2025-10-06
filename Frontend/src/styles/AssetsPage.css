@@ -88,19 +88,16 @@
 .assets-table th:nth-child(6),
 .assets-table td:nth-child(6) {
     border-right: 4px solid var(--bg-color);
-    width: 100px;
 }
 
-.assets-table td:nth-child(6){
-    text-align: right;
-}
 
 .assets-table-v2 td:nth-child(3),
 .assets-table-v2 td:nth-child(4),
-.assets-table-v2 td:nth-child(6),
 .assets-table-v2 td:nth-child(7),
 .assets-table-v2 td:nth-child(8),
-.assets-table-v2 td:nth-child(9) {
+.assets-table-v2 td:nth-child(9),
+.assets-table-v2 td:nth-child(10),
+.assets-table-v2 td:nth-child(11) {
     text-align: right;
 }
 
@@ -132,9 +129,30 @@
     text-align: center; 
 }
 
-.assets-table-v2 thead tr:first-child th:first-child {
-    border-top-left-radius: 8px;
+.assets-table-v2 thead tr th:first-child {
+    width: 100px;
 }
+
+.assets-table-v2 thead tr th:nth-child(2) {
+    width: 50px;
+}
+
+.assets-table-v2 thead tr th:nth-child(3) {
+    width: 80px;
+}
+
+.assets-table-v2 thead tr th:nth-child(4) {
+    width: 80px;
+}
+
+.assets-table-v2 thead tr th:nth-child(5) {
+    width: 30px;
+}
+
+.assets-table-v2 thead tr th:nth-child(6) {
+    width: 30px;
+}
+
 
 .assets-table-v2 thead tr:first-child th:last-child {
     border-top-right-radius: 8px;
@@ -166,7 +184,7 @@
 .currency-group-header td {
     background-color: var(--bg-color);
     color: #FFFFFF;
-    font-size: 11px;
+    font-size: var(--font-size-table-text);
     font-weight: normal;
     padding: 8px 15px;
     border: none;

@@ -36,11 +36,22 @@
     border-bottom: 1px solid #ffffff40;
 }
 
+.header-title{
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    text-transform: uppercase;
+    padding: 0 35px 0 35px;
+    display: flex;
+    align-items: center;
+}
+
 .header-left {
     display: flex;
     align-items: center;
     position: relative;
-    padding: 0px 50px 0px 22px;
+    padding: 0px 15px 0px 15px;
 }
 
 .header-left::after {
@@ -137,25 +148,29 @@
 }
 
 .tab-button {
-    font-weight: 700;
-    padding: 12px 20px;
-    width: 175px;
-    color: #e7e7e7;
+    background: none;
     border: none;
+    outline: none;
+    border-bottom: 2px solid transparent;
+    color: var(--container-text-color);
+    padding: 12px 20px;
+    font-weight: bold;
     cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 14px;
-    white-space: nowrap;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    border-radius: 4px 4px 0 0;
 }
 
 .tab-button:hover {
-    background-color: #1f294b;
-    color: #e2e2e2;
+    background-color: rgba(128, 128, 128, 0.1);
+    opacity: 1;
 }
 
 .tab-button.active {
-    background-color: #1f294ba2;
-    border-bottom: 2px solid #e7e7e7;
+    border-bottom-color: var(--container-text-color);
+    opacity: 1;
+    color: var(--container-text-color);
+    background-color: rgba(128, 128, 128, 0.15);
 }
 
 /* ---Контент полей--- */

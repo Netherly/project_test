@@ -1,18 +1,62 @@
-import React from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import React, { useEffect, useState } from 'react';
+import { Controller, useFormContext, useWatch } from 'react-hook-form';
+
+const OrderDetailField = ({ label, value }) => (
+  <div className="form-field read-only-field">
+    <label>{label}</label>
+    {label.includes('Описание') || label.includes('ТЗ') ? (
+       <textarea onInput={(e) => {
+                field.onChange(e);
+                handleTextareaAutoResize(e);
+              }}
+              onChange={(e) => {
+                field.onChange(e);
+                handleTextareaAutoResize(e);
+              }} value={value || 'Нет данных'} readOnly rows={3}></textarea>
+    ) : (
+      <div className="read-only-value">{value || 'Нет данных'}</div>
+    )}
+  </div>
+);
 
 export default function GeneralInfoTab({ orders, fields }) {
   const { control, formState: { errors } } = useFormContext();
 
+
+   const handleTextareaAutoResize = (e) => {
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+  };
+
+  const watchedOrderId = useWatch({
+    control,
+    name: 'orderNumber',
+  });
+
+  // 2. Состояние для хранения полного объекта выбранного заказа
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
+  // 3. Эффект, который срабатывает при изменении ID заказа
+  useEffect(() => {
+    if (watchedOrderId) {
+      // Ищем в массиве orders объект с нужным ID
+      // Приводим ID к числу для корректного сравнения
+      const foundOrder = orders.find(order => order.id === Number(watchedOrderId));
+      setSelectedOrder(foundOrder || null);
+    } else {
+      setSelectedOrder(null); // Сбрасываем, если заказ не выбран
+    }
+  }, [watchedOrderId, orders]); // Зависимости: ID и сам массив заказов
+
   return (
-    <div className="tab-section">
+    <div className="general-tab-section">
       {/* --- Номер заказа --- */}
       <Controller
         name="orderNumber"
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Номер заказа<span className="req">*</span></label>
+            <label>Номер заказа</label>
             <select {...field} className={errors.orderNumber ? 'input-error' : ''}>
               <option value="">Выберите заказ</option>
               {orders.map((order) => (
@@ -24,13 +68,22 @@ export default function GeneralInfoTab({ orders, fields }) {
         )}
       />
 
+      {selectedOrder && (
+        <div className="executor-order-details-block">
+          <OrderDetailField label="Статус заказа" value={selectedOrder.stage} />
+          <OrderDetailField label="Клиент" value={selectedOrder.order_main_client} />
+          <OrderDetailField label="Описание заказа" value={selectedOrder.orderDescription} />
+          <OrderDetailField label="ТЗ заказа" value={selectedOrder.techSpecifications} />
+        </div>
+      )}
+
       {/* --- Исполнитель --- */}
       <Controller
         name="performer"
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Исполнитель<span className="req">*</span></label>
+            <label>Исполнитель</label>
             <select {...field} className={errors.performer ? 'input-error' : ''}>
               <option value="" disabled>Выберите сотрудника</option>
               {fields?.employees?.map((employee) => (
@@ -48,7 +101,7 @@ export default function GeneralInfoTab({ orders, fields }) {
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Роль в заказе<span className="req">*</span></label>
+            <label>Роль</label>
             <select {...field} className={errors.role ? 'input-error' : ''}>
               <option value="" disabled>Выберите роль</option>
               {fields?.role?.map((role, index) => (
@@ -71,16 +124,71 @@ export default function GeneralInfoTab({ orders, fields }) {
           </div>
         )}
       />
-
-      {/* --- Чекбоксы --- */}
+            {/* --- Валюта --- */}
+            <Controller
+              name="currency"
+              control={control}
+              render={({ field }) => (
+                <div className="form-field">
+                  <label>Валюта</label>
+                  <select {...field} className={errors.currency ? 'input-error' : ''}>
+                    <option value="" disabled>Выберите валюту</option>
+                    {fields?.currency?.map((item, index) => (
+                      <option key={index} value={item}>{item}</option>
+                    ))}
+                  </select>
+                  {errors.currency && <p className="error-message">{errors.currency.message}</p>}
+                </div>
+              )}
+            />
+      
+            {/* --- Ставка в час --- */}
+            <Controller
+              name="hourlyRate"
+              control={control}
+              render={({ field }) => (
+                <div className="form-field">
+                  <label>Ставка в час</label>
+                  <input type="number" placeholder="0.00" {...field} />
+                  {errors.hourlyRate && <p className="error-message">{errors.hourlyRate.message}</p>}
+                </div>
+              )}
+            />
+      
+            {/* --- Сумма ввод --- */}
+            <Controller
+              name="amountInput"
+              control={control}
+              render={({ field }) => (
+                <div className="form-field">
+                  <label>Сумма ввод</label>
+                  <input type="number" placeholder="0.00" {...field} />
+                   {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
+                </div>
+              )}
+            />
+      
+            {/* --- Сумма макс --- */}
+            <Controller
+              name="maxAmount"
+              control={control}
+              render={({ field }) => (
+                <div className="form-field">
+                  <label>Сумма макс</label>
+                  <input type="number" placeholder="0.00" {...field} />
+                  {errors.maxAmount && <p className="error-message">{errors.maxAmount.message}</p>}
+                </div>
+              )}
+            />
+            {/* --- Чекбоксы --- */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <Controller
             name="hideClient"
             control={control}
             render={({ field }) => (
               <div className="form-field-checkbox">
-                <input type="checkbox" id="hideClient" {...field} checked={field.value} />
                 <label htmlFor="hideClient">Скрыть клиента</label>
+                <input type="checkbox" id="hideClient" {...field} checked={field.value} />
               </div>
             )}
           />
@@ -90,8 +198,8 @@ export default function GeneralInfoTab({ orders, fields }) {
             control={control}
             render={({ field }) => (
               <div className="form-field-checkbox">
-                <input type="checkbox" id="roundHours" {...field} checked={field.value} />
                 <label htmlFor="roundHours">Округление часа</label>
+                <input type="checkbox" id="roundHours" {...field} checked={field.value} />
               </div>
             )}
           />

@@ -13,6 +13,21 @@ const getPureDateTimestamp = (date) => {
     return d.getTime();
 };
 
+const formatNumberWithSpaces = (num) => {
+
+    if (num === null || num === undefined || isNaN(Number(num))) {
+        return '0.00';
+    }
+
+    const fixedNum = Number(num).toFixed(2);
+    
+    const parts = fixedNum.split('.');
+
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+    return parts.join('.');
+};
+
 const AssetsPage = () => {
     const defaultAssets = [
         {
@@ -468,9 +483,9 @@ const AssetsPage = () => {
                                         <th rowSpan="2">Валюта</th>
                                         <th rowSpan="2">Баланс</th>
                                         <th rowSpan="2">Свободный</th>
-                                        <th rowSpan="2">Реквизиты</th>
+                                        <th rowSpan="2">Рекв.</th>
                                         <th rowSpan="2">Сотрудник</th>
-                                        <th colSpan="4" className="turnover-header">Оборот за текущий месяц</th>
+                                        <th colSpan="5" className="turnover-header">Оборот за текущий месяц</th>
                                     </tr>
                                     <tr>
                                         <th>Лимит оборота</th>
@@ -485,15 +500,15 @@ const AssetsPage = () => {
                                         <React.Fragment key={currency}>
                                              <tr className="currency-group-header">
                                                 <td colSpan="2">{currency}</td>
-                                                <td>{data.totalBalance.toFixed(2)}</td>
-                                                <td>{data.totalBalanceUAH.toFixed(2)}</td>
+                                                <td>{formatNumberWithSpaces(data.totalBalance)}</td>
+                                                <td>{formatNumberWithSpaces(data.totalBalanceUAH)}</td>
                                                 <td></td>
                                                 <td></td>
                                                 <td></td>
-                                                <td>{data.totalTurnoverStartBalance.toFixed(2)}</td>
-                                                <td>{data.totalTurnoverIncoming.toFixed(2)}</td>
-                                                <td>{data.totalTurnoverOutgoing.toFixed(2)}</td>
-                                                <td>{data.totalTurnoverEndBalance.toFixed(2)}</td>
+                                                <td>{formatNumberWithSpaces(data.totalTurnoverStartBalance)}</td>
+                                                <td>{formatNumberWithSpaces(data.totalTurnoverIncoming)}</td>
+                                                <td>{formatNumberWithSpaces(data.totalTurnoverOutgoing)}</td>
+                                                <td>{formatNumberWithSpaces(data.totalTurnoverEndBalance)}</td>
                                             </tr>
                                             {data.items.map((asset) => (
                                                 <tr key={asset.id} className="asset-row" onClick={() => handleRowClick(asset)}>
@@ -508,13 +523,13 @@ const AssetsPage = () => {
                                                         </div>
                                                     </td>
                                                     <td>{asset.currency}</td>
-                                                    <td>{asset.balance.toFixed(2)}</td>
+                                                    <td>{formatNumberWithSpaces(asset.balance)}</td>
                                                     <td className={
                                                         Number(asset.balance.toFixed(2)) === Number(asset.turnoverEndBalance.toFixed(2)) 
                                                         ? 'highlight-green' 
                                                         : 'highlight-red'
                                                     }>
-                                                        {asset.balance.toFixed(2)}
+                                                        {formatNumberWithSpaces(asset.balance)}
                                                     </td>
                                                     <td>
                                                         <div className="copy-button-container">
@@ -526,11 +541,11 @@ const AssetsPage = () => {
                                                         </div>
                                                     </td>
                                                     <td>{asset.employee}</td>
-                                                    <td>{asset.limitTurnover}</td>
-                                                    <td>{asset.turnoverStartBalance.toFixed(2)}</td>
-                                                    <td>{asset.turnoverIncoming.toFixed(2)}</td>
-                                                    <td>{asset.turnoverOutgoing.toFixed(2)}</td>
-                                                    <td>{asset.turnoverEndBalance.toFixed(2)}</td>
+                                                    <td>{asset.limitTurnover ? formatNumberWithSpaces(asset.limitTurnover) : ''}</td>
+                                                    <td>{formatNumberWithSpaces(asset.turnoverStartBalance)}</td>
+                                                    <td>{formatNumberWithSpaces(asset.turnoverIncoming)}</td>
+                                                    <td>{formatNumberWithSpaces(asset.turnoverOutgoing)}</td>
+                                                    <td>{formatNumberWithSpaces(asset.turnoverEndBalance)}</td>
                                                 </tr>
                                             ))}
                                             {index < Object.keys(assetsByCurrency).length - 1 && (

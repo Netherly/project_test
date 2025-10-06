@@ -86,17 +86,21 @@
   background-color: #19213A;
 }
 
-.tab-section {
-  display: grid;
-  gap: 16px 24px;
+.tab-content-wrapper{
   padding: 24px;
+}
+
+.general-tab-section {
+  display: grid;
+  gap: 12px;
+  padding: 0;
 }
 
 .form-field {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  padding: 8px 0;
+  margin: 0;
   gap: 15px;
 }
 .form-field.full-width, .form-fieldset {
@@ -149,6 +153,13 @@
   border-color: #ff8a8a !important;
 }
 
+.form-field-checkbox{
+  display: flex;
+  gap: 15px;
+  font-size: 13px;
+  color: #c0c0c0;
+}
+
 
 /* Стили для табов */
 .tabs-nav {
@@ -181,4 +192,92 @@
 }
 .tabs-nav li.error button {
   box-shadow: inset 0 -3px 0 #c0392b; 
+}
+
+
+
+.executor-work-log-table {
+    border: 1px solid var(--border--color);
+    overflow: hidden;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+}
+
+.executor-work-log-header,
+.executor-work-log-row {
+    display: grid;
+    grid-template-columns: 2fr 2fr 2fr 2fr; 
+    align-items: center;
+}
+
+.executor-work-log-header {
+    background-color: var(--secondary-background);
+    padding: 10px 0;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border--color);
+    min-height: 20px;
+}
+
+.executor-work-log-header div {
+    text-align: center;
+    padding: 0 10px;
+}
+
+.executor-work-log-row {
+    border-bottom: 1px solid var(--border--color);
+    border-right: 1px solid var(--border--color);
+    text-align: center;
+}
+
+
+.executor-work-log-row:last-child {
+    border-bottom: none;
+    border-right: none;
+}
+
+
+.executor-order-details-block {
+  margin: 20px 0;
+  padding: 15px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.read-only-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.read-only-field label {
+  font-size: 12px;
+  color: #888;
+}
+
+.read-only-value, 
+.read-only-field textarea {
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+.read-only-field textarea {
+    border: none;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    outline: none;
+    color: var(--container-text-color);
+    padding: 8px;
+    border-radius: 4px;
+    max-width: 200px;
+    width: 100%;
+    height: 38px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
 }

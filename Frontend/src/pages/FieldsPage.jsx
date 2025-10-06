@@ -5,6 +5,7 @@ import "../styles/Fields.css";
 import { fetchFields, saveFields } from "../api/fields";
 import { fileUrl } from "../api/http";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
+import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 
 /* =========================
    Константы и утилиты
@@ -54,12 +55,14 @@ const safeFileUrl = (u) => {
 };
 
 const tabsConfig = [
-  { key: "orderFields", label: "Поля заказа" },
-  { key: "executorFields", label: "Поля исполнителя" },
-  { key: "clientFields", label: "Поля клиента" },
-  { key: "employeeFields", label: "Поля сотрудника" },
-  { key: "assetsFields", label: "Поля активов" },
-  { key: "financeFields", label: "Поля финансов" },
+  { key: "generalFields", label: "Общие"},
+  { key: "orderFields", label: "Заказы" },
+  { key: "executorFields", label: "Исполнители" },
+  { key: "clientFields", label: "Клиенты" },
+  { key: "employeeFields", label: "Сотрудники" },
+  { key: "assetsFields", label: "Активы" },
+  { key: "financeFields", label: "Финансы" },
+  { key: "sundryFields", label: "Разное"},
 ];
 
 /* =========================
@@ -73,6 +76,7 @@ const initialValues = {
     tags: [],
     techTags: [],
     taskTags: [],
+    discountReason: [],
   },
   executorFields: { currency: [], role: [] },
   clientFields: { source: [], category: [], country: [], currency: [], tags: [] },
@@ -83,6 +87,9 @@ const initialValues = {
     subarticles: [{ subarticleInterval: "", subarticleValue: "" }],
     subcategory: [],
   },
+  sundryFields:{
+    typeWork: [],
+  }
 };
 
 /* =========================
@@ -433,7 +440,7 @@ const TagList = ({ title, tags = [], onChange }) => {
 };
 
 // Интервалы
-const IntervalFields = ({ intervals = [], onIntervalChange, onAddInterval, onRemoveInterval }) => (
+const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAddInterval, onRemoveInterval }) => (
   <div className="field-row">
     <label className="field-label">Интервал</label>
     <div className="category-fields-container">
@@ -444,7 +451,8 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onAddInterval, onRem
               <input
                 type="text"
                 value={interval?.intervalValue || ""}
-                onChange={(e) => onIntervalChange(index, "intervalValue", e.target.value)}
+                onChange={(e) => onIntervalChange(index, e.target.value)}
+                onBlur={() => onIntervalBlur(index)}
                 placeholder="Введите интервал"
                 className="text-input"
               />
@@ -466,6 +474,7 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onAddInterval, onRem
 const CategoryFields = ({
   categories = [],
   onCategoryChange,
+  onCategoryBlur,
   onAddCategory,
   onRemoveCategory,
   openDropdowns = {},
@@ -512,6 +521,7 @@ const CategoryFields = ({
                 type="text"
                 value={category.categoryValue || ""}
                 onChange={(e) => onCategoryChange(index, "categoryValue", e.target.value)}
+                onBlur={() => onCategoryBlur(index)}
                 placeholder="Введите значение"
                 className="text-input"
               />
@@ -530,7 +540,7 @@ const CategoryFields = ({
 );
 
 // Статьи
-const ArticleFields = ({ articles = [], onArticleChange, onAddArticle, onRemoveArticle }) => (
+const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArticle, onRemoveArticle }) => (
   <div className="field-row">
     <label className="field-label">Статья</label>
     <div className="category-fields-container">
@@ -541,7 +551,8 @@ const ArticleFields = ({ articles = [], onArticleChange, onAddArticle, onRemoveA
               <input
                 type="text"
                 value={article.articleValue || ""}
-                onChange={(e) => onArticleChange(index, "articleValue", e.target.value)}
+                onChange={(e) => onArticleChange(index, e.target.value)}
+                onBlur={() => onArticleBlur(index)}
                 placeholder="Введите статью"
                 className="text-input"
               />
@@ -563,6 +574,7 @@ const ArticleFields = ({ articles = [], onArticleChange, onAddArticle, onRemoveA
 const SubarticleFields = ({
   subarticles = [],
   onSubarticleChange,
+  onSubarticleBlur,
   onAddSubarticle,
   onRemoveSubarticle,
   openDropdowns = {},
@@ -618,6 +630,7 @@ const SubarticleFields = ({
                 type="text"
                 value={subarticle.subarticleValue || ""}
                 onChange={(e) => onSubarticleChange(index, "subarticleValue", e.target.value)}
+                onBlur={() => onSubarticleBlur(index)}
                 placeholder="Введите значение"
                 className="text-input"
               />
@@ -908,16 +921,74 @@ function FieldsPage() {
   };
 
   // Order
-  const handleIntervalChange = (index, field, value) => {
-    const copy = [...(selectedValues.orderFields.intervals || [])];
-    copy[index] = { ...copy[index], [field]: value };
+  const updateIntervalValue = (index, value) => {
+    const intervals = selectedValues.orderFields.intervals || [];
+    const copy = [...intervals];
+    
+    
+    copy[index] = { ...copy[index], intervalValue: value };
+    
     handleInputChange("orderFields", "intervals", copy);
   };
-  const handleCategoryChange = (index, field, value) => {
-    const copy = [...(selectedValues.orderFields.categories || [])];
+
+  
+  const validateIntervalOnBlur = (index) => {
+    const intervals = selectedValues.orderFields.intervals || [];
+    const value = intervals[index]?.intervalValue || "";
+
+    
+    if (!value.trim()) {
+      return;
+    }
+
+    const isDuplicate = intervals.some(
+      (item, i) => i !== index && item.intervalValue.trim().toLowerCase() === value.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      alert("Такой интервал уже существует!");
+      
+      
+      const copy = [...intervals];
+      copy[index] = { ...copy[index], intervalValue: "" };
+      handleInputChange("orderFields", "intervals", copy);
+    }
+  };
+  const updateCategoryValue = (index, field, value) => {
+    const categories = selectedValues.orderFields.categories || [];
+    const copy = [...categories];
     copy[index] = { ...copy[index], [field]: value };
     handleInputChange("orderFields", "categories", copy);
-    if (field === "categoryInterval") setOpenDropdowns((prev) => ({ ...prev, [`category-${index}-interval`]: false }));
+
+    if (field === "categoryInterval") {
+      setOpenDropdowns((prev) => ({
+        ...prev,
+        [`category-${index}-interval`]: false,
+      }));
+    }
+  };
+
+  const validateCategoryOnBlur = (index) => {
+    const categories = selectedValues.orderFields.categories || [];
+    const current = categories[index];
+    const value = current?.categoryValue?.trim() || "";
+    const interval = current?.categoryInterval?.trim() || "";
+
+    if (!value) return;
+
+    const isDuplicate = categories.some(
+      (item, i) =>
+        i !== index &&
+        item.categoryInterval?.trim().toLowerCase() === interval.toLowerCase() &&
+        item.categoryValue?.trim().toLowerCase() === value.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      alert("Такая категория уже существует в этом интервале!");
+      const copy = [...categories];
+      copy[index] = { ...copy[index], categoryValue: "" };
+      handleInputChange("orderFields", "categories", copy);
+    }
   };
   const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { intervalValue: "" }]);
   const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { categoryInterval: "", categoryValue: "" }]);
@@ -925,16 +996,67 @@ function FieldsPage() {
   const removeCategory = (idx) => handleInputChange("orderFields", "categories", (selectedValues.orderFields.categories || []).filter((_, i) => i !== idx));
 
   // Finance
-  const handleArticleChange = (index, field, value) => {
-    const copy = [...(selectedValues.financeFields.articles || [])];
-    copy[index] = { ...copy[index], [field]: value };
+ const updateArticleValue = (index, value) => {
+    const articles = selectedValues.financeFields.articles || [];
+    const copy = [...articles];
+    copy[index] = { ...copy[index], articleValue: value };
     handleInputChange("financeFields", "articles", copy);
   };
-  const handleSubarticleChange = (index, field, value) => {
-    const copy = [...(selectedValues.financeFields.subarticles || [])];
+
+  const validateArticleOnBlur = (index) => {
+    const articles = selectedValues.financeFields.articles || [];
+    const value = articles[index]?.articleValue || "";
+
+    if (!value.trim()) return;
+
+    const isDuplicate = articles.some(
+      (item, i) =>
+        i !== index &&
+        item.articleValue.trim().toLowerCase() === value.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      alert("Такая статья уже существует!");
+      const copy = [...articles];
+      copy[index] = { ...copy[index], articleValue: "" };
+      handleInputChange("financeFields", "articles", copy);
+    }
+  };
+  const updateSubarticleValue = (index, field, value) => {
+    const subs = selectedValues.financeFields.subarticles || [];
+    const copy = [...subs];
     copy[index] = { ...copy[index], [field]: value };
     handleInputChange("financeFields", "subarticles", copy);
-    if (field === "subarticleInterval") setOpenDropdowns((prev) => ({ ...prev, [`subarticle-${index}-interval`]: false }));
+
+    if (field === "subarticleInterval") {
+      setOpenDropdowns((prev) => ({
+        ...prev,
+        [`subarticle-${index}-interval`]: false,
+      }));
+    }
+  };
+
+  const validateSubarticleOnBlur = (index) => {
+    const subs = selectedValues.financeFields.subarticles || [];
+    const current = subs[index];
+    const value = current?.subarticleValue?.trim() || "";
+    const interval = current?.subarticleInterval?.trim() || "";
+
+    if (!value) return;
+
+    const isDuplicate = subs.some(
+      (item, i) =>
+        i !== index &&
+        item.subarticleInterval?.trim().toLowerCase() === interval.toLowerCase() &&
+        item.subarticleValue?.trim().toLowerCase() === value.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      alert("Такая подстатья уже существует для выбранной статьи или подкатегории!");
+      const copy = [...subs];
+      copy[index] = { ...copy[index], subarticleValue: "" };
+      handleInputChange("financeFields", "subarticles", copy);
+    }
   };
   const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { articleValue: "" }]);
   const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { subarticleInterval: "", subarticleValue: "" }]);
@@ -978,13 +1100,15 @@ function FieldsPage() {
           <div className="fields-vertical-grid">
             <IntervalFields
               intervals={selectedValues.orderFields.intervals || []}
-              onIntervalChange={handleIntervalChange}
+              onIntervalChange={updateIntervalValue}   
+              onIntervalBlur={validateIntervalOnBlur}
               onAddInterval={addInterval}
               onRemoveInterval={removeInterval}
             />
             <CategoryFields
               categories={selectedValues.orderFields.categories || []}
-              onCategoryChange={handleCategoryChange}
+              onCategoryChange={updateCategoryValue}
+              onCategoryBlur={validateCategoryOnBlur}
               onAddCategory={addCategory}
               onRemoveCategory={removeCategory}
               openDropdowns={openDropdowns}
@@ -1001,18 +1125,31 @@ function FieldsPage() {
                 placeholder="Введите валюту"
               />
             </div>
+            <div className="field-row">
+              <label className="field-label">Причина скидки</label>
+              <EditableList
+                items={selectedValues.orderFields.discountReason || []}
+                onChange={(newItems) => handleInputChange("orderFields", "discountReason", newItems)}
+                onCommit={commitShared(["orderFields", "discountReason"], "discountReason")}
+                onRemove={(index) => {
+                  const list = selectedValues.orderFields.discountReason || [];
+                  handleInputChange("orderFields", "discountReason", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите причину скидки"
+              />
+            </div>
             <TagList
               title="Теги заказа"
               tags={selectedValues.orderFields.tags || []}
               onChange={(v) => handleInputChange("orderFields", "tags", v)}
             />
             <TagList
-              title="Теги технологий (заказ)"
+              title="Теги технологий"
               tags={selectedValues.orderFields.techTags || []}
               onChange={(v) => handleInputChange("orderFields", "techTags", v)}
             />
             <TagList
-              title="Теги задач (заказ)"
+              title="Теги задач"
               tags={selectedValues.orderFields.taskTags || []}
               onChange={(v) => handleInputChange("orderFields", "taskTags", v)}
             />
@@ -1177,7 +1314,8 @@ function FieldsPage() {
           <div className="fields-vertical-grid">
             <ArticleFields
               articles={selectedValues.financeFields?.articles || []}
-              onArticleChange={handleArticleChange}
+              onArticleChange={updateArticleValue}
+              onArticleBlur={validateArticleOnBlur}
               onAddArticle={addArticle}
               onRemoveArticle={removeArticle}
             />
@@ -1195,7 +1333,8 @@ function FieldsPage() {
             </div>
             <SubarticleFields
               subarticles={selectedValues.financeFields?.subarticles || []}
-              onSubarticleChange={handleSubarticleChange}
+              onSubarticleChange={updateSubarticleValue}
+              onSubarticleBlur={validateSubarticleOnBlur}
               onAddSubarticle={addSubarticle}
               onRemoveSubarticle={removeSubarticle}
               openDropdowns={openDropdowns}
@@ -1204,6 +1343,22 @@ function FieldsPage() {
               availableSubcategories={selectedValues.financeFields?.subcategory || []}
             />
           </div>
+        );
+
+      case "sundryFields":
+        return(
+          <div className="field-row">
+              <label className="field-label">Тип работы</label>
+              <EditableList
+                items={selectedValues.sundryFields.typeWork || []}
+                onChange={(newItems) => handleInputChange("sundryFields", "typeWork", newItems)}
+                onRemove={(index) => {
+                  const list = selectedValues.sundryFields.typeWork || [];
+                  handleInputChange("sundryFields", "typeWork", list.filter((_, i) => i !== index));
+                }}
+                placeholder="Введите тип работы"
+              />
+            </div>
         );
 
       default:
@@ -1218,15 +1373,18 @@ function FieldsPage() {
         <div className="header">
           <div className="header-content">
             <div className="header-left">
-              <h1 className="header-title">СПИСКИ</h1>
+              <h1 className="header-title">
+                <PageHeaderIcon pageName="Настройки полей" />
+                СПИСКИ
+                </h1>
             </div>
             <div className="header-actions">
               {loading && <span className="loading-label">Загрузка…</span>}
               {saving && <span className="loading-label">Сохранение…</span>}
               {hasChanges && !saving && !loading && (
                 <>
-                  <button type="button" className="save-btn" onClick={handleSave}>Сохранить</button>
-                  <button type="button" className="cancel-btn" onClick={handleCancelAll}>Отменить</button>
+                  <button type="button" className="cancel-order-btn" onClick={handleCancelAll}>Отменить</button>
+                  <button type="button" className="save-order-btn" onClick={handleSave}>Сохранить</button>
                 </>
               )}
             </div>

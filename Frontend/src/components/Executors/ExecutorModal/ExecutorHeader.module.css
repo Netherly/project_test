@@ -135,3 +135,59 @@
 .dropdown li:hover {
     background: #4a4a6a;
 }
+
+
+.actions {
+    position: relative;
+}
+
+
+.menuButton {
+    background: none;
+    border: none;
+    color: #fff; 
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0 10px;
+    line-height: 1;
+}
+
+.menuButton:hover {
+    opacity: 0.8;
+}
+
+
+.dropdownMenu {
+    position: absolute;
+    top: 100%; 
+    right: 0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background-color: #141b2e;
+    padding: 8px 0;
+    z-index: 10;
+    width: 220px; 
+    display: flex;
+    flex-direction: column;
+}
+
+
+.dropdownMenu button {
+    background: none;
+    border: none;
+    color: #e0e0e0;
+    padding: 10px 16px;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.dropdownMenu button:hover {
+    background-color: #3a3a52;
+}
+
+
+.deleteOption {
+    color: #ff5b5b !important;
+}

@@ -120,6 +120,39 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         return (amount * rate).toFixed(2);
     };
 
+    const getRequisitesString = (counterpartyName, currency, counterpartiesList) => {
+        if (!counterpartyName) {
+            return "";
+        }
+
+        const selectedCounterparty = counterpartiesList.find(cp => cp.name === counterpartyName);
+        if (!selectedCounterparty || !selectedCounterparty.requisites) {
+            return "";
+        }
+
+        let requisitesString = "";
+        
+        const requisitesForCurrency = selectedCounterparty.requisites[currency];
+
+        if (requisitesForCurrency && requisitesForCurrency.length > 0) {
+            requisitesString = requisitesForCurrency
+                .map(req => `${req.bank}: ${req.card}`)
+                .join(', ');
+        } else {
+            
+            const firstAvailableCurrency = Object.keys(selectedCounterparty.requisites)[0];
+            if (firstAvailableCurrency) {
+                const firstRequisites = selectedCounterparty.requisites[firstAvailableCurrency];
+                if (firstRequisites && firstRequisites.length > 0) {
+                    requisitesString = firstRequisites
+                        .map(req => `${req.bank}: ${req.card}`)
+                        .join(', ');
+                }
+            }
+        }
+        return requisitesString;
+    };
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         let newValue = type === "checkbox" ? checked : value;
@@ -131,7 +164,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
             newFormData.subcategory = "";
             if (value === "Смена счета") {
                 setShowDestinationAccountsBlock(true);
-                newFormData.operation = "Списание";
                 setDestinationAccounts([{
                     id: generateId("DEST_"),
                     account: "",
@@ -146,36 +178,13 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
 
         if (name === "account") {
             const selectedAccount = assets.find(acc => acc.id === newValue);
-            newFormData.accountCurrency = selectedAccount ? selectedAccount.currency : "UAH";
+            const newCurrency = selectedAccount ? selectedAccount.currency : "UAH";
+            newFormData.accountCurrency = newCurrency;
+            newFormData.counterpartyRequisites = getRequisitesString(newFormData.counterparty, newCurrency, counterparties);
         }
         
         if (name === "counterparty") {
-            const selectedCounterparty = counterparties.find(cp => cp.name === newValue);
-            let requisitesString = "";
-
-            if (selectedCounterparty && selectedCounterparty.requisites) {
-                
-                const requisitesForCurrency = selectedCounterparty.requisites[newFormData.accountCurrency];
-
-                if (requisitesForCurrency && requisitesForCurrency.length > 0) {
-                    
-                    requisitesString = requisitesForCurrency
-                        .map(req => `${req.bank}: ${req.card}`)
-                        .join(', ');
-                } else {
-                    
-                    const firstAvailableCurrency = Object.keys(selectedCounterparty.requisites)[0];
-                    if (firstAvailableCurrency) {
-                        const firstRequisites = selectedCounterparty.requisites[firstAvailableCurrency];
-                        if (firstRequisites && firstRequisites.length > 0) {
-                           requisitesString = firstRequisites
-                             .map(req => `${req.bank}: ${req.card}`)
-                             .join(', ');
-                        }
-                    }
-                }
-            }
-            newFormData.counterpartyRequisites = requisitesString;
+            newFormData.counterpartyRequisites = getRequisitesString(newValue, newFormData.accountCurrency, counterparties);
         }
 
         if (name === "amount" || name === "category") {
@@ -274,42 +283,48 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         let newTransactions = [];
 
         if (formData.category === "Смена счета") {
-            const totalAmountToTransfer = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount || 0), 0);
-            const totalCommission = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.commission || 0), 0);
-            const totalWithdrawal = totalAmountToTransfer + totalCommission;
-            
-            const transaction1 = {
+        const totalAmount = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount || 0), 0);
+        const totalCommission = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.commission || 0), 0);
+        const totalOperationSum = totalAmount + totalCommission;
+
+        
+        const destinationOperation = formData.operation === 'Списание' ? 'Зачисление' : 'Списание';
+        
+        const sourceAccountName = assets.find(a => a.id === formData.account)?.accountName || 'счета';
+        const destinationAccountNames = destinationAccounts.map(acc => assets.find(a => a.id === acc.account)?.accountName).join(', ');
+        
+        
+        const sourceTransaction = {
+            ...formData,
+            id: generateId("TRX_"),
+            date: formData.date.replace("T", " "),
+            operation: formData.operation, 
+            amount: totalOperationSum,
+            commission: totalCommission,
+            description: `${formData.operation === 'Списание' ? 'Перевод на' : 'Пополнение с'}: ${destinationAccountNames}`,
+        };
+        newTransactions.push(sourceTransaction);
+        
+        
+        destinationAccounts.forEach(destAcc => {
+            const destinationTransaction = {
                 ...formData,
                 id: generateId("TRX_"),
                 date: formData.date.replace("T", " "),
-                operation: "Списание",
-                amount: totalWithdrawal,
-                commission: totalCommission,
-                description: `Перевод на счета: ${destinationAccounts.map(acc => assets.find(a => a.id === acc.account)?.accountName).join(', ')}`,
+                account: destAcc.account,
+                accountCurrency: destAcc.accountCurrency,
+                operation: destinationOperation, 
+                amount: parseFloat(destAcc.amount || 0),
+                commission: 0, 
+                description: `${destinationOperation === 'Зачисление' ? 'Перевод с' : 'Возврат на'}: ${sourceAccountName}`,
             };
-            newTransactions.push(transaction1);
-            
-            destinationAccounts.forEach(destAcc => {
-                const transaction2 = {
-                    ...formData,
-                    id: generateId("TRX_"),
-                    date: formData.date.replace("T", " "),
-                    account: destAcc.account,
-                    accountCurrency: destAcc.accountCurrency,
-                    operation: "Зачисление",
-                    amount: parseFloat(destAcc.amount || 0),
-                    commission: parseFloat(destAcc.commission || 0),
-                    description: `Перевод со счета ${assets.find(a => a.id === formData.account)?.accountName}`,
-                    sentToCounterparty: false,
-                    sendLion: false,
-                };
-                newTransactions.push(transaction2);
-            });
-        } else {
+            newTransactions.push(destinationTransaction);
+        });
+    } else {
             const newTransactionBase = {
                 ...formData,
                 date: formData.date.replace("T", " "),
-                amount: parseFloat(formData.amount),
+                amount: parseFloat(formData.amount || 0),
                 commission: showCommissionField ? parseFloat(formData.commission || 0) : 0,
                 sumUAH: parseFloat(formData.sumUAH) || 0,
                 sumUSD: parseFloat(formData.sumUSD) || 0,
@@ -470,7 +485,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             onChange={handleChange}
                             required
                             className="form-input"
-                            disabled={showDestinationAccountsBlock}
                         >
                             <option value="Зачисление">Зачисление</option>
                             <option value="Списание">Списание</option>
@@ -540,7 +554,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                 <div className="duplicated-account-block" key={destAcc.id}>
                                     <div className="form-row flex-row">
                                         <label htmlFor={`dest-account-${destAcc.id}`} className="form-label">
-                                            Счет зачисления {destAcc.accountCurrency && `(${destAcc.accountCurrency})`}
+                                            {formData.operation === 'Списание' ? 'Счет зачисления' : 'Счет списания'} {destAcc.accountCurrency && `(${destAcc.accountCurrency})`}
                                         </label>
                                         <div className="input-with-actions">
                                             <select
