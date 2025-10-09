@@ -58,11 +58,12 @@ const tabsConfig = [
   { key: "generalFields", label: "Общие"},
   { key: "orderFields", label: "Заказы" },
   { key: "executorFields", label: "Исполнители" },
+  { key: "sundryFields", label: "Журнал"},
+  { key: "taskFields", label: "Задачи"},
   { key: "clientFields", label: "Клиенты" },
   { key: "employeeFields", label: "Сотрудники" },
   { key: "assetsFields", label: "Активы" },
   { key: "financeFields", label: "Финансы" },
-  { key: "sundryFields", label: "Разное"},
 ];
 
 /* =========================
@@ -1319,18 +1320,6 @@ function FieldsPage() {
               onAddArticle={addArticle}
               onRemoveArticle={removeArticle}
             />
-            <div className="field-row">
-              <label className="field-label">Подкатегория</label>
-              <EditableList
-                items={selectedValues.financeFields.subcategory || []}
-                onChange={(newItems) => handleInputChange("financeFields", "subcategory", newItems)}
-                onRemove={(index) => {
-                  const list = selectedValues.financeFields.subcategory || [];
-                  handleInputChange("financeFields", "subcategory", list.filter((_, i) => i !== index));
-                }}
-                placeholder="Введите подкатегорию"
-              />
-            </div>
             <SubarticleFields
               subarticles={selectedValues.financeFields?.subarticles || []}
               onSubarticleChange={updateSubarticleValue}

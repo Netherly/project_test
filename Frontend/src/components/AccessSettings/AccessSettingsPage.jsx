@@ -50,7 +50,7 @@ function AccessSettings() {
     const [isGeneralMode, setIsGeneralMode] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
-    // Загрузка ролей из localStorage или использование дефолтных
+    
     const loadRoles = () => {
         try {
             const saved = localStorage.getItem('access-roles');
@@ -66,10 +66,10 @@ function AccessSettings() {
         return defaultRoles;
     };
 
-    // Загрузка сотрудников из localStorage или использование дефолтных
+    
     const loadEmployees = () => {
         try {
-            const saved = localStorage.getItem('employees-roles');
+            const saved = localStorage.getItem('employees');
             if (saved) {
                 const parsedEmployees = JSON.parse(saved);
                 if (Array.isArray(parsedEmployees) && parsedEmployees.length > 0) {
@@ -87,7 +87,7 @@ function AccessSettings() {
                 roleId: "owner",
                 roleName: "Владелец",
                 email: "systemallingenua@gmail.com",
-                isProtected: true // Защищенный пользователь
+                isProtected: true 
             },
             {
                 id: 2,
@@ -119,12 +119,12 @@ function AccessSettings() {
     const [employees, setEmployees] = useState(loadEmployees);
     const [roles, setRoles] = useState(loadRoles);
 
-    // Функция для синхронизации ролей сотрудников с актуальными ролями
+   
     const syncEmployeeRoles = useCallback(() => {
         const currentRoles = loadRoles();
         setRoles(currentRoles);
 
-        // Обновляем сотрудников, проверяя существование их ролей
+        
         setEmployees(prev => prev.map(employee => {
             const currentRole = currentRoles.find(role => role.id === employee.roleId);
 
@@ -142,7 +142,7 @@ function AccessSettings() {
             }
         }));
 
-        // Сохраняем обновленных сотрудников
+        
         try {
             const updatedEmployees = employees.map(employee => {
                 const currentRole = currentRoles.find(role => role.id === employee.roleId);
@@ -166,25 +166,24 @@ function AccessSettings() {
         }
     }, [employees]);
 
-    const getProtectedRoles = () => ['owner']; // Роли, которые нельзя назначать другим пользователям
+    const getProtectedRoles = () => ['owner']; 
 
-    // Проверка, может ли пользователь изменить роль
+    
     const canChangeEmployeeRole = (employee) => {
         if (employee.isProtected) return false;
 
         return true;
     };
 
-    // Получение доступных ролей для назначения
+    
     const getAvailableRolesForEmployee = (employee) => {
         const protectedRoles = getProtectedRoles();
 
         if (employee.isProtected) {
-            // Для защищенных пользователей - только их текущая роль
             return roles.filter(role => role.id === employee.roleId);
         }
 
-        // Для обычных пользователей - все роли кроме защищенных
+        
         return roles.filter(role => !protectedRoles.includes(role.id));
     };
 
@@ -192,7 +191,7 @@ function AccessSettings() {
         return roles.find(role => role.id === employee.roleId);
     };
 
-    // Функция для получения отображаемой роли
+    
     const getDisplayRole = (employee) => {
         const role = getEmployeeRole(employee);
 
@@ -211,7 +210,7 @@ function AccessSettings() {
         }
     };
 
-    // Простая фильтрация только по имени (включая фамилию)
+    
     const filteredEmployees = useMemo(() => {
         if (!searchTerm.trim()) {
             return employees;
@@ -255,24 +254,21 @@ function AccessSettings() {
         setSearchTerm(e.target.value);
     };
 
-    // Обработка сохранения назначения роли сотруднику
+    
     const handleEmployeeRoleChange = (employeeId, newRoleId) => {
-        const newRole = roles.find(role => role.id === newRoleId);
-        if (!newRole) return;
+        
+        const currentRoles = loadRoles();
+        const newRole = currentRoles.find(role => role.id === newRoleId);
 
-        setEmployees(prev => prev.map(employee =>
-            employee.id === employeeId
-                ? {
-                    ...employee,
-                    roleId: newRoleId,
-                    roleName: newRole.name
-                }
-                : employee
-        ));
+        
+        if (!newRole) {
+            console.error("Не удалось найти назначенную роль. Синхронизация не удалась.");
+            return;
+        }
 
-        // Сохраняем в localStorage
-        try {
-            const updatedEmployees = employees.map(employee =>
+        
+        setEmployees(prevEmployees => {
+            const updatedEmployees = prevEmployees.map(employee =>
                 employee.id === employeeId
                     ? {
                         ...employee,
@@ -281,11 +277,17 @@ function AccessSettings() {
                     }
                     : employee
             );
-            localStorage.setItem('employees-roles', JSON.stringify(updatedEmployees));
-            console.log(`Роль ${newRole.name} назначена сотруднику ${employees.find(e => e.id === employeeId)?.name}`);
-        } catch (error) {
-            console.error('Ошибка сохранения назначения роли:', error);
-        }
+
+            
+            try {
+                localStorage.setItem('employees', JSON.stringify(updatedEmployees));
+                console.log(`Роль "${newRole.name}" назначена сотруднику.`);
+            } catch (error) {
+                console.error('Ошибка сохранения назначения роли:', error);
+            }
+
+            return updatedEmployees; 
+        });
     };
 
     return (
@@ -297,7 +299,7 @@ function AccessSettings() {
                         <PageHeaderIcon pageName="Роли/Доступы" />
                         Доступы
                     </h1>
-                    <div className="access-filter">
+                     {/*<div className="access-filter">
                         <div className="search-input-wrapper">
                             <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M21 21L16.514 16.506M19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -311,6 +313,7 @@ function AccessSettings() {
                             />
                         </div>
                     </div>
+                    */}
                     <button className="access-button" onClick={handleAccessButtonClick}>
                         Доступы
                     </button>
@@ -322,22 +325,10 @@ function AccessSettings() {
                             <tr>
                                 <th>ИМЯ</th>
                                 <th>РОЛЬ</th>
-                                <th>E-MAIL</th>
                                 {modules.map(module => (
                                     <th key={module.key} className="module-header">
                                         <div className="module-header-content">
                                             <span className="module-name">{module.name.toUpperCase()}</span>
-                                            <div className="permission-legend">
-                                                <span title="Создание">С</span>
-                                                <span title="Просмотр">П</span>
-                                                <span title="Правка">П</span>
-                                                <span title="Удаление">У</span>
-                                            </div>
-                                            <div className="permission-legend-dots">
-                                                <span className="legend-dot green" title="Разрешено"></span>
-                                                <span className="legend-dot orange" title="Если ответственный"></span>
-                                                <span className="legend-dot red" title="Запрещено"></span>
-                                            </div>
                                         </div>
                                     </th>
                                 ))}
@@ -358,7 +349,7 @@ function AccessSettings() {
                                                 !displayRole.hasRole ? 'Нажмите для назначения роли' : 'Нажмите для изменения роли'}
                                         >
                                             <td>
-                                                {employee.name}
+                                                {employee.fullName}
                                                 {employee.isProtected && (
                                                     <span className="protected-badge" title="Защищенный пользователь">
                                                         🛡️
@@ -371,12 +362,9 @@ function AccessSettings() {
                                                 </span>
                                                 {displayRole.hasRole && displayRole.role?.isBase && (
                                                     <span className="role-badge" title={displayRole.role.isProtected ? "Системная роль (защищена)" : "Системная роль"}>
-                                                        {displayRole.role.isProtected ? '🔒' : '👑'}
+                                                        {displayRole.role.isProtected ? '🔒' : '🔓'}
                                                     </span>
                                                 )}
-                                            </td>
-                                            <td>
-                                                {employee.email}
                                             </td>
                                             {modules.map(module => (
                                                 <td key={module.key} className="permission-cell">

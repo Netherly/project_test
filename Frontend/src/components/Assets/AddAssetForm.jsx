@@ -287,7 +287,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                         {activeTab === 'requisites' && (
                             <div className="tab-content">
                                 {formData.requisites.map((req, index) => (
-                                    <div key={index} className="requisite-item">
+                                    <div key={index} className="add-asset-requisite-item">
                                         <div className="form-row-inner">
                                             <label className="form-label">Название:</label>
                                             <input
@@ -295,7 +295,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                                 name="label"
                                                 value={req.label}
                                                 onChange={(e) => handleRequisiteChange(index, e)}
-                                                placeholder="Например, Ключ к счету"
+                                                placeholder="Введите название"
                                                 className="form-input1"
                                             />
                                         </div>
@@ -330,9 +330,9 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 </button>
                             </div>
                         )}
-                        <div className="form-actions">
-                            <button type="button" className="cancel-button" onClick={onClose}>Отменить</button>
-                            <button type="submit" className="save-button">Сохранить</button>
+                        <div className="assets-form-actions">
+                            <button type="button" className="cancel-order-btn" onClick={onClose}>Отменить</button>
+                            <button type="submit" className="save-order-btn">Сохранить</button>
                         </div>
                     </form>
                 </div>

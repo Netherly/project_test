@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Sidebar from "../Sidebar";
 import AddTransactionModal from "./AddTransactionModal";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
@@ -23,6 +23,7 @@ const TransactionsPage = () => {
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         return parts.join('.');
     };
+
     const defaultTransactions = [
         {
             id: "T001",
@@ -233,6 +234,58 @@ const TransactionsPage = () => {
         setIsViewEditModalOpen(true);
     };
 
+    const transactionsWithBalances = useMemo(() => {
+        if (!assets.length > 0) {
+            return transactions.map(t => ({ ...t, balanceBefore: null, balanceAfter: null }));
+        }
+
+        const finalBalances = new Map(assets.map(asset => [asset.accountName, asset.balance]));
+        const runningBalances = new Map(finalBalances);
+
+        const sortedTransactions = [...transactions];
+
+        
+        sortedTransactions.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            if (dateB - dateA !== 0) {
+                return dateB - dateA; 
+            }
+            
+            
+            if (a.operation === 'Зачисление' && b.operation !== 'Зачисление') {
+                return -1; 
+            }
+            if (a.operation !== 'Зачисление' && b.operation === 'Зачисление') {
+                return 1; 
+            }
+            return 0;
+        });
+
+        return sortedTransactions.map(transaction => {
+            const account = transaction.account;
+            const amount = Number(transaction.amount) || 0;
+
+            const balanceAfter = runningBalances.get(account) ?? 0;
+
+            let balanceBefore;
+            if (transaction.operation === 'Зачисление') {
+                balanceBefore = balanceAfter - amount;
+            } else { 
+                balanceBefore = balanceAfter + amount;
+            }
+            
+            runningBalances.set(account, balanceBefore);
+
+            return {
+                ...transaction,
+                balanceBefore,
+                balanceAfter,
+            };
+        });
+    }, [transactions, assets]);
+
+
     return (
         <div className="transactions-page">
             <Sidebar />
@@ -247,7 +300,7 @@ const TransactionsPage = () => {
                             className="add-transaction-button"
                             onClick={() => setIsAddModalOpen(true)}
                         >
-                            ➕ Добавить транзакцию
+                            ➕ Добавить
                         </button>
                     </div>
                 </header>
@@ -262,57 +315,67 @@ const TransactionsPage = () => {
                                 <th>Описание</th>
                                 <th>Счет</th>
                                 <th>Валюта</th>
+                                <th>Баланс до</th>
                                 <th>Операция</th>
+                                <th>Баланс после</th> 
                                 <th>Сумма операции</th>
                                 <th>Контрагент</th>
-                                <th>Реквизиты</th>
+                                <th>Рекв.</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {transactions.map((transaction) => (
-                                <tr
-                                    key={transaction.id}
-                                    className="transaction-row"
-                                    onClick={() => handleTransactionClick(transaction)}
+                            {transactionsWithBalances.map((transaction) => (
+                            <tr
+                                key={transaction.id}
+                                className="transaction-row"
+                                onClick={() => handleTransactionClick(transaction)}
+                            >
+                                <td>{transaction.date}</td>
+                                <td>{transaction.category}</td>
+                                <td>{transaction.subcategory}</td>
+                                <td>{transaction.description}</td>
+                                <td>
+                                    <div className="account-info">
+                                        <span className="account-main-name">
+                                            {transaction.account}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>{transaction.accountCurrency}</td>
+
+                                
+                                <td>{formatNumberWithSpaces(transaction.balanceBefore)}</td>
+                                
+                                <td>{transaction.operation}</td>
+
+                                
+                                <td>{formatNumberWithSpaces(transaction.balanceAfter)}</td>
+
+                                <td
+                                    className={
+                                        transaction.operation === "Зачисление"
+                                            ? "amount-positive"
+                                            : "amount-negative"
+                                    }
                                 >
-                                    <td><FormattedDate dateString={transaction.date} /></td>
-                                    <td>{transaction.category}</td>
-                                    <td>{transaction.subcategory}</td>
-                                    <td>{transaction.description}</td>
-                                    <td>
-                                        <div className="account-info">
-                                            <span className="account-main-name">
-                                                {transaction.account}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td>{transaction.accountCurrency}</td>
-                                    <td>{transaction.operation}</td>
-                                    <td
-                                        className={
-                                            transaction.operation === "Зачисление"
-                                                ? "amount-positive"
-                                                : "amount-negative"
-                                        }
-                                    >
-                                        {formatNumberWithSpaces(transaction.amount)}
-                                    </td>
-                                    <td>{transaction.counterparty}</td>
-                                    <td>
-                                        <div className="copy-button-container">
-                                            {transaction.counterpartyRequisites}
-                                            <span
-                                                className="copy-button-icon"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    copyToClipboard(transaction.counterpartyRequisites);
-                                                }}
-                                                title="Копировать реквизиты"
-                                            ></span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                    {formatNumberWithSpaces(transaction.amount)}
+                                </td>
+                                <td>{transaction.counterparty}</td>
+                                <td>
+                                    <div className="copy-button-container">
+                                        {transaction.counterpartyRequisites}
+                                        <span
+                                            className="copy-button-icon"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyToClipboard(transaction.counterpartyRequisites);
+                                            }}
+                                            title="Копировать реквизиты"
+                                        ></span>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
                         </tbody>
                     </table>
                 </div>

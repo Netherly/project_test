@@ -5,7 +5,7 @@
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    z-index: 998;
 }
 
 .access-modal {
@@ -14,8 +14,7 @@
     top: 0;
     bottom: 0;
     width: 950px;
-    background-color: var(--container-bg, #ffffff);
-    z-index: 1001;
+    z-index: 999;
     display: flex;
     flex-direction: column;
     box-shadow: -2px 0 20px rgba(0, 0, 0, 0.15);
@@ -33,19 +32,13 @@
 }
 
 .access-modal-header {
-    padding: 20px 25px;
-    background-color: var(--bg-color);
+    padding: 10px 25px;
+    background-color: var(--bg-menu-color);
     border-bottom: 1px solid var(--border--color);
     position: relative;
-    min-height: 80px;
-    flex-shrink: 0;
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-}
-
-.access-modal-header-content {
-    flex: 1;
+    align-items: center; /* Изменено для лучшего выравнивания заголовка и крестика */
 }
 
 .access-modal-header h2 {
@@ -67,10 +60,7 @@
 }
 
 .access-modal-header-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
+    display: flex; /* Упрощено, т.к. тут только кнопка закрытия */
 }
 
 .access-modal-close-button {
@@ -95,12 +85,7 @@
     opacity: 1;
 }
 
-.access-modal-action-buttons {
-    display: flex;
-    gap: 12px;
-}
-
-.access-modal-changes-indicator{
+.access-modal-changes-indicator {
     font-size: 30px;
     color: #dc3545;
     font-weight: 600;
@@ -113,13 +98,12 @@
     overflow-y: auto;
     padding: 20px 25px;
     background-color: var(--bg-menu-color);
+    padding-bottom: 100px; 
 }
 
 .access-modal-roles-section {
     margin-bottom: 30px;
-    background-color: var(--bg-color);
-    border: 1px solid var(--border--color);
-    border-radius: 8px;
+    border-bottom: 1px solid var(--border--color);
     padding: 20px;
 }
 
@@ -157,12 +141,12 @@
 }
 
 .access-modal-add-role-btn {
-    background-color: #28a745;
+    background-color: var(--button-bg);
     color: white;
 }
 
 .access-modal-add-role-btn:hover {
-    background-color: #218838;
+    background-color: var(--input-border-focus);
     transform: scale(1.1);
 }
 
@@ -181,162 +165,158 @@
 .access-modal-roles-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 15px;
 }
 
+/* Основной стиль для тега роли */
 .access-modal-role-item {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 15px;
-    background-color: var(--container-bg, #ffffff);
-    border: 2px solid var(--border--color, #e0e0e0);
-    border-radius: 20px;
+    padding: 10px 18px;
+    background-color: var(--button-bg); /* Используем фон для кнопок */
+    border: 1px solid var(--input-bg); /* Используем фон инпутов для рамки */
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
     position: relative;
-    color: var(--container-text-color, #333333);
+    color: var(--text-color);
     user-select: none;
-    min-height: 25px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Эффект при наведении - подсветка рамки и тень */
 .access-modal-role-item:hover {
-    border-color: #28a745;
-    background-color: #e8f5e8;
-    color: rgb(53, 53, 53);
+    transform: translateY(-3px);
+    border-color: var(--input-border-focus); /* Акцентный синий для рамки */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+    background-color: var(--container-bg);
 }
 
+/* Активная роль - яркий синий градиент и свечение */
 .access-modal-role-item.active {
-    background-color: #28a745;
-    border-color: #28a745;
-    color: white;
+    color: var(--text-color);
+    /* Градиент из ваших акцентных синих цветов */
+    background: linear-gradient(45deg, var(--input-border-focus), var(--container-hover-bg));
+    border-color: var(--container-hover-bg);
+    transform: translateY(-1px);
+    /* Свечение в тон градиента + внутренняя тень для объема */
+    box-shadow: 0 0 15px rgba(71, 140, 255, 0.5), inset 0 2px 3px rgba(0, 0, 0, 0.2);
 }
 
+/* Анимация тряски для ролей, выбранных для удаления */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+    20%, 40%, 60%, 80% { transform: translateX(3px); }
+}
+
+/* Состояние удаления. Красный цвет здесь уместен, т.к. это общепринятый сигнал опасности/удаления */
 .access-modal-role-item.selected-for-delete {
-    background-color: #f8d7da;
+    background-color: #4d1c24; /* Темно-красный фон */
     border-color: #dc3545;
-    color: #721c24;
+    color: #f8d7da;
+    animation: shake 0.5s ease-in-out;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
 }
 
 .access-modal-role-name {
     font-weight: 600;
     font-size: 14px;
-    flex: 1;
     pointer-events: none;
 }
 
-.access-modal-base-badge {
-    background-color: #ffc107;
-    color: #000;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    pointer-events: none;
-    flex-shrink: 0;
+/* Стили для иконки замка */
+.access-modal-protection-badge {
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 2px;
+    line-height: 1;
+    z-index: 2;
 }
 
-.access-modal-role-item.active .access-modal-base-badge {
-    background-color: rgba(255, 193, 7, 0.9);
+.access-modal-role-item.active .access-modal-protection-badge {
+    color: var(--text-color);
+}
+
+.access-modal-protection-badge:not(.disabled):hover {
+    transform: scale(1.3) rotate(10deg);
+}
+
+.access-modal-protection-badge.disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .access-modal-role-checkbox {
     margin: 0;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
     cursor: pointer;
+    accent-color: #dc3545; /* Красный цвет для чекбокса удаления */
 }
 
+/* Поле для добавления новой роли */
 .access-modal-add-role-input {
     display: flex;
     align-items: center;
     gap: 5px;
     padding: 5px;
-    background-color: var(--container-bg, #ffffff);
-    border: 2px solid #28a745;
-    border-radius: 20px;
+    background-color: var(--container-bg);
+    border: 1px dashed var(--input-border-focus); /* Пунктирная рамка акцентного цвета */
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.access-modal-add-role-input:focus-within {
+    border-style: solid;
+    /* Подсветка при фокусе в тон */
+    box-shadow: 0 0 10px rgba(71, 140, 255, 0.3);
 }
 
 .access-modal-add-role-input input {
     border: none;
     outline: none;
-    padding: 3px 8px;
+    padding: 5px 8px;
     font-size: 14px;
     background: transparent;
-    color: var(--container-text-color, #333333);
-}
-
-.access-modal-add-role-input input::placeholder {
-    color: var(--container-text-color, #999999);
-    opacity: 0.6;
+    color: var(--text-color);
+    width: 120px;
 }
 
 .access-modal-add-role-input button {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border: none;
-    border-radius: 50%;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 14px;
+    transition: all 0.2s ease;
 }
 
+.access-modal-add-role-input button:hover {
+    transform: scale(1.1);
+}
+
+/* Кнопка "добавить" - акцентная */
 .access-modal-add-role-input button:first-of-type {
-    background-color: #28a745;
-    color: white;
+    background-color: var(--input-border-focus);
+    color: var(--text-color);
 }
 
+/* Кнопка "отмена" - нейтральная */
 .access-modal-add-role-input button:last-of-type {
-    background-color: #dc3545;
-    color: white;
-}
-
-.access-modal-delete-actions {
-    display: flex;
-    gap: 10px;
-    padding-top: 15px;
-    border-top: 1px solid var(--border--color, #e0e0e0);
-}
-
-.access-modal-confirm-delete-btn {
-    padding: 8px 16px;
-    background-color: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-.access-modal-confirm-delete-btn:hover {
-    background-color: #c82333;
-}
-
-.access-modal-cancel-delete-btn {
-    padding: 8px 16px;
-    background-color: var(--button-bg, #6c757d);
-    color: var(--button-text, white);
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-.access-modal-cancel-delete-btn:hover {
-    background-color: #545b62;
+    background-color: var(--chips-color);
+    color: var(--bg-color);
 }
 
 .access-modal-permissions-section {
-    background-color: var(--bg-color);
-    border: 1px solid var(--border--color);
-    border-radius: 8px;
     padding: 20px;
 }
 
@@ -349,13 +329,12 @@
 }
 
 .access-modal-permissions-title span {
-    color: #28a745;
+
 }
 
 .access-modal-permissions-table {
     background-color: var(--container-bg, #ffffff);
     border: 1px solid var(--border--color, #e0e0e0);
-    border-radius: 8px;
     overflow: hidden;
 }
 
@@ -374,15 +353,15 @@
     color: var(--container-text-color, #666666);
     letter-spacing: 0.5px;
     border-right: 1px solid var(--border--color, #e0e0e0);
+    display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
 }
 
 .access-modal-module-column {
-    justify-content: flex-start !important;
-    padding-left: 20px !important;
     font-weight: 700 !important;
+    text-align: left !important;
 }
 
 .access-modal-description-column {
@@ -407,8 +386,12 @@
 }
 
 .access-modal-module-name {
+    display: flex;
+    align-items: center;
     padding: 18px 20px;
     font-weight: 600;
+    height: 100%;
+    justify-content: center;
     font-size: 14px;
     color: var(--container-text-color, #333333);
     border-right: 1px solid var(--border--color, #e0e0e0);
@@ -420,10 +403,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.access-modal-action-cell:last-of-type {
-    border-right: 1px solid var(--border--color, #e0e0e0);
+    height: 100%;
 }
 
 .access-modal-description-cell {
@@ -434,20 +414,41 @@
     line-height: 1.6;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    text-align: center;
+    height: 100%;
 }
 
 .access-modal-description-cell .description-line {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-bottom: 4px;
+    gap: 8px;
 }
 
-.access-modal-description-cell .description-line:last-child {
-    margin-bottom: 0;
+/* Стили для футера */
+.access-modal-footer {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 950px;
+    padding: 15px 0px;
+    background-color: var(--bg-menu-color);
+    border-top: 1px solid var(--border--color);
+    display: flex;
+    justify-content: flex-end;
+    z-index: 1002;
+    box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.1);
+}
+
+.access-modal-action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+    margin-right: 50px;
+    width: 100%;
+    padding: 0; 
+    box-sizing: border-box;
 }
 
 .access-modal-save-button,
@@ -486,84 +487,20 @@
     box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
 }
 
-.access-modal-three-state-toggle {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 2px solid transparent;
-    user-select: none;
-}
-
-.access-modal-three-state-toggle:hover {
-    transform: scale(1.1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.access-modal-three-state-toggle.access-modal-disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-
-.access-modal-three-state-toggle.access-modal-disabled:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-.access-modal-three-state-toggle.access-modal-allowed {
-    background-color: #d4edda;
-    border-color: #28a745;
-}
-
-.access-modal-three-state-toggle.access-modal-allowed:hover {
-    background-color: #c3e6cb;
-}
-
-.access-modal-three-state-toggle.access-modal-responsible {
-    background-color: #fff3cd;
-    border-color: #ffc107;
-}
-
-.access-modal-three-state-toggle.access-modal-responsible:hover {
-    background-color: #ffeaa7;
-}
-
-.access-modal-three-state-toggle.access-modal-forbidden {
-    background-color: #f8d7da;
-    border-color: #dc3545;
-}
-
-.access-modal-three-state-toggle.access-modal-forbidden:hover {
-    background-color: #f1b0b7;
-}
-
-.access-modal-toggle-icon {
-    font-size: 16px;
-    line-height: 1;
-}
-
 .access-modal-action-column.clickable {
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
     position: relative;
 }
 
 .access-modal-action-column.clickable:hover {
-    background-color: #e8f5e8;
-    color: #28a745;
-    transform: scale(1.02);
+    background-color: rgba(40, 167, 69, 0.05);
 }
 
 .access-modal-action-header-content {
     display: flex;
-    flex-direction: column;
     align-items: center;
     gap: 2px;
-    transition: all 0.2s ease;
 }
 
 .access-modal-action-name {
@@ -575,52 +512,8 @@
 
 .access-modal-column-state-icon {
     font-size: 14px;
-    opacity: 0;
-    transition: all 0.2s ease;
-    height: 0;
-    overflow: hidden;
+    height: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: translateY(-5px);
-}
-
-.access-modal-action-column.clickable:hover {
-    background-color: #e8f5e815;
-    color: #28a745;
-    transform: scale(1.02);
-    padding-top: 18px;
-    padding-bottom: 18px;
-}
-
-.access-modal-action-column.clickable:hover .access-modal-action-header-content {
-    gap: 6px;
-}
-
-.access-modal-action-column.clickable:hover .access-modal-column-state-icon {
-    opacity: 1;
-    height: 16px;
-    transform: translateY(0) scale(1.1);
-}
-
-.access-modal-action-column.clickable::after {
-    content: 'Клик для массового изменения';
-    position: absolute;
-    top: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #333;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-    z-index: 1000;
-}
-
-.access-modal-action-column.clickable:hover::after {
-    opacity: 1;
 }

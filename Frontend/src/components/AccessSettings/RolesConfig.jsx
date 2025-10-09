@@ -1,6 +1,6 @@
 export const modules = [
     { key: 'employees', name: 'Сотрудники' },
-    { key: 'clients', name: 'Клиенты / Компании' },
+    { key: 'clients', name: 'Клиенты' },
     { key: 'orders', name: 'Заказы' },
     { key: 'performers', name: 'Исполнители' },
     { key: 'objectives', name: 'Задачи' },

@@ -36,6 +36,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         sumByRatesRUB: transaction.sumByRatesRUB || "",
         sentToCounterparty: transaction.sentToCounterparty || false,
         sendLion: transaction.sendLion || false,
+        receivedCounterparty: transaction.receivedCounterparty || false,
     });
     
 
@@ -319,12 +320,22 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         setShowUnsavedChangesConfirmation(false);
     };
 
+    const formatNumberWithSpaces = (num) => {
+        if (num === null || num === undefined || isNaN(Number(num))) {
+            return '—'; 
+        }
+        const fixedNum = Number(num).toFixed(2);
+        const parts = fixedNum.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        return parts.join('.');
+    };
+
 
     return (
         <div className="add-transaction-overlay" onClick={handleCloseModal}>
             <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="add-transaction-header">
-                    <h2>Редактировать транзакцию</h2>
+                    <h2>Подробности транзакции</h2>
                     <div className="add-transaction-actions">
                              <button className="options-button" onClick={handleMenuToggle}>
                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -437,6 +448,14 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                         </div>
                     </div>
 
+
+                    <div className="form-row">
+                                <label className="form-label">Баланс до</label>
+                                <span className="form-input">
+                                    {formatNumberWithSpaces(transaction.balanceBefore)}
+                                </span>
+                    </div>
+
                     
                     <div className="form-row">
                             <label htmlFor="operation" className="form-label">
@@ -456,6 +475,13 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             </select>
                         </div>
 
+                    <div className="form-row">
+                                <label className="form-label">Баланс после</label>
+                                <span className="form-input">
+                                    {formatNumberWithSpaces(transaction.balanceAfter)}
+                                </span>
+                            </div>
+
                         <div className="form-row">
                             <label htmlFor="amount" className="form-label">
                                 Сумма операции
@@ -472,6 +498,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 className="form-input"
                             />
                         </div>
+
 
                         {formData.amount && (
                             <div className="currency-recalculation-block">
@@ -628,11 +655,25 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             />
                         </div>
 
-                    <div className="form-actions">
-                        <button type="button" className="cancel-button" onClick={handleCloseModal}>
+                        <div className="form-row second-checkbox-row">
+                            <label htmlFor="receivedCounterparty" className="form-label">
+                                Получено контрагентом
+                            </label>
+                            <input
+                                type="checkbox"
+                                id="receivedCounterparty"
+                                name="receivedCounterparty"
+                                checked={formData.receivedCounterparty}
+                                onChange={handleChange}
+                                className="form-checkbox"
+                            />
+                        </div>
+
+                    <div className="transaction-form-actions">
+                        <button type="button" className="cancel-order-btn" onClick={handleCloseModal}>
                             Отменить
                         </button>
-                        <button type="submit" className="save-button">
+                        <button type="submit" className="save-order-btn">
                             Сохранить
                         </button>
                     </div>

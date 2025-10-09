@@ -1,52 +1,50 @@
 import React from "react";
 
-const ThreeStateToggle = ({ value, onChange, disabled = false }) => {
-    const getStateInfo = (state) => {
-        switch (state) {
+const ThreeStateToggle = ({ value, onChange, disabled }) => {
+
+    
+    const getNextValue = () => {
+        if (value === 'allowed') return 'responsible';
+        if (value === 'responsible') return 'forbidden';
+        return 'allowed'; // from 'forbidden' to 'allowed'
+    };
+
+    const handleClick = () => {
+        if (!disabled) {
+            onChange(getNextValue());
+        }
+    };
+
+    
+    const getDotProps = () => {
+        switch (value) {
             case 'allowed':
                 return {
-                    icon: '✅',
-                    text: 'Разрешено',
-                    className: 'access-modal-allowed'
+                    className: 'permission-dot-green',
+                    title: 'Разрешено'
                 };
             case 'responsible':
                 return {
-                    icon: '⚠️',
-                    text: 'Если ответственный',
-                    className: 'access-modal-responsible'
+                    className: 'permission-dot-orange',
+                    title: 'Если ответственный'
                 };
             case 'forbidden':
             default:
                 return {
-                    icon: '❌',
-                    text: 'Запрещено',
-                    className: 'access-modal-forbidden'
+                    className: 'permission-dot-red',
+                    title: 'Запрещено'
                 };
         }
     };
 
-    const cycleState = () => {
-        if (disabled) return;
-
-        const states = ['forbidden', 'responsible', 'allowed'];
-        const currentIndex = states.indexOf(value);
-        const nextIndex = (currentIndex + 1) % states.length;
-        onChange(states[nextIndex]);
-    };
-
-    const stateInfo = getStateInfo(value);
-    const tooltipText = disabled
-        ? 'Настройка заблокирована для данной роли'
-        : stateInfo.text;
+    const dotProps = getDotProps();
 
     return (
         <div
-            className={`access-modal-three-state-toggle ${stateInfo.className} ${disabled ? 'access-modal-disabled' : ''}`}
-            onClick={cycleState}
-            title={tooltipText}
-        >
-            <span className="access-modal-toggle-icon">{stateInfo.icon}</span>
-        </div>
+            className={`permission-dot ${dotProps.className} ${disabled ? 'disabled' : ''}`}
+            title={dotProps.title}
+            onClick={handleClick}
+        />
     );
 };
 

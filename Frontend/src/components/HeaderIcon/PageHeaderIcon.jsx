@@ -62,7 +62,7 @@ const PageHeaderIcon = ({ pageName, className = "page-header-icon" }) => {
                 width: "38px",
                 height: "38px",
                 objectFit: "contain",
-                marginRight: "8px",
+                marginRight: "15px",
             }}
         />
     );
