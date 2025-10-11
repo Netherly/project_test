@@ -23,23 +23,37 @@ jobs:
           if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> $GITHUB_ENV; else echo "FE_DIR=frontend" >> $GITHUB_ENV; fi
           if [ -d Backend ]; then echo "BE_DIR=Backend"  >> $GITHUB_ENV; else echo "BE_DIR=backend"  >> $GITHUB_ENV; fi
 
-      # Пишем env прямо в .env.production (имеет приоритет у Vite)
+      # 1) Пишем prod-env
       - name: Write frontend .env.production
         run: |
           cd "${{ env.FE_DIR }}"
           printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env.production || true
 
-      # Небольшая валидация, чтобы не собрать /undefined
-      - name: Validate frontend env
+      # 2) Удаляем любые другие .env*, которые могут перебить
+      - name: Remove other env files
         working-directory: ./${{ env.FE_DIR }}
         run: |
-          echo "----- .env.production -----"
+          rm -f .env .env.local .env.development .env.development.local .env.production.local || true
+
+      # 3) Валидируем и экспортируем VITE_API_URL из .env.production в окружение job
+      - name: Validate & export VITE_API_URL
+        working-directory: ./${{ env.FE_DIR }}
+        run: |
+          echo "----- .env.production (first 50 lines) -----"
           sed -n '1,50p' .env.production || true
-          echo "---------------------------"
-          grep -E '^VITE_API_URL=' .env.production || (echo "VITE_API_URL is missing in FRONTEND_ENV" >&2; exit 1)
+          echo "--------------------------------------------"
+          URL=$(grep -E '^VITE_API_URL=' .env.production | sed 's/^VITE_API_URL=//')
+          if [ -z "$URL" ]; then
+            echo "VITE_API_URL is missing in FRONTEND_ENV" >&2
+            exit 1
+          fi
+          echo "VITE_API_URL=$URL" >> $GITHUB_ENV
 
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
+        env:
+          # 4) ЖЁСТКО прокидываем в build-time — перекрывает файлы .env
+          VITE_API_URL: ${{ env.VITE_API_URL }}
         run: |
           npm ci || npm install
           npm run build || npm run build:prod || echo "no build script"
@@ -57,12 +71,12 @@ jobs:
           set -e
           echo "Searching for '/undefined/' in bundle..."
           if grep -RIn --no-messages "/undefined/" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" ; then
-            echo "Bundle contains '/undefined/'. Check FRONTEND_ENV (VITE_API_URL)!" >&2
+            echo "Bundle contains '/undefined/'. Check VITE_API_URL!" >&2
             exit 1
           fi
           echo "Searching for 'localhost:3000' in bundle..."
           if grep -RIn --no-messages "localhost:3000" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" ; then
-            echo "Bundle contains 'localhost:3000'. Check FRONTEND_ENV (VITE_API_URL) и api клиент." >&2
+            echo "Bundle contains 'localhost:3000'. Fix VITE_API_URL or client fallback." >&2
             exit 1
           fi
           echo "OK: bundle URLs look clean"
