@@ -10,11 +10,8 @@ const task = cron.schedule(
     try {
       const ymd = getTargetDateFromEnv();
       const created = await copyLatestToDate(ymd);
-      if (created) {
-        console.log(`[rates.autofill] created copy for ${ymd}`);
-      } else {
-        console.log('[rates.autofill] no source row to copy (skipped)');
-      }
+      if (created) console.log(`[rates.autofill] created copy for ${ymd}`);
+      else console.log('[rates.autofill] no source row to copy (skipped)');
     } catch (e) {
       console.error('[rates.autofill] failed:', e);
     }
