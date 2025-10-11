@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-     
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -24,10 +23,20 @@ jobs:
           if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> $GITHUB_ENV; else echo "FE_DIR=frontend" >> $GITHUB_ENV; fi
           if [ -d Backend ]; then echo "BE_DIR=Backend"  >> $GITHUB_ENV; else echo "BE_DIR=backend"  >> $GITHUB_ENV; fi
 
-      - name: Write frontend .env
+      # Пишем env прямо в .env.production (имеет приоритет у Vite)
+      - name: Write frontend .env.production
         run: |
           cd "${{ env.FE_DIR }}"
-          printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env || true
+          printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env.production || true
+
+      # Небольшая валидация, чтобы не собрать /undefined
+      - name: Validate frontend env
+        working-directory: ./${{ env.FE_DIR }}
+        run: |
+          echo "----- .env.production -----"
+          sed -n '1,50p' .env.production || true
+          echo "---------------------------"
+          grep -E '^VITE_API_URL=' .env.production || (echo "VITE_API_URL is missing in FRONTEND_ENV" >&2; exit 1)
 
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
@@ -42,15 +51,21 @@ jobs:
           test -d "${{ env.FE_DIR }}/${{ env.FE_OUT }}" || (echo "Build dir not found" && exit 1)
           find "${{ env.FE_DIR }}/${{ env.FE_OUT }}" -maxdepth 1 -type f | head -n 10
 
-      - name: Fail if bundle contains localhost:3000
+      # Страж-проверки URL в бандле
+      - name: Fail if bundle contains bad base url
         run: |
           set -e
+          echo "Searching for '/undefined/' in bundle..."
+          if grep -RIn --no-messages "/undefined/" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" ; then
+            echo "Bundle contains '/undefined/'. Check FRONTEND_ENV (VITE_API_URL)!" >&2
+            exit 1
+          fi
           echo "Searching for 'localhost:3000' in bundle..."
-          if grep -R --line-number --no-messages "localhost:3000" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" ; then
+          if grep -RIn --no-messages "localhost:3000" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" ; then
             echo "Bundle contains 'localhost:3000'. Check FRONTEND_ENV (VITE_API_URL) и api клиент." >&2
             exit 1
           fi
-          echo "OK: bundle does not contain localhost:3000"
+          echo "OK: bundle URLs look clean"
 
       - name: Pack frontend build
         run: |
