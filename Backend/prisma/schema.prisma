@@ -22,7 +22,6 @@ model TagCategory {
   id   String @id @default(uuid())
   code String @unique @db.VarChar(50)
   name String @db.VarChar(100)
-
   tags Tag[]
 }
 
@@ -115,11 +114,10 @@ model CardDesign {
 }
 
 model OrderIntervalDict {
-  id       String  @id @default(uuid())
-  value    String  @unique @db.VarChar(100)
-  isActive Boolean @default(true)
-  order    Int     @default(0)
-
+  id         String              @id @default(uuid())
+  value      String              @unique @db.VarChar(100)
+  isActive   Boolean             @default(true)
+  order      Int                 @default(0)
   categories OrderCategoryDict[]
 }
 
@@ -127,10 +125,9 @@ model OrderCategoryDict {
   id         String            @id @default(uuid())
   intervalId String
   interval   OrderIntervalDict @relation(fields: [intervalId], references: [id])
-
-  value    String  @db.VarChar(100)
-  isActive Boolean @default(true)
-  order    Int     @default(0)
+  value      String            @db.VarChar(100)
+  isActive   Boolean           @default(true)
+  order      Int               @default(0)
 
   @@unique([intervalId, value])
   @@index([intervalId])
@@ -146,28 +143,23 @@ model FinanceArticleDict {
 }
 
 model FinanceSubcategoryDict {
-  id       String  @id @default(uuid())
-  name     String  @unique @db.VarChar(150)
-  isActive Boolean @default(true)
-  order    Int     @default(0)
-
+  id          String                  @id @default(uuid())
+  name        String                  @unique @db.VarChar(150)
+  isActive    Boolean                 @default(true)
+  order       Int                     @default(0)
   subarticles FinanceSubarticleDict[]
 }
 
 model FinanceSubarticleDict {
-  id String @id @default(uuid())
-
-  articleId String?
-  article   FinanceArticleDict? @relation(fields: [articleId], references: [id])
-
+  id            String                  @id @default(uuid())
+  articleId     String?
+  article       FinanceArticleDict?     @relation(fields: [articleId], references: [id])
   subcategoryId String?
   subcategory   FinanceSubcategoryDict? @relation(fields: [subcategoryId], references: [id])
-
-  name String @db.VarChar(150)
-
-  isActive     Boolean       @default(true)
-  order        Int           @default(0)
-  transactions Transaction[]
+  name          String                  @db.VarChar(150)
+  isActive      Boolean                 @default(true)
+  order         Int                     @default(0)
+  transactions  Transaction[]
 
   @@index([articleId])
   @@index([subcategoryId])
@@ -186,21 +178,18 @@ model Employee {
   countryId String?
   country   Country? @relation(fields: [countryId], references: [id])
 
-  telegramId            String?   @unique @db.VarChar(100)
-  telegramUserId        BigInt?   @unique @db.BigInt
-  telegramChatId        BigInt?   @unique @db.BigInt
-  telegramUsername      String?   @db.VarChar(100)
-  telegramLinkedAt      DateTime?
-  telegramVerified      Boolean   @default(false)
-  telegramVerifyCode    String?   @db.VarChar(12)
-  telegramCodeExpiresAt DateTime?
+  telegramUserId   BigInt?   @unique @db.BigInt
+  telegramChatId   BigInt?   @unique @db.BigInt
+  telegramUsername String?   @db.VarChar(100)
+  telegramLinkedAt DateTime?
+  telegramVerified Boolean   @default(false)
+
+  linkTickets TelegramLinkTicket[]
 
   tasks   Task[]
   clients Client[]      @relation("ManagerClients")
   tags    EmployeeTag[]
   assets  Asset[]
-
-  telegramLinkTickets TelegramLinkTicket[]
 
   @@index([countryId])
 }
@@ -208,36 +197,33 @@ model Employee {
 model TelegramLinkTicket {
   id         String    @id @default(uuid())
   code       String    @unique @db.VarChar(12)
-  tgUserId   BigInt    @db.BigInt
-  tgChatId   BigInt    @db.BigInt
-  tgUsername String?   @db.VarChar(100)
   expiresAt  DateTime
   consumedAt DateTime?
 
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
 
-  @@index([tgUserId])
+  tgUserId   BigInt? @db.BigInt
+  tgChatId   BigInt? @db.BigInt
+  tgUsername String? @db.VarChar(100)
+
   @@index([expiresAt])
 }
 
 model Company {
-  id   String @id @default(uuid())
-  name String @db.VarChar(255)
-
-  clients     Client[]     @relation("CompanyClients")
-  tasks       Task[]
-  credentials Credential[]
-
+  id           String        @id @default(uuid())
+  name         String        @db.VarChar(255)
+  clients      Client[]      @relation("CompanyClients")
+  tasks        Task[]
+  credentials  Credential[]
   transactions Transaction[] @relation("CompanyTransactions")
   assets       Asset[]
 }
 
 model ClientGroup {
-  id    String @id @default(uuid())
-  name  String @unique @db.VarChar(100)
-  order Int    @default(0)
-
+  id      String   @id @default(uuid())
+  name    String   @unique @db.VarChar(100)
+  order   Int      @default(0)
   clients Client[]
 }
 
@@ -413,8 +399,7 @@ model ExchangeRates {
 }
 
 model Transaction {
-  id String @id @default(uuid())
-
+  id   String   @id @default(uuid())
   date DateTime
 
   category    String? @db.VarChar(100)
@@ -482,9 +467,8 @@ model Transaction {
 model EmployeeTag {
   employeeId String
   tagId      String
-
-  employee Employee @relation(fields: [employeeId], references: [id])
-  tag      Tag      @relation(fields: [tagId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  tag        Tag      @relation(fields: [tagId], references: [id])
 
   @@id([employeeId, tagId])
   @@index([tagId])
@@ -493,9 +477,8 @@ model EmployeeTag {
 model ClientTag {
   clientId String
   tagId    String
-
-  client Client @relation(fields: [clientId], references: [id])
-  tag    Tag    @relation(fields: [tagId], references: [id])
+  client   Client @relation(fields: [clientId], references: [id])
+  tag      Tag    @relation(fields: [tagId], references: [id])
 
   @@id([clientId, tagId])
   @@index([tagId])
@@ -504,9 +487,8 @@ model ClientTag {
 model OrderTag {
   orderId String
   tagId   String
-
-  order Order @relation(fields: [orderId], references: [id])
-  tag   Tag   @relation(fields: [tagId], references: [id])
+  order   Order  @relation(fields: [orderId], references: [id])
+  tag     Tag    @relation(fields: [tagId], references: [id])
 
   @@id([orderId, tagId])
   @@index([tagId])

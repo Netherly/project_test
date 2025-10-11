@@ -1,54 +1,35 @@
 const prisma = require('../../prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { consumeTicketOrThrow } = require('./telegram-link.service');
+const { createLinkTokenForEmployee } = require('./link-token.service');
 
-async function register(payload) {
-  const {
-    full_name, birthDate, phone, email, login, password, tgCode
-  } = payload;
-
-  if (!tgCode) throw new Error('Telegram code is required');
-
-  const ticket = await consumeTicketOrThrow(tgCode);
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const now = new Date();
-
-  const employee = await prisma.$transaction(async (tx) => {
-    const emp = await tx.employee.create({
-      data: {
-        full_name,
-        // ЕСЛИ у тебя есть поле birthDate в Prisma — добавь сюда:
-        // birthDate: birthDate ? new Date(birthDate) : null,
-        phone,
-        email,
-        login,
-        password: hashedPassword,
-        telegramUserId: ticket.tgUserId,
-        telegramChatId: ticket.tgChatId,
-        telegramUsername: ticket.tgUsername,
-        telegramLinkedAt: now,
-        telegramVerified: true,
-      }
-    });
-
-    await tx.telegramLinkTicket.update({
-      where: { id: ticket.id },
-      data: { consumedAt: now, employeeId: emp.id }
-    });
-
-    return emp;
-  });
-
-  return { id: employee.id };
+function httpErr(message, status = 400) {
+  const e = new Error(message);
+  e.status = status;
+  throw e;
 }
 
-async function login(login, password) {
-  const employee = await prisma.employee.findUnique({ where: { login } });
-  if (!employee) throw new Error('Employee not found');
+async function register({ full_name, phone, email, login, password }) {
+  const exists = await prisma.employee.findUnique({ where: { login } });
+  if (exists) httpErr('Логин уже используется', 409);
 
-  const isValid = await bcrypt.compare(password, employee.password);
-  if (!isValid) throw new Error('Invalid password');
+  const hashed = await bcrypt.hash(password, 10);
+  const employee = await prisma.employee.create({
+    data: { full_name, phone, email, login, password: hashed },
+  });
+
+  const token = await createLinkTokenForEmployee(employee.id, 60);
+  const telegramLink = `https://t.me/gsse_assistant_bot?start=${token}`;
+
+  return { employee, telegramLink };
+}
+
+async function login(loginName, password) {
+  const employee = await prisma.employee.findUnique({ where: { login: loginName } });
+  if (!employee) httpErr('Пользователь не найден', 404);
+
+  const ok = await bcrypt.compare(password, employee.password);
+  if (!ok) httpErr('Неверный пароль', 401);
 
   const token = jwt.sign({ employeeId: employee.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
   return { token };
