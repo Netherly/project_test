@@ -1,3 +1,4 @@
+// src/middlewares/auth.middleware.js
 const jwt = require('jsonwebtoken');
 
 function extractToken(req) {
@@ -8,7 +9,7 @@ function extractToken(req) {
   return null;
 }
 
-function authMiddleware(req, res, next) {
+const authMiddleware = (req, res, next) => {
   if (!process.env.JWT_SECRET) {
     return res.status(500).json({ message: 'JWT secret is not configured' });
   }
@@ -18,17 +19,13 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ message: 'No token provided' });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
-      algorithms: ['HS256'],
-      clockTolerance: 5,
-    });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'], clockTolerance: 5 });
     req.user = { employeeId: decoded.employeeId, ...decoded };
     next();
   } catch (err) {
     res.set('WWW-Authenticate', 'Bearer error="invalid_token"');
-    if (err.name === 'TokenExpiredError') return res.status(401).json({ message: 'Token expired' });
-    return res.status(401).json({ message: 'Invalid token' });
+    return res.status(401).json({ message: err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token' });
   }
-}
+};
 
-module.exports = authMiddleware; // ВАЖНО: default export (функция)
+module.exports = authMiddleware;

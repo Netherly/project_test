@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/LoginPage.css";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
-import { api } from "../api/api"; // <-- если путь другой, поправьте импорт
+import { api } from "../api/api";
 
 function LoginPage() {
   const [login, setLogin] = useState("");
@@ -10,11 +10,12 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // регистрация (UI + модалка)
   const [showRegister, setShowRegister] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
   const [telegramLink, setTelegramLink] = useState("");
+
   const [usernameFocused, setUsernameFocused] = useState(false);
 
   const [regData, setRegData] = useState({
@@ -24,28 +25,23 @@ function LoginPage() {
     email: "",
     username: "",
     password: "",
-    confirmPassword: "", 
+    confirmPassword: "",
   });
-
   const [regErrors, setRegErrors] = useState({});
 
   const navigate = useNavigate();
 
-  // основной логин: API + тестовый фолбэк user/123456
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      // 1) Пытаемся залогиниться через общий API-клиент
-      const data = await api.login({ login, password }); // ожидаем { token, ... }
+      const data = await api.login({ login, password });
       if (data?.token) localStorage.setItem("token", data.token);
       localStorage.setItem("isAuthenticated", "true");
       navigate("/home");
       return;
     } catch (err) {
-      // 2) Тестовый фолбэк для стенда без бэка
       if (login === "user" && password === "123456") {
         localStorage.setItem("token", "dev-token-user-123456");
         localStorage.setItem("isAuthenticated", "true");
@@ -58,11 +54,27 @@ function LoginPage() {
     }
   };
 
-  // регистрация (пока без API, генерим ссылку и показываем модалку)
   const handleRegisterChange = (e) => {
     const { name, value } = e.target;
     setRegData((prev) => ({ ...prev, [name]: value }));
-    setRegErrors((prev) => ({ ...prev, [name]: false }));
+    setRegErrors((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const checkUsernameAvailability = async (value) => {
+    const username = String(value || "").trim();
+    if (!username) return;
+    try {
+      if (typeof api?.checkUsername === "function") {
+        const res = await api.checkUsername({ username });
+        if (!res?.available) {
+          setRegErrors((prev) => ({ ...prev, username: "Такой логин уже занят" }));
+        }
+      }
+    } catch {}
   };
 
   const validateRegistration = () => {
@@ -70,20 +82,47 @@ function LoginPage() {
     let isValid = true;
 
     for (const key in regData) {
-      if (regData[key].trim() === "") {
-        errors[key] = true;
+      if (String(regData[key] || "").trim() === "") {
+        errors[key] = "Поле обязательно";
         isValid = false;
       }
     }
 
-    if (regData.email.trim() !== "" && !regData.email.toLowerCase().endsWith("@gmail.com")) {
-      errors.email = true;
+    if (
+      regData.email.trim() !== "" &&
+      !regData.email.toLowerCase().endsWith("@gmail.com")
+    ) {
+      errors.email = "Почта должна быть в домене @gmail.com";
       isValid = false;
     }
 
-    if (regData.password !== regData.confirmPassword) {
-      errors.password = true;
-      errors.confirmPassword = true;
+    const phone = regData.phone.trim();
+    if (phone) {
+      const hasPlus = phone.includes("+");
+      const digitsOnly = /^[0-9]+$/.test(phone);
+      const lengthOk = phone.length >= 11 && phone.length <= 14;
+      const notStartsWithZero = !/^0/.test(phone);
+      if (hasPlus || !digitsOnly || !lengthOk || !notStartsWithZero) {
+        errors.phone =
+          "Телефон должен быть без «+», только цифры, с кодом страны, 11–14 цифр, не начинается с 0 (пример: 380XXXXXXXXX).";
+        isValid = false;
+      }
+    }
+
+    const pwd = regData.password;
+    if (pwd && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])\S{6,}$/.test(pwd)) {
+      errors.password =
+        "Пароль должен быть не короче 6 символов, содержать строчную, заглавную, цифру и спецсимвол, без пробелов.";
+      isValid = false;
+    }
+
+    if (
+      regData.password.trim() !== "" &&
+      regData.confirmPassword.trim() !== "" &&
+      regData.password !== regData.confirmPassword
+    ) {
+      errors.password = errors.password || "Пароли не совпадают";
+      errors.confirmPassword = "Пароли не совпадают";
       isValid = false;
     }
 
@@ -91,19 +130,52 @@ function LoginPage() {
     return isValid;
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    if (!validateRegistration()) return;
 
-    if (!validateRegistration()) {
-      return;
+    setError("");
+    setLoading(true);
+    try {
+      const payload = {
+        full_name: regData.fullName,
+        birthDate: regData.birthDate || undefined,
+        phone: regData.phone,
+        email: regData.email,
+        login: regData.username,
+        password: regData.password,
+      };
+      await api.register(payload);
+
+      const loginResp = await api.login({
+        login: regData.username,
+        password: regData.password,
+      });
+      if (loginResp?.token) {
+        localStorage.setItem("token", loginResp.token);
+        localStorage.setItem("isAuthenticated", "true");
+      }
+
+      const linkResp = await api.createTelegramLink();
+      setTelegramLink(linkResp?.link || "");
+      setConfirmMessage(
+        "Профиль создан и вы вошли в систему. Для привязки Telegram нажмите ссылку ниже и нажмите Start в боте."
+      );
+
+      setShowConfirm(true);
+      setShowRegister(false);
+      resetRegForm();
+    } catch (err) {
+      const status = err?.status || err?.response?.status;
+      const msg = (err?.message || err?.response?.data?.message || "").toString().toLowerCase();
+      if (status === 409 || (/username|login/.test(msg) && /(taken|занят|exists|существует)/.test(msg))) {
+        setRegErrors((prev) => ({ ...prev, username: "Такой логин уже занят" }));
+      } else {
+        setError(err?.message || "Ошибка при регистрации");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    // здесь можно вставить POST на /api/auth/register
-    const link = `https://t.me/pridumatLink${Math.floor(Math.random() * 100000)}`;
-    setTelegramLink(link);
-    setShowConfirm(true);
-    setShowRegister(false);
-    resetRegForm();
   };
 
   const resetRegForm = () => {
@@ -114,9 +186,9 @@ function LoginPage() {
       email: "",
       username: "",
       password: "",
-      confirmPassword: "", 
+      confirmPassword: "",
     });
-    setRegErrors({}); 
+    setRegErrors({});
     setUsernameFocused(false);
   };
 
@@ -130,9 +202,7 @@ function LoginPage() {
     setShowCloseConfirm(false);
   };
 
-  const getInputClassName = (name) => {
-    return regErrors[name] ? "input-error" : "";
-  };
+  const getInputClassName = (name) => (regErrors[name] ? "input-error" : "");
 
   return (
     <div className="login-page">
@@ -179,18 +249,9 @@ function LoginPage() {
             <div className="form-header">
               <h2>Регистрация</h2>
               <span className="close-icon" onClick={handleCloseRegister}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-x"
-                >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 6 6 18" />
                   <path d="m6 6 12 12" />
                 </svg>
@@ -210,17 +271,27 @@ function LoginPage() {
                     className={getInputClassName("fullName")}
                     required
                   />
+                  {regErrors.fullName && (
+                    <p className="validation-hint">{regErrors.fullName}</p>
+                  )}
                 </div>
-                <div className="form-register-group">
+              <div className="form-register-group">
                   <label htmlFor="birthDate">Дата рождения</label>
-                  <input
-                    type="date"
-                    name="birthDate"
-                    value={regData.birthDate}
-                    onChange={handleRegisterChange}
-                    className={getInputClassName("birthDate")}
-                    required
-                  />
+                  {/* Додано спеціальний контейнер для стилізації іконки */}
+                  <div className="date-input-container">
+                    <input
+                      type="date"
+                      name="birthDate"
+                      value={regData.birthDate}
+                      onChange={handleRegisterChange}
+                      
+                      className={`date-input ${getInputClassName("birthDate")}`}
+                      required
+                    />
+                  </div>
+                  {regErrors.birthDate && (
+                    <p className="validation-hint">{regErrors.birthDate}</p>
+                  )}
                 </div>
                 <div className="form-register-group">
                   <label htmlFor="phone">Телефон</label>
@@ -228,11 +299,16 @@ function LoginPage() {
                     type="tel"
                     name="phone"
                     value={regData.phone}
-                    onChange={handleRegisterChange}
+                    onChange={(e) => {
+                      handleRegisterChange(e);
+                    }}
                     placeholder="Введите ваш номер телефона"
                     className={getInputClassName("phone")}
                     required
                   />
+                  {regErrors.phone && (
+                    <p className="validation-hint">{regErrors.phone}</p>
+                  )}
                 </div>
                 <div className="form-register-group">
                   <label htmlFor="email">Почта</label>
@@ -245,8 +321,12 @@ function LoginPage() {
                     className={getInputClassName("email")}
                     required
                   />
-                  {regErrors.email && (
-                    <p className="validation-hint">Почта должна быть в домене @gmail.com</p>
+                  {regErrors.email ? (
+                    <p className="validation-hint">{regErrors.email}</p>
+                  ) : (
+                    regData.email && (
+                      <p className="validation-hint">Почта должна быть в домене @gmail.com</p>
+                    )
                   )}
                 </div>
                 <div className="form-register-group">
@@ -257,11 +337,17 @@ function LoginPage() {
                     value={regData.username}
                     onChange={handleRegisterChange}
                     onFocus={() => setUsernameFocused(true)}
-                    onBlur={() => setUsernameFocused(false)}
+                    onBlur={() => {
+                      setUsernameFocused(false);
+                      checkUsernameAvailability(regData.username);
+                    }}
                     placeholder="Введите ваш логин"
                     className={getInputClassName("username")}
                     required
                   />
+                  {regErrors.username && (
+                    <p className="validation-hint">{regErrors.username}</p>
+                  )}
                 </div>
                 {usernameFocused && (
                   <p className="username-hint">
@@ -286,12 +372,15 @@ function LoginPage() {
                     className={getInputClassName("password")}
                     required
                   />
+                  {regErrors.password && (
+                    <p className="validation-hint">{regErrors.password}</p>
+                  )}
                 </div>
                 <div className="form-register-group">
                   <label htmlFor="confirmPassword"></label>
                   <input
                     type="password"
-                    name="confirmPassword" 
+                    name="confirmPassword"
                     value={regData.confirmPassword}
                     onChange={handleRegisterChange}
                     placeholder="Подтвердите пароль"
@@ -299,13 +388,15 @@ function LoginPage() {
                     required
                   />
                   {regErrors.confirmPassword && (
-                    <p className="validation-hint">Пароли не совпадают</p>
+                    <p className="validation-hint">{regErrors.confirmPassword}</p>
                   )}
                 </div>
               </div>
 
               <div className="form-actions">
-                <button type="submit">Отправить заявку</button>
+                <button type="submit" disabled={loading}>
+                  {loading ? "Отправляем..." : "Отправить заявку"}
+                </button>
               </div>
             </form>
           </div>
@@ -314,14 +405,20 @@ function LoginPage() {
 
       {showConfirm && (
         <ConfirmationModal
-          title="Регистрация отправлена!"
+          title="Профиль создан"
           message={
             <>
-              Чтобы привязать Telegram, откройте ссылку:
+              {confirmMessage}
+              <br /><br />
+              Ссылка для привязки Telegram:
               <br />
-              <a href={telegramLink} target="_blank" rel="noreferrer">
-                {telegramLink}
-              </a>
+              {telegramLink ? (
+                <a href={telegramLink} target="_blank" rel="noreferrer">
+                  {telegramLink}
+                </a>
+              ) : (
+                <span>ссылка не получена</span>
+              )}
             </>
           }
           confirmText="OK"
@@ -330,6 +427,7 @@ function LoginPage() {
           onCancel={() => setShowConfirm(false)}
         />
       )}
+
       {showCloseConfirm && (
         <ConfirmationModal
           title="Закрыть регистрацию?"
