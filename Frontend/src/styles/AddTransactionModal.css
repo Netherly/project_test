@@ -170,7 +170,7 @@
 }
 
 
-.form-actions {
+.transaction-form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -180,39 +180,6 @@
   flex-shrink: 0;
 }
 
-.cancel-button {
-  background: none;
-  border: 1px solid var(--chips-color);
-  cursor: pointer;
-  padding: 10px 20px;
-  color: var(--chips-color);
-  font-weight: 500;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.cancel-button:hover {
-  background-color: rgba(128, 128, 128, 0.1);
-  color: var(--text-color);
-}
-
-.save-button {
-  background-color: var(--button-bg);
-  color: #fff;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.save-button:hover {
-  background-color: var(--accent-color);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
 
 .form-row.flex-row {
     display: flex;

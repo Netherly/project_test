@@ -219,7 +219,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
     return (
         <div className="assets-modal-overlay" onClick={onClose}>
             <div className="assets-modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
+                <div className="asset-modal-header">
                     <h2>"{asset.accountName}"</h2>
                     <div className="header-actions-right">
                         <span>{asset.currency}</span>
@@ -229,8 +229,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             </button>
                             {showOptionsMenu && (
                                 <div className="options-menu">
-                                    <button className="menu-item" onClick={handleDuplicateClick}>Дублировать актив</button>
-                                    <button className="menu-item delete-item" onClick={handleDeleteClick}>Удалить актив</button>
+                                    <button className="menu-item" onClick={handleDuplicateClick}>&#x2398; Дублировать</button>
+                                    <button className="menu-item delete-item" onClick={handleDeleteClick}>🗑️ Удалить</button>
                                 </div>
                             )}
                             <button className="modal-close-button" onClick={onClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
@@ -377,7 +377,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onClick={isEditingRequisites ? handleRequisitesSave : () => setIsEditingRequisites(true)}
                                     title={isEditingRequisites ? "Сохранить реквизиты" : "Редактировать реквизиты"}
                                 >
-                                    {isEditingRequisites ? '✔' : '✎'}
+                                    {isEditingRequisites ? '💾' : '✎'}
                                 </button>
                             </div>
                         </div>
@@ -520,8 +520,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                     </div>
                 </div>
                 <div className="modal-footer">
-                    <button className="modal-cancel-button" onClick={onClose}>Отменить</button>
-                    <button className="modal-save-button" onClick={handleSave}>Сохранить</button>
+                    <button className="cancel-order-btn" onClick={onClose}>Отменить</button>
+                    <button className="save-order-btn" onClick={handleSave}>Сохранить</button>
                 </div>
             </div>
         </div>

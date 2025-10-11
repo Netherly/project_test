@@ -165,7 +165,8 @@
 }
 
 .cancel-order-btn:hover {
-    background-color: rgba(128, 128, 128, 0.1);
+    background-color: #ff4444;
+    color: white;
     opacity: 1;
     transform: translateY(-1px);
 }
@@ -182,7 +183,8 @@
 }
 
 .save-order-btn:hover {
-    background-color: var(--accent-color); 
+    background-color: var(--input-border-focus); 
+    color: white;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

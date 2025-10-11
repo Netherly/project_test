@@ -1,249 +1,183 @@
-/* ========== базовые переменные и нормализация ========== */
-:root {
-  /* при желании поправь под свою тему */
-  --sidebar-w: 72px;
-
-  --bg-color: #0f1526;
-  --container-bg: #151c2e;
-  --text-color: #e6eaf2;
-  --muted-text: #9aa3ad;
-
-  --border--color: rgba(255,255,255,.08);
-  --input-border-focus: #6a6aff;
-
-  --container-text-color: var(--text-color);
-  --chips-color: var(--text-color);
-}
-.employee-modal * { box-sizing: border-box; }
-
-/* ========== Overlay ========== */
-.employee-modal-overlay {
+.modal-overlay {
   position: fixed;
   top: 0;
-  left: var(--sidebar-w);              /* учитываем сайдбар */
-  width: calc(100% - var(--sidebar-w));
+  left: 0;
+  width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-
+  background-color: rgba(0, 0, 0, 0.7); 
   display: flex;
   justify-content: center;
   align-items: center;
-
   z-index: 1000;
   opacity: 0;
-  pointer-events: none;                /* чтобы клики не ловились, когда закрыто */
   transition: opacity 0.3s ease;
 }
-.employee-modal-overlay.open {
+
+.modal-overlay.open {
   opacity: 1;
-  pointer-events: auto;
 }
 
-/* ========== Корневой контейнер модалки ========== */
+
 .employee-modal.tri-layout {
   display: flex;
-  width: 100%;
+  width: 100%; 
   height: 100vh;
-
-  background: var(--bg-color);
-  color: var(--chips-color, var(--text-color));
-
+  
+  background: #2a2a3e; 
+  color: #e0e0e0;
+  
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  overflow: hidden;
-
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden; 
+  
+  
   transform: scale(0.95);
   opacity: 0;
   transition: transform 0.3s ease-out, opacity 0.3s ease-out;
 }
-.employee-modal-overlay.open .employee-modal.tri-layout {
+
+.modal-overlay.open .employee-modal.tri-layout {
   transform: scale(1);
   opacity: 1;
 }
 
-/* ========== Колонки ========== */
+
 .left-panel {
-  flex: 0 0 700px;
+  flex: 0 0 700px; 
   display: flex;
   flex-direction: column;
-  background-color: var(--container-bg);
-  border-right: 1px solid var(--border--color);
-  min-width: 520px;                    /* чтобы сетка форм не ломалась */
-}
-.chat-panel-wrapper {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--container-bg);
-  border-right: 1px solid var(--border--color);
-  min-width: 380px;
-}
-.actions-panel {
-  flex: 0 0 300px;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--container-bg);
-  padding: 15px;
-  min-width: 280px;
+  background-color: #2a2a3e; 
+  border-right: 1px solid #444; 
 }
 
-/* ========== Заглушки/плейсхолдеры ========== */
+
+.chat-panel-wrapper {
+  flex: 1 1 auto; 
+  display: flex;
+  flex-direction: column;
+  background-color: #252538; 
+  border-right: 1px solid #444;
+}
+
+
+.actions-panel {
+  flex: 0 0 300px; 
+  display: flex;
+  flex-direction: column;
+  background-color: #2a2a3e; 
+  padding: 15px;
+}
+
+
 .chat-placeholder,
 .actions-placeholder {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--muted-text);
-  background-color: var(--bg-color);
+  color: #888;
+  background-color: #1e1e2d; 
   text-align: center;
   padding: 20px;
   height: 100%;
 }
-
-/* ========== Верхний хедер: аватар, ФИО, логин, теги, действия ========== */
-.employee-head {
-  --employee-head-h: 72px;             /* базовая высота; влияет на sticky у табов */
-  position: sticky;
-  top: 0;
-  z-index: 3;
-
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 16px;
-  align-items: center;
-
-  min-height: var(--employee-head-h);
-  padding: 16px 16px 12px;
-
-  background: var(--container-bg);
-  border-bottom: 1px solid var(--border--color);
+.employee-modal-body {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+.modal-body {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 24px;
+  background-color: #19213A;
 }
 
-/* аватар */
-.employee-head .avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #3a3a3c;
-}
-
-/* блок инфо и тегов */
-.employee-head .meta {
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto auto;
-  row-gap: 8px;
-}
-.employee-head .title-row {
+.tab-section {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+  flex-direction: column;
+  padding: 24px;
+  gap: 12px;
 }
-.employee-head .fullname {
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--text-color);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+.form-field {
+  display: flex;
+  flex-direction: row;
 }
-.employee-head .username {
-  color: var(--muted-text);
+.form-field.full-width, .form-fieldset {
+  grid-column: 1 / -1;
+  border: none;
+}
+.form-field label {
   font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #c0c0c0;
+  margin-bottom: 6px;
 }
-
-/* Теги + поиск/создание */
-.tags-field {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-
-  background: var(--container-bg);
-  border: 1px solid var(--border--color);
-  border-radius: 8px;
-
-  padding: 6px 8px;
-  min-height: 40px;
-  max-width: 460px;
+.form-field input,
+.form-field select,
+.form-field textarea {
+  background: #252538;
+  border-bottom: 1px solid #555;
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: #e0e0e0;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  background-color: #19213A;
+  max-width: 200px;
+  width: 100%;
 }
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #0e0e0f;                      /* контраст на цветных чипах */
-}
-.tag-chip .x {
-  cursor: pointer;
-  opacity: 0.9;
-}
-.tags-field input {
-  flex: 1 1 160px;
-  min-width: 140px;
-  border: 0;
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
   outline: none;
-  background: transparent;
-  color: var(--container-text-color);
-  font-size: 14px;
-  padding: 6px 4px;
+  border-color: #6a6aff;
+}
+.error {
+  font-size: 12px;
+  color: #ff8a8a;
+  margin-top: 4px;
+}
+.input-error {
+  border-color: #ff8a8a !important;
 }
 
-/* Кнопки в хедере */
-.employee-head .actions {
+/* Кнопки "Сбросить" / "Сохранить" */
+.form-actions-bottom {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #444; 
 }
-
-.btn {
+.form-actions-bottom button {
   all: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px 14px;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border-radius: 5px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 14px;
-  line-height: 1;
-  transition: background-color .18s ease, color .18s ease, border-color .18s ease, opacity .18s ease;
+  transition: background-color 0.2s;
 }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-
-.btn-primary { background: #2f6fed; color: #fff; }
-.btn-primary:hover { background: #275fd1; }
-
-.btn-ghost { background: transparent; border: 1px solid var(--border--color); color: var(--text-color); }
-.btn-ghost:hover { background: rgba(255,255,255,.04); }
-
-.icon-btn {
-  all: unset;
-  width: 36px; height: 36px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 999px; cursor: pointer;
-  color: var(--text-color);
-  transition: background-color .18s ease, opacity .18s ease;
+.form-actions-bottom button[type="submit"] {
+  background: #6a6aff;
+  color: white;
 }
-.icon-btn:hover { background: rgba(255,255,255,.08); }
+.form-actions-bottom button[type="submit"]:hover {
+  background: #5a5aff;
+}
+.form-actions-bottom button[type="button"] {
+  background: #444;
+  color: #e0e0e0;
+}
+.form-actions-bottom button[type="button"]:hover {
+  background: #555;
+}
+.form-actions-bottom button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-/* ========== Табы под хедером (в левой колонке) ========== */
-.left-panel .tabs-nav {
-  position: sticky;
-  top: var(--employee-head-h);
-  z-index: 2;
-
+/* Стили для табов */
+.tabs-nav {
   padding: 0 16px;
-  background: var(--container-bg);
-  border-bottom: 1px solid var(--border--color);
 }
 .tabs-nav ul {
   display: flex;
@@ -259,134 +193,50 @@
   color: #a0a0b0;
   font-size: 0.9rem;
   transition: all 0.2s;
+  position: relative;
   border-bottom: 3px solid transparent;
 }
 .tabs-nav li.active button {
-  color: #fff;
-  font-weight: 500;
-  border-bottom-color: var(--input-border-focus);
+  color: #ffffff;
+  font-weight: 400;
 }
 .tabs-nav li button:hover {
-  color: #fff;
+  color: #ffffff;
 }
 .tabs-nav li.error button {
-  box-shadow: inset 0 -3px 0 #c0392b;
+  box-shadow: inset 0 -3px 0 #c0392b; 
 }
 
-/* ========== Тело формы (левая панель) ========== */
-.employee-modal-body {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 24px;
-  background: var(--bg-color);
-}
 
-/* Секция вкладки: сетка 2 колонки */
-.tab-section {
+.payment-log-header,
+.payment-log-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 24px;
+  grid-template-columns: 1.5fr 1.2fr 1.2fr 1fr 1fr 1fr; /* Пропорции для 6 колонок */
+  gap: 10px;
+  padding: 8px 10px;
 }
 
-/* поле формы: label + control */
-.form-field {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 15px;
-  padding: 8px 0;
+.payment-log-header {
+  font-weight: bold;
+  color: #555;
 }
-.form-field.full-width,
-.form-fieldset {
-  grid-column: 1 / -1;
+
+.payment-log-row input {
+  width: 100%;
   border: none;
-}
-
-/* подпись к полю */
-.form-field > label {
-  width: 220px;
-  flex-shrink: 0;
-  padding-top: 8px;
-
+  background-color: transparent;
+  padding: 5px;
   font-size: 14px;
-  font-weight: 500;
-  color: var(--chips-color, var(--text-color));
+  box-sizing: border-box;
 }
 
-/* инпуты/селекты/тексты */
-.form-field input,
-.form-field select,
-.form-field textarea {
-  flex: 1;
-  min-width: 170px;
-
-  background-color: var(--container-bg);
-  color: var(--container-text-color);
-  border: 1px solid var(--border--color);
-  border-radius: 6px;
-
-  padding: 10px 12px;
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-}
-.form-field input:focus,
-.form-field select:focus,
-.form-field textarea:focus {
-  outline: none;
-  border-color: var(--input-border-focus);
-}
-.form-field textarea {
-  min-height: 90px;
-  resize: vertical;
-}
-.form-field input[type="date"] { line-height: 1.2; }
-
-/* ошибки */
-.input-error { border-color: #ff8a8a !important; }
-.form-field .error {
-  margin: 4px 0 0 220px;               /* подпих под инпут с учётом ширины label */
-  color: #ff8a8a;
-  font-size: 12px;
+/* Цвета для текста в зависимости от операции */
+.text-success {
+  color: #27ae60; /* Зеленый */
+  font-weight: bold;
 }
 
-/* fieldset блок (например Telegram) */
-.form-fieldset {
-  border: 1px dashed var(--border--color);
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 4px;
-  background: var(--bg-color);
-}
-.grid-2-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 24px;
-}
-
-/* ========== Нижние действия формы ========== */
-.form-actions-bottom {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--border--color);
-  background: var(--container-bg);
-}
-.form-actions-bottom .btn { padding: 10px 20px; border-radius: 8px; }
-
-/* ========== Адаптив ========== */
-@media (max-width: 1200px) {
-  .left-panel { flex-basis: 560px; }
-  .actions-panel { flex-basis: 280px; }
-}
-@media (max-width: 1100px) {
-  .left-panel { min-width: 480px; }
-  .chat-panel-wrapper { min-width: 340px; }
-}
-@media (max-width: 992px) {
-  .tab-section { grid-template-columns: 1fr; }
-  .form-field { flex-direction: column; }
-  .form-field > label { width: 100%; padding-top: 0; }
-  .form-field .error { margin-left: 0; }
-  .grid-2-col { grid-template-columns: 1fr; }
+.text-danger {
+  color: #c0392b; /* Красный */
+  font-weight: bold;
 }

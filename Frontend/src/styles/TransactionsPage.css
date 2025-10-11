@@ -32,7 +32,7 @@
 .add-transaction-button {
     background-color: var(--container-bg);
     color: #fff;
-    padding: 10px 20px;
+    padding: 10px 10px;
     border: none;
     font-size: 16px;
     font-weight: 600;
@@ -91,49 +91,73 @@
 }
 
 .transactions-table thead tr th:first-child {
-    width: 100px;
+    width: 105px;
 }
 
 .transactions-table thead tr th:nth-child(2) {
-    width: 150px;
+    width: 120px;
 }
 .transactions-table thead tr th:nth-child(3) {
-    width: 150px;
+    width: 100px;
+}
+
+.transactions-table thead tr th:nth-child(4) {
+    width: 260px;
 }
 
 .transactions-table thead tr th:nth-child(5) {
-    width: 150px;
+    width: 200px;
 }
 
 .transactions-table thead tr th:nth-child(6) {
-   width: 100px;
+   width: 60px;
 }
 
 .transactions-table thead tr th:nth-child(7) {
-    width: 100px;
+    width: 85px;
 }
 
 .transactions-table thead tr th:nth-child(8) {
-    width: 100px;
+    width: 80px;
 }
 
 .transactions-table thead tr th:nth-child(9) {
-    width: 150px;
+    width: 85px;
 }
 
 .transactions-table thead tr th:nth-child(10) {
     width: 100px;
 }
+
+.transactions-table thead tr th:nth-child(11) {
+    width: 130px;
+}
+
+.transactions-table thead tr th:nth-child(12) {
+    width: 50px;
+}
 .transactions-table thead tr th:last-child {
     
 }
 
-.transactions-table tbody tr td:nth-child(9){
+.transactions-table tbody tr td:nth-child(11){
     text-align: left;
 }
 
 .transactions-table tbody tr.transaction-row {
     transition: background-color 0.2s ease;
+}
+
+.transactions-table tbody tr td:nth-child(2){
+ text-align: left;
+}
+
+.transactions-table tbody tr td:nth-child(3){
+ text-align: left;
+}
+
+.transactions-table tbody tr td:nth-child(4){
+ text-align: left;
 }
 
 .transactions-table tbody tr.transaction-row:last-child {

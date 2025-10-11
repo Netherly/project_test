@@ -162,7 +162,6 @@
     border-top: none;
     padding-top: 5px;
     padding-bottom: 5px;
-    font-size: 11px;
     font-weight: normal;
     vertical-align: top;
 }
@@ -184,7 +183,7 @@
 .currency-group-header td {
     background-color: var(--bg-color);
     color: #FFFFFF;
-    font-size: var(--font-size-table-text);
+    font-size: var(--font-size-table-header);
     font-weight: normal;
     padding: 8px 15px;
     border: none;
@@ -193,7 +192,6 @@
 
 
 .currency-group-header td:first-child {
-    font-size: 11px;
     text-align: left;
 }
 

@@ -141,7 +141,7 @@
     height: 20px;
     margin-right: auto;
     cursor: pointer;
-    accent-color: var(--accent-color);
+    accent-color: var(--accent-color); 
 }
 
 .checkbox-row {
@@ -150,9 +150,12 @@
     padding-top: 15px;
 }
 
+
 .second-checkbox-row {
     border-top: none;
+    padding-top: 10px;
 }
+
 
 .currency-recalculation-block,
 .order-details-block,
