@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
+import { Plus } from 'lucide-react';
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -285,8 +286,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         let newTransactions = [];
 
         if (formData.category === "Смена счета") {
-        // Рассчитываем общую сумму списания с основного (верхнего) счета.
-        // Она равна сумме всех сумм из нижних блоков + основная комиссия.
         const totalAmountFromDestinations = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount || 0), 0);
         const sourceCommission = parseFloat(formData.commission || 0);
         const totalSourceAmount = totalAmountFromDestinations + sourceCommission;
@@ -294,30 +293,30 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         const sourceAccountName = assets.find(a => a.id === formData.account)?.accountName || 'счета';
         const destinationAccountNames = destinationAccounts.map(acc => assets.find(a => a.id === acc.account)?.accountName).filter(Boolean).join(', ');
         
-        // 1. Создаем главную транзакцию "Списание"
+        
         const sourceTransaction = {
             ...formData,
             id: generateId("TRX_"),
             date: formData.date.replace("T", " "),
-            operation: "Списание", // Основная транзакция всегда "Списание"
+            operation: "Списание", 
             amount: totalSourceAmount,
-            commission: sourceCommission, // Указываем только основную комиссию
+            commission: sourceCommission, 
             description: `Перевод на: ${destinationAccountNames}`,
         };
         newTransactions.push(sourceTransaction);
         
-        // 2. Создаем транзакции для каждого счета назначения
+       
         destinationAccounts.forEach(destAcc => {
             const destinationTransaction = {
-                ...formData, // Берем основу
+                ...formData,
                 id: generateId("TRX_"),
                 date: formData.date.replace("T", " "),
                 account: destAcc.account,
                 accountCurrency: destAcc.accountCurrency,
-                // ----- ВАЖНО: Устанавливаем операцию из конкретного блока -----
+                
                 operation: destAcc.operation, 
                 amount: parseFloat(destAcc.amount || 0),
-                commission: parseFloat(destAcc.commission || 0), // и комиссию тоже из его блока
+                commission: parseFloat(destAcc.commission || 0),
                 description: `Перевод со счета: ${sourceAccountName}`,
             };
             newTransactions.push(destinationTransaction);
@@ -373,7 +372,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="add-transaction-form">
+                <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
                     
                     <div className="form-row">
                          <label htmlFor="date" className="form-label">
@@ -479,7 +478,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             onChange={handleChange}
                             required
                             className="form-input"
-                            // Блокируем основную операцию, если это "Смена счета"
                             disabled={showDestinationAccountsBlock} 
                         >
                             <option value="Зачисление">Зачисление</option>
@@ -574,12 +572,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                                 <option key={`dest-acc-${destAcc.id}-${acc.id}`} value={acc.id}>{acc.accountName}</option>
                                             ))}
                                         </select>
-                                        {index === destinationAccounts.length - 1 && destinationAccounts.length < 3 && (
-                                            <button type="button" onClick={addDestinationAccount} className="action-button add-button">+</button>
-                                        )}
-                                        {destinationAccounts.length > 1 && (
-                                            <button type="button" onClick={() => removeDestinationAccount(destAcc.id)} className="action-button remove-button">✖️</button>
-                                        )}
                                     </div>
                                 </div>
 
@@ -610,7 +602,12 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                         className="form-input"
                                     />
                                 </div>
-                                <div className="form-row-divider"></div>
+                                 {index === destinationAccounts.length - 1 && destinationAccounts.length < 5 && (
+                                            <button type="button" onClick={addDestinationAccount} className="transaction-action-button add-button"><Plus/></button>
+                                        )}
+                                        {destinationAccounts.length > 1 && (
+                                            <button type="button" onClick={() => removeDestinationAccount(destAcc.id)} className="transaction-action-button remove-button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                                        )}
                             </div>
                         ))}
                     </>

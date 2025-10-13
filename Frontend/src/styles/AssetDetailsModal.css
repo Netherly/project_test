@@ -83,6 +83,14 @@
     padding: 0 30px;
 }
 
+.edit-form input[type="text"],
+.edit-form input[type="number"],
+.edit-form select {
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
+}
+
 .modal-section {
     margin-bottom: 20px;
 }
@@ -277,6 +285,9 @@
 }
 
 .options-menu .menu-item {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
     background: none;
     border: none;
     color: var(--text-color);
@@ -472,6 +483,8 @@
     margin-bottom: 25px;
 }
 
+
+
 /* --- Заголовок секции (название + кнопки управления) --- */
 
 .requisites-header {
@@ -502,7 +515,7 @@
     flex-direction: row;
     align-items: center;
     gap: 15px;
-    padding: 8px 10px;
+    padding: 4px 5px;
     border-radius: 6px;
     min-height: 40px; 
 }

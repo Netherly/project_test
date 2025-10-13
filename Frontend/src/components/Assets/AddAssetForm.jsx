@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../../styles/AddAssetForm.css';
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
+import { Plus, X } from 'lucide-react';
 
 const generateId = () => {
     return 'asset_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -153,7 +154,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
             <div className="add-asset-overlay" onClick={handleOverlayClose}>
                 <div className="add-asset-modal" onClick={(e) => e.stopPropagation()}>
                     <div className="add-asset-header">
-                        <h2>Добавить счет</h2>
+                        <h2>Добавить актив</h2>
                         <div className="add-asset-actions">
                             <span className="icon" onClick={onClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
                         </div>
@@ -286,47 +287,62 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                         )}
                         {activeTab === 'requisites' && (
                             <div className="tab-content">
-                                {formData.requisites.map((req, index) => (
-                                    <div key={index} className="add-asset-requisite-item">
-                                        <div className="form-row-inner">
-                                            <label className="form-label">Название:</label>
-                                            <input
-                                                type="text"
-                                                name="label"
-                                                value={req.label}
-                                                onChange={(e) => handleRequisiteChange(index, e)}
-                                                placeholder="Введите название"
-                                                className="form-input1"
-                                            />
+                                <div className="requisites-table-wrapper">
+                                    <div className="requisites-table">
+                                        
+                                        <div className="requisites-table-header">
+                                            <div className="requisites-table-cell">Название</div>
+                                            <div className="requisites-table-cell">Значение</div>
+                                            <div className="requisites-table-cell action-cell"></div> 
                                         </div>
-                                        <div className="form-row-inner">
-                                            <label className="form-label">Значение:</label>
-                                            <input
-                                                type="text"
-                                                name="value"
-                                                value={req.value}
-                                                onChange={(e) => handleRequisiteChange(index, e)}
-                                                placeholder="Введите значение"
-                                                className="form-input1"
-                                            />
-                                        </div>
-                                        {formData.requisites.length > 1 && (
-                                            <button
-                                                type="button"
-                                                className="remove-requisite-button"
-                                                onClick={() => handleRemoveRequisite(index)}
-                                            >
-                                                Удалить
-                                            </button>
-                                        )}
+
+                                        
+                                        {formData.requisites.map((req, index) => (
+                                            <div key={index} className="requisites-table-row">
+                                                <div className="requisites-table-cell">
+                                                    <input
+                                                        type="text"
+                                                        name="label"
+                                                        value={req.label}
+                                                        onChange={(e) => handleRequisiteChange(index, e)}
+                                                        placeholder="Введите название"
+                                                        className="form-input-table"
+                                                    />
+                                                </div>
+                                                <div className="requisites-table-cell">
+                                                    <input
+                                                        type="text"
+                                                        name="value"
+                                                        value={req.value}
+                                                        onChange={(e) => handleRequisiteChange(index, e)}
+                                                        placeholder="Введите значение"
+                                                        className="form-input-table"
+                                                    />
+                                                </div>
+                                                <div className="requisites-table-cell action-cell">
+                                                    {formData.requisites.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            className="remove-requisite-btn-icon"
+                                                            onClick={() => handleRemoveRequisite(index)}
+                                                            title="Удалить реквизит"
+                                                        >
+                                                            <X size={18}/>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                </div>
+                                
                                 <button
                                     type="button"
-                                    className="add-requisite-button"
+                                    className="add-requisite-btn-icon"
                                     onClick={handleAddRequisite}
+                                    title="Добавить реквизит"
                                 >
-                                    Добавить еще реквизит
+                                    <Plus size={20} color='white'/>
                                 </button>
                             </div>
                         )}

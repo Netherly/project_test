@@ -199,7 +199,7 @@
     flex-grow: 1;
 }
 
-.action-button {
+.transaction-action-button {
     background-color: transparent;
     border: none;
     cursor: pointer;
@@ -209,9 +209,6 @@
     padding: 0;
     width: 30px;
     height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     transition: background-color 0.3s;
 }
 
@@ -235,6 +232,12 @@
     margin-bottom: 10px;
 }
 
+
+
+.form-footer{
+  display: flex;
+  gap: 5px;
+}
 
 @media (max-width: 768px) {
   .add-transaction-modal {

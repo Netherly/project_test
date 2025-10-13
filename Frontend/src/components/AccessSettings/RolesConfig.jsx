@@ -3,21 +3,21 @@ export const modules = [
     { key: 'clients', name: 'Клиенты' },
     { key: 'orders', name: 'Заказы' },
     { key: 'performers', name: 'Исполнители' },
-    { key: 'objectives', name: 'Задачи' },
     { key: 'magazine', name: 'Журнал' },
-    { key: 'reports', name: 'Отчеты (таблицы)'},
+    { key: 'objectives', name: 'Задачи' },
+    { key: 'reports', name: 'Отчеты'},
     { key: 'archive', name: 'Архив' },
     { key: 'settings', name: 'Настройки' },
-    { key: 'finance', name: 'Финансы' },
     { key: 'assets', name: 'Активы' },
+    { key: 'finance', name: 'Транзакции' },
     { key: 'analytics', name: 'Аналитика' },
 ];
 
 export const actions = [
-    { key: 'create', name: 'СОЗДАНИЕ' },
-    { key: 'view', name: 'ПРОСМОТР' },
-    { key: 'edit', name: 'ПРАВКА' },
-    { key: 'delete', name: 'УДАЛЕНИЕ' }
+    { key: 'create', name: 'Создание' },
+    { key: 'view', name: 'Просмотр' },
+    { key: 'edit', name: 'Редактирование' },
+    { key: 'delete', name: 'Удаление' }
 ];
 
 // (все запрещено)

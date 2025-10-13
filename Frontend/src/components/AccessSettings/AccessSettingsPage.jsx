@@ -4,14 +4,15 @@ import Sidebar from "../Sidebar.jsx";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import AccessModal from './AccessModal.jsx';
 import { modules, defaultRoles } from './RolesConfig.jsx';
+import { Plus, Lock, LockOpen } from 'lucide-react';
 
-const ModulePermissionStatus = ({ rolePermissions, moduleKey }) => {
+export const ModulePermissionStatus = ({ rolePermissions, moduleKey }) => {
     const modulePerms = rolePermissions[moduleKey] || {};
 
     const actions = [
         { key: 'create', letter: 'С', name: 'Создание' },
         { key: 'view', letter: 'П', name: 'Просмотр' },
-        { key: 'edit', letter: 'П', name: 'Правка' },
+        { key: 'edit', letter: 'Р', name: 'Редактирование' },
         { key: 'delete', letter: 'У', name: 'Удаление' }
     ];
 
@@ -315,7 +316,7 @@ function AccessSettings() {
                     </div>
                     */}
                     <button className="access-button" onClick={handleAccessButtonClick}>
-                        Доступы
+                        <Plus/>Добавить
                     </button>
                 </header>
 
@@ -323,12 +324,12 @@ function AccessSettings() {
                     <table className="access-table">
                         <thead>
                             <tr>
-                                <th>ИМЯ</th>
-                                <th>РОЛЬ</th>
+                                <th>ФИО</th>
+                                <th>Роль</th>
                                 {modules.map(module => (
                                     <th key={module.key} className="module-header">
                                         <div className="module-header-content">
-                                            <span className="module-name">{module.name.toUpperCase()}</span>
+                                            <span className="module-name">{module.name}</span>
                                         </div>
                                     </th>
                                 ))}
@@ -362,7 +363,7 @@ function AccessSettings() {
                                                 </span>
                                                 {displayRole.hasRole && displayRole.role?.isBase && (
                                                     <span className="role-badge" title={displayRole.role.isProtected ? "Системная роль (защищена)" : "Системная роль"}>
-                                                        {displayRole.role.isProtected ? '🔒' : '🔓'}
+                                                        {displayRole.role.isProtected ? <Lock size={14}/> : <LockOpen size={14}/>}
                                                     </span>
                                                 )}
                                             </td>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../../styles/AssetDetailsModal.css';
+import { Save, Plus, X, Pencil, Trash2, Copy} from 'lucide-react';
 
 const designNameMap = {
     'Монобанк': 'monobank-black',
@@ -11,6 +12,21 @@ const designNameMap = {
     'Атлас': 'atlas',
     '3Д': '3d',
     'Красный': 'red',
+};
+
+const formatNumberWithSpaces = (num) => {
+
+    if (num === null || num === undefined || isNaN(Number(num))) {
+        return '0.00';
+    }
+
+    const fixedNum = Number(num).toFixed(2);
+    
+    const parts = fixedNum.split('.');
+
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+    return parts.join('.');
 };
 
 const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fields, employees }) => {
@@ -219,25 +235,28 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
     return (
         <div className="assets-modal-overlay" onClick={onClose}>
             <div className="assets-modal-content" onClick={(e) => e.stopPropagation()}>
+                
                 <div className="asset-modal-header">
-                    <h2>"{asset.accountName}"</h2>
+                    <h2>{asset.accountName}</h2>
                     <div className="header-actions-right">
                         <span>{asset.currency}</span>
                         <div className="modal-header-actions">
-                            <button className="options-button" onClick={handleMenuToggle}>
+                             <button className="options-button" onClick={handleMenuToggle}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                             </button>
                             {showOptionsMenu && (
                                 <div className="options-menu">
-                                    <button className="menu-item" onClick={handleDuplicateClick}>&#x2398; Дублировать</button>
-                                    <button className="menu-item delete-item" onClick={handleDeleteClick}>🗑️ Удалить</button>
+                                    <button className="menu-item" onClick={handleDuplicateClick}><Copy size={14}/> Дублировать</button>
+                                    <button className="menu-item delete-item" onClick={handleDeleteClick}><Trash2 size={14}/> Удалить</button>
                                 </div>
                             )}
                             <button className="modal-close-button" onClick={onClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                         </div>
                     </div>
                 </div>
+                
                 <div className="modal-body1 custom-scrollbar">
+                    
                     <div className="modal-section">
                         <h3>Баланс</h3>
                         <div className="balance-grid-header">
@@ -247,13 +266,14 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             <span>В руб</span>
                         </div>
                         <div className="balance-grid-row">
-                            <span>{currentBalance.toFixed(2)}</span>
-                            <span>{convertToCurrency(currentBalance, asset.currency, 'UAH')}</span>
-                            <span>{convertToCurrency(currentBalance, asset.currency, 'USD')}</span>
-                            <span>{convertToCurrency(currentBalance, asset.currency, 'RUB')}</span>
+                            <span>{formatNumberWithSpaces(currentBalance)}</span> 
+                            <span>{formatNumberWithSpaces(convertToCurrency(currentBalance, asset.currency, 'UAH'))}</span> 
+                            <span>{formatNumberWithSpaces(convertToCurrency(currentBalance, asset.currency, 'USD'))}</span> 
+                            <span>{formatNumberWithSpaces(convertToCurrency(currentBalance, asset.currency, 'RUB'))}</span> 
                         </div>
                     </div>
 
+                    
                     <div className="modal-section">
                         <h3>Свободный</h3>
                         <div className="balance-grid-header">
@@ -264,20 +284,21 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                         </div>
                         <div className="balance-grid-row">
                             <span className={Number(freeBalance) === Number(asset.turnoverEndBalance) ? 'highlight-green' : ''}>
-                                {freeBalance.toFixed(2)}
+                                {formatNumberWithSpaces(freeBalance)} 
                             </span>
                             <span className={Number(freeBalance) === Number(asset.turnoverEndBalance) ? 'highlight-green' : ''}>
-                                {convertToCurrency(freeBalance, asset.currency, 'UAH')}
+                                {formatNumberWithSpaces(convertToCurrency(freeBalance, asset.currency, 'UAH'))} 
                             </span>
                             <span className={Number(freeBalance) === Number(asset.turnoverEndBalance) ? 'highlight-green' : ''}>
-                                {convertToCurrency(freeBalance, asset.currency, 'USD')}
+                                {formatNumberWithSpaces(convertToCurrency(freeBalance, asset.currency, 'USD'))} 
                             </span>
                             <span className={Number(freeBalance) === Number(asset.turnoverEndBalance) ? 'highlight-green' : ''}>
-                                {convertToCurrency(freeBalance, asset.currency, 'RUB')}
+                                {formatNumberWithSpaces(convertToCurrency(freeBalance, asset.currency, 'RUB'))} 
                             </span>
                         </div>
                     </div>
 
+                   
                     <div className="modal-section">
                         <h3>Лимит оборота</h3>
                         <div
@@ -294,12 +315,13 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             <span className="modal-limit-value">{formattedTurnoverPercentage}%</span>
                             {showTurnoverTooltip && (
                                 <div className="turnover-tooltip">
-                                    Зачислено: {currentTurnoverIncoming.toFixed(2)} / Списано: {currentTurnoverOutgoing.toFixed(2)}
+                                    Зачислено: {formatNumberWithSpaces(currentTurnoverIncoming)} / Списано: {formatNumberWithSpaces(currentTurnoverOutgoing)} 
                                 </div>
                             )}
                         </div>
                     </div>
 
+                    
                     <div className="modal-section turnover-section">
                         <h3>Оборот за текущий месяц</h3>
                         <div className="turnover-table">
@@ -310,10 +332,10 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 <span>Баланс на конец</span>
                             </div>
                             <div className="turnover-table-row">
-                                <span>{asset.turnoverStartBalance.toFixed(2)}</span>
-                                <span>{asset.turnoverIncoming.toFixed(2)}</span>
-                                <span>{asset.turnoverOutgoing.toFixed(2)}</span>
-                                <span>{asset.turnoverEndBalance.toFixed(2)}</span>
+                                <span>{formatNumberWithSpaces(asset.turnoverStartBalance)}</span> 
+                                <span>{formatNumberWithSpaces(asset.turnoverIncoming)}</span> 
+                                <span>{formatNumberWithSpaces(asset.turnoverOutgoing)}</span> 
+                                <span>{formatNumberWithSpaces(asset.turnoverEndBalance)}</span> 
                             </div>
                         </div>
                     </div>
@@ -370,14 +392,14 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             <h3>Дополнительные реквизиты</h3>
                             <div className="requisite-header-controls">
                                {isEditingRequisites && (
-                                    <button onClick={handleAddRequisite} className="add-requisite-icon-button" title="Добавить реквизит">+</button>
+                                    <button onClick={handleAddRequisite} className="add-requisite-icon-button" title="Добавить реквизит"><Plus/></button>
                                )}
                                 <button
                                     className="edit-requisite-button"
                                     onClick={isEditingRequisites ? handleRequisitesSave : () => setIsEditingRequisites(true)}
                                     title={isEditingRequisites ? "Сохранить реквизиты" : "Редактировать реквизиты"}
                                 >
-                                    {isEditingRequisites ? '💾' : '✎'}
+                                    {isEditingRequisites ? <Save/> : <Pencil/>}
                                 </button>
                             </div>
                         </div>
@@ -418,7 +440,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                                         onChange={(e) => handleRequisiteChange(originalIndex, e)} placeholder="Значение"
                                                         className="requisite-input"
                                                     />
-                                                    <button onClick={() => handleRemoveRequisite(originalIndex)} className="remove-requisite-icon-button">✖</button>
+                                                    <button onClick={() => handleRemoveRequisite(originalIndex)} className="remove-requisite-icon-button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                                                 </>
                                             ) : (
                                                 <>
@@ -444,7 +466,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     name="accountName"
                                     value={editableAsset.accountName}
                                     onChange={handleChange}
-                                    className="form-input"
+                                    className="form-input1"
                                 />
                             </div>
 
@@ -455,7 +477,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     name="currency"
                                     value={editableAsset.currency}
                                     onChange={handleChange}
-                                    className="form-input"
+                                    className="form-input1"
                                 >
                                     {fields?.currency?.map((item, index) => (
                                         <option key={index} value={item}>{item}</option>
@@ -471,13 +493,13 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     name="limitTurnover"
                                     value={editableAsset.limitTurnover}
                                     onChange={handleChange}
-                                    className="form-input"
+                                    className="form-input1"
                                 />
                             </div>
 
                             <div className="form-row">
                                 <label htmlFor="type" className="form-label">Тип</label>
-                                <select name="type" value={editableAsset.type} onChange={handleChange} className="form-input">
+                                <select name="type" value={editableAsset.type} onChange={handleChange} className="form-input1">
                                     {fields?.type?.map((item, index) => (
                                         <option key={index} value={item}>{item}</option>
                                     ))}
@@ -486,7 +508,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             
                             <div className="form-row">
                                 <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
-                                <select name="paymentSystem" value={editableAsset.paymentSystem || ''} onChange={handleChange} className="form-input">
+                                <select name="paymentSystem" value={editableAsset.paymentSystem || ''} onChange={handleChange} className="form-input1">
                                     <option value="">Не выбрано</option>
                                     {fields?.paymentSystem?.map((item, index) => (
                                         <option key={index} value={item}>{item}</option>
@@ -496,7 +518,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
 
                             <div className="form-row">
                                 <label htmlFor="design" className="form-label">Дизайн</label>
-                                <select name="design" value={editableAsset.design} onChange={handleChange} className="form-input">
+                                <select name="design" value={editableAsset.design} onChange={handleChange} className="form-input1">
                                     <option value="">Не выбрано</option>
                                     {fields?.cardDesigns?.map((design, index) => (
                                         <option key={index} value={designNameMap[design.name]}>
@@ -508,7 +530,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
 
                             <div className="form-row">
                                 <label htmlFor="employee" className="form-label">Сотрудник</label>
-                                <select name="employee" value={editableAsset.employee} onChange={handleChange} className="form-input">
+                                <select name="employee" value={editableAsset.employee} onChange={handleChange} className="form-input1">
                                     {employees?.map(emp => (
                                         <option key={emp.id} value={emp.fullName}>
                                             {emp.fullName}
@@ -519,6 +541,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                         </div>
                     </div>
                 </div>
+               
                 <div className="modal-footer">
                     <button className="cancel-order-btn" onClick={onClose}>Отменить</button>
                     <button className="save-order-btn" onClick={handleSave}>Сохранить</button>
