@@ -352,7 +352,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                          </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="add-transaction-form">
+                <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
                     <div className="form-row">
                         <label htmlFor="date" className="form-label">Дата и время операции</label>
                         <input

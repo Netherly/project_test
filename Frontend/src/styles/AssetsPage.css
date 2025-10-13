@@ -27,7 +27,7 @@
     margin: 0;
     color: var(--text-color);
     text-transform: uppercase;
-    padding: 0 35px 0 35px;
+    padding: 0 15px 0 15px;
     display: flex;
     align-items: center;
     border-right: 1px solid var(--border--color);
@@ -37,8 +37,7 @@
     background-color: var(--container-bg);
     color: var(--text-color);
     border: none;
-    border-radius: 6px;
-    font-size: 16px;
+    font-size: var(--font-size-table-header);
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease;
@@ -46,11 +45,9 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
-    padding: 0 25px 0 55px;
+    padding: 0 15px 0 15px;
     border-left: 1px solid var(--border--color);
     height: 100%;
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
 }
 
 .add-asset-button:hover {
@@ -153,10 +150,6 @@
     width: 30px;
 }
 
-
-.assets-table-v2 thead tr:first-child th:last-child {
-    border-top-right-radius: 8px;
-}
 
 .assets-table-v2 thead tr:nth-child(2) th {
     border-top: none;

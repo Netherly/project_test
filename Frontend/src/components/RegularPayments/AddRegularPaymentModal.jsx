@@ -152,8 +152,8 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
 
                     {/* Кнопки */}
                     <div className="form-footer">
-                        <button type="button" className="cancel-button" onClick={handleOverlayClose}>Отмена</button>
-                        <button type="submit" className="submit-button">Сохранить</button>
+                        <button type="button" className="cancel-order-btn" onClick={handleOverlayClose}>Отмена</button>
+                        <button type="submit" className="save-order-btn">Сохранить</button>
                     </div>
                 </form>
             </div>

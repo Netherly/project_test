@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import "./AccessModal.css";
 import ThreeStateToggle from "./ThreeStateToggle.jsx";
 import ConfirmationModal from "../modals/confirm/ConfirmationModal.jsx";
+import { ModulePermissionStatus } from './AccessSettingsPage.jsx';
+import { Plus, X, Lock, LockOpen, Trash2 } from 'lucide-react';
 import {
     modules,
     actions,
@@ -154,11 +156,11 @@ const AccessModal = ({
         if (!isGeneralMode && !currentActiveRole.id.startsWith('custom_')) {
             const baseName = currentActiveRole.name;
             const allSavedRoles = loadSavedRoles();
-            const existingCustomRoles = allSavedRoles.filter(r => r.name.startsWith(`Пользовательский пресет (от ${baseName})`));
+            const existingCustomRoles = allSavedRoles.filter(r => r.name.startsWith(`Пользовательский`));
             const newIndex = existingCustomRoles.length + 1;
             const finalName = newIndex > 1
-                ? `Пользовательский пресет (от ${baseName}) ${newIndex}`
-                : `Пользовательский пресет (от ${baseName})`;
+                ? `Пользовательский`
+                : `Пользовательский`;
             
             const newCustomRoleId = `custom_${selectedEmployee.id}_${Date.now()}`;
             const customRolePreset = {
@@ -291,7 +293,7 @@ const AccessModal = ({
     const activeRole = roles.find(role => role.id === activeRoleId);
     const isPermissionsDisabled = activeRole?.isProtected;
     const isEmployeeProtected = !isGeneralMode && selectedEmployee?.isProtected;
-    const showFooter = ((isGeneralMode && (hasChanges || (showDeleteMode && rolesToDelete.length > 0))) || (!isGeneralMode && hasChanges)) && !isEmployeeProtected;
+    const showFooter = !isEmployeeProtected;
 
     
     const [employees] = useState(() => {
@@ -319,18 +321,18 @@ const AccessModal = ({
                         )}
                     </div>
                     <div className="access-modal-header-actions">
-                        <button className="access-modal-close-button" onClick={handleAttemptClose}>×</button>
+                        <button className="access-modal-close-button" onClick={handleAttemptClose}><X/></button>
                     </div>
                 </div>
 
-                <div className="access-modal-content" ref={contentRef}>
+                <div className="access-modal-content custom-scrollbar" ref={contentRef}>
                     <div className="access-modal-roles-section">
                         <div className="access-modal-roles-header">
                             <span className="access-modal-roles-label">{isGeneralMode ? 'Роли' : 'Выберите роль'}</span>
                             {isGeneralMode && (
                                 <div className="access-modal-roles-actions">
-                                    <button className="access-modal-add-role-btn" onClick={handleAddRole} title="Добавить роль">+</button>
-                                    <button className={`access-modal-delete-mode-btn ${showDeleteMode ? 'active' : ''}`} onClick={toggleDeleteMode} title="Удалить роли">🗑️</button>
+                                    <button className="access-modal-add-role-btn" onClick={handleAddRole} title="Добавить роль"><Plus/></button>
+                                    <button className={`access-modal-delete-mode-btn ${showDeleteMode ? 'active' : ''}`} onClick={toggleDeleteMode} title="Удалить роли"><Trash2 color="white"/></button>
                                 </div>
                             )}
                         </div>
@@ -343,10 +345,10 @@ const AccessModal = ({
                                     ${isEmployeeProtected ? 'disabled' : ''}`}
                                     onClick={(e) => !isEmployeeProtected && handleRoleClick(role.id, e)}
                                 >
-                                    {isGeneralMode && showDeleteMode && role.id !== 'owner' && <input type="checkbox" className="access-modal-role-checkbox" checked={rolesToDelete.includes(role.id)} onChange={() => toggleRoleForDeletion(role.id)} onClick={(e) => e.stopPropagation()}/>}
+                                    {isGeneralMode && <span className={`access-modal-protection-badge ${role.id === 'owner' ? 'disabled' : ''}`} onClick={(e) => { e.stopPropagation(); handleToggleRoleProtection(role.id); }} title={role.id === 'owner' ? 'Роль Владельца защищена системно' : (role.isProtected ? "Нажмите, чтобы разблокировать" : "Нажмите, чтобы защитить")}>{role.isProtected ? <Lock size={20}/> : <LockOpen size={20}/>}</span>}
                                     <span className="access-modal-role-name">{role.name}</span>
-                                    {isGeneralMode && <span className={`access-modal-protection-badge ${role.id === 'owner' ? 'disabled' : ''}`} onClick={(e) => { e.stopPropagation(); handleToggleRoleProtection(role.id); }} title={role.id === 'owner' ? 'Роль Владельца защищена системно' : (role.isProtected ? "Нажмите, чтобы разблокировать" : "Нажмите, чтобы защитить")}>{role.isProtected ? '🔒' : '🔓'}</span>}
-                                    {!isGeneralMode && role.isProtected && <span className="access-modal-protection-badge disabled" title="Защищенная роль">🔒</span>}
+                                    {isGeneralMode && showDeleteMode && role.id !== 'owner' && <input type="checkbox" className="access-modal-role-checkbox" checked={rolesToDelete.includes(role.id)} onChange={() => toggleRoleForDeletion(role.id)} onClick={(e) => e.stopPropagation()}/>}
+                                    {!isGeneralMode && role.isProtected && <span className="access-modal-protection-badge disabled" title="Защищенная роль"><Lock size={20}/></span>}
                                     {!isGeneralMode && selectedRoleForEmployee === role.id && !isEmployeeProtected && <span className="access-modal-selected-badge">✓</span>}
                                 </div>
                             ))}
@@ -363,13 +365,18 @@ const AccessModal = ({
                     <div className="access-modal-permissions-section">
                         <h3 className="access-modal-permissions-title">
                             {isGeneralMode ? 'Настройки роли:' : 'Права доступа роли:'} <span>{activeRole?.name}</span>
-                            {activeRole?.isProtected && <span style={{ color: '#ffc107', marginLeft: '10px', fontSize: '14px' }}>🔒 (ЗАЩИЩЕННАЯ РОЛЬ)</span>}
+                            {activeRole?.isProtected && <span style={{ marginLeft: '10px', verticalAlign: 'middle'}}><Lock size={20}/></span>}
                         </h3>
+                        <div className="access-modal-description-cell">
+                                       <div className="description-line"><div className="permission-dot permission-dot-green" /><span>Разрешено</span></div>
+                                       <div className="description-line"><div className="permission-dot permission-dot-orange" /><span>Если ответственный</span></div>
+                                       <div className="description-line"><div className="permission-dot permission-dot-red" /><span>Запрещено</span></div>
+                        </div>
                         <div className="access-modal-permissions-table">
                             <div className="access-modal-table-header">
                                 <div className="access-modal-module-column">Доступы</div>
                                 {actions.map(action => (<div key={action.key} className="access-modal-action-column"><div className="access-modal-action-header-content"><span className="access-modal-action-name">{action.name}</span></div></div>))}
-                                <div className="access-modal-description-column">ОПИСАНИЕ</div>
+                                <div className="access-modal-description-column">Описание</div>
                             </div>
                             {modules.map(module => (
                                 <div key={module.key} className="access-modal-table-row">
@@ -379,10 +386,13 @@ const AccessModal = ({
                                             <ThreeStateToggle value={activeRole?.permissions?.[module.key]?.[action.key] || 'forbidden'} onChange={(newValue) => handlePermissionChange(module.key, action.key, newValue)} disabled={isPermissionsDisabled || isEmployeeProtected}/>
                                         </div>
                                     ))}
-                                    <div className="access-modal-description-cell">
-                                       <div className="description-line"><div className="permission-dot permission-dot-green" /><span>Разрешено</span></div>
-                                       <div className="description-line"><div className="permission-dot permission-dot-orange" /><span>Если ответственный</span></div>
-                                       <div className="description-line"><div className="permission-dot permission-dot-red" /><span>Запрещено</span></div>
+                                    <div className="access-modal-description-column">
+                                        {activeRole && (
+                                            <ModulePermissionStatus
+                                                rolePermissions={activeRole.permissions}
+                                                moduleKey={module.key}
+                                            />
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -401,7 +411,7 @@ const AccessModal = ({
                             ) : (
                                 <>
                                     <button className="cancel-order-btn" onClick={handleAttemptClose}>Отмена</button>
-                                    <button className="save-order-btn" onClick={handleSave}>{isGeneralMode ? 'Сохранить' : 'Назначить роль'}</button>
+                                    <button className="save-order-btn" onClick={handleSave}>Сохранить</button>
                                 </>
                             )}
                         </div>

@@ -18,12 +18,12 @@
     width: 100%;
     padding: 0;
     background-color: var(--container-bg);
-    margin: 0;
+    margin-bottom: 10px;
     box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: stretch;
-    min-height: 74px;
+    min-height: 60px;
     flex-shrink: 0;
 }
 
@@ -33,7 +33,6 @@
     width: 100%;
     justify-content: flex-start;
     position: relative;
-    border-bottom: 1px solid #ffffff40;
 }
 
 .header-title{
@@ -42,7 +41,6 @@
     margin: 0;
     color: var(--text-color);
     text-transform: uppercase;
-    padding: 0 35px 0 35px;
     display: flex;
     align-items: center;
 }
@@ -67,10 +65,13 @@
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    gap: 15px;
     margin-left: auto;
     position: relative;
-    padding: 0 50px;
+    padding: 0 15px;
+    min-width: 238px;
+    box-sizing: border-box;
 }
 
 .header-actions::before {

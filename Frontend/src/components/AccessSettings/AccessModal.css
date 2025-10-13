@@ -38,7 +38,7 @@
     position: relative;
     display: flex;
     justify-content: space-between;
-    align-items: center; /* Изменено для лучшего выравнивания заголовка и крестика */
+    align-items: center; 
 }
 
 .access-modal-header h2 {
@@ -60,7 +60,7 @@
 }
 
 .access-modal-header-actions {
-    display: flex; /* Упрощено, т.к. тут только кнопка закрытия */
+    display: flex; 
 }
 
 .access-modal-close-button {
@@ -96,7 +96,7 @@
 .access-modal-content {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 25px;
+    padding: 10px 25px;
     background-color: var(--bg-menu-color);
     padding-bottom: 100px; 
 }
@@ -104,12 +104,12 @@
 .access-modal-roles-section {
     margin-bottom: 30px;
     border-bottom: 1px solid var(--border--color);
-    padding: 20px;
+    padding: 10px;
 }
 
 .access-modal-roles-header {
     display: flex;
-    justify-content: space-between;
+    gap: 10px;
     align-items: center;
     margin-bottom: 15px;
 }
@@ -141,7 +141,7 @@
 }
 
 .access-modal-add-role-btn {
-    background-color: var(--button-bg);
+    background-color: var(--bg-menu-color);
     color: white;
 }
 
@@ -151,7 +151,7 @@
 }
 
 .access-modal-delete-mode-btn {
-    background-color: var(--button-bg, #6c757d);
+    background-color: var(--bg-menu-color);
     color: var(--button-text, white);
 }
 
@@ -169,14 +169,14 @@
     margin-bottom: 15px;
 }
 
-/* Основной стиль для тега роли */
+
 .access-modal-role-item {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px 18px;
-    background-color: var(--button-bg); /* Используем фон для кнопок */
-    border: 1px solid var(--input-bg); /* Используем фон инпутов для рамки */
+    background-color: var(--button-bg); 
+    border: 1px solid var(--input-bg); 
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -186,35 +186,33 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Эффект при наведении - подсветка рамки и тень */
+
 .access-modal-role-item:hover {
     transform: translateY(-3px);
-    border-color: var(--input-border-focus); /* Акцентный синий для рамки */
+    border-color: var(--input-border-focus); 
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
     background-color: var(--container-bg);
 }
 
-/* Активная роль - яркий синий градиент и свечение */
+
 .access-modal-role-item.active {
     color: var(--text-color);
-    /* Градиент из ваших акцентных синих цветов */
     background: linear-gradient(45deg, var(--input-border-focus), var(--container-hover-bg));
     border-color: var(--container-hover-bg);
     transform: translateY(-1px);
-    /* Свечение в тон градиента + внутренняя тень для объема */
     box-shadow: 0 0 15px rgba(71, 140, 255, 0.5), inset 0 2px 3px rgba(0, 0, 0, 0.2);
 }
 
-/* Анимация тряски для ролей, выбранных для удаления */
+
 @keyframes shake {
     0%, 100% { transform: translateX(0); }
     10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
     20%, 40%, 60%, 80% { transform: translateX(3px); }
 }
 
-/* Состояние удаления. Красный цвет здесь уместен, т.к. это общепринятый сигнал опасности/удаления */
+
 .access-modal-role-item.selected-for-delete {
-    background-color: #4d1c24; /* Темно-красный фон */
+    background-color: #4d1c24; 
     border-color: #dc3545;
     color: #f8d7da;
     animation: shake 0.5s ease-in-out;
@@ -227,7 +225,7 @@
     pointer-events: none;
 }
 
-/* Стили для иконки замка */
+
 .access-modal-protection-badge {
     font-size: 14px;
     cursor: pointer;
@@ -256,24 +254,23 @@
     height: 18px;
     flex-shrink: 0;
     cursor: pointer;
-    accent-color: #dc3545; /* Красный цвет для чекбокса удаления */
+    accent-color: #dc3545; 
 }
 
-/* Поле для добавления новой роли */
+
 .access-modal-add-role-input {
     display: flex;
     align-items: center;
     gap: 5px;
     padding: 5px;
     background-color: var(--container-bg);
-    border: 1px dashed var(--input-border-focus); /* Пунктирная рамка акцентного цвета */
+    border: 1px dashed var(--input-border-focus); 
     border-radius: 8px;
     transition: all 0.2s ease;
 }
 
 .access-modal-add-role-input:focus-within {
     border-style: solid;
-    /* Подсветка при фокусе в тон */
     box-shadow: 0 0 10px rgba(71, 140, 255, 0.3);
 }
 
@@ -317,7 +314,7 @@
 }
 
 .access-modal-permissions-section {
-    padding: 20px;
+    padding: 10px;
 }
 
 .access-modal-permissions-title {
@@ -349,7 +346,6 @@
     padding: 15px 10px;
     font-weight: 700;
     font-size: 11px;
-    text-transform: uppercase;
     color: var(--container-text-color, #666666);
     letter-spacing: 0.5px;
     border-right: 1px solid var(--border--color, #e0e0e0);
@@ -388,7 +384,6 @@
 .access-modal-module-name {
     display: flex;
     align-items: center;
-    padding: 18px 20px;
     font-weight: 600;
     height: 100%;
     justify-content: center;
@@ -398,7 +393,6 @@
 }
 
 .access-modal-action-cell {
-    padding: 18px 10px;
     border-right: 1px solid var(--border--color, #e0e0e0);
     display: flex;
     justify-content: center;
@@ -407,22 +401,23 @@
 }
 
 .access-modal-description-cell {
-    padding: 18px 20px;
+    padding: 5px;
     color: var(--container-text-color, #666666);
     opacity: 0.8;
     font-size: 13px;
     line-height: 1.6;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
-    justify-content: center;
+    justify-content: flex-start;
     height: 100%;
+    gap: 8px;
 }
 
-.access-modal-description-cell .description-line {
+.description-line{
     display: flex;
-    align-items: center;
     gap: 8px;
+    align-items: center;
 }
 
 /* Стили для футера */
@@ -506,7 +501,6 @@
 .access-modal-action-name {
     font-weight: 700;
     font-size: 11px;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
@@ -516,4 +510,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.access-modal .permission-compact-display {
+  display: flex; 
+  flex-direction: row; 
+  justify-content: center; 
+  align-items: center;
+  width: auto;
+  min-height: auto;
+}
+
+
+.access-modal .permission-row {
+  display: flex;
+  flex-direction: column; 
+  align-items: center; 
+  gap: 5px; 
 }

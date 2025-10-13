@@ -425,7 +425,10 @@ const AssetsPage = () => {
             <Sidebar />
             <div className="assets-page-main-container">
                 <header className="assets-header-container">
-                    <h1 className="assets-title">Активы</h1>
+                    <h1 className="assets-title">
+                        <PageHeaderIcon pageName={"Активы"}/>
+                        Активы
+                        </h1>
                     
                         
                             <div className="assets-view-mode-buttons">

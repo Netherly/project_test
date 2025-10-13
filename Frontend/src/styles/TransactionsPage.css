@@ -16,7 +16,6 @@
     margin-bottom: 20px;
     background-color: var(--container-bg);
     height: 60px;
-    border-radius: 8px;
     border-bottom: 1px solid var(--border--color);
 }
 
@@ -25,7 +24,7 @@
     align-items: center;
     height: 100%;
     border-left: 1px solid var(--border--color);
-    padding: 0px 35px 0px 55px;
+    padding: 0px 15px 0px 15px;
     box-sizing: border-box;
 }
 
@@ -34,7 +33,7 @@
     color: #fff;
     padding: 10px 10px;
     border: none;
-    font-size: 16px;
+    font-size: var(--font-size-table-header);
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
@@ -51,7 +50,7 @@
     margin: 0;
     color: var(--text-color);
     text-transform: uppercase;
-    padding: 0 35px;
+    padding: 0 15px;
     display: flex;
     align-items: center;
     border-right: 1px solid var(--border--color);
