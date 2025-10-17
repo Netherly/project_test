@@ -20,9 +20,8 @@ const designNameMap = {
 };
 
 const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
-    const [activeTab, setActiveTab] = useState('general');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [showConfirmationModal, setShowConfirmationModal] = useState(false); 
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
     const [formData, setFormData] = useState({
         accountName: '',
@@ -45,7 +44,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        console.log(`General field change: ${name} = ${value}`);
+        console.log(`Field change: ${name} = ${value}`);
         setFormData(prevData => ({
             ...prevData,
             [name]: value
@@ -58,13 +57,10 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
         console.log(`Requisite field change at index ${index}: ${name} = ${value}`);
         const newRequisites = [...formData.requisites];
         newRequisites[index][name] = value;
-        setFormData(prevData => {
-            console.log('New requisites state after change:', newRequisites);
-            return {
-                ...prevData,
-                requisites: newRequisites,
-            };
-        });
+        setFormData(prevData => ({
+            ...prevData,
+            requisites: newRequisites,
+        }));
         handleFormChange();
     };
 
@@ -90,17 +86,9 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         const newAssetId = generateId();
-        console.log('--- Submitting Form ---');
-        console.log('formData before filtering requisites:', formData);
-        console.log('Requisites array to be filtered:', formData.requisites);
         const filteredRequisites = formData.requisites.filter(
-            req => {
-                const isNotEmpty = req.label.trim() !== '' || req.value.trim() !== '';
-                console.log(`Filtering requisite: label='${req.label}', value='${req.value}', isNotEmpty=${isNotEmpty}`);
-                return isNotEmpty;
-            }
+            req => req.label.trim() !== '' || req.value.trim() !== ''
         );
-        console.log('Filtered requisites:', filteredRequisites);
         const newAsset = {
             id: newAssetId,
             accountName: formData.accountName,
@@ -130,13 +118,11 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
         onClose();
     };
 
-    
     const handleConfirmClose = () => {
         onClose();
         setShowConfirmationModal(false);
     };
 
-    
     const handleCancelClose = () => {
         setShowConfirmationModal(false);
     };
@@ -149,6 +135,11 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
         }
     };
 
+    const handleTextareaAutoResize = (e) => {
+        e.target.style.height = 'auto';
+        e.target.style.height = e.target.scrollHeight + 'px';
+    };
+
     return (
         <>
             <div className="add-asset-overlay" onClick={handleOverlayClose}>
@@ -156,196 +147,176 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                     <div className="add-asset-header">
                         <h2>Добавить актив</h2>
                         <div className="add-asset-actions">
-                            <span className="icon" onClick={onClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+                            <span className="icon" onClick={onClose}><X/></span>
                         </div>
                     </div>
-                    <div className="tabs">
-                        <button
-                            className={`tab-menu-btn ${activeTab === 'general' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('general')}
-                        >
-                            Общая информация
-                        </button>
-                        <button
-                            className={`tab-menu-btn ${activeTab === 'requisites' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('requisites')}
-                        >
-                            Реквизиты
-                        </button>
-                    </div>
                     <form onSubmit={handleSubmit} className="add-asset-form">
-                        {activeTab === 'general' && (
-                            <div className="tab-content">
-                                <div className="form-row">
-                                    <label htmlFor="accountName" className="form-label">Наименование</label>
-                                    <input
-                                        type="text"
-                                        id="accountName"
-                                        name="accountName"
-                                        value={formData.accountName}
-                                        onChange={handleChange}
-                                        placeholder="Например, ПриватБанк - Ключ к счету"
-                                        required
-                                        className="form-input1"
-                                    />
-                                </div>
-                                <div className="form-row">
-                                    <label htmlFor="currency" className="form-label">Валюта счета</label>
-                                    <select
-                                        id="currency"
-                                        name="currency"
-                                        value={formData.currency}
-                                        onChange={handleChange}
-                                        required
-                                        className="form-input1"
-                                    >
-                                        <option value="" disabled>Выберите валюту</option>
-                                        {fields?.currency?.map((item, index) => (
-                                            <option key={index} value={item}>{item}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-row">
-                                    <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
-                                    <input
-                                        type="number"
-                                        id="limitTurnover"
-                                        name="limitTurnover"
-                                        value={formData.limitTurnover}
-                                        onChange={handleChange}
-                                        placeholder="Введите лимит оборота"
-                                        className="form-input1"
-                                    />
-                                </div>
-                                <div className="form-row">
-                                    <label htmlFor="type" className="form-label">Тип</label>
-                                    <select
-                                        id="type"
-                                        name="type"
-                                        value={formData.type}
-                                        onChange={handleChange}
-                                        required
-                                        className="form-input1"
-                                    >
-                                        <option value="" disabled>Выберите тип</option>
-                                        {fields?.type?.map((item, index) => (
-                                            <option key={index} value={item}>{item}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-row">
-                                    <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
-                                    <select
-                                        id="paymentSystem"
-                                        name="paymentSystem"
-                                        value={formData.paymentSystem}
-                                        onChange={handleChange}
-                                        className="form-input1"
-                                    >
-                                        <option value="">Не выбрано</option>
-                                        {fields?.paymentSystem?.map((item, index) => (
-                                            <option key={index} value={item}>{item}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-row">
-                                    <label htmlFor="design" className="form-label">Дизайн</label>
-                                    <select
-                                        id="design"
-                                        name="design"
-                                        value={formData.design}
-                                        onChange={handleChange}
-                                        className="form-input1"
-                                    >
-                                        <option value="">Не выбрано</option>
-                                        {fields?.cardDesigns?.map((design, index) => (
-                                            <option key={index} value={designNameMap[design.name]}>
-                                                {design.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-row">
-                                    <label htmlFor="employee" className="form-label">Сотрудник</label>
-                                    <select
-                                        id="employee"
-                                        name="employee"
-                                        value={formData.employee}
-                                        onChange={handleChange}
-                                        required
-                                        className="form-input1"
-                                    >
-                                        <option value="" disabled>Выберите сотрудника</option>
-                                    {employees && employees.map(emp => (
-                                        <option key={emp.id} value={emp.fullName}>
-                                            {emp.fullName}
-                                        </option>
-                                    ))}
-                                </select>
-                                </div>
-                            </div>
-                        )}
-                        {activeTab === 'requisites' && (
-                            <div className="tab-content">
-                                <div className="requisites-table-wrapper">
-                                    <div className="requisites-table">
-                                        
-                                        <div className="requisites-table-header">
-                                            <div className="requisites-table-cell">Название</div>
-                                            <div className="requisites-table-cell">Значение</div>
-                                            <div className="requisites-table-cell action-cell"></div> 
-                                        </div>
+                        {/* --- General Information Section --- */}
+                        <div className="form-row">
+                            <label htmlFor="accountName" className="form-label">Наименование</label>
+                            <input
+                                type="text"
+                                id="accountName"
+                                name="accountName"
+                                value={formData.accountName}
+                                onChange={handleChange}
+                                placeholder="Например, ПриватБанк - Ключ к счету"
+                                required
+                                className="form-input1"
+                            />
+                        </div>
+                        <div className="form-row">
+                            <label htmlFor="currency" className="form-label">Валюта счета</label>
+                            <select
+                                id="currency"
+                                name="currency"
+                                value={formData.currency}
+                                onChange={handleChange}
+                                required
+                                className="form-input1"
+                            >
+                                <option value="" disabled>Выберите валюту</option>
+                                {fields?.currency?.map((item, index) => (
+                                    <option key={index} value={item}>{item}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-row">
+                            <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
+                            <input
+                                type="number"
+                                id="limitTurnover"
+                                name="limitTurnover"
+                                value={formData.limitTurnover}
+                                onChange={handleChange}
+                                placeholder="Введите лимит оборота"
+                                className="form-input1"
+                            />
+                        </div>
+                        <div className="form-row">
+                            <label htmlFor="type" className="form-label">Тип</label>
+                            <select
+                                id="type"
+                                name="type"
+                                value={formData.type}
+                                onChange={handleChange}
+                                required
+                                className="form-input1"
+                            >
+                                <option value="" disabled>Выберите тип</option>
+                                {fields?.type?.map((item, index) => (
+                                    <option key={index} value={item}>{item}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-row">
+                            <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
+                            <select
+                                id="paymentSystem"
+                                name="paymentSystem"
+                                value={formData.paymentSystem}
+                                onChange={handleChange}
+                                className="form-input1"
+                            >
+                                <option value="">Не выбрано</option>
+                                {fields?.paymentSystem?.map((item, index) => (
+                                    <option key={index} value={item}>{item}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-row">
+                            <label htmlFor="design" className="form-label">Дизайн</label>
+                            <select
+                                id="design"
+                                name="design"
+                                value={formData.design}
+                                onChange={handleChange}
+                                className="form-input1"
+                            >
+                                <option value="">Не выбрано</option>
+                                {fields?.cardDesigns?.map((design, index) => (
+                                    <option key={index} value={designNameMap[design.name]}>
+                                        {design.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-row">
+                            <label htmlFor="employee" className="form-label">Сотрудник</label>
+                            <select
+                                id="employee"
+                                name="employee"
+                                value={formData.employee}
+                                onChange={handleChange}
+                                required
+                                className="form-input1"
+                            >
+                                <option value="" disabled>Выберите сотрудника</option>
+                                {employees && employees.map(emp => (
+                                    <option key={emp.id} value={emp.fullName}>
+                                        {emp.fullName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                                        
-                                        {formData.requisites.map((req, index) => (
-                                            <div key={index} className="requisites-table-row">
-                                                <div className="requisites-table-cell">
-                                                    <input
-                                                        type="text"
-                                                        name="label"
-                                                        value={req.label}
-                                                        onChange={(e) => handleRequisiteChange(index, e)}
-                                                        placeholder="Введите название"
-                                                        className="form-input-table"
-                                                    />
-                                                </div>
-                                                <div className="requisites-table-cell">
-                                                    <input
-                                                        type="text"
-                                                        name="value"
-                                                        value={req.value}
-                                                        onChange={(e) => handleRequisiteChange(index, e)}
-                                                        placeholder="Введите значение"
-                                                        className="form-input-table"
-                                                    />
-                                                </div>
-                                                <div className="requisites-table-cell action-cell">
-                                                    {formData.requisites.length > 1 && (
-                                                        <button
-                                                            type="button"
-                                                            className="remove-requisite-btn-icon"
-                                                            onClick={() => handleRemoveRequisite(index)}
-                                                            title="Удалить реквизит"
-                                                        >
-                                                            <X size={18}/>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                        {/* --- Requisites Section --- */}
+                        <div className="requisites-section">
+                            <h3 className="requisites-header">Реквизиты</h3>
+                            <div className="requisites-table-wrapper">
+                                {formData.requisites.map((req, index) => (
+                                    <div key={index} className="requisites-table-row">
+                                        <div className="requisites-table-cell">
+                                            <input
+                                                type="text"
+                                                name="label"
+                                                value={req.label}
+                                                onInput={(e) => {
+                                                    handleRequisiteChange(index, e); 
+                                                    handleTextareaAutoResize(e);     
+                                                }}
+                                                placeholder="Введите название"
+                                                className="assets-workplan-textarea"
+                                            />
+                                        </div>
+                                        <div className="requisites-table-cell">
+                                            <textarea
+                                                name="value"
+                                                value={req.value}
+                                                onInput={(e) => {
+                                                    handleRequisiteChange(index, e); 
+                                                    handleTextareaAutoResize(e); 
+                                                }}
+                                                placeholder="Введите реквизиты"
+                                                className="assets-workplan-textarea"
+                                            />
+                                        </div>
+                                        <div className="requisites-table-cell action-cell">
+                                            {formData.requisites.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    className="remove-category-btn"
+                                                    onClick={() => handleRemoveRequisite(index)}
+                                                    title="Удалить реквизит"
+                                                >
+                                                    <X size={18}/>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                
-                                <button
-                                    type="button"
-                                    className="add-requisite-btn-icon"
-                                    onClick={handleAddRequisite}
-                                    title="Добавить реквизит"
-                                >
-                                    <Plus size={20} color='white'/>
-                                </button>
+                                ))}
                             </div>
-                        )}
+                            
+                            <button
+                                type="button"
+                                className="add-requisite-btn-icon"
+                                onClick={handleAddRequisite}
+                                title="Добавить реквизит"
+                            >
+                                <Plus size={20} color='white'/> Добавить
+                            </button>
+                        </div>
+
                         <div className="assets-form-actions">
                             <button type="button" className="cancel-order-btn" onClick={onClose}>Отменить</button>
                             <button type="submit" className="save-order-btn">Сохранить</button>
@@ -354,7 +325,6 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                 </div>
             </div>
 
-            
             {showConfirmationModal && (
                 <ConfirmationModal
                     title="Сообщение"

@@ -96,6 +96,7 @@
     margin: 0;
     padding: 0 15px;
     display: flex;
+    gap: 15px;
     align-items: center;
     height: 60px;
     font-size: 16px;
@@ -118,7 +119,6 @@
     border-collapse: collapse;
     font-size: 12px;
     table-layout: fixed;
-    /* Фиксированная ширина таблицы */
 }
 
 .access-table thead {
@@ -149,15 +149,6 @@
     text-overflow: ellipsis;
 }
 
-/* Специальное выравнивание для текстовых колонок */
-.access-table td:nth-child(1),
-/* ИМЯ */
-.access-table td:nth-child(2),
-/* РОЛЬ */
-.access-table td:nth-child(3) {
-    /* EMAIL */
-    text-align: center;
-}
 
 .access-table tbody tr:hover {
     background-color: var(--hover-bg);
@@ -227,7 +218,7 @@
     font-size: 16px;
 }
 
-/* Улучшенные стили для заголовков модулей */
+
 .module-header {
     padding: 8px 6px !important;
     min-width: 70px;
@@ -305,20 +296,22 @@
     border-color: #bd2130;
 }
 
-/* Новые вертикальные стили для компактного отображения прав */
+
 .permission-compact-display {
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    flex-direction: row;
     justify-content: center;
-    padding: 6px;
-    min-height: 40px;
+    align-items: center;
+    width: auto;
+    min-height: auto;
 }
 
 .permission-row {
     display: flex;
-    align-items: center;
-    gap: 6px;
+    flex-direction: column; 
+    align-items: center; 
+    gap: 5px;
+    padding: 10px 0;
 }
 
 .permission-letter {

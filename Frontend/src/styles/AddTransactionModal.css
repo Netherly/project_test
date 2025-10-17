@@ -31,8 +31,9 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 25px;
+  margin-right: 15px;
   padding-bottom: 15px;
-  border-bottom: 1px solid var(--border--color);
+  border-bottom: 1px solid var(--border-form-color);
   flex-shrink: 0;
 }
 
@@ -60,6 +61,15 @@
   overflow-y: auto;
   padding-right: 10px;
   padding-bottom: 20px;
+}
+
+
+.add-transaction-form input[type="text"],
+.add-transaction-form input[type="number"],
+.add-transaction-form select {
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
 }
 
 .form-row {
@@ -130,8 +140,8 @@
 }
 
 .form-checkbox {
-    width: 20px;
-    height: 20px;
+    width: 13px;
+    height: 13px;
     margin-right: auto;
     cursor: pointer;
     accent-color: var(--accent-color);
@@ -139,7 +149,7 @@
 
 .checkbox-row {
     margin-top: 20px;
-    border-top: 1px dashed var(--border--color);
+    border-top: 1px solid var(--border-form-color);
     padding-top: 15px;
 }
 
@@ -158,7 +168,13 @@
 .currency-recalculation-block,
 .order-details-block,
 .duplicated-account-block {
-    border-top: 1px dashed var(--border--color);
+    border-top: 1px solid var(--border-form-color);
+    padding-top: 15px;
+    margin-top: 15px;
+}
+
+.counterparty-section-start {
+    border-top: 1px dashed var(--border-form-color);
     padding-top: 15px;
     margin-top: 15px;
 }
@@ -175,8 +191,10 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: auto;
+  margin-right: 15px;
   padding-top: 10px;
-  border-top: 1px solid var(--border--color);
+  padding-bottom: 30px;
+  border-top: 1px solid var(--border-form-color);
   flex-shrink: 0;
 }
 
@@ -189,36 +207,43 @@
 }
 
 .input-with-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
     flex-grow: 1;
 }
 
-.input-with-actions .form-input {
-    flex-grow: 1;
+
+
+.destination-account-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
 }
+
 
 .transaction-action-button {
     background-color: transparent;
     border: none;
     cursor: pointer;
-    font-size: 20px;
-    font-weight: bold;
-    color: #4CAF50; 
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    transition: background-color 0.3s;
+    display: flex; 
+    align-items: center;
+    gap: 8px; 
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
-.add-button {
-    color: #fff;
+
+.transaction-action-button.add-button {
+    color: white;
 }
 
-.remove-button {
-    color: #fff;
+
+.transaction-action-button.remove-button {
+    color: #ff5252; 
 }
+
 
 
 .form-input.readonly, .form-value.readonly {
@@ -236,8 +261,27 @@
 
 .form-footer{
   display: flex;
+  justify-content: flex-end;
   gap: 5px;
+  padding: 25px 20px;
+  border-top: 1px solid var(--border--color) ;
 }
+
+.add-transaction-form input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+.add-transaction-form input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1); 
+    cursor: pointer;   
+}
+
+.add-transaction-form input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
 
 @media (max-width: 768px) {
   .add-transaction-modal {

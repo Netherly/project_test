@@ -331,8 +331,8 @@ const AccessModal = ({
                             <span className="access-modal-roles-label">{isGeneralMode ? 'Роли' : 'Выберите роль'}</span>
                             {isGeneralMode && (
                                 <div className="access-modal-roles-actions">
-                                    <button className="access-modal-add-role-btn" onClick={handleAddRole} title="Добавить роль"><Plus/></button>
-                                    <button className={`access-modal-delete-mode-btn ${showDeleteMode ? 'active' : ''}`} onClick={toggleDeleteMode} title="Удалить роли"><Trash2 color="white"/></button>
+                                    <button className="access-modal-add-role-btn" onClick={handleAddRole} title="Добавить роль"><Plus size={16}/></button>
+                                    <button className={`access-modal-delete-mode-btn ${showDeleteMode ? 'active' : ''}`} onClick={toggleDeleteMode} title="Удалить роли"><Trash2 size={16} color="white"/></button>
                                 </div>
                             )}
                         </div>
@@ -348,7 +348,6 @@ const AccessModal = ({
                                     {isGeneralMode && <span className={`access-modal-protection-badge ${role.id === 'owner' ? 'disabled' : ''}`} onClick={(e) => { e.stopPropagation(); handleToggleRoleProtection(role.id); }} title={role.id === 'owner' ? 'Роль Владельца защищена системно' : (role.isProtected ? "Нажмите, чтобы разблокировать" : "Нажмите, чтобы защитить")}>{role.isProtected ? <Lock size={20}/> : <LockOpen size={20}/>}</span>}
                                     <span className="access-modal-role-name">{role.name}</span>
                                     {isGeneralMode && showDeleteMode && role.id !== 'owner' && <input type="checkbox" className="access-modal-role-checkbox" checked={rolesToDelete.includes(role.id)} onChange={() => toggleRoleForDeletion(role.id)} onClick={(e) => e.stopPropagation()}/>}
-                                    {!isGeneralMode && role.isProtected && <span className="access-modal-protection-badge disabled" title="Защищенная роль"><Lock size={20}/></span>}
                                     {!isGeneralMode && selectedRoleForEmployee === role.id && !isEmployeeProtected && <span className="access-modal-selected-badge">✓</span>}
                                 </div>
                             ))}

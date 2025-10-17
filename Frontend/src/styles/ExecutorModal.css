@@ -24,7 +24,6 @@
   width: 100%; 
   height: 100vh;
   
-  background: var(--bg-color); 
   color: var(--chips-color);
   
   border-radius: 8px;
@@ -66,7 +65,7 @@
 
 
 .chat-placeholder{
-  background-color: var(--container-bg);
+  background-color: #19213A;
 }
 
 .chat-placeholder,
@@ -83,7 +82,6 @@
 .employee-modal-body {
   flex-grow: 1;
   overflow-y: auto;
-  background-color: #19213A;
 }
 
 .tab-content-wrapper{

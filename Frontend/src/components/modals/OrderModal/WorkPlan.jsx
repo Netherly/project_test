@@ -79,7 +79,7 @@ const WorkPlan = ({ control }) => {
 
 
  
-  const handleTextareaAutoResize = (e) => {
+const handleTextareaAutoResize = (e) => {
     e.target.style.height = 'auto';
     e.target.style.height = e.target.scrollHeight + 'px';
   };

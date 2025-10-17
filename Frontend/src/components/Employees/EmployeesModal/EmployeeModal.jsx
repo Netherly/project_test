@@ -139,6 +139,14 @@ export default function EmployeeModal({
               {activeTab === 'orders'     && <OrdersTab isNew={isNew} employee={safeEmployee} />}
             </form>
           </FormProvider>
+          <div className="employee-modal-actions">
+                  <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
+                    Сбросить
+                  </button>
+                  <button className="save-order-btn" type="submit">
+                    Сохранить
+                </button>
+          </div>
         </div>
 
         

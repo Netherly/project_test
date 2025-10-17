@@ -66,11 +66,16 @@
 .modal-close-button {
     background: none;
     border: none;
-    font-size: 24px;
     color: var(--chips-color);
     cursor: pointer;
-    padding: 0 5px;
     transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0; 
+    font-size: 28px;
 }
 
 .modal-close-button:hover {
@@ -263,6 +268,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
 }
 
 .options-button:hover {
@@ -274,7 +282,7 @@
     top: 100%;
     right: 0;
     background-color: var(--bg-menu-color);
-    border: 1px solid var(--border--color);
+    border: 1px solid var(--border-form-color);
     border-radius: 6px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     display: flex;
@@ -491,6 +499,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-top: 15px;
     margin-bottom: 10px;
     border-bottom: 1px solid var(--border--color);
     padding-bottom: 8px;
@@ -536,18 +545,18 @@
 }
 
 
-/* --- Стили для режима РЕДАКТИРОВАНИЯ --- */
+
 
 .requisite-item.editable {
     display: grid;
-    grid-template-columns: auto 1fr 2fr auto; /* Иконка | Поле "Название" | Поле "Значение" | Кнопка "Удалить" */
+    grid-template-columns: auto 1fr 2fr auto;
     gap: 10px;
     align-items: center;
     background-color: rgba(69, 137, 193, 0.1);
     border-color: var(--button-bg);
 }
 
-/* Поля ввода в режиме редактирования */
+
 .requisite-input {
     width: 100%;
     padding: 6px 10px;
