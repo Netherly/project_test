@@ -543,7 +543,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             <div className="duplicated-account-block" key={destAcc.id}>
                                 <div className="form-row flex-row">
                                     <label htmlFor={`dest-account-${destAcc?.id}`} className="form-label">
-                                        {index === destinationAccounts.length - 1 ? 'Счет назначения' : 'Счет'}
+                                        {index === destinationAccounts.length - 1 ? 'Счет зачисления' : 'Счет'}
                                         {destAcc?.id && destAcc.accountCurrency ? ` (${destAcc.accountCurrency})` : ''}
                                     </label>
                                     <div className="input-with-actions">

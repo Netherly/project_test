@@ -82,7 +82,17 @@ const RegularPaymentsPage = () => {
         const year = date.getFullYear();
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${day}.${month}.${year} ${hours}:${minutes}`;
+        return `${day}.${month}.${year}`;
+    };
+
+    const formatNumberWithSpaces = (num) => {
+        if (num === null || num === undefined || isNaN(Number(num))) {
+            return '0.00';
+        }
+        const fixedNum = Number(num).toFixed(2);
+        const parts = fixedNum.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        return parts.join('.');
     };
 
     return (
@@ -104,7 +114,6 @@ const RegularPaymentsPage = () => {
                     <table className="regular-payments-table">
                         <thead>
                             <tr>
-                                <th>Следующий платеж</th>
                                 <th>Дата начала</th>
                                 <th>Статья</th>
                                 <th>Подстатья</th>
@@ -117,13 +126,13 @@ const RegularPaymentsPage = () => {
                                 <th>Цикл</th>
                                 <th>Время</th>
                                 <th>Статус</th>
+                                <th>Следующий платеж</th>
                             </tr>
                         </thead>
                         <tbody>
                             {regularPayments.map((payment) => (
                                 <tr key={payment.id} className="regular-payment-row" onClick={() => openViewEditModal(payment)}>
-                                    <td>{formatDate(payment.nextPaymentDate || 'N/A')}</td>
-                                    <td>{payment.startDate}</td>
+                                    <td>{formatDate(payment.startDate)}</td>
                                     <td>{payment.category}</td>
                                     <td>{payment.subcategory}</td>
                                     <td>{payment.description}</td>
@@ -131,7 +140,7 @@ const RegularPaymentsPage = () => {
                                     <td>{payment.accountCurrency}</td>
                                     <td>{payment.operation}</td>
                                     <td>
-                                        {payment.amount}
+                                        {formatNumberWithSpaces(payment.amount)}
                                     </td>
                                     <td>{payment.period}</td>
                                     <td>{payment.cycleDay}</td>
@@ -141,6 +150,7 @@ const RegularPaymentsPage = () => {
                                             {payment.status}
                                         </span>
                                     </td>
+                                    <td>{formatDate(payment.nextPaymentDate || 'N/A')}</td>
                                 </tr>
                             ))}
                         </tbody>

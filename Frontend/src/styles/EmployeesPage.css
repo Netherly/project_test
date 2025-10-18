@@ -306,8 +306,8 @@
 }
 
 .card-avatar {
-    width: 48px;
-    height: 48px;
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
     object-fit: cover; 
     background-color: #3a3a3c;

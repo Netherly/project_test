@@ -113,8 +113,7 @@
 .form-field select,
 .form-field textarea {
   background: #252538;
-  border-bottom: 1px solid #555;
-  border-radius: 4px;
+  border-bottom: 1px solid var(--border-form-color);
   padding: 10px 12px;
   color: #e0e0e0;
   font-size: 14px;
@@ -127,7 +126,6 @@
 .form-field select:focus,
 .form-field textarea:focus {
   outline: none;
-  border-color: #6a6aff;
 }
 .error {
   font-size: 12px;
@@ -144,7 +142,7 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid #444; 
+  border-top: 1px solid var(--border-form-color); 
 }
 .form-actions-bottom button {
   all: unset;
@@ -237,6 +235,52 @@
 .text-danger {
   color: #c0392b; 
   font-weight: bold;
+}
+
+.currency-title{
+  font-size: 13px;
+  color: #c0c0c0;
+  margin-bottom: 6px;
+}
+
+.currency-table {
+  display: flex;
+  flex-direction: row;
+  gap: 8px; 
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.currency-row {
+  display: flex;
+  align-items: center; 
+  flex-direction: column;
+  gap: 15px; 
+  padding: 4px;
+  transition: background-color 0.2s;
+}
+
+
+.currency-label {
+  width: 50px; 
+  text-align: left;
+  display: flex;
+}
+
+.currency-input {
+  width: 45px;
+  padding: 6px 8px;
+  background-color: #19213A;
+  color: white;
+  border: none;
+  border-bottom: 1px solid var(--border-form-color);
+}
+
+.currency-row input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 
 .employee-modal-actions{

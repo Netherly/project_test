@@ -24,6 +24,8 @@
     display: flex;
     align-items: center;
     box-sizing: border-box;
+    padding-bottom: 5px;
+    padding-left: 5px;
 }
 
 
@@ -109,4 +111,13 @@ select.requisite-input {
 .remove-btn:hover {
     background-color: #c0392b;
     color: white;
+}
+
+
+select.assets-workplan-textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: none; 
+  background-color: #19213A;
 }

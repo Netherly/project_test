@@ -101,7 +101,7 @@ export default function EmployeeHeader({ onClose, onDelete }) {
                                             type="text"
                                             
                                             size={22} 
-                                            placeholder="Поиск или создать тег..."
+                                            placeholder="Добавить тег"
                                             className={styles.inputTag}
                                             value={customTag}
                                             onChange={handleTagInputChange}

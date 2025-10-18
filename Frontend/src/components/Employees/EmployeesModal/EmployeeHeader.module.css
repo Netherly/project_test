@@ -29,7 +29,7 @@
 
 .info h2 {
     margin: 0 0 4px 0;
-    font-size: 1.25rem;
+    font-size: var(--font-size-page-title);
     color: #e0e0e0;
     white-space: nowrap;
     overflow: hidden;
@@ -37,7 +37,7 @@
 }
 
 .info span {
-    font-size: 0.9rem;
+    font-size: var(--font-size-table-header);
     color: #a0a0b0;
 }
 
@@ -132,6 +132,7 @@
     padding: 8px 0px;
     color: var(--text-color);
     font-size: 14px;
+    width: 90px;
 }
 
 .inputTag:focus {
@@ -179,22 +180,18 @@
 
 .dropdown {
     position: absolute;
-    top: 40px;
-    right: 0; 
-    width: max-content;
-    background: var(--container-bg);
+    top: 100%;
+    right: 0;
+    background-color: var(--bg-menu-color);
     border: 1px solid var(--border-form-color);
-    border-radius: 8px;
-    list-style: none;
-    padding: 4px 0;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-    transform-origin: top right;
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+    z-index: 1001;
+    padding: 5px 0;
     opacity: 0;
-    visibility: hidden;
-    transform: scale(0.95);
-    transition: all 0.15s ease;
-    pointer-events: none;
-    z-index: 10;
 }
 
 .show {
@@ -205,16 +202,16 @@
 }
 
 .dropdown li {
-    padding: 10px 18px;
-    font-size: 0.9rem;
-    color: #e0e0e0;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s;
     display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.dropdown li:hover {
-    background-color: var(--input-border-focus);
+    flex-direction: row;
+    gap: 10px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    padding: 10px 15px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    width: 100%;
+    white-space: nowrap;
 }

@@ -103,66 +103,73 @@
 
 .regular-payments-table th:nth-child(1),
 .regular-payments-table td:nth-child(1) {
-    width: 140px;
+    width: 100px;
 }
 
-.regular-payments-table th:nth-child(2),
-.regular-payments-table td:nth-child(2) {
-    width: 120px;
+/* Статья, Подстатья */
+.regular-payments-table th:nth-child(2), .regular-payments-table td:nth-child(2),
+.regular-payments-table th:nth-child(3), .regular-payments-table td:nth-child(3) {
+    width: 130px; 
 }
 
-
-.regular-payments-table th:nth-child(3), .regular-payments-table td:nth-child(3),
-.regular-payments-table th:nth-child(4), .regular-payments-table td:nth-child(4) {
-    width: 180px;
-}
-
-
-.regular-payments-table th:nth-child(5),
-.regular-payments-table td:nth-child(5) {
+/* Описание */
+.regular-payments-table th:nth-child(4),
+.regular-payments-table td:nth-child(4) {
     width: 250px;
 }
 
+/* Счет */
+.regular-payments-table th:nth-child(5),
+.regular-payments-table td:nth-child(5) {
+    width: 170px;
+}
+
+/* Валюта */
 .regular-payments-table th:nth-child(6),
 .regular-payments-table td:nth-child(6) {
-    width: 150px;
+    width: 50px;
 }
 
-
-
+/* Операция */
 .regular-payments-table th:nth-child(7),
 .regular-payments-table td:nth-child(7) {
-    width: 55px;
-}
-
-.regular-payments-table th:nth-child(8),
-.regular-payments-table td:nth-child(8) {
-    width: 85px;
-}
-
-.regular-payments-table th:nth-child(9),
-.regular-payments-table td:nth-child(9) {
-    width: 110px;
-}
-
-.regular-payments-table th:nth-child(10),
-.regular-payments-table td:nth-child(10) {
     width: 90px;
 }
 
+/* Сумма */
+.regular-payments-table th:nth-child(8),
+.regular-payments-table td:nth-child(8) {
+    width: 110px;
+}
+
+/* Период */
+.regular-payments-table th:nth-child(9),
+.regular-payments-table td:nth-child(9) {
+    width: 90px;
+}
+
+/* Цикл */
+.regular-payments-table th:nth-child(10),
+.regular-payments-table td:nth-child(10) {
+    width: 110px;
+}
+
+/* Время */
 .regular-payments-table th:nth-child(11),
 .regular-payments-table td:nth-child(11) {
-    width: 50px;
+    width: 50px; 
 }
 
+/* Статус */
 .regular-payments-table th:nth-child(12),
 .regular-payments-table td:nth-child(12) {
-    width: 50px;
+    width: 100px;
 }
 
+/* Следующий платеж (новая последняя колонка) */
 .regular-payments-table th:nth-child(13),
 .regular-payments-table td:nth-child(13) {
-    width: 80px;
+    width: 140px; /* Оставил как в оригинале для этой колонки */
 }
 
 

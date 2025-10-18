@@ -1,11 +1,14 @@
-
-
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 
+const currencies = ['uah', 'usd', 'usdt', 'eur', 'rub'];
+
 export default function GeneralInfoTab({ employeeFields = { country: [] } }) {
-  const { control, formState: { errors } } = useFormContext();
+  const { control, watch, formState: { errors } } = useFormContext();
+
+  
+  const selectedMainCurrency = watch('mainCurrency');
 
   return (
     <div className="tab-section">
@@ -42,13 +45,12 @@ export default function GeneralInfoTab({ employeeFields = { country: [] } }) {
         {errors.country && <p className="error">{errors.country.message}</p>}
       </div>
       
-
       <Controller
         name="fullName"
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Сотрудник ФИО<span className="req">*</span></label>
+            <label>Сотрудник ФИО</label>
             <input
               {...field}
               placeholder="Введите ФИО"
@@ -64,7 +66,7 @@ export default function GeneralInfoTab({ employeeFields = { country: [] } }) {
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Логин<span className="req">*</span></label>
+            <label>Логин</label>
             <input
               {...field}
               placeholder="Введите логин"
@@ -93,17 +95,6 @@ export default function GeneralInfoTab({ employeeFields = { country: [] } }) {
       />
 
       <Controller
-        name="chatLink"
-        control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Ссылка на чат</label>
-            <input {...field} placeholder="https://..." />
-          </div>
-        )}
-      />
-
-      <Controller
         name="photoLink"
         control={control}
         render={({ field }) => (
@@ -114,16 +105,44 @@ export default function GeneralInfoTab({ employeeFields = { country: [] } }) {
         )}
       />
 
-      <Controller
-        name="folderLink"
-        control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Папка</label>
-            <input {...field} placeholder="Ссылка на папку" />
-          </div>
-        )}
-      />
+
+        <label className="currency-title">Ставка в час</label>
+        <div className="currency-table">
+          {currencies.map((currency) => (
+            <div 
+              key={currency} 
+              className={`currency-row ${selectedMainCurrency === currency ? 'selected' : ''}`}
+            >
+              <span className="currency-label">{currency.toUpperCase()}<Controller
+                name="mainCurrency"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    type="radio"
+                    value={currency}
+                    checked={field.value === currency}
+                  />
+                )}
+              /></span>
+              <Controller
+                name={`rates.${currency}`}
+                control={control}
+                defaultValue=""
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    type="number"
+                    placeholder="0.00"
+                    className="currency-input"
+                  />
+                )}
+              />
+            </div>
+          ))}
+        </div>
+
+      
     </div>
   );
 }

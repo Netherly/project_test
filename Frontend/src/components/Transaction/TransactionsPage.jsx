@@ -375,7 +375,6 @@ const TransactionsPage = () => {
                                 <td>{transaction.counterparty}</td>
                                 <td>
                                     <div className="copy-button-container">
-                                        {transaction.counterpartyRequisites}
                                         <span
                                             className="copy-button-icon"
                                             onClick={(e) => {
@@ -384,6 +383,7 @@ const TransactionsPage = () => {
                                             }}
                                             title="Копировать реквизиты"
                                         ></span>
+                                        {transaction.counterpartyRequisites}
                                     </div>
                                 </td>
                             </tr>

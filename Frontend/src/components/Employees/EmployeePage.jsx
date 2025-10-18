@@ -259,7 +259,7 @@ const EmployeePage = () => {
               <path d="M5 12h14" />
               <path d="M12 5v14" />
             </svg>
-            Добавить сотрудника
+            Добавить
           </button>
         </header>
 

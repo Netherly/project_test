@@ -8,6 +8,7 @@ import { employeeSchema } from './validationSchema';
 import EmployeeHeader from './EmployeeHeader';
 import TabsNav from './TabsNav';
 import GeneralInfoTab from './GeneralInfoTab';
+import SummaryTab from './SummaryTab';
 import ContactsTab from './ContactsTab';
 import RequisitesTab from './RequisitesTab';
 import FinancesTab from './FinancesTab';
@@ -27,7 +28,7 @@ export default function EmployeeModal({
   const safeEmployee = employee ?? {};
   const isNew = !safeEmployee.id;
 
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState(isNew ? 'general' : 'summary');
   const [closing, setClosing] = useState(false);
   const [formErrors, setFormErrors] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -131,9 +132,11 @@ export default function EmployeeModal({
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               errors={groupErrors(errors)}
+              isNew={isNew}
             />
+              {activeTab === 'summary'    && <SummaryTab employee={safeEmployee} />}
               {activeTab === 'general'    && <GeneralInfoTab employeeFields={allFields.employeeFields} />}
-              {activeTab === 'contacts'   && <ContactsTab />}
+              {activeTab === 'contacts'   && <ContactsTab isNew={isNew} />}
               {activeTab === 'requisites' && <RequisitesTab />}
               {activeTab === 'finances'   && <FinancesTab isNew={isNew} employee={safeEmployee} />}
               {activeTab === 'orders'     && <OrdersTab isNew={isNew} employee={safeEmployee} />}

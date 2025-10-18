@@ -94,6 +94,17 @@ const ViewEditRegularPaymentModal = ({
         }
     };
 
+    const formatDate = (dateString) => {
+        if (!dateString) return 'Нет данных';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month}.${year}`;
+    };
+
     return (
         <div className="add-transaction-overlay" onClick={handleCloseModal}>
             <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
@@ -135,7 +146,7 @@ const ViewEditRegularPaymentModal = ({
                         </div>
                     )}
                     
-                    {/* NEW: Описание */}
+                    {/* Описание */}
                     <div className="form-row">
                         <label htmlFor="description" className="form-label">Описание</label>
                         <input type="text" id="description" name="description" value={formData.description || ''} onChange={handleChange} placeholder="Введите описание" className="form-input1" />
@@ -183,7 +194,7 @@ const ViewEditRegularPaymentModal = ({
                         </select>
                     </div>
 
-                    {/* NEW: Конкретизация цикла */}
+                    {/* Конкретизация цикла */}
                     {formData.period === "Еженедельно" && (
                         <div className="form-row">
                             <label htmlFor="cycleDay" className="form-label">День недели</label>
@@ -217,6 +228,19 @@ const ViewEditRegularPaymentModal = ({
                             <option value="На паузе">На паузе</option>
                         </select>
                     </div>
+                    {formData.status === 'Активен' && (
+                        <div className="form-row">
+                            <label htmlFor="nextPaymentDate" className="form-label">Следующий платеж</label>
+                            <input
+                                type="text"
+                                id="nextPaymentDate"
+                                value={formatDate(formData.nextPaymentDate)}
+                                readOnly
+                                className="form-input1"
+                                style={{ backgroundColor: 'var(--bg-color)', cursor: 'default' }} 
+                            />
+                        </div>
+                    )}
                 </form>
 
                 <div className="view-transaction-form-actions">

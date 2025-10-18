@@ -1,9 +1,8 @@
-
-
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-export default function ContactsTab() {
+
+export default function ContactsTab({ isNew }) {
   const { control, formState: { errors } } = useFormContext();
 
   return (
@@ -74,26 +73,28 @@ export default function ContactsTab() {
         )}
       />
 
-      {/* Блок Telegram */}
+      
       <fieldset className="form-fieldset">
         <div className="grid-2-col">
           <Controller
-            name="telegram.botInfo"
-            control={control}
-            render={({ field }) => (
-              <div className="form-field">
-                <label>Телеграм Бот</label>
-                <input {...field} placeholder="Информация о боте" />
-              </div>
-            )}
-          />
+                name="chatLink"
+                control={control}
+                render={({ field }) => (
+                  <div className="form-field">
+                    <label>Ссылка на чат</label>
+                 
+                    <input {...field} placeholder="https://..." readOnly={!isNew} />
+                  </div>
+                )}
+              />
           <Controller
             name="telegram.dateTime"
             control={control}
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм дата и время</label>
-                <input {...field} placeholder="Дата и время" />
+                
+                <input {...field} placeholder="Дата и время" readOnly={!isNew} />
               </div>
             )}
           />
@@ -103,7 +104,8 @@ export default function ContactsTab() {
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм ID</label>
-                <input {...field} placeholder="123456789" />
+             
+                <input {...field} placeholder="123456789" readOnly={!isNew} />
               </div>
             )}
           />
@@ -113,7 +115,8 @@ export default function ContactsTab() {
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм имя</label>
-                <input {...field} placeholder="Имя в Telegram" />
+     
+                <input {...field} placeholder="Имя в Telegram" readOnly={!isNew} />
               </div>
             )}
           />
@@ -123,7 +126,19 @@ export default function ContactsTab() {
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм никнейм</label>
+
                 <input {...field} placeholder="@nickname" />
+              </div>
+            )}
+          />
+          
+          <Controller
+            name="telegram.bindingLink" 
+            control={control}
+            render={({ field }) => (
+              <div className="form-field">
+                <label>Ссылка на привязку</label>
+                <input {...field} placeholder="Ссылка..." readOnly={!isNew} />
               </div>
             )}
           />

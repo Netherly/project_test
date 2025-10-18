@@ -42,7 +42,7 @@ export default function RequisitesTab() {
                                 control={control}
                                 defaultValue={item.currency || 'UAH'}
                                 render={({ field }) => (
-                                    <select {...field} className="requisite-input">
+                                    <select {...field} className="assets-workplan-textarea">
                                         {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 )}
@@ -59,7 +59,7 @@ export default function RequisitesTab() {
                                     <textarea
                                         {...field}
                                         placeholder="Банк"
-                                        className="requisite-input"
+                                        className="assets-workplan-textarea"
                                         onInput={handleTextareaAutoResize}
                                         rows={1}
                                     />
@@ -77,7 +77,7 @@ export default function RequisitesTab() {
                                     <textarea
                                         {...field}
                                         placeholder="Номер карты"
-                                        className="requisite-input"
+                                        className="assets-workplan-textarea"
                                         onInput={handleTextareaAutoResize}
                                         rows={1}
                                     />
@@ -95,7 +95,7 @@ export default function RequisitesTab() {
                                     <textarea
                                         {...field}
                                         placeholder="Владелец"
-                                        className="requisite-input"
+                                        className="assets-workplan-textarea"
                                         onInput={handleTextareaAutoResize}
                                         rows={1}
                                     />
@@ -122,7 +122,7 @@ export default function RequisitesTab() {
                 type="button" 
                 className="add-btn" 
                 onClick={() => append({ currency: 'UAH', bank: '', card: '', owner: '' })}>
-                <Plus size={16} /> Добавить реквизит
+                <Plus size={16} /> Добавить
             </button>
         </div>
     );

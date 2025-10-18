@@ -30,7 +30,7 @@
     align-items: center;
     margin-bottom: 25px;
     padding-bottom: 15px;
-    border-bottom: 1px solid var(--border--color);
+    border-bottom: 1px solid var(--border-form-color);
     flex-shrink: 0;
 }
 
@@ -231,7 +231,7 @@
     margin-top: auto;
     padding-top: 10px;
     padding-bottom: 10px;
-    border-top: 1px solid var(--border--color);
+    border-top: 1px solid var(--border-form-color);
     flex-shrink: 0;
 }
 
@@ -350,7 +350,7 @@
     padding: 8px;
     width: 100%;
     height: 38px;
-    resize: vertical;
+    resize: none;
     font-family: inherit;
     font-size: 14px;
     line-height: 1.4;

@@ -1,8 +1,7 @@
-
-
 import React from 'react';
 
 const TABS = [
+  { id: 'summary', label: 'Сводка'},
   { id: 'general', label: 'Общая информация' },
   { id: 'contacts', label: 'Контакты' },
   { id: 'requisites', label: 'Реквизиты' },
@@ -10,11 +9,16 @@ const TABS = [
   { id: 'orders', label: 'Заказы' },
 ];
 
-export default function TabsNav({ activeTab, setActiveTab, errors = {} }) {
+
+export default function TabsNav({ activeTab, setActiveTab, errors = {}, isNew }) {
+  
+ 
+  const visibleTabs = isNew ? TABS.filter(tab => tab.id !== 'summary') : TABS;
+
   return (
     <nav className="tabs-nav">
       <ul>
-        {TABS.map(tab => (
+        {visibleTabs.map(tab => (
           <li
             key={tab.id}
             className={`

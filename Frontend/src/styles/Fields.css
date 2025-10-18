@@ -318,7 +318,7 @@
 
 /* ---Общие стили для всех dropdown--- */
 .dropdown-value {
-    color: #ffffff;
+    color: rgba(255, 255, 255, 0.7);
     font-size: 14px;
     flex: 1;
     text-align: left;
@@ -490,7 +490,6 @@
     border: none;
     border-radius: 6px;
     font-size: 14px;
-    font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     margin-bottom: 20px;
