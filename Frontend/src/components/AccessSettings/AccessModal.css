@@ -13,7 +13,6 @@
     right: 0;
     top: 0;
     bottom: 0;
-    width: 950px;
     z-index: 999;
     display: flex;
     flex-direction: column;
@@ -102,7 +101,6 @@
 }
 
 .access-modal-roles-section {
-    margin-bottom: 30px;
     border-bottom: 1px solid var(--border--color);
     padding: 10px;
 }
@@ -345,7 +343,7 @@
 .access-modal-table-header>div {
     padding: 15px 10px;
     font-weight: 700;
-    font-size: 11px;
+    font-size: 15px;
     color: var(--container-text-color, #666666);
     letter-spacing: 0.5px;
     border-right: 1px solid var(--border--color, #e0e0e0);
@@ -425,7 +423,7 @@
     position: fixed;
     bottom: 0;
     right: 0;
-    width: 950px;
+    width: 762px;
     padding: 15px 0px;
     background-color: var(--bg-menu-color);
     border-top: 1px solid var(--border--color);
@@ -438,7 +436,6 @@
 .access-modal-action-buttons {
     display: flex;
     gap: 10px;
-    margin-top: 20px;
     justify-content: flex-end;
     margin-right: 50px;
     width: 100%;
@@ -500,7 +497,8 @@
 
 .access-modal-action-name {
     font-weight: 700;
-    font-size: 11px;
+    font-size: 15px;
+    word-break: break-all;
     letter-spacing: 0.5px;
 }
 

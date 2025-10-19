@@ -37,6 +37,7 @@ body {
     --container-hover-bg: #629CFF;
     --container-hover-text-color: #7e8aa4;
     --border--color: #121624;
+	--border-form-color: rgba(128, 128, 128, 0.3);
     --chips-color: #7F8BA4;
     --button-bg: #2f364f;
     --button-text: #19213A;

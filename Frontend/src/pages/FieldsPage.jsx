@@ -6,7 +6,7 @@ import { fetchFields, saveFields } from "../api/fields";
 import { fileUrl } from "../api/http";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
-import {Copy} from 'lucide-react';
+import {Copy, Plus} from 'lucide-react';
 
 /* =========================
    Константы и утилиты
@@ -351,7 +351,7 @@ const EditableList = ({ items = [], onChange, onRemove, placeholder, onCommit })
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={add}>
-        + Добавить
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   );
@@ -451,7 +451,7 @@ const TagList = ({ title, tags = [], onChange }) => {
           </div>
         ))}
         <button type="button" className="add-category-btn" onClick={add}>
-          + Добавить
+          <Plus size={20} color='white'/> Добавить
         </button>
       </div>
     </div>
@@ -483,7 +483,7 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddInterval}>
-        + Добавить
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -552,7 +552,7 @@ const CategoryFields = ({
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddCategory}>
-        + Добавить
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -583,7 +583,7 @@ const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArt
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddArticle}>
-        + Добавить
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -661,7 +661,7 @@ const SubarticleFields = ({
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddSubarticle}>
-        + Добавить
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -761,7 +761,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onRemove, onError }) => {
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={addEmpty}>
-        + Добавить
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   );

@@ -16,7 +16,7 @@ export const modules = [
 export const actions = [
     { key: 'create', name: 'Создание' },
     { key: 'view', name: 'Просмотр' },
-    { key: 'edit', name: 'Редактирование' },
+    { key: 'edit', name: 'Изменения' },
     { key: 'delete', name: 'Удаление' }
 ];
 

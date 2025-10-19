@@ -118,12 +118,26 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
 
     if (!asset || !exchangeRates) return null;
 
-    const turnoverLimit = 1000;
+    const turnoverLimit = parseFloat(editableAsset.limitTurnover) || 0;
     const currentTurnoverIncoming = asset.turnoverIncoming || 0;
     const currentTurnoverOutgoing = asset.turnoverOutgoing || 0;
     const totalCurrentTurnover = currentTurnoverIncoming + currentTurnoverOutgoing;
-    const turnoverPercentage = (totalCurrentTurnover / turnoverLimit) * 100;
-    const formattedTurnoverPercentage = Math.min(100, Math.max(0, turnoverPercentage)).toFixed(2);
+    
+    
+    const turnoverPercentage = turnoverLimit > 0 ? (totalCurrentTurnover / turnoverLimit) * 100 : 0;
+    
+    
+    const progressBarWidth = Math.min(turnoverPercentage, 100); 
+
+    
+    const getProgressBarColor = (percentage) => {
+        if (percentage > 100) return '#ff4d4f'; 
+        if (percentage > 80) return '#fa8c16'; 
+        if (percentage > 50) return '#fadb14'; 
+        return '#4CAF50'; 
+    };
+
+    const progressBarColor = getProgressBarColor(turnoverPercentage);
 
     const handleMenuToggle = () => {
         setShowOptionsMenu(prev => !prev);
@@ -309,13 +323,23 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             <div className="modal-limit-progress-bar-wrapper">
                                 <div
                                     className="modal-limit-progress-bar"
-                                    style={{ width: `${formattedTurnoverPercentage}%` }}
+                                    style={{ 
+                                        width: `${progressBarWidth}%`,
+                                        backgroundColor: progressBarColor 
+                                    }}
                                 ></div>
                             </div>
-                            <span className="modal-limit-value">{formattedTurnoverPercentage}%</span>
+                            <span className="modal-limit-value">
+                                {formatNumberWithSpaces(turnoverPercentage)}%
+                            </span>
                             {showTurnoverTooltip && (
                                 <div className="turnover-tooltip">
-                                    Зачислено: {formatNumberWithSpaces(currentTurnoverIncoming)} / Списано: {formatNumberWithSpaces(currentTurnoverOutgoing)} 
+                                    Зачислено: {formatNumberWithSpaces(currentTurnoverIncoming)} / Списано: {formatNumberWithSpaces(currentTurnoverOutgoing)}
+                                    {turnoverPercentage > 100 && (
+                                        <div className="turnover-tooltip-overlimit">
+                                            Превышен на {formatNumberWithSpaces(turnoverPercentage - 100)}%
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -375,7 +399,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                             onChange={(e) => handleRequisiteChange(0, e)} placeholder="Значение"
                                             className="requisite-input"
                                         />
-                                        <button onClick={() => handleRemoveRequisite(0)} className="remove-requisite-icon-button">✖</button>
+                                        <button onClick={() => handleRemoveRequisite(0)} className="remove-requisite-icon-button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                                     </>
                                 ) : (
                                     <>
@@ -456,7 +480,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                     </div>
 
                     <div className="modal-section edit-section">
-                        <h3>Данные актива</h3>
+                        <h3>Параметры</h3>
                         <div className="edit-form">
                             <div className="form-row">
                                 <label htmlFor="accountName" className="form-label">Наименование</label>

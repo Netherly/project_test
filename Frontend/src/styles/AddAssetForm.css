@@ -30,7 +30,7 @@
     align-items: center;
     margin-bottom: 25px;
     padding-bottom: 15px;
-    border-bottom: 1px solid var(--border--color);
+    border-bottom: 1px solid var(--border-form-color);
     flex-shrink: 0;
 }
 
@@ -91,7 +91,6 @@
     flex-direction: column;
     flex-grow: 1;
     overflow-y: auto;
-    padding-right: 10px;
     padding-bottom: 20px;
 }
 
@@ -131,6 +130,7 @@
     border-bottom: 1px solid rgba(128, 128, 128, 0.3);
     flex-basis: 70%;
     width: 100%;
+    min-width: 410px;
     padding: 10px 12px;
     color: var(--text-color);
     font-size: 15px;
@@ -141,8 +141,8 @@
 .add-asset-form input[type="text"],
 .add-asset-form input[type="number"],
 .add-asset-form select {
-    -webkit-appearance: none; 
-    -moz-appearance: none; 
+    -webkit-appearance: none;
+    -moz-appearance: none;
     appearance: none;
 }
 
@@ -151,9 +151,8 @@
     opacity: 0.7;
 }
 
-.form-input:focus {
+.form-input1:focus, .assets-workplan-textarea:focus {
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 1px var(--accent-color);
 }
 
 .add-asset-requisite-item {
@@ -232,7 +231,7 @@
     margin-top: auto;
     padding-top: 10px;
     padding-bottom: 10px;
-    border-top: 1px solid var(--border--color);
+    border-top: 1px solid var(--border-form-color);
     flex-shrink: 0;
 }
 
@@ -270,59 +269,54 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-
 .requisites-table-wrapper {
-    border: 1px solid var(--border--color);
     border-radius: 8px;
-    overflow: hidden; 
+    overflow: hidden;
 }
 
 .requisites-table {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0; 
+    gap: 0;
 }
-
 
 .requisites-table-header {
     display: flex;
-    text-align: left; 
+    text-align: left;
     color: var(--chips-color);
     font-size: 13px;
     font-weight: 500;
 }
 
-
 .requisites-table-row {
     display: flex;
     align-items: center;
-    border-top: 1px solid var(--border--color); 
 }
 
-
+/* --- ИЗМЕНЕНИЯ ЗДЕСЬ --- */
 .requisites-table-cell {
-    flex: 1;
     min-width: 0;
-    padding: 4px 12px; 
-    border-right: 1px solid var(--border--color);
+    box-sizing: border-box;
 }
 
-
-.requisites-table-row .requisites-table-cell:nth-child(2),
-.requisites-table-header .requisites-table-cell:nth-child(2) {
-    border-right: none;
+.requisites-table-row .requisites-table-cell:first-child {
+    flex-basis: 40%;
+    padding-right: 10px; /* Отступ между полями */
 }
 
+.requisites-table-row .requisites-table-cell:nth-child(2) {
+    flex-basis: 65%;
+}
+/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
 
 .requisites-table-cell.action-cell {
-    flex: 0 0 45px; 
+    flex: 0 0 30px; /* Немного увеличил место для кнопки */
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0; 
+    padding-left: 10px;
 }
-
 
 .form-input-table {
     background: none;
@@ -332,21 +326,35 @@
     width: 100%;
     height: 100%;
     font-size: 14px;
-    padding: 8px 0; 
+    padding: 8px 0;
 }
-
 
 .add-requisite-btn-icon {
     background: none;
     border: none;
     cursor: pointer;
     padding-top: 15px;
-    color: var(--chips-color); 
-    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    color: white;
+    gap: 5px;
 }
 
-.add-requisite-btn-icon:hover {
-    color: white; 
+.assets-workplan-textarea {
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    outline: none;
+    color: var(--container-text-color);
+    padding: 8px;
+    width: 100%;
+    height: 38px;
+    resize: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: border-color 0.2s ease;
 }
 
 @media (max-width: 768px) {

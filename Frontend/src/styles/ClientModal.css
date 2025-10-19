@@ -62,25 +62,11 @@
 .form-field input,
 .form-field select,
 .form-field textarea {
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 4px;
-  padding: 8px 10px;
-  color: var(--text-color);
-  font-size: 14px;
-  transition: border-color .2s;
-  cursor: text;
-}
 
-.form-field input:hover,
-.form-field select:hover,
-.form-field textarea:hover {
-  border-color: var(--input-border-focus);
 }
 
 .form-field :is(input,select,textarea):focus {
   outline: none;
-  border-color: var(--input-border-focus);
 }
 
 .text-error {

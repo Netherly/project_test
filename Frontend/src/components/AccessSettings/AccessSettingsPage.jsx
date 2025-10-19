@@ -12,7 +12,7 @@ export const ModulePermissionStatus = ({ rolePermissions, moduleKey }) => {
     const actions = [
         { key: 'create', letter: 'С', name: 'Создание' },
         { key: 'view', letter: 'П', name: 'Просмотр' },
-        { key: 'edit', letter: 'Р', name: 'Редактирование' },
+        { key: 'edit', letter: 'И', name: 'Изменения' },
         { key: 'delete', letter: 'У', name: 'Удаление' }
     ];
 
@@ -316,7 +316,7 @@ function AccessSettings() {
                     </div>
                     */}
                     <button className="access-button" onClick={handleAccessButtonClick}>
-                        <Plus/>Добавить
+                        <Plus size={20}/>Добавить
                     </button>
                 </header>
 

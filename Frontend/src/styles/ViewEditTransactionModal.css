@@ -36,13 +36,14 @@
     }
 }
 
-.add-transaction-header {
+.view-transaction-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 25px;
+    margin-right: 24px;
     padding-bottom: 15px;
-    border-bottom: 1px solid var(--border--color);
+    border-bottom: 1px solid var(--border-form-color);
     flex-shrink: 0;
 }
 
@@ -135,8 +136,8 @@
 }
 
 .form-checkbox {
-    width: 20px;
-    height: 20px;
+    width: 13px;
+    height: 13px;
     margin-right: auto;
     cursor: pointer;
     accent-color: var(--accent-color); 
@@ -144,7 +145,7 @@
 
 .checkbox-row {
     margin-top: 20px;
-    border-top: 1px dashed var(--border--color);
+    border-top: 1px dashed var(--border-form-color);
     padding-top: 15px;
 }
 
@@ -282,7 +283,7 @@
     top: 100%;
     right: 0;
     background-color: var(--bg-menu-color);
-    border: 1px solid var(--border--color);
+    border: 1px solid var(--border-form-color);
     border-radius: 6px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     display: flex;
@@ -317,6 +318,17 @@
 .options-menu .delete-item:hover {
     background-color: #ff4d4f;
     color: white;
+}
+
+.view-transaction-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: auto;
+  margin-right: 24px;
+  padding: 30px 20px;
+  border-top: 1px solid var(--border-form-color);
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

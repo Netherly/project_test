@@ -18,13 +18,16 @@
   height: 60px;
   background-color: var(--container-bg);
   border-bottom: 1px solid var(--border--color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .employees-title {
     font-size: var(--font-size-page-title);
     font-weight: 700;
     margin: 0;
-    padding: 0 35px;
+    padding: 0 15px;
     display: flex;
     align-items: center;
     border-right: 1px solid var(--border--color);
@@ -33,27 +36,36 @@
 /* Кнопки переключения вида */
 .view-mode-buttons {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
+  gap: 0;
+  padding: 0 20px;
   border-right: 1px solid var(--border--color);
+  height: 100%;
+  align-items: center;
 }
 
 .view-mode-button {
-  border: none;
-  background: transparent;
-  color: var(--text-color);
-  cursor: pointer;
-  height: 100%;
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 16px;
+    background-color: transparent;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.2em;
+    color: var(--chips-color);
+    transition: background-color 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
 }
 
-.view-mode-button:hover,
+.view-mode-button:hover{
+  background-color: var(--button-bg-hover);
+  color: var(--text-color);
+}
 .view-mode-button.active {
-  background-color: var(--input-border-focus, #224158);
+    background-color: #478cff;
+    color: white;
 }
 
 /* Кнопка добавления */
@@ -66,16 +78,13 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 15px;
   margin-left: auto;
-  padding: 0 25px 0 55px;
+  padding: 0 15px 0 15px;
   border-left: 1px solid var(--border--color);
   height: 100%;
 }
 
-.add-employee-button:hover {
-  background-color: #335d7a;
-}
 
 /* ==== States ==== */
 .employees-loading,
@@ -95,14 +104,14 @@
 /* ==== Table view ==== */
 .employees-table-container {
     overflow-x: auto;
-    background-color: var(--container-bg);
     margin-top: 20px;
 }
 
 .employees-table {
-    width: 100%;
     border-collapse: collapse;
     text-align: left;
+    table-layout: fixed;
+    background-color: var(--container-bg);
 }
 
 .employees-table td{
@@ -111,11 +120,56 @@
 
 .employees-table th,
 .employees-table td {
-  padding: 12px 15px;
-  white-space: nowrap;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border--color);
   border-right: 1px solid var(--border--color);
 }
+
+.employees-table th:nth-child(1),
+.employees-table td:nth-child(1){
+  width: 180px;
+}
+
+.employees-table th:nth-child(2),
+.employees-table td:nth-child(2){
+  width: 50px;
+}
+
+.employees-table th:nth-child(3),
+.employees-table td:nth-child(3){
+  width: 80px;
+}
+
+.employees-table th:nth-child(4),
+.employees-table td:nth-child(4){
+  width: 60px;
+}
+
+.employees-table th:nth-child(5),
+.employees-table td:nth-child(5){
+  width: 60px;
+}
+
+.employees-table th:nth-child(6),
+.employees-table td:nth-child(6){
+  width: 90px;
+}
+
+.employees-table th:nth-child(7),
+.employees-table td:nth-child(7){
+  width: 30px;
+}
+
+.employees-table th:nth-child(8),
+.employees-table td:nth-child(8){
+  width: 110px;
+}
+
+.employees-table th:nth-child(9),
+.employees-table td:nth-child(9){
+  width: 130px;
+}
+
 
 .employees-table th:last-child,
 .employees-table td:last-child {
@@ -126,14 +180,14 @@
     background-color: var(--container-bg);
     color: var(--text-color);
     font-size: var(--font-size-table-header);
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
 .employees-table th {
   font-weight: 600;
-  position: sticky;
-  top: 0;
   background-color: var(--container-bg);
-  z-index: 1;
 }
 
 .employees-table tbody tr:hover {
@@ -195,7 +249,6 @@
   font-size: 16px;
   font-weight: bold;
   color: #a0a0a0;
-  background: var(--container-bg);
   border: 1px solid var(--border--color);
   border-radius: 8px;
   margin: 12px 10px 0;
@@ -253,8 +306,8 @@
 }
 
 .card-avatar {
-    width: 48px;
-    height: 48px;
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
     object-fit: cover; 
     background-color: #3a3a3c;
