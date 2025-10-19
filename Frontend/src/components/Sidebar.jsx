@@ -1,7 +1,9 @@
-import { NavLink, useLocation } from "react-router-dom";
-import React, { useState, useCallback } from "react";
+// src/components/Sidebar.jsx
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import React, { useState, useCallback, useEffect } from "react";
 import Lottie from "lottie-react";
 import "../styles/Sidebar.css";
+import { ProfileAPI } from "../api/profile";
 
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
 import FinanceWebm from "../assets/menu-icons/Финансы.webm";
@@ -12,10 +14,8 @@ import CurrencyRatesWebm from "../assets/menu-icons/Курсы валют.webm";
 import ClientsWebm from "../assets/menu-icons/Клиенты.webm";
 import OrdersWebm from "../assets/menu-icons/Заказы.webm";
 import AssetsWebm from "../assets/menu-icons/Активы.webm";
-import AssetsNewWebm from "../assets/menu-icons/Активы вектор вебм.webm";
 import TasksWebm from "../assets/menu-icons/Задачи.webm";
 import RolesWebm from "../assets/menu-icons/Роли.webm";
-import EntryWebm from "../assets/menu-icons/Доступы.webm";
 import ArchiveWebm from "../assets/menu-icons/Архив.webm";
 import ExecutorsWebm from "../assets/menu-icons/Исполнители.webm";
 import SettingsWebm from "../assets/menu-icons/Настройки.webm";
@@ -24,10 +24,7 @@ import TransactionWebm from "../assets/menu-icons/Транзакции.webm";
 import TransactionNewWebm from "../assets/menu-icons/Транзакции вектор вебм.webm";
 import ReportWebm from "../assets/menu-icons/Отчеты.webm";
 import EmployesWebm from "../assets/menu-icons/Сотрудники.webm";
-import TransactionJson from "../assets/menu-icons/транзакциии json.json";
-import AssetsNewJson from "../assets/menu-icons/активы json.json";
 import DashboardJson from "../assets/menu-icons/Дашборд.webm";
-
 
 const MediaIcon = ({ src, alt, className, active }) => {
   const lottieRef = React.useRef(null);
@@ -36,12 +33,9 @@ const MediaIcon = ({ src, alt, className, active }) => {
 
   const handleComplete = () => {
     cycleCountRef.current += 1;
-
     if (cycleCountRef.current < 2) {
-      // перезапуск анимации
       lottieRef.current?.goToAndPlay(0);
     } else {
-      // пауза 30 секунд
       pauseTimerRef.current = setTimeout(() => {
         cycleCountRef.current = 0;
         lottieRef.current?.goToAndPlay(0);
@@ -52,7 +46,6 @@ const MediaIcon = ({ src, alt, className, active }) => {
   React.useEffect(() => {
     const lottie = lottieRef.current;
     if (!lottie) return;
-
     if (active) {
       cycleCountRef.current = 0;
       lottie.goToAndPlay(0);
@@ -64,7 +57,6 @@ const MediaIcon = ({ src, alt, className, active }) => {
         pauseTimerRef.current = null;
       }
     }
-
     return () => {
       if (pauseTimerRef.current) {
         clearTimeout(pauseTimerRef.current);
@@ -74,18 +66,8 @@ const MediaIcon = ({ src, alt, className, active }) => {
   }, [active]);
 
   if (typeof src === "string" && src.endsWith(".webm")) {
-    return (
-      <video
-        src={src}
-        autoPlay={active}
-        loop
-        muted
-        playsInline
-        className={className}
-      />
-    );
+    return <video src={src} autoPlay={active} loop muted playsInline className={className} />;
   }
-
   if (typeof src === "object" && src !== null) {
     return (
       <Lottie
@@ -98,15 +80,28 @@ const MediaIcon = ({ src, alt, className, active }) => {
       />
     );
   }
-
   return <img src={src} alt={alt} className={className} />;
 };
 
-
-
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState(null);
+
+  // профиль для шапки
+  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "" });
+  const loadProfile = useCallback(async () => {
+    try {
+      const p = await ProfileAPI.get();            // ✅ берём с api/profile.js
+      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "" });
+    } catch (e) {
+      console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
+    }
+  }, []);
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  // освежаем при наведении
+  const handleAvatarEnter = useCallback(() => { loadProfile(); }, [loadProfile]);
 
   const submenus = {
     Desktop: [
@@ -124,7 +119,7 @@ const Sidebar = () => {
     transactions: [
       { name: "Активы", path: "/assets", icon: AssetsWebm },
       { name: "Транзакции", path: "/list", icon: TransactionWebm },
-      { name: "Регулярные платежи", path: "/regular", icon: TransactionNewWebm}
+      { name: "Регулярные платежи", path: "/regular", icon: TransactionNewWebm },
     ],
     settings: [
       { name: "Доступы", path: "/access", icon: RolesWebm },
@@ -142,79 +137,82 @@ const Sidebar = () => {
     { name: "Настройки", menu: "settings", iconActive: SettingsWebm, iconInactive: SettingsWebm },
   ];
 
-  const MouseEnter = useCallback((menuName) => {
-    setActiveMenu(menuName);
-  }, []);
-
-  const MouseLeave = useCallback(() => {
-    setActiveMenu(null);
-  }, []);
-
+  const MouseEnter = useCallback((menuName) => setActiveMenu(menuName), []);
+  const MouseLeave = useCallback(() => setActiveMenu(null), []);
   const isActivePath = useCallback((path) => location.pathname === path, [location.pathname]);
+  const isParentMenuActive = useCallback(
+    (menuKey) => submenus[menuKey]?.some((submenuItem) => location.pathname === submenuItem.path) || false,
+    [location.pathname]
+  );
 
-  const isParentMenuActive = useCallback((menuKey) => {
-    if (!submenus[menuKey]) return false;
-    return submenus[menuKey].some(submenuItem =>
-      location.pathname === submenuItem.path
-    );
-  }, [location.pathname, submenus]);
-
-  const copyClientId = useCallback((clientId) => {
+  const copyClientId = useCallback((id) => {
+    if (!id) return;
     navigator.clipboard
-      .writeText(clientId)
-      .then(() => console.log("ID клиента скопировано:", clientId))
+      .writeText(id)
+      .then(() => console.log("ID пользователя скопирован:", id))
       .catch((err) => console.error("Ошибка копирования:", err));
   }, []);
 
-  const clientId = "23995951";
+  const handleLogout = useCallback(() => {
+    try {
+      localStorage.removeItem("token");   // ✅ токен вычищаем — http.js перестанет слать Authorization
+    } catch {}
+    navigate("/login", { replace: true });
+  }, [navigate]);
 
-  const renderSubmenu = useCallback((key) => {
-    if (!submenus[key]) return null;
-    
-    return (
-      <div
-        key={`submenu-${key}`}
-        className="submenu-panel show"
-        onMouseEnter={() => MouseEnter(key)} 
-        onMouseLeave={MouseLeave} 
-      >
-        <ul className="submenu">
-          {submenus[key].map(({ name, path, icon }) => (
-            <li key={`${key}-${path}`}>
-              <NavLink
-                to={path}
-                onClick={() => setActiveMenu(null)}
-              >
-                {icon && <MediaIcon src={icon} alt={name} className="submenu-icon" active={location.pathname === path} />}
-                <span>{name}</span>
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  }, [submenus, MouseEnter, MouseLeave]);
+  const renderSubmenu = useCallback(
+    (key) => {
+      if (!submenus[key]) return null;
+      return (
+        <div
+          key={`submenu-${key}`}
+          className="submenu-panel show"
+          onMouseEnter={() => MouseEnter(key)}
+          onMouseLeave={MouseLeave}
+        >
+          <ul className="submenu">
+            {submenus[key].map(({ name, path, icon }) => (
+              <li key={`${key}-${path}`}>
+                <NavLink to={path} onClick={() => setActiveMenu(null)}>
+                  {icon && (
+                    <MediaIcon
+                      src={icon}
+                      alt={name}
+                      className="submenu-icon"
+                      active={location.pathname === path}
+                    />
+                  )}
+                  <span>{name}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    },
+    [MouseEnter, MouseLeave, location.pathname]
+  );
 
   return (
     <>
       <nav className="sidebar">
-        <div className="avatar-link">
+        <div className="avatar-link" onMouseEnter={handleAvatarEnter}>
           <img src="/avatar.jpg" alt="Profile" className="avatar-sidebar" />
           <div className="avatar-dropdown">
             <div className="avatar-info">
-              <div className="avatar-name">Nickname</div>
+              <div className="avatar-name">{profile.nickname || "Nickname"}</div>
               <div
                 className="avatar-id"
-                onClick={() => copyClientId(clientId)}
+                onClick={() => copyClientId(profile.userId)}
                 style={{ cursor: "pointer" }}
                 title="Нажмите чтобы скопировать"
               >
-                ID: {clientId} 📋
+                ID: {profile.userId || "—"} 📋
               </div>
             </div>
             <div className="avatar-actions">
               <NavLink to="/profile" className="avatar-action">Профиль</NavLink>
-              <button className="avatar-action">Выход</button>
+              <button className="avatar-action" onClick={handleLogout}>Выход</button>
             </div>
           </div>
         </div>
@@ -222,16 +220,10 @@ const Sidebar = () => {
         <div className="scrollable-menu hidden-scroll">
           <ul className="menu">
             {mainMenuItems.map((item) => {
-              const isMenuOpen = activeMenu === item.menu;
               const isExactActive = isActivePath(item.exact || item.path);
               const isParentActive = item.menu ? isParentMenuActive(item.menu) : false;
-
               const isItemActive = isExactActive || isParentActive;
-
-              const iconSrc =
-                isItemActive
-                  ? item.iconActive || item.iconInactive
-                  : item.iconInactive || item.iconActive;
+              const iconSrc = isItemActive ? item.iconActive || item.iconInactive : item.iconInactive || item.iconActive;
 
               return (
                 <li
@@ -241,11 +233,7 @@ const Sidebar = () => {
                   onMouseLeave={MouseLeave}
                 >
                   {item.path ? (
-                    <NavLink
-                      to={item.path}
-                      className={isExactActive ? "active" : ""}
-                      onClick={() => setActiveMenu(null)}
-                    >
+                    <NavLink to={item.path} className={isExactActive ? "active" : ""} onClick={() => setActiveMenu(null)}>
                       <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" active={isItemActive} />
                       <span>{item.name}</span>
                     </NavLink>
