@@ -408,6 +408,12 @@ function CurrencyRates() {
             Курсы валют
             </h2>
 
+
+
+          {loading && <span>Загрузка…</span>}
+          {saving && <span>Сохранение…</span>}
+          {error && <span style={{ color: 'salmon' }}>{error}</span>}
+
           <div className="currency-rates-header-actions">
             {/* <span style={{ opacity: 0.8, fontSize: 12 }}>
               Показано {shownCount} из {total}
@@ -421,10 +427,6 @@ function CurrencyRates() {
             >
               Обновить
             </button> */}
-
-            {loading && <span>Загрузка…</span>}
-            {saving && <span>Сохранение…</span>}
-            {error && <span style={{ color: 'salmon' }}>{error}</span>}
 
             {isDirty && (
               <>

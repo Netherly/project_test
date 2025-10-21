@@ -6,7 +6,7 @@ const ThreeStateToggle = ({ value, onChange, disabled }) => {
     const getNextValue = () => {
         if (value === 'allowed') return 'responsible';
         if (value === 'responsible') return 'forbidden';
-        return 'allowed'; // from 'forbidden' to 'allowed'
+        return 'allowed'; 
     };
 
     const handleClick = () => {

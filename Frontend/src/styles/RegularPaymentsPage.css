@@ -7,6 +7,10 @@
 .regular-payments-page-main-container {
     flex-grow: 1;
     transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-x: hidden; 
 }
 
 .regular-payments-header-container {
@@ -16,8 +20,11 @@
     margin-bottom: 20px;
     background-color: var(--container-bg);
     height: 60px;
-    border-radius: 8px;
     border-bottom: 1px solid var(--border--color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
 }
 
 .add-payment-wrapper {
@@ -25,14 +32,13 @@
     align-items: center;
     height: 100%;
     border-left: 1px solid var(--border--color);
-    padding: 0px 35px 0px 55px;
     box-sizing: border-box;
 }
 
 .add-payment-button {
     background-color: var(--container-bg);
     color: #fff;
-    padding: 10px 20px;
+    padding: 10px 15px;
     border: none;
     font-size: 16px;
     font-weight: 600;
@@ -41,9 +47,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 5px;
+    gap: 15px;
 }
-
 
 .regular-payments-title {
     font-size: var(--font-size-page-title);
@@ -51,7 +56,7 @@
     margin: 0;
     color: var(--text-color);
     text-transform: uppercase;
-    padding: 0 35px;
+    padding: 0 15px;
     display: flex;
     align-items: center;
     border-right: 1px solid var(--border--color);
@@ -61,11 +66,13 @@
 .regular-payments-table-container {
     background-color: var(--container-bg);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    
+    overflow: auto;
 }
 
 .regular-payments-table {
+    
     width: 100%;
-    border-collapse: separate;
     border-spacing: 0;
     text-align: left;
     color: var(--container-text-color);
@@ -75,44 +82,112 @@
 .regular-payments-table thead {
     background-color: var(--container-bg);
     font-size: var(--font-size-table-header);
+    
+    position: sticky;
+    top: 0;
+    z-index: 5;
 }
 
 .regular-payments-table th {
-    padding: 12px 15px;
+    padding: 5px 5px;
     white-space: normal;
     word-wrap: break-word;
     word-break: break-word;
     font-weight: 600;
-    position: sticky;
-    top: 0;
     border-right: 1px solid var(--bg-color);
     text-align: center;
     border-bottom: 10px solid var(--bg-color);
+    
+    background-color: var(--container-bg);
 }
 
-.regular-payments-table thead tr th:first-child {
-    border-top-left-radius: 8px;
+.regular-payments-table th:nth-child(1),
+.regular-payments-table td:nth-child(1) {
+    width: 100px;
 }
 
-.regular-payments-table thead tr th:last-child {
-    border-top-right-radius: 8px;
+/* Статья, Подстатья */
+.regular-payments-table th:nth-child(2), .regular-payments-table td:nth-child(2),
+.regular-payments-table th:nth-child(3), .regular-payments-table td:nth-child(3) {
+    width: 130px; 
 }
+
+/* Описание */
+.regular-payments-table th:nth-child(4),
+.regular-payments-table td:nth-child(4) {
+    width: 250px;
+}
+
+/* Счет */
+.regular-payments-table th:nth-child(5),
+.regular-payments-table td:nth-child(5) {
+    width: 170px;
+}
+
+/* Валюта */
+.regular-payments-table th:nth-child(6),
+.regular-payments-table td:nth-child(6) {
+    width: 50px;
+}
+
+/* Операция */
+.regular-payments-table th:nth-child(7),
+.regular-payments-table td:nth-child(7) {
+    width: 90px;
+}
+
+/* Сумма */
+.regular-payments-table th:nth-child(8),
+.regular-payments-table td:nth-child(8) {
+    width: 110px;
+}
+
+/* Период */
+.regular-payments-table th:nth-child(9),
+.regular-payments-table td:nth-child(9) {
+    width: 90px;
+}
+
+/* Цикл */
+.regular-payments-table th:nth-child(10),
+.regular-payments-table td:nth-child(10) {
+    width: 110px;
+}
+
+/* Время */
+.regular-payments-table th:nth-child(11),
+.regular-payments-table td:nth-child(11) {
+    width: 50px; 
+}
+
+/* Статус */
+.regular-payments-table th:nth-child(12),
+.regular-payments-table td:nth-child(12) {
+    width: 100px;
+}
+
+/* Следующий платеж (новая последняя колонка) */
+.regular-payments-table th:nth-child(13),
+.regular-payments-table td:nth-child(13) {
+    width: 140px; /* Оставил как в оригинале для этой колонки */
+}
+
 
 .regular-payments-table tbody tr.regular-payment-row {
     transition: background-color 0.2s ease;
 }
 
 .regular-payments-table tbody tr.regular-payment-row:hover {
-    background-color: var(--input-border-focus); 
+    background-color: var(--input-border-focus);
 }
 
 .regular-payments-table td {
-    padding: 12px 15px;
+    padding: 5px 5px;
     white-space: normal;
     word-wrap: break-word;
     word-break: break-all;
     color: var(--text-color);
-    vertical-align: middle; 
+    vertical-align: middle;
     border-bottom: 1px solid var(--bg-color);
     border-top: 1px solid var(--bg-color);
     border-right: 1px solid var(--bg-color);
@@ -141,9 +216,9 @@
 }
 
 .status-active {
-    background-color: #4CAF50; 
+    background-color: #4CAF50;
 }
 
 .status-paused {
-    background-color: #f4b400; 
+    background-color: #f4b400;
 }

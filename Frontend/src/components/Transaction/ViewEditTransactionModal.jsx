@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import "../../styles/ViewEditTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal'; 
+import { Trash2, Copy} from 'lucide-react';
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -334,27 +335,27 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     return (
         <div className="add-transaction-overlay" onClick={handleCloseModal}>
             <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="add-transaction-header">
-                    <h2>Подробности транзакции</h2>
+                <div className="view-transaction-header">
+                    <h2>Информация о транзакции</h2>
                     <div className="add-transaction-actions">
                              <button className="options-button" onClick={handleMenuToggle}>
-                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" color="white" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                              </button>
                              {showOptionsMenu && (
                                  <div className="options-menu">
-                                     <button className="menu-item" onClick={handleDuplicateClick}>Дублировать транзакцию</button>
-                                     <button className="menu-item delete-item" onClick={handleDeleteClick}>Удалить транзакцию</button>
+                                     <button className="menu-item" onClick={handleDuplicateClick}><Copy size={14}/> Дублировать</button>
+                                     <button className="menu-item delete-item" onClick={handleDeleteClick}><Trash2 size={14}/> Удалить</button>
                                  </div>
                              )}
                              <span className="icon" onClick={handleCloseModal}>
-                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" color="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                              </span>
                          </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="add-transaction-form">
+                <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
                     <div className="form-row">
-                        <label htmlFor="date" className="form-label">Дата и время операции</label>
+                        <label htmlFor="date" className="form-label">Дата и время</label>
                         <input
                             type="datetime-local"
                             id="date"
@@ -362,7 +363,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             value={formData.date}
                             onChange={handleChange}
                             required
-                            className="form-input"
+                            className="form-input1"
                         />
                     </div>
 
@@ -375,7 +376,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             value={formData.category}
                             onChange={handleChange}
                             required
-                            className="form-input"
+                            className="form-input1"
                         >
                             <option value="" disabled>Выберите статью</option>
                             {financeFields?.articles?.map((article, index) => (
@@ -399,7 +400,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 value={formData.subcategory}
                                 onChange={handleChange}
                                 required
-                                className="form-input"
+                                className="form-input1"
                             >
                                 <option value="">Выберите подстатью</option>
                                 {availableSubcategories.map((sub, index) => (
@@ -420,7 +421,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             value={formData.description}
                             onChange={handleChange}
                             placeholder="Введите описание"
-                            className="form-input"
+                            className="form-input1"
                         />
                     </div>
 
@@ -436,7 +437,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 value={formData.account}
                                 onChange={handleChange}
                                 required
-                                className="form-input"
+                                className="form-input1"
                             >
                                 <option value="">Выберите счет</option>
                                 {assets?.map((asset) => (
@@ -451,7 +452,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
 
                     <div className="form-row">
                                 <label className="form-label">Баланс до</label>
-                                <span className="form-input">
+                                <span className="form-input1">
                                     {formatNumberWithSpaces(transaction.balanceBefore)}
                                 </span>
                     </div>
@@ -467,7 +468,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 value={formData.operation}
                                 onChange={handleChange}
                                 required
-                                className="form-input"
+                                className="form-input1"
                                 disabled={showSecondAccountBlock}
                             >
                                 <option value="Зачисление">Зачисление</option>
@@ -477,7 +478,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
 
                     <div className="form-row">
                                 <label className="form-label">Баланс после</label>
-                                <span className="form-input">
+                                <span className="form-input1">
                                     {formatNumberWithSpaces(transaction.balanceAfter)}
                                 </span>
                             </div>
@@ -495,7 +496,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 placeholder="Введите сумму"
                                 required
                                 step="0.01"
-                                className="form-input"
+                                className="form-input1"
                             />
                         </div>
 
@@ -534,7 +535,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                     onChange={handleChange}
                                     placeholder="Введите комиссию"
                                     step="0.01"
-                                    className="form-input"
+                                    className="form-input1"
                                 />
                             </div>
                         )}
@@ -553,7 +554,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 name="counterparty"
                                 value={formData.counterparty}
                                 onChange={handleChange}
-                                className="form-input"
+                                className="form-input1"
                             >
                                 <option value="">Выберите контрагента</option>
                                 {counterparties.map((cp) => (
@@ -574,7 +575,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 name="counterpartyRequisites"
                                 value={formData.counterpartyRequisites}
                                 readOnly
-                                className="form-input readonly"
+                                className="form-input1 readonly"
                             />
                         </div>
 
@@ -587,7 +588,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 name="orderNumber"
                                 value={formData.orderNumber}
                                 onChange={handleChange}
-                                className="form-input"
+                                className="form-input1"
                             >
                                 <option value="">Выберите номер заказа</option>
                                 {orders.map(order => (
@@ -668,16 +669,15 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 className="form-checkbox"
                             />
                         </div>
-
-                    <div className="transaction-form-actions">
+                </form>
+                <div className="view-transaction-form-actions">
                         <button type="button" className="cancel-order-btn" onClick={handleCloseModal}>
                             Отменить
                         </button>
                         <button type="submit" className="save-order-btn">
                             Сохранить
                         </button>
-                    </div>
-                </form>
+                </div>
             </div>
             
             {showDeleteConfirmation && (

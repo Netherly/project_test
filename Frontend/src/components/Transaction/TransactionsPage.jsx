@@ -24,6 +24,17 @@ const TransactionsPage = () => {
         return parts.join('.');
     };
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0'); 
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month}.${year} ${hours}:${minutes}`;
+    };
+
     const defaultTransactions = [
         {
             id: "T001",
@@ -300,7 +311,7 @@ const TransactionsPage = () => {
                             className="add-transaction-button"
                             onClick={() => setIsAddModalOpen(true)}
                         >
-                            ➕ Добавить
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
                         </button>
                     </div>
                 </header>
@@ -317,8 +328,8 @@ const TransactionsPage = () => {
                                 <th>Валюта</th>
                                 <th>Баланс до</th>
                                 <th>Операция</th>
+                                <th>Сумма</th>
                                 <th>Баланс после</th> 
-                                <th>Сумма операции</th>
                                 <th>Контрагент</th>
                                 <th>Рекв.</th>
                             </tr>
@@ -330,13 +341,13 @@ const TransactionsPage = () => {
                                 className="transaction-row"
                                 onClick={() => handleTransactionClick(transaction)}
                             >
-                                <td>{transaction.date}</td>
+                                <td>{formatDate(transaction.date)}</td>
                                 <td>{transaction.category}</td>
                                 <td>{transaction.subcategory}</td>
                                 <td>{transaction.description}</td>
                                 <td>
-                                    <div className="account-info">
-                                        <span className="account-main-name">
+                                    <div className="transaction-account-info">
+                                        <span className="transaction-account-main-name">
                                             {transaction.account}
                                         </span>
                                     </div>
@@ -348,9 +359,6 @@ const TransactionsPage = () => {
                                 
                                 <td>{transaction.operation}</td>
 
-                                
-                                <td>{formatNumberWithSpaces(transaction.balanceAfter)}</td>
-
                                 <td
                                     className={
                                         transaction.operation === "Зачисление"
@@ -360,10 +368,13 @@ const TransactionsPage = () => {
                                 >
                                     {formatNumberWithSpaces(transaction.amount)}
                                 </td>
+
+                                <td>{formatNumberWithSpaces(transaction.balanceAfter)}</td>
+
+            
                                 <td>{transaction.counterparty}</td>
                                 <td>
                                     <div className="copy-button-container">
-                                        {transaction.counterpartyRequisites}
                                         <span
                                             className="copy-button-icon"
                                             onClick={(e) => {
@@ -372,6 +383,7 @@ const TransactionsPage = () => {
                                             }}
                                             title="Копировать реквизиты"
                                         ></span>
+                                        {transaction.counterpartyRequisites}
                                     </div>
                                 </td>
                             </tr>

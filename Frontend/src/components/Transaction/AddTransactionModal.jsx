@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
+import { Plus } from 'lucide-react';
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -24,7 +25,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         subcategory: "",
         description: "",
         account: "",
-        accountCurrency: "UAH",
+        accountCurrency: "",
         operation: "Зачисление",
         amount: "",
         commission: "",
@@ -58,7 +59,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
     const [destinationAccounts, setDestinationAccounts] = useState([{
         id: generateId("DEST_"),
         account: "",
-        accountCurrency: "UAH",
+        accountCurrency: "",
         amount: "",
         commission: "",
         operation: "Зачисление",
@@ -169,7 +170,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 setDestinationAccounts([{
                     id: generateId("DEST_"),
                     account: "",
-                    accountCurrency: "UAH",
+                    accountCurrency: "",
                     amount: "",
                     commission: "",
                 }]);
@@ -264,10 +265,10 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
 
 
     const addDestinationAccount = () => {
-        if (destinationAccounts.length < 3) {
+        if (destinationAccounts.length < 5) {
             setDestinationAccounts(prevAccounts => [
                 ...prevAccounts,
-                { id: generateId("DEST_"), account: "", accountCurrency: "UAH", amount: "", commission: "",  operation: "Зачисление" }
+                { id: generateId("DEST_"), account: "", accountCurrency: "", amount: "", commission: "",  operation: "Зачисление" }
             ]);
         }
         setHasUnsavedChanges(true);
@@ -285,8 +286,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         let newTransactions = [];
 
         if (formData.category === "Смена счета") {
-        // Рассчитываем общую сумму списания с основного (верхнего) счета.
-        // Она равна сумме всех сумм из нижних блоков + основная комиссия.
         const totalAmountFromDestinations = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount || 0), 0);
         const sourceCommission = parseFloat(formData.commission || 0);
         const totalSourceAmount = totalAmountFromDestinations + sourceCommission;
@@ -294,30 +293,30 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         const sourceAccountName = assets.find(a => a.id === formData.account)?.accountName || 'счета';
         const destinationAccountNames = destinationAccounts.map(acc => assets.find(a => a.id === acc.account)?.accountName).filter(Boolean).join(', ');
         
-        // 1. Создаем главную транзакцию "Списание"
+        
         const sourceTransaction = {
             ...formData,
             id: generateId("TRX_"),
             date: formData.date.replace("T", " "),
-            operation: "Списание", // Основная транзакция всегда "Списание"
+            operation: "Списание", 
             amount: totalSourceAmount,
-            commission: sourceCommission, // Указываем только основную комиссию
+            commission: sourceCommission, 
             description: `Перевод на: ${destinationAccountNames}`,
         };
         newTransactions.push(sourceTransaction);
         
-        // 2. Создаем транзакции для каждого счета назначения
+       
         destinationAccounts.forEach(destAcc => {
             const destinationTransaction = {
-                ...formData, // Берем основу
+                ...formData,
                 id: generateId("TRX_"),
                 date: formData.date.replace("T", " "),
                 account: destAcc.account,
                 accountCurrency: destAcc.accountCurrency,
-                // ----- ВАЖНО: Устанавливаем операцию из конкретного блока -----
+                
                 operation: destAcc.operation, 
                 amount: parseFloat(destAcc.amount || 0),
-                commission: parseFloat(destAcc.commission || 0), // и комиссию тоже из его блока
+                commission: parseFloat(destAcc.commission || 0),
                 description: `Перевод со счета: ${sourceAccountName}`,
             };
             newTransactions.push(destinationTransaction);
@@ -369,15 +368,15 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 <div className="add-transaction-header">
                     <h2>Добавить транзакцию</h2>
                     <div className="add-transaction-actions">
-                        <span className="icon" onClick={handleOverlayClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+                        <span className="icon" onClick={handleOverlayClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="add-transaction-form">
+                <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
                     
                     <div className="form-row">
                          <label htmlFor="date" className="form-label">
-                             Дата и время операции
+                             Дата и время
                          </label>
                          <input
                              type="datetime-local"
@@ -386,7 +385,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                              value={formData.date}
                              onChange={handleChange}
                              required
-                             className="form-input"
+                             className="form-input1"
                          />
                      </div>
 
@@ -399,7 +398,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             value={formData.category}
                             onChange={handleChange}
                             required
-                            className="form-input"
+                            className="form-input1"
                         >
                             <option value="" disabled>Выберите статью</option>
                             {financeFields?.articles?.map((article, index) => (
@@ -422,7 +421,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                 name="subcategory"
                                 value={formData.subcategory}
                                 onChange={handleChange}
-                                className="form-input"
+                                className="form-input1"
                             >
                                 <option value="">Выберите подстатью</option>
                                 {availableSubcategories.map((sub, index) => (
@@ -446,14 +445,15 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             value={formData.description}
                             onChange={handleChange}
                             placeholder="Введите описание"
-                            className="form-input"
+                            className="form-input1"
                         />
                     </div>
                     
                     
                     <div className="form-row">
                         <label htmlFor="account" className="form-label">
-                            {showDestinationAccountsBlock ? "Счет списания" : "Счет"} {formData.accountCurrency && `(${formData.accountCurrency})`}
+                            {showDestinationAccountsBlock ? "Счет списания" : "Счет"} 
+                            {formData.account && formData.accountCurrency && ` (${formData.accountCurrency})`}
                         </label>
                         <select
                             id="account"
@@ -461,7 +461,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             value={formData.account}
                             onChange={handleChange}
                             required
-                            className="form-input"
+                            className="form-input1"
                         >
                             <option value="">Выберите счет</option>
                             {assets?.map((acc) => (
@@ -478,8 +478,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             value={formData.operation}
                             onChange={handleChange}
                             required
-                            className="form-input"
-                            // Блокируем основную операцию, если это "Смена счета"
+                            className="form-input1"
                             disabled={showDestinationAccountsBlock} 
                         >
                             <option value="Зачисление">Зачисление</option>
@@ -488,7 +487,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                     </div>
                     
                     <div className="form-row">
-                        <label htmlFor="amount" className="form-label">Сумма операции</label>
+                        <label htmlFor="amount" className="form-label">Сумма</label>
                         <input
                             type="number"
                             id="amount"
@@ -497,7 +496,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             onChange={handleChange}
                             placeholder="Введите сумму"
                             required
-                            className="form-input" 
+                            className="form-input1" 
                             step="0.01"
                         />
                     </div>
@@ -513,7 +512,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             onChange={handleChange}
                             placeholder="Введите комиссию"
                             step="0.01"
-                            className="form-input"
+                            className="form-input1"
                         />
                     </div>
                     
@@ -542,23 +541,10 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                     <>
                         {destinationAccounts.map((destAcc, index) => (
                             <div className="duplicated-account-block" key={destAcc.id}>
-                                <div className="form-row">
-                                    <label htmlFor={`dest-operation-${destAcc.id}`} className="form-label">Операция</label>
-                                    <select
-                                        id={`dest-operation-${destAcc.id}`}
-                                        name="operation"
-                                        value={destAcc.operation}
-                                        onChange={(e) => handleDestinationAccountChange(e, destAcc.id)}
-                                        className="form-input"
-                                    >
-                                        <option value="Зачисление">Зачисление</option>
-                                        <option value="Списание">Списание</option>
-                                    </select>
-                                </div>
-                                
                                 <div className="form-row flex-row">
-                                    <label htmlFor={`dest-account-${destAcc.id}`} className="form-label">
-                                        Счет назначения {destAcc.accountCurrency && `(${destAcc.accountCurrency})`}
+                                    <label htmlFor={`dest-account-${destAcc?.id}`} className="form-label">
+                                        {index === destinationAccounts.length - 1 ? 'Счет зачисления' : 'Счет'}
+                                        {destAcc?.id && destAcc.accountCurrency ? ` (${destAcc.accountCurrency})` : ''}
                                     </label>
                                     <div className="input-with-actions">
                                         <select
@@ -567,20 +553,28 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                             value={destAcc.account}
                                             onChange={(e) => handleDestinationAccountChange(e, destAcc.id)}
                                             required
-                                            className="form-input"
+                                            className="form-input1"
                                         >
                                             <option value="">Выберите счет</option>
                                             {assets?.map((acc) => (
                                                 <option key={`dest-acc-${destAcc.id}-${acc.id}`} value={acc.id}>{acc.accountName}</option>
                                             ))}
                                         </select>
-                                        {index === destinationAccounts.length - 1 && destinationAccounts.length < 3 && (
-                                            <button type="button" onClick={addDestinationAccount} className="action-button add-button">+</button>
-                                        )}
-                                        {destinationAccounts.length > 1 && (
-                                            <button type="button" onClick={() => removeDestinationAccount(destAcc.id)} className="action-button remove-button">✖️</button>
-                                        )}
                                     </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <label htmlFor={`dest-operation-${destAcc.id}`} className="form-label">Операция</label>
+                                    <select
+                                        id={`dest-operation-${destAcc.id}`}
+                                        name="operation"
+                                        value={destAcc.operation}
+                                        onChange={(e) => handleDestinationAccountChange(e, destAcc.id)}
+                                        className="form-input1"
+                                    >
+                                        <option value="Зачисление">Зачисление</option>
+                                        <option value="Списание">Списание</option>
+                                    </select>
                                 </div>
 
                                 <div className="form-row">
@@ -594,7 +588,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                         placeholder="Введите сумму"
                                         required
                                         step="0.01"
-                                        className="form-input"
+                                        className="form-input1"
                                     />
                                 </div>
                                 <div className="form-row">
@@ -607,16 +601,40 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                         onChange={(e) => handleDestinationAccountChange(e, destAcc.id)}
                                         placeholder="Введите комиссию"
                                         step="0.01"
-                                        className="form-input"
+                                        className="form-input1"
                                     />
                                 </div>
-                                <div className="form-row-divider"></div>
+                                 <div className="destination-account-actions">
+                                    {index === destinationAccounts.length - 1 && destinationAccounts.length < 5 ? (
+                                        <button
+                                            type="button"
+                                            onClick={addDestinationAccount}
+                                            className="transaction-action-button add-button"
+                                        >
+                                            <Plus size={24} />
+                                            <span>Добавить</span>
+                                        </button>
+                                    ) : (
+                                        <div />
+                                    )}
+
+                                    {destinationAccounts.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeDestinationAccount(destAcc.id)}
+                                            className="transaction-action-button remove-button"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                            <span>Удалить</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </>
                 )}
 
-                    <div className="form-row">
+                    <div className="form-row counterparty-section-start">
                         <label htmlFor="counterparty" className="form-label">
                             Контрагент
                         </label>
@@ -625,7 +643,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             name="counterparty"
                             value={formData.counterparty}
                             onChange={handleChange}
-                            className="form-input"
+                            className="form-input1"
                         >
                             <option value="">Выберите контрагента</option>
                             {counterparties.map((cp) => (
@@ -646,7 +664,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             name="counterpartyRequisites"
                             value={formData.counterpartyRequisites}
                             readOnly
-                            className="form-input readonly"
+                            className="form-input1 readonly"
                         />
                     </div>
 
@@ -659,7 +677,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             name="orderNumber"
                             value={formData.orderNumber}
                             onChange={handleChange}
-                            className="form-input"
+                            className="form-input1"
                         >
                             <option value="">Выберите номер заказа</option>
                             {orders.map(order => (
@@ -727,11 +745,11 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                         />
                     </div>
 
-                    <div className="transaction-form-actions">
+                </form>
+                <div className="transaction-form-actions">
                         <button type="button" className="cancel-order-btn" onClick={handleOverlayClose}>Отмена</button>
                         <button type="submit" className="save-order-btn">Добавить</button>
                     </div>
-                </form>
             </div>
             
             {showConfirmationModal && (

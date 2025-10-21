@@ -6,6 +6,7 @@ import { fetchFields, saveFields } from "../api/fields";
 import { fileUrl } from "../api/http";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
+import {Copy, Plus} from 'lucide-react';
 
 /* =========================
    Константы и утилиты
@@ -61,9 +62,10 @@ const tabsConfig = [
   { key: "sundryFields", label: "Журнал"},
   { key: "taskFields", label: "Задачи"},
   { key: "clientFields", label: "Клиенты" },
+  { key: "companyFields", label: "Компании"},
   { key: "employeeFields", label: "Сотрудники" },
   { key: "assetsFields", label: "Активы" },
-  { key: "financeFields", label: "Финансы" },
+  { key: "financeFields", label: "Транзакции" },
 ];
 
 /* =========================
@@ -81,6 +83,7 @@ const initialValues = {
   },
   executorFields: { currency: [], role: [] },
   clientFields: { source: [], category: [], country: [], currency: [], tags: [] },
+  companyFields: { tags: [] },
   employeeFields: { country: [], tags: [] },
   assetsFields: { currency: [], type: [], paymentSystem: [], cardDesigns: [] },
   financeFields: {
@@ -348,7 +351,7 @@ const EditableList = ({ items = [], onChange, onRemove, placeholder, onCommit })
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={add}>
-        + Добавить
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   );
@@ -390,6 +393,13 @@ const TagList = ({ title, tags = [], onChange }) => {
 
   const del = (i) => onChange(tags.filter((_, idx) => idx !== i));
 
+  const copyColor = (color) => {
+    navigator.clipboard.writeText(color).then(() => {
+    }).catch(err => {
+      console.error('Не вдалося скопіювати колір: ', err);
+    });
+  };
+
   return (
     <div className="field-row">
       {title && <label className="field-label">{title}</label>}
@@ -408,7 +418,7 @@ const TagList = ({ title, tags = [], onChange }) => {
                   onBlur={() => blurName(i)}
                 />
               </div>
-              <div className="category-right" style={{ flex: "0 0 120px", display: "flex", gap: 8, alignItems: "center" }}>
+              <div className="category-right" style={{ flex: "0 0 170px", display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   type="color"
                   value={isHex(t.color) ? t.color : "#ffffff"}
@@ -417,6 +427,14 @@ const TagList = ({ title, tags = [], onChange }) => {
                   title="Цвет"
                   style={{ width: 40, height: 32, border: "none", background: "transparent", cursor: "pointer" }}
                 />
+                 <button
+                  type="button"
+                  title="Копировать цвет"
+                  onClick={() => copyColor(t.color)}
+                  style={{ background: 'transparent', color: 'white', border: 'none', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center' }}
+                >
+                  <Copy size={14} />
+                </button>
                 <input
                   className="text-input"
                   type="text"
@@ -433,7 +451,7 @@ const TagList = ({ title, tags = [], onChange }) => {
           </div>
         ))}
         <button type="button" className="add-category-btn" onClick={add}>
-          + Добавить тег
+          <Plus size={20} color='white'/> Добавить
         </button>
       </div>
     </div>
@@ -465,7 +483,7 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddInterval}>
-        + Добавить интервал
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -534,7 +552,7 @@ const CategoryFields = ({
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddCategory}>
-        + Добавить категорию
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -565,7 +583,7 @@ const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArt
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddArticle}>
-        + Добавить статью
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -643,7 +661,7 @@ const SubarticleFields = ({
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={onAddSubarticle}>
-        + Добавить подстатью
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   </div>
@@ -743,7 +761,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onRemove, onError }) => {
         </div>
       ))}
       <button type="button" className="add-category-btn" onClick={addEmpty}>
-        + Добавить дизайн карты
+        <Plus size={20} color='white'/> Добавить
       </button>
     </div>
   );
@@ -1237,6 +1255,19 @@ function FieldsPage() {
               tags={selectedValues.clientFields.tags || []}
               onChange={(v) => handleInputChange("clientFields", "tags", v)}
             />
+          </div>
+        );
+
+      case "companyFields":
+        return (
+          <div className="fields-vertical-grid">
+            <div className="field-row">
+              <TagList
+                title="Теги компании"
+                tags={selectedValues.companyFields.tags || []}
+                onChange={(v) => handleInputChange("companyFields", "tags", v)}
+              />
+            </div>
           </div>
         );
 

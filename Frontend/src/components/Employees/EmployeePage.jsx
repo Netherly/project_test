@@ -12,6 +12,7 @@ import {
   normalizeEmployee,
   serializeEmployee,
 } from "../../api/employees";
+import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 
 const formatDate = (dateString) => {
   if (!dateString) return "";
@@ -22,6 +23,16 @@ const formatDate = (dateString) => {
   const yyyy = d.getFullYear();
   return `${dd}.${mm}.${yyyy}`;
 };
+
+const formatNumberWithSpaces = (num) => {
+        if (num === null || num === undefined || isNaN(Number(num))) {
+            return '0.00';
+        }
+        const fixedNum = Number(num).toFixed(2);
+        const parts = fixedNum.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        return parts.join('.');
+    };
 
 const EmployeeCard = ({ employee, onClick }) => {
   const avatar = employee.avatarUrl || avatarPlaceholder;
@@ -50,7 +61,7 @@ const EmployeeCard = ({ employee, onClick }) => {
             )}
           </div>
           <div className="card-balance-container">
-            <span className="card-label">баланс:</span>
+            <span className="card-label">Баланс:</span>
             <span className="card-balance">{employee.balance || "N/A"}</span>
           </div>
         </div>
@@ -209,7 +220,10 @@ const EmployeePage = () => {
       <Sidebar />
       <div className="employees-page-main-container">
         <header className="employees-header-container">
-          <h1 className="employees-title">КОМАНДА</h1>
+          <h1 className="employees-title">
+            <PageHeaderIcon pageName={"Сотрудники"}/>
+            СОТРУДНИКИ
+            </h1>
 
           <div className="view-mode-buttons">
             <button
@@ -245,7 +259,7 @@ const EmployeePage = () => {
               <path d="M5 12h14" />
               <path d="M12 5v14" />
             </svg>
-            Добавить сотрудника
+            Добавить
           </button>
         </header>
 
@@ -262,10 +276,10 @@ const EmployeePage = () => {
                     <th>Теги</th>
                     <th>Логин</th>
                     <th>Источник</th>
-                    <th>Дата рождения</th>
+                    <th>ДР</th>
                     <th>Телефон</th>
-                    <th>Реквизиты</th>
-                    <th>Баланс ЗП</th>
+                    <th>Рекв.</th>
+                    <th>Баланс</th>
                     <th>Средства на руках</th>
                   </tr>
                 </thead>
@@ -304,9 +318,15 @@ const EmployeePage = () => {
                           <td>{employee.source}</td>
                           <td>{formatDate(employee.birthDate)}</td>
                           <td>{employee.phone}</td>
-                          <td>Копировать рек.</td>
-                          <td>{employee.balance}</td>
-                          <td>{employee.cashOnHand}</td>
+                          <td><span className="copy-button-icon"
+                                onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(transaction.counterpartyRequisites);
+                                }}
+                              title="Копировать реквизиты"></span>
+                          </td>
+                          <td>{formatNumberWithSpaces(employee.balance)}</td>
+                          <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
                         </tr>
                       ))}
                   </tbody>
