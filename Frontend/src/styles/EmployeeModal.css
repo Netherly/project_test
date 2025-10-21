@@ -54,7 +54,7 @@
   flex: 1 1 auto; 
   display: flex;
   flex-direction: column;
-  background-color: #252538; 
+  background-color: #19213A;
   border-right: 1px solid #444;
 }
 
@@ -75,7 +75,6 @@
   align-items: center;
   text-align: center;
   padding: 20px;
-  background-color: #2E3440;
   height: 100%;
 }
 .employee-modal-body {
@@ -110,18 +109,44 @@
   margin-bottom: 6px;
 }
 .form-field input,
-.form-field select,
-.form-field textarea {
-  background: #252538;
-  border-bottom: 1px solid var(--border-form-color);
-  padding: 10px 12px;
-  color: #e0e0e0;
-  font-size: 14px;
-  transition: border-color 0.2s;
+.form-field select{
   background-color: #19213A;
-  max-width: 200px;
-  width: 100%;
+    border: none;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    color: var(--container-text-color);
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+    width: 100%; 
+    max-width: 200px;
+    box-sizing: border-box;
 }
+
+.form-field input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+.form-field textarea{
+  box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    outline: none;
+    color: var(--container-text-color);
+    padding: 8px;
+    max-width: 200px;
+    width: 100%;
+    height: 38px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: border-color 0.2s ease;
+}
+
 .form-field input:focus,
 .form-field select:focus,
 .form-field textarea:focus {
@@ -144,28 +169,7 @@
   padding: 16px 24px;
   border-top: 1px solid var(--border-form-color); 
 }
-.form-actions-bottom button {
-  all: unset;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background-color 0.2s;
-}
-.form-actions-bottom button[type="submit"] {
-  background: #6a6aff;
-  color: white;
-}
-.form-actions-bottom button[type="submit"]:hover {
-  background: #5a5aff;
-}
-.form-actions-bottom button[type="button"] {
-  background: #444;
-  color: #e0e0e0;
-}
-.form-actions-bottom button[type="button"]:hover {
-  background: #555;
-}
+
 .form-actions-bottom button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

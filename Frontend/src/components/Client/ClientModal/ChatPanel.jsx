@@ -1,17 +1,43 @@
-// src/components/Client/ClientModal/ChatPanel.jsx
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import './ChatPanel.css';
 
-export default function ChatPanel({ initialLogs = [] }) {
-  const [logs, setLogs]               = useState(
-    initialLogs.map((log, idx) => ({ ...log, pinned: false, id: idx }))
-  );
-  const [note, setNote]               = useState('');
-  const [editingId, setEditingId]     = useState(null);
-  const [editText, setEditText]       = useState('');
+
+export default function ChatPanel({ initialLogs = [], storageKey }) {
+  
+  
+  const [logs, setLogs] = useState(() => {
+    let initialValue = initialLogs.map((log, idx) => ({ ...log, pinned: false, id: idx }));
+    if (storageKey) {
+      try {
+        const savedLogs = localStorage.getItem(storageKey);
+        if (savedLogs) {
+          initialValue = JSON.parse(savedLogs);
+        }
+      } catch (e) {
+        console.error("Ошибка загрузки логов из localStorage:", e);
+      }
+    }
+    return initialValue;
+  });
+
+  const [note, setNote] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const taRef                          = useRef(null);
+  const taRef = useRef(null);
+
+ 
+  useEffect(() => {
+    if (storageKey) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(logs));
+      } catch (e) {
+        console.error("Ошибка сохранения логов в localStorage:", e);
+      }
+    }
+  }, [logs, storageKey]);
+
 
   // pin/unpin
   const handlePin = id =>
@@ -28,7 +54,7 @@ export default function ChatPanel({ initialLogs = [] }) {
 
   // edit start/save/cancel
   const startEdit = l => { setEditingId(l.id); setEditText(l.message); };
-  const saveEdit  = id => {
+  const saveEdit = id => {
     setLogs(logs.map(l => l.id === id ? { ...l, message: editText } : l));
     setEditingId(null);
   };
@@ -36,7 +62,7 @@ export default function ChatPanel({ initialLogs = [] }) {
 
   // textarea auto-resize + limit
   const handleNoteChange = e => {
-    if (e.target.value.length <= 500) {
+    if (e.target.value.length <= 2000) {
       setNote(e.target.value);
       e.target.style.height = 'auto';
       e.target.style.height = e.target.scrollHeight + 'px';
@@ -168,7 +194,7 @@ export default function ChatPanel({ initialLogs = [] }) {
           rows={1}
         />
         <div className="chat-input-footer">
-          <span className="char-counter">{note.length}/500</span>
+          <span className="char-counter">{note.length}/2000</span>
           <button
             className="send-btn"
             onClick={handleSend}
@@ -199,7 +225,8 @@ export default function ChatPanel({ initialLogs = [] }) {
 ChatPanel.propTypes = {
   initialLogs: PropTypes.arrayOf(PropTypes.shape({
     timestamp: PropTypes.string.isRequired,
-    author:    PropTypes.string.isRequired,
-    message:   PropTypes.string.isRequired
-  }))
+    author: PropTypes.string.isRequired,
+    message: PropTypes.string.isRequired
+  })),
+  storageKey: PropTypes.string 
 };

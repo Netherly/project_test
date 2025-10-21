@@ -159,7 +159,7 @@ export default function EmployeeModal({
           </div>
         ) : (
           <div className="chat-panel-wrapper">
-            <ChatPanel employeeId={safeEmployee.id} />
+            <ChatPanel employeeId={safeEmployee.id} storageKey={`chat-employee-${safeEmployee.id}`} />
           </div>
         )}
 

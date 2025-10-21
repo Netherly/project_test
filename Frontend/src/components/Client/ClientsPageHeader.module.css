@@ -1,7 +1,8 @@
-/* ===== Шапка: выше таблицы ===== */
+
 .clientsHeaderContainer {
-  position: relative;
-  z-index: 10; /* ← выше sticky-таблицы */
+  position: sticky;
+  top: 0;
+  z-index: 10; 
   display: flex;
   align-items: center;
   height: 60px;
@@ -10,6 +11,7 @@
   border-bottom: 1px solid var(--border--color);
   padding: 0 14px;
   color: var(--text-color);
+  margin-bottom: 20px;
 }
 
 .journalTitle {
@@ -29,7 +31,7 @@
   opacity: 0.9;
 }
 
-/* Центр — поиск */
+
 .searchContainer {
   flex: 1;
   min-width: 260px;
@@ -38,7 +40,7 @@
 }
 
 .mainSearchBar {
-  position: relative; /* для внутренних абсолютных элементов при необходимости */
+  position: relative; 
   display: flex;
   align-items: center;
   gap: 10px;
@@ -70,7 +72,7 @@
   color: var(--chips-color);
 }
 
-/* Плашка «Итого» */
+
 .statPill {
   display: inline-flex;
   align-items: center;
@@ -92,7 +94,7 @@
   font-weight: 700;
 }
 
-/* Кнопка фильтра (если используешь иконку-Button) */
+
 .filterToggle {
   display: inline-flex;
   align-items: center;
@@ -125,7 +127,7 @@
   margin-left: 6px;
 }
 
-/* Переключатель ▼/▲ — как в журнале */
+
 .toggleAdvancedSearch {
   margin-left: 6px;
   cursor: pointer;
@@ -135,25 +137,26 @@
   line-height: 1;
 }
 
-/* Правая кнопка */
 .addEntryButton {
-  background: var(--container-hover-bg);
-  color: var(--container-hover-text-color);
-  padding: 10px 16px;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background .2s, color .2s;
+   background-color: var(--container-bg);
+    color: var(--text-color);
+    border: none;
+    font-size: var(--font-size-table-header);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-left: auto;
+    padding: 0 15px 0 15px;
+    border-left: 1px solid var(--border--color);
+    height: 100%;
 }
 
-.addEntryButton:hover {
-  background: var(--button-bg);
-  color: var(--button-text);
-}
 
-/* ===== Панель фильтров (снизу, поверх таблицы) ===== */
+
+
 .filtersPanel {
   margin-top: 10px;
   background: color-mix(in srgb, var(--input-bg) 92%, #000 8%);
@@ -161,7 +164,7 @@
   border-radius: 12px;
   padding: 14px;
   position: relative;
-  z-index: 1200; /* ← поверх любого контента под ней */
+  z-index: 1200; 
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
 }
 
@@ -196,7 +199,7 @@
 .advancedSearchFields select,
 .advancedSearchFields input[type="date"],
 .advancedSearchFields input[type="text"] {
-  padding: 10px 44px 10px 12px; /* место под крестик + стрелку */
+  padding: 10px 44px 10px 12px;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 10px;
@@ -209,7 +212,7 @@
   color: var(--chips-color);
 }
 
-/* Крестик-очистка — до стрелки, по центру */
+
 .fieldClear {
   position: absolute;
   top: 50%;
@@ -248,7 +251,7 @@
   right: 10px;
 }
 
-/* Кнопки применить/сбросить */
+
 .searchButtons {
   display: flex;
   justify-content: flex-end;
@@ -286,7 +289,7 @@
   color: #000;
 }
 
-/* ===== Теги ===== */
+
 .tagsSelect {
   position: relative;
 }
@@ -391,9 +394,9 @@
   right: 10px;
 }
 
-/* Выпадашка тегов */
+
 .tagsDropdown {
-  position: absolute; /* not-portal */
+  position: absolute; 
   top: calc(100% + 6px);
   left: 0;
   right: 0;
@@ -407,7 +410,7 @@
 }
 
 .tagsDropdownPortal {
-  position: static; /* внутри host (fixed) */
+  position: static; 
 }
 
 .tagsSticky {
@@ -458,7 +461,6 @@
   grid-template-columns: 1fr;
   gap: 6px;
 
-  /* скроллбар */
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--chips-color) 35%, transparent) transparent;
 }
@@ -486,7 +488,7 @@
   padding: 16px;
 }
 
-/* Адаптив */
+
 @media (max-width: 900px) {
   .clientsHeaderContainer {
     flex-wrap: wrap;

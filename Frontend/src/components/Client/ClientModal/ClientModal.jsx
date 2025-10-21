@@ -138,10 +138,8 @@ export default function ClientModal({
               {activeTab === 'finances' && <FinancesTab currencies={currencies} referrers={referrers} employees={employees} />}
               {activeTab === 'accesses' && <AccessesTab />}
               <div className="form-actions-bottom">
-                <button type="button" onClick={() => reset()} disabled={!isDirty}>
-                  Сбросить
-                </button>
-                <button type="submit">Сохранить</button>
+                <button className="cancel-order-btn" type="button" onClick={()=>reset()} disabled={!isDirty}>Сбросить</button>
+                <button className="save-order-btn" type="submit">Сохранить</button>
               </div>
             </form>
           </FormProvider>
@@ -160,11 +158,11 @@ export default function ClientModal({
 
         {/* ─── правая панель действий ─── */}
         {isNew ? (
-          <div className="actions-panel actions-placeholder">
+          <div className="menu-placeholder">
             <p>Сохраните клиента, чтобы добавить заказ или дублировать.</p>
           </div>
         ) : (
-          <div className="actions-panel">
+          <div className="right-side-menu">
             <ActionsBar onAddOrder={onAddOrder} onDuplicate={onDuplicate} />
           </div>
         )}

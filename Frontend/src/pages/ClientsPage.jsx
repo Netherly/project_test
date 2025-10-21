@@ -310,6 +310,17 @@ export default function ClientsPage({
 
   const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
 
+   const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0'); 
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month}.${year}`;
+    };
+
   return (
     <div className="clients-layout">
       <Sidebar />
@@ -334,6 +345,7 @@ export default function ClientsPage({
             setDateTo(dateTo);
           }}
         />
+    
 
         <div ref={wrapRef} className="clients-table-wrapper">
           {loading ? (
@@ -345,7 +357,6 @@ export default function ClientsPage({
                   {headers.map((h, i) => (
                     <th
                       key={h}
-                      style={{ position: "relative", width: colWidths[i] }}
                     >
                       {h}
                       <span
@@ -383,52 +394,51 @@ export default function ClientsPage({
                         .filter((c) => String(c.group) === gid)
                         .map((c) => (
                           <tr key={c.id} onClick={() => openEdit(c)}>
-                            <td style={{ width: colWidths[0] }}>
+                            <td>
                               <Ellipsis value={c.name} />
                             </td>
-                            <td style={{ width: colWidths[1] }}>
+                            <td>
                               <TagsCell tags={c.tags} />
                             </td>
-                            <td style={{ width: colWidths[2] }}>
+                            <td>
                               <Ellipsis value={c.intro_description} />
                             </td>
-                            <td style={{ width: colWidths[3] }}>
+                            <td>
                               <Ellipsis value={c.source} />
                             </td>
-                            <td style={{ width: colWidths[4] }}>
+                            <td>
                               <Ellipsis value={c.full_name} />
                             </td>
-                            <td style={{ width: colWidths[5] }}>
+                            <td>
                               <Ellipsis value={c.country} />
                             </td>
-                            <td style={{ width: colWidths[6] }}>
+                            <td>
                               <Ellipsis value={c.currency} />
                             </td>
-                            <td style={{ width: colWidths[7] }} className="num">
+                            <td className="num">
                               {c.hourly_rate ?? "—"}
                             </td>
-                            <td style={{ width: colWidths[8] }} className="num">
+                            <td className="num">
                               {c.percent ?? "—"}
                             </td>
                             <td
                               className="ref-cell"
-                              style={{ width: colWidths[9] }}
+                            
                               onClick={(e) => openRef(c.referrer_id, e)}
                             >
                               <Ellipsis value={c.referrer_name} />
                             </td>
                             <td
                               className="ref-cell"
-                              style={{ width: colWidths[10] }}
                               onClick={(e) => openRef(c.referrer_first_id, e)}
                             >
                               <Ellipsis value={c.referrer_first_name} />
                             </td>
-                            <td style={{ width: colWidths[11] }}>
+                            <td>
                               <StatusPill value={c.status} />
                             </td>
-                            <td style={{ width: colWidths[12] }}>
-                              <Ellipsis value={c.last_order_date || "—"} />
+                            <td>
+                              <Ellipsis value={formatDate(c.last_order_date || "")} />
                             </td>
                           </tr>
                         ))}

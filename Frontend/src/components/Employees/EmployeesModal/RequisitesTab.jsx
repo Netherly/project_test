@@ -23,7 +23,7 @@ export default function RequisitesTab() {
 
     return (
         <div className="tab-section">
-            <div className="requisites-table">
+            <div className="employee-requisites-table">
                 
                 <div className="requisites-row header-row">
                     <div className="requisites-cell">Валюта</div>
@@ -107,11 +107,11 @@ export default function RequisitesTab() {
                         <div className="requisites-cell action-cell">
                             <button
                                 type="button"
-                                className="remove-btn"
+                                className="requisites-remove-btn"
                                 onClick={() => remove(index)}
                                 title="Удалить реквизит"
                             >
-                                <X size={18}/>
+                                <X size={18} color='red'/>
                             </button>
                         </div>
                     </div>
@@ -120,7 +120,7 @@ export default function RequisitesTab() {
 
             <button 
                 type="button" 
-                className="add-btn" 
+                className="add-requisites-btn" 
                 onClick={() => append({ currency: 'UAH', bank: '', card: '', owner: '' })}>
                 <Plus size={16} /> Добавить
             </button>

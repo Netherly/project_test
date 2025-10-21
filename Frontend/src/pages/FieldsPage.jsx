@@ -1395,7 +1395,7 @@ function FieldsPage() {
             <div className="header-left">
               <h1 className="header-title">
                 <PageHeaderIcon pageName="Настройки полей" />
-                СПИСКИ
+                ПОЛЯ
                 </h1>
             </div>
             <div className="header-actions">

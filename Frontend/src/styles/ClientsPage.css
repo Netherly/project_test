@@ -13,11 +13,8 @@
 
 /* ====== Обёртка таблицы ====== */
 .clients-table-wrapper{
-  flex: 1;
-  overflow: auto;
   background: var(--container-bg);
-  border-radius: 8px;
-  margin-top: 20px;
+
 }
 
 /* ====== Таблица ====== */
@@ -26,30 +23,15 @@
   border-collapse: collapse;
   font-size: 14px;
   text-align: left;
+  table-layout: fixed;
 }
 
-<<<<<<< Updated upstream
-/* Заголовок */
-.clients-table thead th{
-  position: sticky; top: 0; z-index: 2;
-  background: #141c28;                      /* тёмная шапка */
-  font-weight: 600;
-  padding: 12px 12px;
-  border-bottom: 1px solid #233044;
-  border-right: 1px solid #1f2a3a;
-  white-space: normal; word-break: break-word; line-height: 1.2;
-}
-.clients-table thead th:first-child { border-left: 1px solid #1f2a3a; border-top-left-radius: 10px; }
-.clients-table thead th:last-child  { border-top-right-radius: 10px; }
 
-/* Ячейки */
-=======
+
 /* ячейки */
 .clients-table th,
->>>>>>> Stashed changes
 .clients-table td{
-  padding: 12px 15px;
-  white-space: nowrap;
+  padding: 5px 5px;
   border-bottom: 1px solid var(--border--color);
   border-right: 1px solid var(--border--color);
 }
@@ -64,11 +46,13 @@
   color: var(--text-color);
 }
 .clients-table th{
-  font-weight: 600;
   position: sticky;
-  top: 0;
+    top: 60px;
+    z-index: 5;
+  font-weight: 600;
   background-color: var(--container-bg);
-  z-index: 1;
+  text-align: center;
+
 }
 
 /* ховер строк */
@@ -81,7 +65,7 @@
 
 /* ====== Группы ====== */
 .group-row{
-  background-color: #2a2a3e;
+  background-color: var(--bg-color);
   cursor: pointer;
   user-select: none;
 }
@@ -90,11 +74,8 @@
   color: #a0a0b0;
   padding: 12px 16px;
   font-size: 14px;
-  border-bottom: 2px solid #33334a;
 }
-.group-row:hover td{
-  background-color: #3a3a4e;
-}
+
 
 /* счётчик групп */
 .group-count{
@@ -116,12 +97,66 @@
   vertical-align: top;
 }
 
-/* числовые колонки: 9 (в час), 10 (доля %) — вправо */
+
+.clients-table thead th:nth-child(1),
+.clients-table td:nth-child(1){
+  width: 180px;
+}
+
+.clients-table thead th:nth-child(2),
+.clients-table td:nth-child(2){
+  width: 220px;
+}
+
+.clients-table thead th:nth-child(3),
+.clients-table td:nth-child(3){
+  width: 180px;
+}
+
+.clients-table thead th:nth-child(5),
+.clients-table td:nth-child(5){
+  width: 160px;
+}
+
+.clients-table thead th:nth-child(6),
+.clients-table td:nth-child(6){
+  width: 80px;
+}
+
+.clients-table thead th:nth-child(7),
+.clients-table td:nth-child(7){
+  width: 50px;
+}
+
+.clients-table thead th:nth-child(8),
+.clients-table td:nth-child(8){
+  width: 100px;
+}
+
+.clients-table td:nth-child(8){
+  text-align: right;
+}
+
 .clients-table thead th:nth-child(9),
-.clients-table td:nth-child(9),
+.clients-table td:nth-child(9){
+  text-align: right;
+  width: 50px;
+}
 .clients-table thead th:nth-child(10),
 .clients-table td:nth-child(10){
+  width: 160px;
+}
+.clients-table td:nth-child(10){
   text-align: right;
+}
+.clients-table thead th:nth-child(11),
+.clients-table td:nth-child(11){
+  width: 160px;
+}
+
+.clients-table thead th:nth-child(12),
+.clients-table td:nth-child(12){
+  width: 120px;
 }
 
 /* клик по рефереру — подчёркивание на ховере */
