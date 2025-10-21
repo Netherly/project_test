@@ -457,30 +457,22 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onChange={handleChange}
                                     className="form-input"
                                 >
-                                    {fields?.currency?.map((item, index) => (
-                                        <option key={index} value={item}>{item}</option>
-                                    ))}
+                                    {fields?.currency?.map((item, index) => {
+                                        const value = typeof item === 'object' ? item.code || item.name : item;
+                                        const display = typeof item === 'object' ? item.name : item;
+                                        return <option key={index} value={value}>{display}</option>;
+                                    })}
                                 </select>
-                            </div>
-
-                            <div className="form-row">
-                                <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
-                                <input
-                                    type="number"
-                                    id="limitTurnover"
-                                    name="limitTurnover"
-                                    value={editableAsset.limitTurnover}
-                                    onChange={handleChange}
-                                    className="form-input"
-                                />
                             </div>
 
                             <div className="form-row">
                                 <label htmlFor="type" className="form-label">Тип</label>
                                 <select name="type" value={editableAsset.type} onChange={handleChange} className="form-input">
-                                    {fields?.type?.map((item, index) => (
-                                        <option key={index} value={item}>{item}</option>
-                                    ))}
+                                    {fields?.type?.map((item, index) => {
+                                        const value = typeof item === 'object' ? item.code || item.name : item;
+                                        const display = typeof item === 'object' ? item.name : item;
+                                        return <option key={index} value={value}>{display}</option>;
+                                    })}
                                 </select>
                             </div>
                             
@@ -488,9 +480,11 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
                                 <select name="paymentSystem" value={editableAsset.paymentSystem || ''} onChange={handleChange} className="form-input">
                                     <option value="">Не выбрано</option>
-                                    {fields?.paymentSystem?.map((item, index) => (
-                                        <option key={index} value={item}>{item}</option>
-                                    ))}
+                                    {fields?.paymentSystem?.map((item, index) => {
+                                        const value = typeof item === 'object' ? item.code || item.name : item;
+                                        const display = typeof item === 'object' ? item.name : item;
+                                        return <option key={index} value={value}>{display}</option>;
+                                    })}
                                 </select>
                             </div>
 
@@ -499,7 +493,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 <select name="design" value={editableAsset.design} onChange={handleChange} className="form-input">
                                     <option value="">Не выбрано</option>
                                     {fields?.cardDesigns?.map((design, index) => (
-                                        <option key={index} value={designNameMap[design.name]}>
+                                        <option key={index} value={design.id}>
                                             {design.name}
                                         </option>
                                     ))}

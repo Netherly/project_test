@@ -5,6 +5,8 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
+import { FieldsAPI } from '../../api/fields';
+import { fetchAssets, createAsset as apiCreateAsset, updateAsset as apiUpdateAsset, deleteAsset as apiDeleteAsset } from '../../api/assets';
 
 
 const getPureDateTimestamp = (date) => {
@@ -176,10 +178,7 @@ const AssetsPage = () => {
         }
     ];
 
-    const [assets, setAssets] = useState(() => {
-        const savedAssets = localStorage.getItem('assetsData');
-        return savedAssets ? JSON.parse(savedAssets) : defaultAssets;
-    });
+    const [assets, setAssets] = useState([]);
 
     const [transactions, setTransactions] = useState([]);
     const [currencyRates, setCurrencyRates] = useState({});
@@ -208,18 +207,26 @@ const AssetsPage = () => {
 
 
     useEffect(() => {
-        const savedFields = localStorage.getItem('fieldsData');
-        if (savedFields) {
+        const loadFields = async () => {
             try {
-                const parsedFields = JSON.parse(savedFields);
-                
-                if (parsedFields.assetsFields) {
-                    setFields(parsedFields.assetsFields);
+                const assetsFields = await FieldsAPI.getAssets();
+                setFields(assetsFields);
+            } catch (err) {
+                console.error("Failed to load assets fields", err);
+                const savedFields = localStorage.getItem('fieldsData');
+                if (savedFields) {
+                    try {
+                        const parsedFields = JSON.parse(savedFields);
+                        if (parsedFields.assetsFields) {
+                            setFields(parsedFields.assetsFields);
+                        }
+                    } catch (e) {
+                        console.error("Ошибка парсинга полей из localStorage:", e);
+                    }
                 }
-            } catch (e) {
-                console.error("Ошибка парсинга полей из localStorage:", e);
             }
-        }
+        };
+        loadFields();
     }, []);
     useEffect(() => {
         const savedTransactions = localStorage.getItem('transactionsData');
@@ -248,7 +255,7 @@ const AssetsPage = () => {
                         UAH_TO_USDT: latestRates.UAH_USDT,
                         USD_TO_UAH: latestRates.USD_UAH,
                         USD_TO_RUB: latestRates.USD_RUB,
-                        USD_TO_USDT: latestRates.USD_USDT,
+                        USD_TO_USDT: latestRates.USD_USD,
                         USDT_TO_UAH: latestRates.USDT_UAH,
                         USDT_TO_USD: latestRates.USDT_USD,
                         USDT_TO_RUB: latestRates.USDT_RUB,
@@ -317,38 +324,91 @@ const AssetsPage = () => {
         localStorage.setItem('assetsData', JSON.stringify(assets));
     }, [assets]);
 
-    const handleAddAsset = (newAsset) => {
-        const assetWithDefaults = {
-            ...newAsset,
-            id: newAsset.accountName,
-            design: newAsset.design || 'default-design',
-            paymentSystem: newAsset.paymentSystem || null
-        };
-        setAssets(prevAssets => [...prevAssets, assetWithDefaults]);
-        setShowAddForm(false);
+    const loadAssets = async () => {
+        try {
+            const fetchedAssets = await fetchAssets();
+            console.log('Loaded assets from API:', fetchedAssets);
+            setAssets(fetchedAssets);
+        } catch (err) {
+            console.error("Failed to load assets", err);
+            // Fallback to localStorage
+            const savedAssets = localStorage.getItem('assetsData');
+            if (savedAssets) {
+                try {
+                    const parsedAssets = JSON.parse(savedAssets);
+                    setAssets(parsedAssets);
+                } catch (e) {
+                    console.error("Ошибка парсинга assets из localStorage:", e);
+                    setAssets(defaultAssets);
+                }
+            } else {
+                setAssets(defaultAssets);
+            }
+        }
     };
 
-    const handleDeleteAsset = (idToDelete) => {
-        setAssets(prevAssets => prevAssets.filter(asset => asset.id !== idToDelete));
+    useEffect(() => {
+        loadAssets();
+    }, []);
+
+    const handleAddAsset = async (newAsset) => {
+        try {
+            const createdAsset = await apiCreateAsset(newAsset);
+            console.log('Asset created:', createdAsset);
+            await loadAssets(); // Reload from API to include the new asset
+            setShowAddForm(false);
+        } catch (err) {
+            console.error("Failed to create asset", err);
+            // Fallback: add locally
+            const assetWithDefaults = {
+                ...newAsset,
+                id: newAsset.accountName,
+                design: newAsset.design || 'default-design',
+                paymentSystem: newAsset.paymentSystem || null
+            };
+            setAssets(prevAssets => [...prevAssets, assetWithDefaults]);
+            setShowAddForm(false);
+        }
     };
 
-    const handleDuplicateAsset = (assetToDuplicate) => {
-        const newId = `${assetToDuplicate.accountName} (Копия ${Date.now()})`;
-        const duplicatedAsset = {
-            ...assetToDuplicate,
-            id: newId,
-            accountName: `${assetToDuplicate.accountName} (Копия)`,
-            balance: 0,
-            balanceUAH: 0,
-            balanceUSD: 0,
-            balanceRUB: 0,
-            turnoverStartBalance: 0,
-            turnoverIncoming: 0.00,
-            turnoverOutgoing: 0.00,
-            turnoverEndBalance: 0.00,
-            requisites: assetToDuplicate.requisites.map(req => ({ ...req }))
-        };
-        setAssets(prevAssets => [...prevAssets, duplicatedAsset]);
+    const handleDeleteAsset = async (idToDelete) => {
+        try {
+            await apiDeleteAsset(idToDelete);
+            console.log('Asset deleted:', idToDelete);
+            await loadAssets(); // Reload from API
+        } catch (err) {
+            console.error("Failed to delete asset", err);
+            // Fallback: delete locally
+            setAssets(prevAssets => prevAssets.filter(asset => asset.id !== idToDelete));
+        }
+    };
+
+    const handleDuplicateAsset = async (assetToDuplicate) => {
+        try {
+            console.log('Duplicating asset:', assetToDuplicate.id);
+            const duplicatedAsset = await duplicateAsset(assetToDuplicate.id);
+            console.log('Duplicated asset from API:', duplicatedAsset);
+            await loadAssets(); // Reload from API
+        } catch (err) {
+            console.error("Failed to duplicate asset", err);
+            // Fallback: duplicate locally
+            const newId = `${assetToDuplicate.accountName} (Копия ${Date.now()})`;
+            const duplicatedAsset = {
+                ...assetToDuplicate,
+                id: newId,
+                accountName: `${assetToDuplicate.accountName} (Копия)`,
+                balance: 0,
+                balanceUAH: 0,
+                balanceUSD: 0,
+                balanceRUB: 0,
+                turnoverStartBalance: 0,
+                turnoverIncoming: 0.00,
+                turnoverOutgoing: 0.00,
+                turnoverEndBalance: 0.00,
+                requisites: assetToDuplicate.requisites.map(req => ({ ...req }))
+            };
+            setAssets(prevAssets => [...prevAssets, duplicatedAsset]);
+        }
     };
 
     const handleCopyRequisites = (e, requisites) => {
@@ -384,13 +444,22 @@ const AssetsPage = () => {
         setSelectedAsset(null);
     };
 
-    const handleSaveAsset = (updatedAsset) => {
-        setAssets(prevAssets => 
-            prevAssets.map(asset => 
-                asset.id === updatedAsset.id ? updatedAsset : asset
-            )
-        );
-        handleCloseDetailsModal(); 
+    const handleSaveAsset = async (updatedAsset) => {
+        try {
+            const savedAsset = await apiUpdateAsset(updatedAsset.id, updatedAsset);
+            console.log('Asset updated:', savedAsset);
+            await loadAssets(); // Reload from API
+            handleCloseDetailsModal(); 
+        } catch (err) {
+            console.error("Failed to update asset", err);
+            // Fallback: update locally
+            setAssets(prevAssets => 
+                prevAssets.map(asset => 
+                    asset.id === updatedAsset.id ? updatedAsset : asset
+                )
+            );
+            handleCloseDetailsModal();
+        }
     };
 
     const assetsByCurrency = assets.reduce((acc, asset) => {
@@ -522,7 +591,7 @@ const AssetsPage = () => {
                                                             )}
                                                         </div>
                                                     </td>
-                                                    <td>{asset.currency}</td>
+                                                    <td>{typeof asset.currency === 'object' ? asset.currency.name : asset.currency}</td>
                                                     <td>{formatNumberWithSpaces(asset.balance)}</td>
                                                     <td className={
                                                         Number(asset.balance.toFixed(2)) === Number(asset.turnoverEndBalance.toFixed(2)) 
