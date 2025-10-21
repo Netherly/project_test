@@ -5,7 +5,8 @@ import TagSelector from "../TagSelector";
 import TextareaWithCounter from "../TextareaWithCounter";
 import "./InfoTab.css";
 
-// проверьте путь при другой структуре
+import { Plus } from "lucide-react";
+
 import { FieldsAPI } from "../../../api/fields";
 
 export default function InfoTab({
@@ -26,10 +27,8 @@ export default function InfoTab({
   const [savingCat, setSavingCat] = useState(false);
   const [savingSrc, setSavingSrc] = useState(false);
 
-  /* ===== helpers ===== */
-  const normalizeStr = (s) => String(s ?? "").trim();
 
-  // Принимаем и строки, и объекты {id,name}/{value,label}
+  const normalizeStr = (s) => String(s ?? "").trim();
   const extractNames = (arr) => {
     if (!Array.isArray(arr)) return [];
     return arr
@@ -40,25 +39,20 @@ export default function InfoTab({
       )
       .filter(Boolean);
   };
-
   const unique = (arr) =>
     Array.from(
       new Map(arr.map((v) => [v.toLowerCase(), v])).values()
     );
 
-  /* ===== загрузка справочников из /fields ===== */
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const clientFields = await FieldsAPI.getClient(); // { source, category, ... }
-
+        const clientFields = await FieldsAPI.getClient();
         const apiCats = extractNames(clientFields?.category);
         const apiSrcs = extractNames(clientFields?.source);
-
         const initCats = extractNames(categoriesInit);
         const initSrcs = extractNames(sourcesInit);
-
         if (!mounted) return;
         setCategories(apiCats.length ? apiCats : initCats);
         setSources(apiSrcs.length ? apiSrcs : initSrcs);
@@ -75,7 +69,7 @@ export default function InfoTab({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
+  
   const addOption = async (kind) => {
     const label = kind === "category" ? "Категория" : "Источник";
     const raw = prompt(`Новое значение для "${label}"`);
@@ -87,7 +81,7 @@ export default function InfoTab({
       const next = unique([...categories, v]);
       setSavingCat(true);
       try {
-        await FieldsAPI.setClientCategories(next); // сохраняем строки
+        await FieldsAPI.setClientCategories(next);
         setCategories(next);
       } catch (e) {
         console.error("setClientCategories failed:", e);
@@ -109,122 +103,111 @@ export default function InfoTab({
     }
   };
 
+
   return (
     <div className="tab-section info-tab">
-      {/* Теги */}
-      <Controller
-        name="tags"
-        control={control}
-        render={({ field }) => (
-          <TagSelector
-            tags={Array.isArray(field.value) ? field.value : []}
-            onChange={field.onChange}
-          />
-        )}
-      />
 
-      {/* Клиент */}
       <Controller
         name="name"
         control={control}
         render={({ field }) => (
+       
           <div className="form-field">
-            <label>
-              Клиент<span className="req">*</span>
-            </label>
+           
+            <label>Клиент<span className="req">*</span></label>
+         
             <input
               {...field}
               placeholder="Клиент"
               className={errors.name ? "input-error" : ""}
             />
-            {errors.name && <p className="error">{errors.name.message}</p>}
+           
+            
+            
+            {errors.name && <p className="error grid-error">{errors.name.message}</p>}
           </div>
         )}
       />
 
-      {/* Категория (строки) */}
+     
       <Controller
         name="category"
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>
-              Категория<span className="req">*</span>
-            </label>
-            <div className="select-plus">
-              <select
-                {...field}
-                disabled={loadingLists}
-                className={errors.category ? "input-error" : ""}
-              >
-                <option value="">{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
-                {categories.map((c, i) => (
-                  <option key={`${c}-${i}`} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => addOption("category")}
-                disabled={savingCat || loadingLists}
-                title="Добавить новую категорию"
-              >
-                {savingCat ? "…" : "+"}
-              </button>
-            </div>
+            
+            <label>Категория<span className="req">*</span></label>
+            
+            <select
+              {...field}
+              disabled={loadingLists}
+              className={errors.category ? "input-error" : ""}
+            >
+              <option value="">{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
+              {categories.map((c, i) => (
+                <option key={`${c}-${i}`} value={c}>{c}</option>
+              ))}
+            </select>
+            
+            <button
+              type="button"
+              className="add-inline-btn"
+              onClick={() => addOption("category")}
+              disabled={savingCat || loadingLists}
+              title="Добавить новую категорию"
+            >
+              <Plus size={16} />
+              {savingCat ? "…" : "Добавить"}
+            </button>
             {errors.category && (
-              <p className="error">{errors.category.message}</p>
+              <p className="error grid-error">{errors.category.message}</p>
             )}
           </div>
         )}
       />
 
-      {/* Источник (строки) */}
+    
       <Controller
         name="source"
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>
-              Источник<span className="req">*</span>
-            </label>
-            <div className="select-plus">
-              <select
-                {...field}
-                disabled={loadingLists}
-                className={errors.source ? "input-error" : ""}
-              >
-                <option value="">{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
-                {sources.map((s, i) => (
-                  <option key={`${s}-${i}`} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => addOption("source")}
-                disabled={savingSrc || loadingLists}
-                title="Добавить новый источник"
-              >
-                {savingSrc ? "…" : "+"}
-              </button>
-            </div>
-            {errors.source && <p className="error">{errors.source.message}</p>}
+            
+            <label>Источник<span className="req">*</span></label>
+           
+            <select
+              {...field}
+              disabled={loadingLists}
+              className={errors.source ? "input-error" : ""}
+            >
+              <option value="">{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
+              {sources.map((s, i) => (
+                <option key={`${s}-${i}`} value={s}>{s}</option>
+              ))}
+            </select>
+           
+            <button
+              type="button"
+              className="add-inline-btn"
+              onClick={() => addOption("source")}
+              disabled={savingSrc || loadingLists}
+              title="Добавить новый источник"
+            >
+              <Plus size={16} />
+              {savingSrc ? "…" : "Добавить"}
+            </button>
+            {errors.source && <p className="error grid-error">{errors.source.message}</p>}
           </div>
         )}
       />
 
-      {/* Вводное описание */}
+      
       <Controller
         name="intro_description"
         control={control}
         render={({ field }) => (
-          <div className="form-field full-width">
-            <label>
-              Вводное описание<span className="req">*</span>
-            </label>
+          <div className="form-field full-width"> 
+            <label>Вводное описание<span className="req">*</span></label>
             <TextareaWithCounter
               value={field.value || ""}
               onChange={field.onChange}
@@ -234,21 +217,19 @@ export default function InfoTab({
               warningThreshold={0.8}
             />
             {errors.intro_description && (
-              <p className="error">{errors.intro_description.message}</p>
+              <p className="error grid-error">{errors.intro_description.message}</p>
             )}
           </div>
         )}
       />
 
-      {/* Примечание */}
+      
       <Controller
         name="note"
         control={control}
         render={({ field }) => (
-          <div className="form-field full-width">
-            <label>
-              Примечание<span className="req">*</span>
-            </label>
+          <div className="form-field full-width"> 
+            <label>Примечание<span className="req">*</span></label>
             <TextareaWithCounter
               value={field.value || ""}
               onChange={field.onChange}
@@ -257,7 +238,7 @@ export default function InfoTab({
               className={errors.note ? "input-error" : ""}
               warningThreshold={0.8}
             />
-            {errors.note && <p className="error">{errors.note.message}</p>}
+            {errors.note && <p className="error grid-error">{errors.note.message}</p>}
           </div>
         )}
       />
@@ -268,40 +249,47 @@ export default function InfoTab({
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>
-              Компания<span className="req">*</span>
-            </label>
-            <div className="select-plus">
-              <select
-                {...field}
-                className={errors.company_id ? "input-error" : ""}
-              >
-                <option value="">-- выбрать --</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <button type="button" onClick={onAddCompany} title="Добавить компанию">
-                +
-              </button>
-            </div>
+       
+            <label>Компания<span className="req">*</span></label>
+      
+            <select
+              {...field}
+              className={errors.company_id ? "input-error" : ""}
+            >
+              <option value="">-- выбрать --</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+       
+           <button
+              type="button"
+              className="add-inline-btn"
+              onClick={() => addOption("source")}
+              disabled={savingSrc || loadingLists}
+              title="Добавить новый источник"
+            >
+              <Plus size={16} />
+              {savingSrc ? "…" : "Добавить"}
+            </button>
             {errors.company_id && (
-              <p className="error">{errors.company_id.message}</p>
+              <p className="error grid-error">{errors.company_id.message}</p>
             )}
           </div>
         )}
       />
 
-      {/* Имя в мессенджере */}
+    
       <Controller
         name="messenger_name"
         control={control}
         render={({ field }) => (
           <div className="form-field">
+           
             <label>Имя в мессенджере</label>
+           
             <input {...field} placeholder="Имя в мессенджере" />
+           
           </div>
         )}
       />

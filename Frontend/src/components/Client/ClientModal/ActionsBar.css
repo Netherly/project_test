@@ -1,27 +1,30 @@
 .actions-bar{
-  flex:0 0 180px;       /* фикс ширина колонки */
-  border-left:1px solid var(--border--color);
-  background:var(--input-bg);
-  padding:16px 10px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
+  width: 100px;
+  flex-shrink: 0; 
+  background-color: var(--bg-menu-color); 
+  border-left: 1px solid var(--border--color);
+  border-right: 1px solid var(--border--color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  overflow-y: auto;
 }
 
 .actions-bar button{
-  width:100%;
-  padding:10px 8px;
-  background:var(--button-bg);
-  color:var(--container-text-color);
-  border:none;
-  border-radius:6px;
-  font-size:14px;
-  cursor:pointer;
-  transition:background .18s;
+  width: 100%;
+  padding: 8px 4px;
+  margin-bottom: 5px;
+  border: none;
+  background-color: transparent;
+  color: var(--container-text-color); 
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
 }
 .actions-bar button:hover{
-  background:var(--container-hover-bg);
-  color:var(--container-hover-text-color);
+  background-color: var(--container-bg);
 }
 
 /* прячем на очень узких экранах */

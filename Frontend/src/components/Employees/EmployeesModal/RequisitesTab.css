@@ -1,5 +1,5 @@
 
-.requisites-table {
+.employee-requisites-table {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -78,7 +78,7 @@ select.requisite-input {
     cursor: pointer;
 }
 
-.add-btn {
+.add-requisites-btn {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -94,7 +94,7 @@ select.requisite-input {
 }
 
 
-.remove-btn {
+.requisites-remove-btn {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -108,10 +108,7 @@ select.requisite-input {
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
 }
-.remove-btn:hover {
-    background-color: #c0392b;
-    color: white;
-}
+
 
 
 select.assets-workplan-textarea {
@@ -120,4 +117,6 @@ select.assets-workplan-textarea {
   appearance: none;
   background-image: none; 
   background-color: #19213A;
+  width: 50px;
+  margin-left: 5px;
 }

@@ -1,17 +1,44 @@
-.info-tab .company-select-wrapper{
-  display:flex;
-  gap:8px;
+
+.form-field-with-button {
+  display: flex;
+  gap: 8px;
+  align-items: center; 
 }
-.info-tab .add-company-btn{
-  all:unset;
-  width:28px;height:28px;
-  text-align:center;
-  font-size:18px;
-  line-height:28px;
-  border-radius:4px;
-  cursor:pointer;
-  background:#165a8d;
-  color:#fff;
-  transition:background .2s;
+
+
+.form-field-with-button select {
+  flex: 1; 
+  min-width: 0; 
 }
-.info-tab .add-company-btn:hover{background:#1c6bb0;}
+
+
+.add-inline-btn {
+  all: unset; 
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  border-radius: 6px; 
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .2s;
+  white-space: nowrap; 
+}
+
+
+.add-inline-btn:disabled {
+  background: #444;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+
+.add-inline-btn.icon-btn {
+  padding: 8px;
+  width: 36px;  
+  height: 36px; 
+}
