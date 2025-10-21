@@ -4,9 +4,7 @@ import { FaSearch, FaFilter } from "react-icons/fa";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import styles from "./ClientsPageHeader.module.css";
 
-/* ===========================
-   MultiTagSelect (portal + позиционирование)
-   =========================== */
+
 function MultiTagSelect({
   options = [],
   value = [],
@@ -210,7 +208,7 @@ export default function ClientsPageHeader({
   countryOptions  = [],
   onFilterChange,
 }) {
-  // query оставляем для совместимости, но ввод через главный инпут отключаем
+  
   const [query, setQuery] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -224,7 +222,7 @@ export default function ClientsPageHeader({
   // Фокус при открытии панели (как в журнале)
   useEffect(() => { if (showAdvanced) inputRef.current?.focus(); }, [showAdvanced]);
 
-  // Сборка превью для главной строки (как «Введите номер заказа, дату или слово» в журнале)
+  
   const preview = useMemo(() => {
     const parts = [];
     if (query) parts.push(query);
@@ -435,9 +433,8 @@ export default function ClientsPageHeader({
         </div>
       </div>
 
-      <span className={styles.headerDivider} aria-hidden="true" />
       <button type="button" className={styles.addEntryButton} onClick={onAdd}>
-        ➕ Добавить клиента
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
       </button>
     </header>
   );

@@ -1,11 +1,9 @@
-// TextareaWithCounter.jsx
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import './TextareaWithCounter.css';
 
-/**
- * Многострочное текстовое поле с ограничением и счётчиком символов.
- */
+
 const TextareaWithCounter = ({
   value,
   onChange,
@@ -17,15 +15,31 @@ const TextareaWithCounter = ({
   criticalThreshold = 0.9,
   onMaxReached,
 }) => {
-  const [count, setCount] = useState(value.length);
+  const [count, setCount] = useState(value ? value.length : 0);
+  const textareaRef = useRef(null);
   const warningLimit = Math.floor(maxLength * warningThreshold);
   const criticalLimit = Math.floor(maxLength * criticalThreshold);
 
-  // Обновляем счётчик и при достижении maxLength вызываем callback
+  
+  const handleAutoResize = (target) => {
+    if (target) {
+      target.style.height = 'auto';
+      target.style.height = `${target.scrollHeight}px`;
+    }
+  };
+
+  
   useEffect(() => {
-    setCount(value.length);
-    if (value.length === maxLength && typeof onMaxReached === 'function') {
+    const newCount = value ? value.length : 0;
+    setCount(newCount);
+    
+    if (newCount === maxLength && typeof onMaxReached === 'function') {
       onMaxReached();
+    }
+    
+    
+    if (textareaRef.current) {
+      handleAutoResize(textareaRef.current);
     }
   }, [value, maxLength, onMaxReached]);
 
@@ -33,6 +47,7 @@ const TextareaWithCounter = ({
     const text = e.target.value;
     if (text.length <= maxLength) {
       onChange(text);
+      
     }
   };
 
@@ -44,11 +59,14 @@ const TextareaWithCounter = ({
     <div className={`textarea-with-counter ${className}`}>
       {label && <label className="label">{label}</label>}
       <textarea
-        className="textarea-input"
-        value={value}
+        ref={textareaRef}
+        className="textarea-input" 
+        value={value || ''}
         onChange={handleChange}
+        onInput={(e) => handleAutoResize(e.target)} 
         maxLength={maxLength}
         placeholder={placeholder}
+        rows={1} 
       />
       <div className={counterClass}>
         {count} / {maxLength}
@@ -58,15 +76,26 @@ const TextareaWithCounter = ({
 };
 
 TextareaWithCounter.propTypes = {
-  value:             PropTypes.string.isRequired,
-  onChange:          PropTypes.func.isRequired,
-  maxLength:         PropTypes.number.isRequired,
-  placeholder:       PropTypes.string,
-  label:             PropTypes.string,
-  className:         PropTypes.string,
-  warningThreshold:  PropTypes.number,
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  maxLength: PropTypes.number.isRequired,
+  placeholder: PropTypes.string,
+  label: PropTypes.string,
+  className: PropTypes.string,
+  warningThreshold: PropTypes.number,
   criticalThreshold: PropTypes.number,
-  onMaxReached:      PropTypes.func,
+  onMaxReached: PropTypes.func,
+};
+
+
+TextareaWithCounter.defaultProps = {
+  value: '',
+  placeholder: '',
+  label: '',
+  className: '',
+  warningThreshold: 0.8,
+  criticalThreshold: 0.9,
+  onMaxReached: () => {},
 };
 
 export default TextareaWithCounter;
