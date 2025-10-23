@@ -28,43 +28,40 @@ async function initTelegramBot() {
   });
 
   bot.start(async (ctx) => {
-    const lang = ctx.from.language_code;
-
     try {
-      const payload = readStartPayload(ctx);
-      if (!payload) {
-        return ctx.reply(t('greeting', lang));
-      }
+      const ticket = await prisma.telegramLinkTicket.findFirst({
+        where: { token: ctx.startPayload },
+        include: { employee: true },
+      });
 
-      const ticket = await consumeToken(payload);
-      if (!ticket || !ticket.employee) {
-        return ctx.reply(t('linkInvalid', lang));
+      if (!ticket || ticket.expiresAt < new Date()) {
+        return ctx.reply('Ссылка недействительна или истекла.');
       }
 
       const emp = ticket.employee;
 
-      await prisma.employee.update({
-        where: { id: emp.id },
-        data: {
-          telegramUserId: toBigIntSafe(ctx.from.id),
-          telegramChatId: toBigIntSafe(ctx.chat.id),
-          telegramUsername: ctx.from.username || null,
-          telegramLinkedAt: new Date(),
-          telegramVerified: true,
-        },
+      // Check if telegramUserId is already linked to another employee
+      const existing = await prisma.employee.findFirst({
+        where: { telegramUserId: ctx.from.id },
       });
 
-      await ctx.reply(
-        t('linkSuccess', lang, { login: emp.login }),
-        { parse_mode: 'HTML' }
-      );
-    } catch (e) {
-      console.error('Telegram /start error:', e);
-      try {
-        await ctx.reply(t('errorGeneric', lang));
-      } catch (err) {
-        console.error('Failed to send error reply:', err);
+      if (existing && existing.id !== emp.id) {
+        return ctx.reply('Этот Telegram аккаунт уже привязан к другому сотруднику.');
       }
+
+      await prisma.employee.update({
+        where: { id: emp.id },
+        data: { telegramUserId: ctx.from.id },
+      });
+
+      await prisma.telegramLinkTicket.delete({
+        where: { id: ticket.id },
+      });
+
+      ctx.reply(`Привет, ${emp.full_name}! Ваш Telegram аккаунт успешно привязан.`);
+    } catch (error) {
+      console.error('Telegram /start error:', error);
+      ctx.reply('Произошла ошибка при привязке аккаунта.');
     }
   });
 
