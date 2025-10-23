@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../../styles/AddAssetForm.css';
-import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Plus, X } from 'lucide-react';
-
-const generateId = () => {
-    return 'asset_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
-};
+import ConfirmationModal from '../modals/confirm/ConfirmationModal';
+import { createAsset } from '../../api/assets';
+import { FieldsAPI } from '../../api/fields';
 
 const designNameMap = {
     'Монобанк': 'monobank-black',
@@ -19,42 +17,86 @@ const designNameMap = {
     'Красный': 'red',
 };
 
-const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
+const AddAssetForm = ({ onAdd, onClose, employees }) => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // группы полей для вкладки "assets"
+    const [assetsFields, setAssetsFields] = useState({
+        currency: [],
+        type: [],
+        paymentSystem: [],
+        cardDesigns: [],
+    });
+
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const af = await FieldsAPI.getAssets();
+                if (mounted && af) {
+                    setAssetsFields({
+                        currency: af.currency || [],
+                        type: af.type || [],
+                        paymentSystem: af.paymentSystem || [],
+                        cardDesigns: af.cardDesigns || [],
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load assets fields", err);
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
 
     const [formData, setFormData] = useState({
         accountName: '',
-        currency: fields?.currency?.[0] || '',
+        currency: '',
         limitTurnover: '',
-        type: fields?.type?.[0] || '',
-        paymentSystem: fields?.paymentSystem?.[0] || '',
-        design: designNameMap[fields?.cardDesigns?.[0]?.name] || '',
+        type: '',
+        paymentSystem: '',
+        design: '',
         employee: '',
         requisites: [{ label: '', value: '' }],
     });
 
     useEffect(() => {
-        console.log('Current formData.requisites state:', formData.requisites);
-    }, [formData.requisites]);
+        // подставляем дефолтные значения при загрузке
+        setFormData(prev => {
+            const next = { ...prev };
+            if ((!prev.currency || prev.currency === '') && assetsFields.currency?.[0]) {
+                const first = assetsFields.currency[0];
+                next.currency = typeof first === 'object' ? first.code || first.name : first;
+            }
+            if ((!prev.type || prev.type === '') && assetsFields.type?.[0]) {
+                const first = assetsFields.type[0];
+                next.type = typeof first === 'object' ? first.code || first.name : first;
+            }
+            if ((!prev.paymentSystem || prev.paymentSystem === '') && assetsFields.paymentSystem?.[0]) {
+                const first = assetsFields.paymentSystem[0];
+                next.paymentSystem = typeof first === 'object' ? first.code || first.name : first;
+            }
+            if ((!prev.design || prev.design === '') && assetsFields.cardDesigns?.[0]) {
+                const first = assetsFields.cardDesigns[0];
+                next.design = first?.id || '';
+            }
+            return next;
+        });
+    }, [assetsFields]);
 
     const handleFormChange = () => {
-        setHasUnsavedChanges(true);
+        if (!hasUnsavedChanges) setHasUnsavedChanges(true);
     };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        console.log(`Field change: ${name} = ${value}`);
-        setFormData(prevData => ({
-            ...prevData,
-            [name]: value
-        }));
+        setFormData(prevData => ({ ...prevData, [name]: value }));
         handleFormChange();
     };
 
     const handleRequisiteChange = (index, e) => {
         const { name, value } = e.target;
-        console.log(`Requisite field change at index ${index}: ${name} = ${value}`);
         const newRequisites = [...formData.requisites];
         newRequisites[index][name] = value;
         setFormData(prevData => ({
@@ -65,7 +107,6 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
     };
 
     const handleAddRequisite = () => {
-        console.log('Adding new requisite field.');
         setFormData(prevData => ({
             ...prevData,
             requisites: [...prevData.requisites, { label: '', value: '' }],
@@ -74,7 +115,6 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
     };
 
     const handleRemoveRequisite = (index) => {
-        console.log(`Removing requisite field at index ${index}.`);
         const newRequisites = formData.requisites.filter((_, i) => i !== index);
         setFormData(prevData => ({
             ...prevData,
@@ -83,39 +123,38 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
         handleFormChange();
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const newAssetId = generateId();
+        setIsLoading(true);
+
         const filteredRequisites = formData.requisites.filter(
             req => req.label.trim() !== '' || req.value.trim() !== ''
         );
-        const newAsset = {
-            id: newAssetId,
-            accountName: formData.accountName,
-            currency: formData.currency,
+
+        const newAssetPayload = {
+            ...formData,
             limitTurnover: parseFloat(formData.limitTurnover) || 0,
-            type: formData.type,
-            paymentSystem: formData.paymentSystem,
-            design: formData.design,
-            employee: formData.employee,
             requisites: filteredRequisites,
-            balance: 0.00,
-            balanceUAH: 0.00,
-            balanceUSD: 0.00,
-            balanceRUB: 0.00,
-            lastEntryDate: 'N/A',
-            netMoneyUAH: 0.00,
-            netMoneyUSD: 0.00,
-            netMoneyRUB: 0.00,
-            turnoverStartBalance: 0.00,
-            turnoverIncoming: 0.00,
-            turnoverOutgoing: 0.00,
-            turnoverEndBalance: 0.00,
         };
-        console.log('Final newAsset object to be added:', newAsset);
-        onAdd(newAsset);
-        setHasUnsavedChanges(false);
-        onClose();
+
+        try {
+            const savedAsset = await createAsset(newAssetPayload);
+            setHasUnsavedChanges(false);
+            if (onAdd) onAdd(savedAsset);
+            onClose();
+        } catch (error) {
+            console.error("Failed to create asset:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAttemptClose = () => {
+        if (hasUnsavedChanges) {
+            setShowConfirmationModal(true);
+        } else {
+            onClose();
+        }
     };
 
     const handleConfirmClose = () => {
@@ -127,14 +166,6 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
         setShowConfirmationModal(false);
     };
 
-    const handleOverlayClose = () => {
-        if (hasUnsavedChanges) {
-            setShowConfirmationModal(true);
-        } else {
-            onClose();
-        }
-    };
-
     const handleTextareaAutoResize = (e) => {
         e.target.style.height = 'auto';
         e.target.style.height = e.target.scrollHeight + 'px';
@@ -142,16 +173,17 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
 
     return (
         <>
-            <div className="add-asset-overlay" onClick={handleOverlayClose}>
+            <div className="add-asset-overlay" onClick={handleAttemptClose}>
                 <div className="add-asset-modal" onClick={(e) => e.stopPropagation()}>
                     <div className="add-asset-header">
                         <h2>Добавить актив</h2>
                         <div className="add-asset-actions">
-                            <span className="icon" onClick={onClose}><X/></span>
+                            <span className="icon" onClick={handleAttemptClose}><X /></span>
                         </div>
                     </div>
+
                     <form onSubmit={handleSubmit} className="add-asset-form">
-                        {/* --- General Information Section --- */}
+                        {/* Общие поля */}
                         <div className="form-row">
                             <label htmlFor="accountName" className="form-label">Наименование</label>
                             <input
@@ -163,8 +195,10 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 placeholder="Например, ПриватБанк - Ключ к счету"
                                 required
                                 className="form-input1"
+                                disabled={isLoading}
                             />
                         </div>
+
                         <div className="form-row">
                             <label htmlFor="currency" className="form-label">Валюта счета</label>
                             <select
@@ -174,13 +208,17 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 onChange={handleChange}
                                 required
                                 className="form-input1"
+                                disabled={isLoading}
                             >
                                 <option value="" disabled>Выберите валюту</option>
-                                {fields?.currency?.map((item, index) => (
-                                    <option key={index} value={item}>{item}</option>
-                                ))}
+                                {(assetsFields.currency || []).map((item, index) => {
+                                    const value = typeof item === 'object' ? item.code || item.name : item;
+                                    const display = typeof item === 'object' ? item.name : item;
+                                    return <option key={index} value={value}>{display}</option>;
+                                })}
                             </select>
                         </div>
+
                         <div className="form-row">
                             <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
                             <input
@@ -191,8 +229,10 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 onChange={handleChange}
                                 placeholder="Введите лимит оборота"
                                 className="form-input1"
+                                disabled={isLoading}
                             />
                         </div>
+
                         <div className="form-row">
                             <label htmlFor="type" className="form-label">Тип</label>
                             <select
@@ -202,13 +242,17 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 onChange={handleChange}
                                 required
                                 className="form-input1"
+                                disabled={isLoading}
                             >
                                 <option value="" disabled>Выберите тип</option>
-                                {fields?.type?.map((item, index) => (
-                                    <option key={index} value={item}>{item}</option>
-                                ))}
+                                {(assetsFields.type || []).map((item, index) => {
+                                    const value = typeof item === 'object' ? item.code || item.name : item;
+                                    const display = typeof item === 'object' ? item.name : item;
+                                    return <option key={index} value={value}>{display}</option>;
+                                })}
                             </select>
                         </div>
+
                         <div className="form-row">
                             <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
                             <select
@@ -217,13 +261,17 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 value={formData.paymentSystem}
                                 onChange={handleChange}
                                 className="form-input1"
+                                disabled={isLoading}
                             >
                                 <option value="">Не выбрано</option>
-                                {fields?.paymentSystem?.map((item, index) => (
-                                    <option key={index} value={item}>{item}</option>
-                                ))}
+                                {(assetsFields.paymentSystem || []).map((item, index) => {
+                                    const value = typeof item === 'object' ? item.code || item.name : item;
+                                    const display = typeof item === 'object' ? item.name : item;
+                                    return <option key={index} value={value}>{display}</option>;
+                                })}
                             </select>
                         </div>
+
                         <div className="form-row">
                             <label htmlFor="design" className="form-label">Дизайн</label>
                             <select
@@ -232,15 +280,17 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 value={formData.design}
                                 onChange={handleChange}
                                 className="form-input1"
+                                disabled={isLoading}
                             >
                                 <option value="">Не выбрано</option>
-                                {fields?.cardDesigns?.map((design, index) => (
-                                    <option key={index} value={designNameMap[design.name]}>
+                                {(assetsFields.cardDesigns || []).map((design, index) => (
+                                    <option key={index} value={design.id}>
                                         {design.name}
                                     </option>
                                 ))}
                             </select>
                         </div>
+
                         <div className="form-row">
                             <label htmlFor="employee" className="form-label">Сотрудник</label>
                             <select
@@ -250,6 +300,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                 onChange={handleChange}
                                 required
                                 className="form-input1"
+                                disabled={isLoading}
                             >
                                 <option value="" disabled>Выберите сотрудника</option>
                                 {employees && employees.map(emp => (
@@ -260,7 +311,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                             </select>
                         </div>
 
-                        {/* --- Requisites Section --- */}
+                        {/* Реквизиты */}
                         <div className="requisites-section">
                             <h3 className="requisites-header">Реквизиты</h3>
                             <div className="requisites-table-wrapper">
@@ -271,12 +322,10 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                                 type="text"
                                                 name="label"
                                                 value={req.label}
-                                                onInput={(e) => {
-                                                    handleRequisiteChange(index, e); 
-                                                    handleTextareaAutoResize(e);     
-                                                }}
+                                                onInput={(e) => handleRequisiteChange(index, e)}
                                                 placeholder="Введите название"
-                                                className="assets-workplan-textarea"
+                                                className="form-input1"
+                                                disabled={isLoading}
                                             />
                                         </div>
                                         <div className="requisites-table-cell">
@@ -284,11 +333,12 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                                 name="value"
                                                 value={req.value}
                                                 onInput={(e) => {
-                                                    handleRequisiteChange(index, e); 
-                                                    handleTextareaAutoResize(e); 
+                                                    handleRequisiteChange(index, e);
+                                                    handleTextareaAutoResize(e);
                                                 }}
-                                                placeholder="Введите реквизиты"
-                                                className="assets-workplan-textarea"
+                                                placeholder="Введите значение"
+                                                className="form-input1"
+                                                disabled={isLoading}
                                             />
                                         </div>
                                         <div className="requisites-table-cell action-cell">
@@ -298,28 +348,35 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                                     className="remove-category-btn"
                                                     onClick={() => handleRemoveRequisite(index)}
                                                     title="Удалить реквизит"
+                                                    disabled={isLoading}
                                                 >
-                                                    <X size={18}/>
+                                                    <X size={18} />
                                                 </button>
                                             )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                            
+
                             <button
                                 type="button"
                                 className="add-requisite-btn-icon"
                                 onClick={handleAddRequisite}
                                 title="Добавить реквизит"
+                                disabled={isLoading}
                             >
-                                <Plus size={20} color='white'/> Добавить
+                                <Plus size={20} color="white" /> Добавить
                             </button>
                         </div>
 
+                        {/* Кнопки */}
                         <div className="assets-form-actions">
-                            <button type="button" className="cancel-order-btn" onClick={onClose}>Отменить</button>
-                            <button type="submit" className="save-order-btn">Сохранить</button>
+                            <button type="button" className="cancel-order-btn" onClick={handleAttemptClose} disabled={isLoading}>
+                                Отменить
+                            </button>
+                            <button type="submit" className="save-order-btn" disabled={isLoading}>
+                                {isLoading ? 'Сохранение...' : 'Сохранить'}
+                            </button>
                         </div>
                     </form>
                 </div>

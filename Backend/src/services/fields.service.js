@@ -13,6 +13,8 @@ const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const CARD_DIR = path.join(UPLOADS_ROOT, 'card-designs');
 ensureDir(CARD_DIR);
 
+const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
 async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
   if (!m) return null;
@@ -51,6 +53,21 @@ const arrToUniqueStrings = (list, key = 'name') => {
   return Array.from(out);
 };
 
+const normalizeSimpleValues = (list) => {
+  const out = new Set();
+  (Array.isArray(list) ? list : []).forEach((value) => {
+    let v = value;
+    if (v && typeof v === 'object') {
+      v = v.value ?? v.name ?? v.code ?? v.label ?? '';
+    }
+    if (v !== undefined && v !== null) {
+      const s = String(v).trim();
+      if (s) out.add(s);
+    }
+  });
+  return Array.from(out);
+};
+
 async function upsertSimpleDict(db, model, values, opts = {}) {
   const field = opts.field || 'name';
   const unique = Array.from(new Set((values || []).map((s) => String(s ?? '').trim()).filter(Boolean)));
@@ -65,20 +82,43 @@ async function upsertSimpleDict(db, model, values, opts = {}) {
   return db[model].findMany({ orderBy: { [field]: 'asc' } });
 }
 
-async function syncSimpleDict(db, model, values, opts = {}) {
+const syncSimpleDict = async (tx, model, list, opts = {}) => {
   const field = opts.field || 'name';
-  const list = Array.from(new Set((values || []).map((s) => String(s ?? '').trim()).filter(Boolean)));
+  const hasIsActive = opts.hasIsActive !== false; // default true
+  const values = normalizeSimpleValues(list);
+  const dbModel = tx[model];
+  if (!dbModel) throw new Error(`Model ${model} not found in transaction`);
 
-  if (list.length) {
-    await db[model].createMany({ data: list.map((v) => ({ [field]: v })), skipDuplicates: true });
+  if (!values.length) {
+    if (hasIsActive) {
+      await dbModel.updateMany({ data: { isActive: false } });
+    } else {
+      await dbModel.deleteMany({});
+    }
+    return;
   }
-  const existing = await db[model].findMany({ select: { id: true, [field]: true } });
-  const toDelete = existing.filter((e) => !list.includes(String(e[field])));
-  if (toDelete.length) {
-    await db[model].deleteMany({ where: { id: { in: toDelete.map((x) => x.id) } } });
+
+  await Promise.all(
+    values.map((value) =>
+      dbModel.upsert({
+        where: { [field]: value },
+        update: { isActive: hasIsActive ? true : undefined },
+        create: { id: rid(), [field]: value, ...(hasIsActive ? { isActive: true } : {}) },
+      })
+    )
+  );
+
+  if (hasIsActive) {
+    await dbModel.updateMany({
+      where: { [field]: { notIn: values } },
+      data: { isActive: false },
+    });
+  } else {
+    await dbModel.deleteMany({
+      where: { [field]: { notIn: values } },
+    });
   }
-  return db[model].findMany({ orderBy: { [field]: 'asc' } });
-}
+};
 
 /* ==============================
    READ bundle (GET /fields)
@@ -251,7 +291,7 @@ async function saveAll(payload) {
     await syncSimpleDict(tx, 'clientSourceDict', arrToUniqueStrings(payload?.clientFields?.source, 'name'));
     await syncSimpleDict(tx, 'clientCategoryDict', arrToUniqueStrings(payload?.clientFields?.category, 'name'));
     await syncSimpleDict(tx, 'country', arrToUniqueStrings(payload?.clientFields?.country, 'name'));
-    await syncSimpleDict(tx, 'tag', arrToUniqueStrings(payload?.clientFields?.tag, 'name'));
+    await syncSimpleDict(tx, 'tag', arrToUniqueStrings(payload?.clientFields?.tag, 'name'), { hasIsActive: false });
 
     /** ---- ASSETS ---- */
     await syncSimpleDict(tx, 'assetTypeDict', arrToUniqueStrings(payload?.assetsFields?.type, 'name'));

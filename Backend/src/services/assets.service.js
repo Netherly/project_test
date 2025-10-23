@@ -43,7 +43,7 @@ const AssetsService = {
         currency: true,
         type: true,
         paymentSystem: true,
-        cardDesign: true,
+        cardDesign: true, // Already includes cardDesign
         employee: { select: { id: true, full_name: true } },
         company:  { select: { id: true, name: true } },
       },
@@ -59,7 +59,7 @@ const AssetsService = {
         currency: true,
         type: true,
         paymentSystem: true,
-        cardDesign: true,
+        cardDesign: true, // Already includes cardDesign
         employee: { select: { id: true, full_name: true } },
         company:  { select: { id: true, name: true } },
       },
@@ -113,7 +113,15 @@ const AssetsService = {
             ? { create: payload.requisites.map(r => ({ label: r.label, value: r.value })) }
             : undefined,
       },
-      include: { requisites: true, currency: true },
+      include: { 
+        requisites: true, 
+        currency: true, 
+        type: true,
+        paymentSystem: true,
+        cardDesign: true,
+        employee: { select: { id: true, full_name: true } },
+        company: { select: { id: true, name: true } },
+      },
     });
   },
 
@@ -165,7 +173,15 @@ const AssetsService = {
     return prisma.asset.update({
       where: { id },
       data,
-      include: { requisites: true, currency: true },
+      include: { 
+        requisites: true, 
+        currency: true, 
+        type: true,
+        paymentSystem: true,
+        cardDesign: true,
+        employee: { select: { id: true, full_name: true } },
+        company: { select: { id: true, name: true } },
+      },
     });
   },
 
@@ -196,7 +212,15 @@ const AssetsService = {
 
         requisites: { create: src.requisites.map(r => ({ label: r.label, value: r.value })) },
       },
-      include: { requisites: true, currency: true },
+      include: { 
+        requisites: true, 
+        currency: true, 
+        type: true,
+        paymentSystem: true,
+        cardDesign: true,
+        employee: { select: { id: true, full_name: true } },
+        company: { select: { id: true, name: true } },
+      },
     });
   },
 
