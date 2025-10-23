@@ -294,7 +294,7 @@
     align-items: center;
 }
 
-/* --- ИЗМЕНЕНИЯ ЗДЕСЬ --- */
+
 .requisites-table-cell {
     min-width: 0;
     box-sizing: border-box;
@@ -302,16 +302,16 @@
 
 .requisites-table-row .requisites-table-cell:first-child {
     flex-basis: 40%;
-    padding-right: 10px; /* Отступ между полями */
+    padding-right: 10px; 
 }
 
 .requisites-table-row .requisites-table-cell:nth-child(2) {
     flex-basis: 65%;
 }
-/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
+
 
 .requisites-table-cell.action-cell {
-    flex: 0 0 30px; /* Немного увеличил место для кнопки */
+    flex: 0 0 30px; 
     display: flex;
     justify-content: center;
     align-items: center;
@@ -340,6 +340,12 @@
     gap: 5px;
 }
 
+.add-asset-form input::placeholder,
+.add-asset-form textarea::placeholder { 
+    color: var(--chips-color);
+    opacity: 0.7;
+}
+
 .assets-workplan-textarea {
     box-sizing: border-box;
     background: none;
@@ -353,8 +359,11 @@
     resize: none;
     font-family: inherit;
     font-size: 14px;
-    line-height: 1.4;
     transition: border-color 0.2s ease;
+}
+
+textarea.assets-workplan-textarea {
+    margin-top: 3.5px;
 }
 
 @media (max-width: 768px) {

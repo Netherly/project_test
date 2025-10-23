@@ -148,17 +148,6 @@ export default function InfoTab({
                 <option key={`${c}-${i}`} value={c}>{c}</option>
               ))}
             </select>
-            
-            <button
-              type="button"
-              className="add-inline-btn"
-              onClick={() => addOption("category")}
-              disabled={savingCat || loadingLists}
-              title="Добавить новую категорию"
-            >
-              <Plus size={16} />
-              {savingCat ? "…" : "Добавить"}
-            </button>
             {errors.category && (
               <p className="error grid-error">{errors.category.message}</p>
             )}
@@ -185,17 +174,6 @@ export default function InfoTab({
                 <option key={`${s}-${i}`} value={s}>{s}</option>
               ))}
             </select>
-           
-            <button
-              type="button"
-              className="add-inline-btn"
-              onClick={() => addOption("source")}
-              disabled={savingSrc || loadingLists}
-              title="Добавить новый источник"
-            >
-              <Plus size={16} />
-              {savingSrc ? "…" : "Добавить"}
-            </button>
             {errors.source && <p className="error grid-error">{errors.source.message}</p>}
           </div>
         )}
@@ -261,17 +239,6 @@ export default function InfoTab({
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-       
-           <button
-              type="button"
-              className="add-inline-btn"
-              onClick={() => addOption("source")}
-              disabled={savingSrc || loadingLists}
-              title="Добавить новый источник"
-            >
-              <Plus size={16} />
-              {savingSrc ? "…" : "Добавить"}
-            </button>
             {errors.company_id && (
               <p className="error grid-error">{errors.company_id.message}</p>
             )}

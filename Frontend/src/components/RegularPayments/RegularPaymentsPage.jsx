@@ -7,6 +7,8 @@ import "../../styles/RegularPaymentsPage.css";
 import * as paymentApi from './regularPayments';
 import FormattedDate from "../FormattedDate";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
+import { useTransactions } from '../../context/TransactionsContext'; 
+import { calculateNextPaymentDate } from './regularPayments';
 
 const RegularPaymentsPage = () => {
     const [regularPayments, setRegularPayments] = useState([]);
@@ -32,11 +34,6 @@ const RegularPaymentsPage = () => {
     }, []);
 
     
-    const handleAddPayment = (newPaymentData) => {
-        const updatedPayments = paymentApi.addRegularPayment(newPaymentData);
-        setRegularPayments(updatedPayments);
-    };
-    
     const handleUpdatePayment = (updatedPaymentData) => {
         const updatedPayments = paymentApi.updateRegularPayment(updatedPaymentData);
         setRegularPayments(updatedPayments);
@@ -59,6 +56,40 @@ const RegularPaymentsPage = () => {
     
     const openAddModal = () => setIsAddModalOpen(true);
     const closeAddModal = () => setIsAddModalOpen(false);
+
+    const { addTransaction } = useTransactions();
+
+    const handleAddPayment = (newPaymentData) => {
+        const now = new Date();
+        
+       
+        const newTransaction = {
+            id: `TRX_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            date: now.toISOString(),
+            category: newPaymentData.category,
+            subcategory: newPaymentData.subcategory,
+            description: `Регулярный платеж: ${newPaymentData.description || newPaymentData.category}`,
+            account: newPaymentData.account,
+            accountCurrency: newPaymentData.accountCurrency,
+            operation: newPaymentData.operation,
+            amount: parseFloat(newPaymentData.amount),
+        };
+        
+        addTransaction(newTransaction); 
+
+       
+        const nextPaymentDateISO = calculateNextPaymentDate(newPaymentData, now);
+
+      
+        const paymentToAdd = {
+            ...newPaymentData,
+            nextPaymentDate: nextPaymentDateISO, 
+        };
+
+        
+        const updatedPayments = paymentApi.addRegularPayment(paymentToAdd);
+        setRegularPayments(updatedPayments);
+    };
 
     const openViewEditModal = (payment) => {
         setSelectedPayment(payment);
@@ -114,7 +145,7 @@ const RegularPaymentsPage = () => {
                     <table className="regular-payments-table">
                         <thead>
                             <tr>
-                                <th>Дата начала</th>
+                                <th>Следующий платеж</th>
                                 <th>Статья</th>
                                 <th>Подстатья</th>
                                 <th>Описание</th>
@@ -126,13 +157,12 @@ const RegularPaymentsPage = () => {
                                 <th>Цикл</th>
                                 <th>Время</th>
                                 <th>Статус</th>
-                                <th>Следующий платеж</th>
                             </tr>
                         </thead>
                         <tbody>
                             {regularPayments.map((payment) => (
                                 <tr key={payment.id} className="regular-payment-row" onClick={() => openViewEditModal(payment)}>
-                                    <td>{formatDate(payment.startDate)}</td>
+                                    <td>{formatDate(payment.nextPaymentDate || 'N/A')}</td>
                                     <td>{payment.category}</td>
                                     <td>{payment.subcategory}</td>
                                     <td>{payment.description}</td>
@@ -150,7 +180,6 @@ const RegularPaymentsPage = () => {
                                             {payment.status}
                                         </span>
                                     </td>
-                                    <td>{formatDate(payment.nextPaymentDate || 'N/A')}</td>
                                 </tr>
                             ))}
                         </tbody>

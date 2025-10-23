@@ -562,6 +562,19 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     ))}
                                 </select>
                             </div>
+                            <div className="form-row">
+                                <label htmlFor="status" className="form-label">Статус</label>
+                                <select
+                                    id="status"
+                                    name="status"
+                                    value={editableAsset.status || 'Активен'}
+                                    onChange={handleChange}
+                                    className="form-input1"
+                                >
+                                    <option value="Активен">Активен</option>
+                                    <option value="Неактивен">Неактивен</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>

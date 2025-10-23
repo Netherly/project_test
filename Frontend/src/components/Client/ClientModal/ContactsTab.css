@@ -1,6 +1,7 @@
 .contacts-tab .photo-link-wrapper{
   display:flex;
   gap:8px;
+  width: 100%;
 }
 .contacts-tab .photo-link-wrapper button{
   all:unset;

@@ -4,6 +4,7 @@
   min-height: 100vh;
   background-color: var(--bg-color);
   color: var(--text-color);
+  overflow-x: hidden;
 }
 .clients-page{
   flex: 1;
@@ -126,20 +127,21 @@
 .clients-table thead th:nth-child(7),
 .clients-table td:nth-child(7){
   width: 50px;
+  text-align: center;
 }
 
 .clients-table thead th:nth-child(8),
 .clients-table td:nth-child(8){
-  width: 100px;
+  width: 40px;
 }
 
 .clients-table td:nth-child(8){
-  text-align: right;
+  text-align: center;
 }
 
 .clients-table thead th:nth-child(9),
 .clients-table td:nth-child(9){
-  text-align: right;
+  text-align: center;
   width: 50px;
 }
 .clients-table thead th:nth-child(10),
@@ -147,7 +149,7 @@
   width: 160px;
 }
 .clients-table td:nth-child(10){
-  text-align: right;
+  text-align: left;
 }
 .clients-table thead th:nth-child(11),
 .clients-table td:nth-child(11){

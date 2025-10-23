@@ -272,8 +272,7 @@ const AddAssetForm = ({ onAdd, onClose, fields, employees }) => {
                                                 name="label"
                                                 value={req.label}
                                                 onInput={(e) => {
-                                                    handleRequisiteChange(index, e); 
-                                                    handleTextareaAutoResize(e);     
+                                                    handleRequisiteChange(index, e);    
                                                 }}
                                                 placeholder="Введите название"
                                                 className="assets-workplan-textarea"

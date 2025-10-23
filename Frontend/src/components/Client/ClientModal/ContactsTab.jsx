@@ -120,13 +120,6 @@ export default function ContactsTab({ countries = [], openImage }) {
             <label>Ссылка на фото</label>
             <div className="photo-link-wrapper">
               <input {...field} placeholder="URL изображения" />
-              <button
-                type="button"
-                onClick={openImage}
-                disabled={!field.value}
-              >
-                Проверить
-              </button>
             </div>
           </div>
         )}

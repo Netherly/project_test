@@ -131,7 +131,6 @@
 
 .form-field textarea {
   border: 1px solid #555;
-  border-radius: 4px;
   padding: 10px 12px;
   font-size: 14px;
   transition: border-color 0.2s;
@@ -153,7 +152,8 @@
 
 .form-field-checkbox{
   display: flex;
-  gap: 15px;
+  gap: 170px;
+  padding-top: 5px;
   font-size: 13px;
   color: #c0c0c0;
 }

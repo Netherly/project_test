@@ -29,13 +29,21 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    margin-right: 39px;
-    margin-left: 30px;
+    position: relative;
     padding-bottom: 15px;
-    border-bottom: 1px solid var(--border-form-color);
     padding-left: 30px;   
     padding-right: 30px;  
     padding-top: 20px;
+}
+
+.asset-modal-header::after{
+    content: '';
+    position: absolute;
+    bottom: 0; 
+    height: 1px;
+    background-color: var(--border-form-color);
+    left: 30px;
+    right: 39px;
 }
 
 .asset-modal-header h2 {
@@ -217,12 +225,20 @@
 .modal-footer {
     display: flex;
     justify-content: flex-end;
+    position: relative;
     padding: 15px 30px;
-    border-top: 1px solid var(--border-form-color);
     gap: 10px;
     margin-top: auto;
-    margin-right: 39px;
-    margin-left: 30px;
+}
+
+.modal-footer::before{
+    content: '';
+    position: absolute;
+    top: 0; 
+    height: 1px;
+    background-color: var(--border-form-color);
+    left: 30px;
+    right: 39px;
 }
 
 .modal-cancel-button,
