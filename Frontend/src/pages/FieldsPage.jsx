@@ -255,43 +255,20 @@ function serializeForSave(values) {
 /* =========================
    Общие справочники и операции
    ========================= */
-const SHARED_STRING_MAP = {
-  currency: [
-    ["orderFields", "currency"],
-    ["executorFields", "currency"],
-    ["clientFields", "currency"],
-    ["assetsFields", "currency"],
-  ],
-  country: [
-    ["clientFields", "country"],
-    ["employeeFields", "country"],
-  ],
-};
+const SHARED_STRING_MAP = {}; // Убрал shared логику
 
 function clone(v) {
   return JSON.parse(JSON.stringify(v));
 }
 
 function removeValueEverywhere(values, key, valueToRemove) {
-  const next = clone(values);
-  const targets = SHARED_STRING_MAP[key] || [];
-  for (const [group, field] of targets) {
-    const arr = Array.isArray(next?.[group]?.[field]) ? next[group][field] : [];
-    next[group][field] = arr.filter((v) => v !== valueToRemove);
-  }
-  return next;
+  // Убрал, так как shared убрано
+  return values;
 }
 
 function renameValueEverywhere(values, key, oldVal, newVal) {
-  const next = clone(values);
-  const targets = SHARED_STRING_MAP[key] || [];
-  for (const [group, field] of targets) {
-    let arr = Array.isArray(next?.[group]?.[field]) ? next[group][field] : [];
-    arr = arr.map((v) => (v === oldVal ? newVal : v));
-    arr = uniqStrs(arr);
-    next[group][field] = arr;
-  }
-  return next;
+  // Убрал, так как shared убрано
+  return values;
 }
 
 /* =========================
@@ -319,6 +296,7 @@ const EditableList = ({ items = [], onChange, onRemove, placeholder, onCommit })
     if (typeof onCommit === "function") {
       onCommit(i, oldVal, val);
     } else {
+      // Локальная дедупликация
       onChange(uniqStrs(items));
     }
   };
@@ -915,28 +893,11 @@ function FieldsPage() {
     applyAndCheck(next);
   };
 
-  // фабрика коммита для общих справочников (валюта/страна)
-  const commitShared = (path, sharedKey) => (index, oldVal, newVal) => {
-    const oldT = tidy(oldVal);
-    const newT = tidy(newVal);
-    // если редактируем новую строку (старое пустое) — это ЛОКАЛЬНОЕ добавление
-    if (!oldT) {
-      const [group, field] = path;
-      const curr = Array.isArray(selectedValues?.[group]?.[field]) ? selectedValues[group][field] : [];
-      const nextArr = uniqStrs(curr);
-      const next = { ...selectedValues, [group]: { ...selectedValues[group], [field]: nextArr } };
-      applyAndCheck(next);
-      return;
-    }
-    // если новое пустое — удалить значение везде
-    if (!newT) {
-      const next = removeValueEverywhere(selectedValues, sharedKey, oldT);
-      applyAndCheck(next);
-      return;
-    }
-    // обычное переименование во всех списках этого справочника
-    const next = renameValueEverywhere(selectedValues, sharedKey, oldT, newT);
-    applyAndCheck(next);
+  // фабрика коммита для локальных справочников
+  const commitLocal = () => (index, oldVal, newVal) => {
+    // Локальная дедупликация без глобального переименования
+    const nextArr = uniqStrs(items);
+    onChange(nextArr);
   };
 
   // Order
@@ -1108,8 +1069,12 @@ function FieldsPage() {
     [selectedValues.financeFields.articles]
   );
 
-  // удаление общих значений одновременно во всех местах
-  const removeStringItemEverywhere = (key, value) => applyAndCheck(removeValueEverywhere(selectedValues, key, value));
+  // удаление локальных значений
+  const removeStringItemLocally = (group, field, value) => {
+    const arr = Array.isArray(selectedValues?.[group]?.[field]) ? selectedValues[group][field] : [];
+    const nextArr = arr.filter((v) => v !== value);
+    applyAndCheck({ ...selectedValues, [group]: { ...selectedValues[group], [field]: nextArr } });
+  };
 
   // ===== Рендер активной вкладки =====
   const renderActiveTabFields = () => {
@@ -1139,8 +1104,10 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.currency || []}
                 onChange={(newItems) => handleInputChange("orderFields", "currency", newItems)}
-                onCommit={commitShared(["orderFields", "currency"], "currency")}
-                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                onRemove={(index) => {
+                  const list = selectedValues.orderFields.currency || [];
+                  handleInputChange("orderFields", "currency", list.filter((_, i) => i !== index));
+                }}
                 placeholder="Введите валюту"
               />
             </div>
@@ -1149,7 +1116,6 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.discountReason || []}
                 onChange={(newItems) => handleInputChange("orderFields", "discountReason", newItems)}
-                onCommit={commitShared(["orderFields", "discountReason"], "discountReason")}
                 onRemove={(index) => {
                   const list = selectedValues.orderFields.discountReason || [];
                   handleInputChange("orderFields", "discountReason", list.filter((_, i) => i !== index));
@@ -1183,8 +1149,10 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.executorFields.currency || []}
                 onChange={(newItems) => handleInputChange("executorFields", "currency", newItems)}
-                onCommit={commitShared(["executorFields", "currency"], "currency")}
-                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                onRemove={(index) => {
+                  const list = selectedValues.executorFields.currency || [];
+                  handleInputChange("executorFields", "currency", list.filter((_, i) => i !== index));
+                }}
                 placeholder="Введите валюту"
               />
             </div>
@@ -1235,8 +1203,10 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.country || []}
                 onChange={(newItems) => handleInputChange("clientFields", "country", newItems)}
-                onCommit={commitShared(["clientFields", "country"], "country")}
-                onRemove={(_, value) => removeStringItemEverywhere("country", value)}
+                onRemove={(index) => {
+                  const list = selectedValues.clientFields.country || [];
+                  handleInputChange("clientFields", "country", list.filter((_, i) => i !== index));
+                }}
                 placeholder="Введите страну"
               />
             </div>
@@ -1245,8 +1215,10 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.currency || []}
                 onChange={(newItems) => handleInputChange("clientFields", "currency", newItems)}
-                onCommit={commitShared(["clientFields", "currency"], "currency")}
-                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                onRemove={(index) => {
+                  const list = selectedValues.clientFields.currency || [];
+                  handleInputChange("clientFields", "currency", list.filter((_, i) => i !== index));
+                }}
                 placeholder="Введите валюту"
               />
             </div>
@@ -1279,8 +1251,10 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.employeeFields.country || []}
                 onChange={(newItems) => handleInputChange("employeeFields", "country", newItems)}
-                onCommit={commitShared(["employeeFields", "country"], "country")}
-                onRemove={(_, value) => removeStringItemEverywhere("country", value)}
+                onRemove={(index) => {
+                  const list = selectedValues.employeeFields.country || [];
+                  handleInputChange("employeeFields", "country", list.filter((_, i) => i !== index));
+                }}
                 placeholder="Введите страну"
               />
             </div>
@@ -1300,8 +1274,10 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.assetsFields.currency || []}
                 onChange={(newItems) => handleInputChange("assetsFields", "currency", newItems)}
-                onCommit={commitShared(["assetsFields", "currency"], "currency")}
-                onRemove={(_, value) => removeStringItemEverywhere("currency", value)}
+                onRemove={(index) => {
+                  const list = selectedValues.assetsFields.currency || [];
+                  handleInputChange("assetsFields", "currency", list.filter((_, i) => i !== index));
+                }}
                 placeholder="Введите валюту счета"
               />
             </div>

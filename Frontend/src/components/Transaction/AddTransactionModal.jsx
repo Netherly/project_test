@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Plus } from 'lucide-react';
+import { createTransaction } from '../../api/transactions';
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -280,7 +281,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         setHasUnsavedChanges(true);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         
         let newTransactions = [];
@@ -336,13 +337,26 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 sumByRatesRUB: parseFloat(formData.sumByRatesRUB) || 0,
                 balanceBefore: 0,
                 balanceAfter: 0,
+                accountId: formData.account, // assuming formData.account is id
+                operation: formData.operation === "Зачисление" ? "DEPOSIT" : "WITHDRAW",
             };
             newTransactions.push(newTransactionBase);
         }
         
-        onAdd(newTransactions);
-        setHasUnsavedChanges(false);
-        onClose(); 
+        try {
+            const createdTransactions = [];
+            for (const trx of newTransactions) {
+                const created = await createTransaction(trx);
+                createdTransactions.push(created);
+            }
+            onAdd(createdTransactions);
+            setHasUnsavedChanges(false);
+            onClose();
+        } catch (error) {
+            console.error("Failed to create transactions:", error);
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     const handleConfirmClose = () => {
