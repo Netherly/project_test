@@ -7,25 +7,36 @@ const prisma = new PrismaClient();
 const DEFAULT_TZ = 'Europe/Kyiv';
 const DEFAULT_MODE = 'today';
 
-async function copyLatestToDate(targetDateYMD) {
-  const existing = await prisma.exchangeRates.findUnique({
-    where: { date: new Date(`${targetDateYMD}T00:00:00.000Z`) },
+async function copyLatestToDate(ymd) {
+  const date = new Date(ymd + 'T00:00:00.000Z');
+  const last = await prisma.exchangeRates.findFirst({
+    orderBy: { date: 'desc' },
   });
-  if (existing) return existing;
-
-  const last = await prisma.exchangeRates.findFirst({ orderBy: { date: 'desc' } });
-  if (!last) return null;
+  if (!last) return false;
 
   const data = {
-    date: new Date(`${targetDateYMD}T00:00:00.000Z`),
-    uah: last.uah, usd: last.usd, rub: last.rub, usdt: last.usdt,
-    uah_rub: last.uah_rub, uah_usd: last.uah_usd, uah_usdt: last.uah_usdt,
-    usd_uah: last.usd_uah, usd_rub: last.usd_rub, usd_usdt: last.usd_usdt,
-    usdt_uah: last.usdt_uah, usdt_usd: last.usdt_usd, usdt_rub: last.usdt_rub,
-    rub_uah: last.rub_uah, rub_usd: last.rub_usd, rub_usdt: last.rub_usdt,
+    date,
+    usd_uah: last.usd_uah,
+    eur_uah: last.eur_uah,
+    usd_eur: last.usd_eur,
+    btc_usd: last.btc_usd,
+    eth_usd: last.eth_usd,
+    btc_uah: last.btc_uah,
+    eth_uah: last.eth_uah,
+    usdt_uah: last.usdt_uah,
+    usdt_usd: last.usdt_usd,
+    rub_uah: last.rub_uah,
+    rub_usd: last.rub_usd,
+    rub_usdt: last.rub_usdt,
   };
 
-  return prisma.exchangeRates.create({ data });
+  await prisma.exchangeRates.upsert({
+    where: { date },
+    update: data,
+    create: data,
+  });
+
+  return true;
 }
 
 function getYMD(tz = DEFAULT_TZ, mode = DEFAULT_MODE) {

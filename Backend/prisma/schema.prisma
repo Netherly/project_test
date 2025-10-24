@@ -55,14 +55,18 @@ model Country {
 }
 
 model CurrencyDict {
-  id       String   @id @default(uuid())
-  code     String   @unique @db.VarChar(10)
-  name     String?  @db.VarChar(100)
-  isActive Boolean  @default(true)
-  order    Int      @default(0)
-  clients  Client[]
-  orders   Order[]
-  assets   Asset[]
+  id       String  @id @default(uuid())
+  code     String  @unique @db.VarChar(10)
+  name     String? @db.VarChar(100)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+
+  clients Client[]
+  orders  Order[]
+  assets  Asset[]
+
+  // 👇 обратная связь для EmployeeSettings.currency
+  employeeSettings EmployeeSettings[]
 }
 
 model ClientSourceDict {
@@ -82,10 +86,11 @@ model ClientCategoryDict {
 }
 
 model ExecutorRoleDict {
-  id       String  @id @default(uuid())
-  name     String  @unique @db.VarChar(100)
-  isActive Boolean @default(true)
-  order    Int     @default(0)
+  id       String     @id @default(uuid())
+  name     String     @unique @db.VarChar(100)
+  isActive Boolean    @default(true)
+  order    Int        @default(0)
+  Employee Employee[]
 }
 
 model AssetTypeDict {
@@ -165,6 +170,11 @@ model FinanceSubarticleDict {
   @@index([subcategoryId])
 }
 
+enum EmployeeTheme {
+  light
+  dark
+}
+
 model Employee {
   id        String  @id @default(uuid())
   status    String? @db.VarChar(50)
@@ -174,6 +184,14 @@ model Employee {
   login     String  @unique @db.VarChar(100)
   password  String  @db.VarChar(255)
   folder    String? @db.VarChar(255)
+   userid     String?  @unique @db.VarChar(9) @default(dbgenerated("to_char(floor(random()*100000000)::int, 'FM00000000')"))
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  publicId String? @unique @db.VarChar(20)
+
+  roleId String?
+  role   ExecutorRoleDict? @relation(fields: [roleId], references: [id])
 
   countryId String?
   country   Country? @relation(fields: [countryId], references: [id])
@@ -184,6 +202,7 @@ model Employee {
   telegramLinkedAt DateTime?
   telegramVerified Boolean   @default(false)
 
+  settings    EmployeeSettings?
   linkTickets TelegramLinkTicket[]
 
   tasks   Task[]
@@ -191,7 +210,56 @@ model Employee {
   tags    EmployeeTag[]
   assets  Asset[]
 
+  requisites EmployeeRequisite[]
+
+  createdAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())
+  @@index([companyId])
   @@index([countryId])
+  @@index([roleId])
+}
+
+model EmployeeSettings {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  crmLanguage   String        @default("ua") @db.VarChar(5)
+  crmTheme      EmployeeTheme @default(light)
+  crmBackground String?       @db.VarChar(1000)
+
+  currencyId String?
+  currency   CurrencyDict? @relation(fields: [currencyId], references: [id])
+
+  timezone String? @db.VarChar(64)
+
+  notifySound    Boolean @default(true)
+  notifyCounter  Boolean @default(true)
+  notifyTelegram Boolean @default(true)
+
+  workSchedule Json?
+  botReminders Json?
+
+  avatarUrl String? @db.VarChar(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([currencyId])
+}
+
+model EmployeeRequisite {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  label String @db.VarChar(100)
+  value String @db.VarChar(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
 }
 
 model TelegramLinkTicket {
@@ -218,6 +286,7 @@ model Company {
   credentials  Credential[]
   transactions Transaction[] @relation("CompanyTransactions")
   assets       Asset[]
+  Employee     Employee[]
 }
 
 model ClientGroup {
