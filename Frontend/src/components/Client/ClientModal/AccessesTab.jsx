@@ -1,107 +1,140 @@
-import React, { useState } from 'react';
-import { useFormContext, useFieldArray } from 'react-hook-form';
-import './AccessesTab.css';
+import React from 'react';
+import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
+import { X, Plus } from 'lucide-react';
+
+ 
+
+import './AccessesTab.css'; 
 
 export default function AccessesTab() {
-  const { register, control, getValues, setValue } = useFormContext();
-  const { fields, append, remove } = useFieldArray({ name: 'accesses', control });
+  const { control } = useFormContext();
+  const fieldArrayName = 'accesses';
 
-  const [editIndex, setEditIndex] = useState(null);
-  const [modalText, setModalText] = useState('');
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: fieldArrayName,
+  });
 
-  const openDescriptionModal = (idx) => {
-    const currentValue = getValues(`accesses.${idx}.description`) || '';
-    setEditIndex(idx);
-    setModalText(currentValue);
-  };
-
-  const handleInputChange = (e, idx) => {
-    const value = e.target.value;
-    setValue(`accesses.${idx}.description`, value);
-    if (value.length > 100 && editIndex === null) {
-      setModalText(value);
-      setEditIndex(idx);
-    }
-  };
-
-  const saveDescription = () => {
-    setValue(`accesses.${editIndex}.description`, modalText);
-    setEditIndex(null);
+  
+  const handleTextareaAutoResize = (e) => {
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
   return (
-    <div className="tab-section accesses-tab-list">
-      <div className="accesses-header">
-        <span>Название</span>
-        <span>Логин</span>
-        <span>Пароль</span>
-        <span>Описание</span>
-        <span>Действия</span>
+    <div className="tab-section accesses-tab-wrapper">
+      <div className="employee-requisites-table"> 
+        
+        
+        <div className="requisites-row header-row">
+          <div className="requisites-cell">Название</div>
+          <div className="requisites-cell">Логин</div>
+          <div className="requisites-cell">Пароль</div>
+          <div className="requisites-cell">Описание</div>
+          <div className="requisites-cell action-cell"></div>
+        </div>
+
+        
+        {fields.map((item, index) => (
+          <div key={item.id} className="requisites-row">
+            
+            {/* --- Название --- */}
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}[${index}].name`}
+                control={control}
+                defaultValue={item.name || ''}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    placeholder="Название"
+                    className="assets-workplan-textarea" 
+                    onInput={handleTextareaAutoResize}
+                    rows={1}
+                  />
+                )}
+              />
+            </div>
+
+            {/* --- Логин --- */}
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}[${index}].login`}
+                control={control}
+                defaultValue={item.login || ''}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    placeholder="Логин"
+                    className="assets-workplan-textarea"
+                    onInput={handleTextareaAutoResize}
+                    rows={1}
+                  />
+                )}
+              />
+            </div>
+
+            {/* --- Пароль --- */}
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}[${index}].password`}
+                control={control}
+                defaultValue={item.password || ''}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    placeholder="Пароль"
+                    className="assets-workplan-textarea"
+                    onInput={handleTextareaAutoResize}
+                    rows={1}
+                  />
+                )}
+              />
+            </div>
+
+            {/* --- Описание --- */}
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}[${index}].description`}
+                control={control}
+                defaultValue={item.description || ''}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    placeholder="Описание"
+                    className="assets-workplan-textarea"
+                    onInput={handleTextareaAutoResize}
+                    rows={1}
+                  />
+                )}
+              />
+            </div>
+
+            {/* --- Кнопка Удалить --- */}
+            <div className="requisites-cell action-cell">
+              <button
+                type="button"
+                className="requisites-remove-btn" 
+                onClick={() => remove(index)}
+                title="Удалить доступ"
+              >
+                <X size={18} color='red' />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {fields.map((field, idx) => (
-        <div key={field.id} className="access-line">
-          <input
-            {...register(`accesses.${idx}.name`)}
-            defaultValue={field.name}
-            placeholder="Название"
-          />
-          <input
-            {...register(`accesses.${idx}.login`)}
-            defaultValue={field.login}
-            placeholder="Логин"
-          />
-          <input
-            {...register(`accesses.${idx}.password`)}
-            defaultValue={field.password}
-            placeholder="Пароль"
-          />
-          <input
-            type="text"
-            className="input-like"
-            placeholder="Описание"
-            value={getValues(`accesses.${idx}.description`) || ''}
-            onClick={() => openDescriptionModal(idx)}
-            onChange={(e) => handleInputChange(e, idx)}
-            readOnly
-          />
-          <button
-            type="button"
-            className="remove-btn"
-            onClick={() => remove(idx)}
-          >
-            ×
-          </button>
-        </div>
-      ))}
-
+      {/* === Кнопка Добавить === */}
       <button
         type="button"
-        className="add-btn"
+        className="add-requisites-btn" 
         onClick={() =>
           append({ name: '', login: '', password: '', description: '' })
         }
       >
-        + Добавить строку
+        <Plus size={16} /> Добавить
       </button>
-
-      {editIndex !== null && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Редактировать описание</h3>
-            <textarea
-              value={modalText}
-              onChange={(e) => setModalText(e.target.value)}
-              rows={10}
-              placeholder="Дополнительные инструкции, ссылки, особенности входа…"
-            />
-            <div className="modal-actions">
-              <button onClick={saveDescription}>Сохранить</button>
-              <button onClick={() => setEditIndex(null)}>Отмена</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

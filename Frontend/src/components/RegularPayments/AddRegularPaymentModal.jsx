@@ -28,7 +28,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
         period: "Ежемесячно",
         cycleDay: '1', 
         time: "10:00",
-        startDate: getTodayDate(), 
     }), [financeFields, assets]);
 
     const [formData, setFormData] = useState(initialFormData);
@@ -57,14 +56,56 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             newFormData.accountCurrency = selectedAccount ? selectedAccount.currency : "UAH";
         }
 
+        
         if (name === "period") {
             if (value === "Еженедельно") {
-                newFormData.cycleDay = "Понедельник"; 
+                newFormData.cycleDay = '1'; 
             } else if (value === "Ежемесячно") {
-                newFormData.cycleDay = '1';
-            } else {
-                newFormData.cycleDay = null;
+                newFormData.cycleDay = '1'; 
+            } else if (value === "Ежегодно") {
+                newFormData.cycleDay = '01.01'; 
+            } else { 
+                newFormData.cycleDay = null; 
             }
+        }
+
+       
+        if (name === "cycleDay") {
+            const { period } = formData; 
+            let valueToSave = value;
+
+            if (period === "Еженедельно") {
+                
+                valueToSave = value.replace(/[^1-7]/g, '');
+                
+                if (valueToSave.length > 1) {
+                    valueToSave = valueToSave[0];
+                }
+            } else if (period === "Ежемесячно") {
+                
+                valueToSave = value.replace(/\D/g, '');
+                if (valueToSave) {
+                    const num = parseInt(valueToSave, 10);
+                    if (num > 31) valueToSave = '31';
+                    if (num < 1 && valueToSave.length > 0) valueToSave = '1';
+                }
+            } else if (period === "Ежегодно") {
+                
+                let formattedValue = value.replace(/[^0-9.]/g, ''); 
+
+                
+                if (formattedValue.length === 2 && formData.cycleDay.length === 1 && !formattedValue.includes('.')) {
+                    formattedValue += '.';
+                }
+                
+                if (formattedValue === '.') {
+                    formattedValue = '';
+                }
+                
+                valueToSave = formattedValue.substring(0, 5);
+            }
+            
+            newFormData.cycleDay = valueToSave;
         }
 
         setFormData(newFormData);
@@ -164,12 +205,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                         <input type="number" id="amount" name="amount" value={formData.amount} onChange={handleChange} placeholder="Введите сумму" required step="0.01" className="form-input1" />
                     </div>
 
-                    {/* NEW: Дата начала */}
-                    <div className="form-row">
-                        <label htmlFor="startDate" className="form-label">Дата начала</label>
-                        <input type="date" id="startDate" name="startDate" value={formData.startDate} onChange={handleChange} required className="form-input1" />
-                    </div>
-
+        
                     {/* Период */}
                     <div className="form-row">
                         <label htmlFor="period" className="form-label">Период</label>
@@ -181,22 +217,58 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                         </select>
                     </div>
 
-                    {/* Конкретизация цикла */}
+                    {/* --- ИЗМЕНЕНИЕ 3: Новые инпуты для Конкретизации цикла --- */}
+
+                    {/* Еженедельно */}
                     {formData.period === "Еженедельно" && (
                         <div className="form-row">
-                            <label htmlFor="cycleDay" className="form-label">День недели</label>
-                            <select id="cycleDay" name="cycleDay" value={formData.cycleDay} onChange={handleChange} className="form-input1">
-                                {daysOfWeek.map(day => <option key={day} value={day}>{day}</option>)}
-                            </select>
+                            <label htmlFor="cycleDay" className="form-label">День недели (1-7)</label>
+                            <input
+                                type="number" // Используем number для авто-валидации
+                                id="cycleDay"
+                                name="cycleDay"
+                                value={formData.cycleDay}
+                                onChange={handleChange}
+                                min="1"
+                                max="7"
+                                placeholder="1-7 (Пн-Вс)"
+                                className="form-input1"
+                            />
                         </div>
                     )}
 
+                    {/* Ежемесячно */}
                     {formData.period === "Ежемесячно" && (
                         <div className="form-row">
-                            <label htmlFor="cycleDay" className="form-label">Число месяца</label>
-                            <select id="cycleDay" name="cycleDay" value={formData.cycleDay} onChange={handleChange} className="form-input1">
-                                {daysOfMonth.map(day => <option key={day} value={day}>{day}</option>)}
-                            </select>
+                            <label htmlFor="cycleDay" className="form-label">Число месяца (1-31)</label>
+                            <input
+                                type="number" // Используем number для авто-валидации
+                                id="cycleDay"
+                                name="cycleDay"
+                                value={formData.cycleDay}
+                                onChange={handleChange}
+                                min="1"
+                                max="31"
+                                placeholder="1-31"
+                                className="form-input1"
+                            />
+                        </div>
+                    )}
+
+                    {/* Ежегодно */}
+                    {formData.period === "Ежегодно" && (
+                        <div className="form-row">
+                            <label htmlFor="cycleDay" className="form-label">Дата (в формате ДД.ММ)</label>
+                            <input
+                                type="text"
+                                id="cycleDay"
+                                name="cycleDay"
+                                value={formData.cycleDay}
+                                onChange={handleChange}
+                                placeholder="05.05"
+                                maxLength="5" // ДД.ММ
+                                className="form-input1"
+                            />
                         </div>
                     )}
 

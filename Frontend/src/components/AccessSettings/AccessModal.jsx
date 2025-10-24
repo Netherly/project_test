@@ -308,7 +308,7 @@ const AccessModal = ({
     return (
          <>
             <div className="access-modal-overlay" onClick={handleAttemptClose}></div>
-            <div className="access-modal">
+            <div className="access-modal custom-scrollbar">
                 <div className="access-modal-header">
                     <div className="access-modal-header-content">
                         <h2>
@@ -325,7 +325,7 @@ const AccessModal = ({
                     </div>
                 </div>
 
-                <div className="access-modal-content custom-scrollbar" ref={contentRef}>
+                <div className="access-modal-content" ref={contentRef}>
                     <div className="access-modal-roles-section">
                         <div className="access-modal-roles-header">
                             <span className="access-modal-roles-label">{isGeneralMode ? 'Роли' : 'Выберите роль'}</span>

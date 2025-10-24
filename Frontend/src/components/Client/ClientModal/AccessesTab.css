@@ -1,193 +1,67 @@
-/* === Контейнер всего таба === */
-.accesses-tab-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+
+
+.accesses-tab-wrapper .requisites-cell {
+  flex-basis: 25%;
+  padding-right: 12px;
+  padding-left: 5px; 
 }
 
-/* === Шапка с колонками (только на десктопе) === */
-.accesses-header {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr auto;
-  padding: 8px 12px;
-  background: var(--container-bg);
-  color: var(--container-text-color);
-  font-weight: 600;
-  font-size: 14px;
-  border-radius: 8px;
-  margin-bottom: 6px;
-  box-shadow: inset 0 -1px 0 var(--input-border);
-}
 
-.accesses-header span {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-left: 4px;
-}
 
-/* === Строка с доступом === */
-.access-line {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr auto;
-  gap: 0.5rem;
-  align-items: center;
-  background: var(--bg-color);
-  padding: 8px;
-  border-radius: 6px;
-  transition: background 0.3s;
+/* 1. Название */
+.accesses-tab-wrapper .requisites-cell:nth-child(1) { 
+  flex-basis: 20%; 
+} 
+/* 2. Логин */
+.accesses-tab-wrapper .requisites-cell:nth-child(2) { 
+  flex-basis: 25%; 
 }
-
-.access-line:hover {
-  background: var(--opacity-container);
+/* 3. Пароль */
+.accesses-tab-wrapper .requisites-cell:nth-child(3) { 
+  flex-basis: 25%; 
 }
+/* 4. Описание */
+.accesses-tab-wrapper .requisites-cell:nth-child(4) { 
+  flex-basis: 30%; 
+  padding-right: 0; 
+} 
 
-/* === Все input-поля одинаковые === */
-.access-line input,
-.input-like {
-  padding: 8px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid var(--input-border);
-  background: var(--input-bg);
-  color: var(--text-color);
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 38px;
-  font-family: inherit;
-  transition: border-color 0.2s;
-}
-
-.input-like {
-  cursor: pointer;
-}
-
-.access-line input:focus,
-.input-like:focus {
-  outline: none;
-  border-color: var(--input-border-focus);
-}
-
-/* === Кнопка удаления === */
-.remove-btn {
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.remove-btn:hover {
-  background: #c0392b;
-}
-
-/* === Кнопка "Добавить строку" === */
-.add-btn {
-  align-self: flex-start;
-  margin-top: 0.5rem;
-  background: var(--button-bg);
-  color: var(--button-text);
-  border: 1px solid var(--btn-border-color);
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.add-btn:hover {
-  background: var(--container-hover-bg);
-  color: var(--container-hover-text-color);
-}
-
-/* === Модальное окно === */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
+/* 5. Кнопка "X" (Действия) */
+.accesses-tab-wrapper .requisites-cell.action-cell {
+  flex-basis: 40px; 
+  flex-shrink: 0;
   justify-content: center;
-  z-index: 1000;
+  padding-left: 10px;
+  padding-right: 0;
 }
 
-.modal {
-  background: var(--container-bg);
-  padding: 1.5rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  color: var(--container-text-color);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-}
 
-.modal textarea {
-  width: 100%;
-  padding: 8px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid var(--input-border);
-  background: var(--input-bg);
-  color: var(--text-color);
-  resize: vertical;
-  min-height: 180px;
-  font-family: inherit;
-}
-
-.modal-actions {
-  margin-top: 1rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.modal-actions button {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-}
-
-.modal-actions button:first-of-type {
-  background: #2ecc71;
-  color: white;
-}
-
-.modal-actions button:last-of-type {
-  background: #bdc3c7;
-  color: black;
-}
-
-/* === Адаптивность для телефона === */
 @media (max-width: 768px) {
-  .accesses-header {
-    display: none;
-  }
-
-  .access-line {
-    display: flex;
+  .accesses-tab-wrapper .requisites-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.75rem;
-    padding: 12px;
-    background: var(--container-bg);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border-form-color);
+    border-radius: 6px;
+  }
+  
+  .accesses-tab-wrapper .requisites-row.header-row {
+    display: none; 
   }
 
-  .remove-btn {
+  .accesses-tab-wrapper .requisites-cell {
+    flex-basis: auto !important; 
+    width: 100%;
+    padding: 0 0 10px 0 !important; 
+  }
+
+  .accesses-tab-wrapper .requisites-cell.action-cell {
+    padding-top: 5px;
     align-self: flex-end;
   }
-
-  .access-line input,
-  .input-like {
-    width: 100%;
+  
+  .accesses-tab-wrapper .assets-workplan-textarea {
+    min-height: 40px; 
   }
 }

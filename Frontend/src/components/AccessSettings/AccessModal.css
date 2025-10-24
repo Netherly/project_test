@@ -9,6 +9,8 @@
 }
 
 .access-modal {
+    overflow-y: auto;
+    overflow-x: hidden;
     position: fixed;
     right: 0;
     top: 0;
@@ -33,11 +35,21 @@
 .access-modal-header {
     padding: 10px 25px;
     background-color: var(--bg-menu-color);
-    border-bottom: 1px solid var(--border--color);
-    position: relative;
+    position: relative; 
+    border-bottom: none;
     display: flex;
     justify-content: space-between;
     align-items: center; 
+}
+
+.access-modal-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; 
+    height: 1px;
+    background-color: var(--border-form-color);
+    left: 25px;
+    right: 35px;
 }
 
 .access-modal-header h2 {
@@ -94,14 +106,13 @@
 
 .access-modal-content {
     flex: 1;
-    overflow-y: auto;
     padding: 10px 25px;
     background-color: var(--bg-menu-color);
     padding-bottom: 100px; 
 }
 
 .access-modal-roles-section {
-    border-bottom: 1px solid var(--border--color);
+    border-bottom: 1px solid var(--border-form-color);
     padding: 10px;
 }
 
@@ -335,7 +346,7 @@
 
 .access-modal-table-header {
     display: grid;
-    grid-template-columns: 180px repeat(4, 100px) 1fr;
+    grid-template-columns: 110px repeat(4, 110px) 1fr;
     background-color: var(--container-bg, #ffffff);
     border-bottom: 2px solid var(--border--color, #e0e0e0);
 }
@@ -370,7 +381,7 @@
 
 .access-modal-table-row {
     display: grid;
-    grid-template-columns: 180px repeat(4, 100px) 1fr;
+    grid-template-columns: 110px repeat(4, 110px) 1fr;
     border-bottom: 1px solid var(--border--color, #e0e0e0);
     align-items: center;
 }
@@ -420,17 +431,25 @@
 
 /* Стили для футера */
 .access-modal-footer {
-    position: fixed;
+    position: sticky;
     bottom: 0;
     right: 0;
-    width: 762px;
     padding: 15px 0px;
     background-color: var(--bg-menu-color);
-    border-top: 1px solid var(--border--color);
     display: flex;
     justify-content: flex-end;
     z-index: 1002;
     box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.1);
+}
+
+.access-modal-footer::before {
+    content: '';
+    position: absolute;
+    top: 0; 
+    height: 1px;
+    background-color: var(--border-form-color);
+    left: 25px;
+    right: 25px;
 }
 
 .access-modal-action-buttons {

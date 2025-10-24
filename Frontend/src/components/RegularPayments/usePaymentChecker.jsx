@@ -16,7 +16,9 @@ export const usePaymentChecker = () => {
 
             const duePayments = allPayments.filter(p => {
                 if (p.status !== 'Активен' || !p.nextPaymentDate) return false;
-                const paymentDateTime = new Date(`${p.nextPaymentDate}T${p.time}`);
+                
+                const paymentDateTime = new Date(p.nextPaymentDate);
+                
                 return paymentDateTime <= now;
             });
 
@@ -26,10 +28,10 @@ export const usePaymentChecker = () => {
                 duePayments.forEach(payment => {
                     const newTransaction = {
                         id: `TRX_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                        date: new Date().toISOString().slice(0, 16).replace("T", " "),
+                        date: new Date().toISOString(), 
                         category: payment.category,
                         subcategory: payment.subcategory,
-                        description: `Регулярный платеж: ${payment.category}`,
+                        description: `Регулярный платеж: ${payment.description || payment.category}`,
                         account: payment.account,
                         accountCurrency: payment.accountCurrency,
                         operation: payment.operation,
@@ -40,10 +42,14 @@ export const usePaymentChecker = () => {
 
                     const updatedPayment = {
                         ...payment,
-                        nextPaymentDate: calculateNextPaymentDate(payment.period, payment.time, payment.nextPaymentDate),
+                        nextPaymentDate: calculateNextPaymentDate(
+                            payment, 
+                            payment.nextPaymentDate 
+                        ),
                     };
                     
-                    paymentApi.updateRegularPayment(updatedPayment);
+                    
+                    paymentApi.updateRegularPayment(updatedPayment); 
                 });
             }
         };

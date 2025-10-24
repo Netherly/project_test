@@ -5,6 +5,7 @@ import {
   useFormContext
 } from 'react-hook-form';
 import './FinancesTab.css';
+import {Plus, Minus } from 'lucide-react';
 
 export default function FinancesTab({ currencies = [], referrers = [], employees = [] }) {
   const [currencyList, setCurrencyList] = useState(currencies);
@@ -46,7 +47,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Валюта<span className="req">*</span></label>
+            <label>Валюта</label>
             <div className="select-plus">
               <select {...field} className={errors.currency ? 'input-error' : ''}>
                 <option value="">-- выбрать --</option>
@@ -54,7 +55,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
                   <option key={cur} value={cur}>{cur}</option>
                 ))}
               </select>
-              <button type="button" onClick={addCurrency}>+</button>
             </div>
             {errors.currency && <p className="error">{errors.currency.message}</p>}
           </div>
@@ -68,7 +68,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         render={({ field }) => (
           <div className="form-field full-width">
             <label>Реквизиты для оплаты</label>
-            <textarea {...field} placeholder="IBAN, PayPal, Crypto…" />
+            <textarea {...field} placeholder="IBAN, PayPal, Crypto…" className='workplan-textarea' />
           </div>
         )}
       />
@@ -90,36 +90,87 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         <Controller
           name="percent"
           control={control}
-          render={({ field }) => (
-            <div className="form-field">
-              <label>% доли<span className="req">*</span></label>
-              <input
-                type="number"
-                {...field}
-                min={0}
-                max={100}
-                step={1}
-                className={errors.percent ? 'input-error' : ''}
-              />
-              {errors.percent && <p className="error">{errors.percent.message}</p>}
-            </div>
-          )}
+          render={({ field }) => {
+           
+            const { onChange, value, ...restField } = field;
+
+            
+            const min = 0;
+            const max = 100;
+            const step = 5;
+
+            
+            const numValue = parseFloat(value) || 0;
+
+            
+            const handleDecrement = () => {
+              const newValue = Math.max(min, numValue - step);
+              onChange(newValue); 
+            };
+
+            
+            const handleIncrement = () => {
+              const newValue = Math.min(max, numValue + step);
+              onChange(newValue); 
+            };
+
+            return (
+              <div className="form-field">
+                <label>% доли</label>
+                
+                
+                <div className="custom-number-input">
+                  
+                 
+                  <button
+                    type="button"
+                    className="num-btn minus-btn"
+                    onClick={handleDecrement}
+                    disabled={numValue <= min} 
+                  >
+                    <Minus/>
+                  </button>
+                  
+                  
+                  <input
+                    type="number"
+                    {...restField} 
+                    value={value}
+                    onChange={onChange}
+                    min={min}
+                    max={max}
+                    step={step}
+                    className={errors.percent ? 'input-error' : ''}
+                  />
+                  
+                 
+                  <button
+                    type="button"
+                    className="num-btn plus-btn"
+                    onClick={handleIncrement}
+                    disabled={numValue >= max} 
+                  >
+                    <Plus/>
+                  </button>
+                </div>
+                {errors.percent && <p className="error">{errors.percent.message}</p>}
+              </div>
+            );
+          }}
         />
 
         <Controller
           name="share_info"
           control={control}
           render={({ field }) => (
-            <div className="form-field switch-field">
+            <div className="form-field-checkbox">
               <label>Есть доля?</label>
-              <label className="switch">
                 <input
                   type="checkbox"
                   {...field}
                   onChange={e => field.onChange(e.target.checked)}
+                  className='form-checkbox'
                 />
-                <span className="slider" />
-              </label>
             </div>
           )}
         />

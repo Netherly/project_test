@@ -112,16 +112,28 @@
     width: 130px; 
 }
 
+.regular-payments-table td:nth-child(2),
+.regular-payments-table td:nth-child(3) {
+    text-align: left;
+}
 /* Описание */
 .regular-payments-table th:nth-child(4),
 .regular-payments-table td:nth-child(4) {
     width: 250px;
 }
 
+.regular-payments-table td:nth-child(4){
+    text-align: left;
+}
+
 /* Счет */
 .regular-payments-table th:nth-child(5),
 .regular-payments-table td:nth-child(5) {
     width: 170px;
+}
+
+.regular-payments-table td:nth-child(5){
+    text-align: left;
 }
 
 /* Валюта */
@@ -133,13 +145,13 @@
 /* Операция */
 .regular-payments-table th:nth-child(7),
 .regular-payments-table td:nth-child(7) {
-    width: 90px;
+    width: 110px;
 }
 
 /* Сумма */
 .regular-payments-table th:nth-child(8),
 .regular-payments-table td:nth-child(8) {
-    width: 110px;
+    width: 70px;
 }
 
 /* Период */
@@ -151,7 +163,7 @@
 /* Цикл */
 .regular-payments-table th:nth-child(10),
 .regular-payments-table td:nth-child(10) {
-    width: 110px;
+    width: 50px;
 }
 
 /* Время */

@@ -3,9 +3,6 @@ import "../../styles/ViewEditTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Trash2, Copy} from 'lucide-react';
 
-const daysOfWeek = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
-const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
-
 const ViewEditRegularPaymentModal = ({
     payment,
     onUpdate,
@@ -52,12 +49,59 @@ const ViewEditRegularPaymentModal = ({
         
         if (name === "period") {
             if (value === "Еженедельно") {
-                newFormData.cycleDay = "Понедельник"; 
+                newFormData.cycleDay = '1'; 
             } else if (value === "Ежемесячно") {
                 newFormData.cycleDay = '1';
-            } else {
+            } else if (value === "Ежегодно") {
+                newFormData.cycleDay = '01.01'; 
+            } else { 
                 newFormData.cycleDay = null; 
             }
+        }
+
+        
+        if (name === "cycleDay") {
+            const { period } = formData; 
+            let valueToSave = value;
+
+            if (period === "Еженедельно") {
+                valueToSave = value.replace(/[^1-7]/g, '');
+                
+                if (valueToSave.length > 1) {
+                    valueToSave = valueToSave[0];
+                }
+            } else if (period === "Ежемесячно") {
+                
+                valueToSave = value.replace(/\D/g, '');
+                if (valueToSave) {
+                    const num = parseInt(valueToSave, 10);
+                    if (num > 31) valueToSave = '31';
+                    if (num < 1 && valueToSave.length > 0) valueToSave = '1';
+                }
+            } else if (period === "Ежегодно") {
+                
+                let formattedValue = value.replace(/[^0-9.]/g, ''); 
+
+                
+                if (formattedValue.length === 2 && formData.cycleDay.length === 1 && !formattedValue.includes('.')) {
+                    formattedValue += '.';
+                }
+                
+                if (formattedValue === '.') {
+                    formattedValue = '';
+                }
+                
+                valueToSave = formattedValue.substring(0, 5);
+            }
+            
+            newFormData.cycleDay = valueToSave;
+        }
+
+        
+        const scheduleFields = ['period', 'cycleDay', 'time'];
+        if (scheduleFields.includes(name)) {
+            
+            newFormData.nextPaymentDate = null; 
         }
 
         setFormData(newFormData);
@@ -94,15 +138,18 @@ const ViewEditRegularPaymentModal = ({
         }
     };
 
-    const formatDate = (dateString) => {
+    const formatDate = (dateString, timeString) => {
         if (!dateString) return 'Нет данных';
         const date = new Date(dateString);
+        
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${day}.${month}.${year}`;
+        
+        
+        const time = timeString || 'ЧЧ:мм'; 
+        
+        return `${day}.${month}.${year} ${time}`;
     };
 
     return (
@@ -176,14 +223,9 @@ const ViewEditRegularPaymentModal = ({
                         <label htmlFor="amount" className="form-label">Сумма операции</label>
                         <input type="number" id="amount" name="amount" value={formData.amount} onChange={handleChange} required step="0.01" className="form-input1" />
                     </div>
-                    
-                    {/* NEW: Дата начала */}
-                    <div className="form-row">
-                        <label htmlFor="startDate" className="form-label">Дата начала</label>
-                        <input type="date" id="startDate" name="startDate" value={formData.startDate || ''} onChange={handleChange} required className="form-input1" />
-                    </div>
+                
+                   
 
-                    {/* Период */}
                     <div className="form-row">
                         <label htmlFor="period" className="form-label">Период</label>
                         <select id="period" name="period" value={formData.period} onChange={handleChange} required className="form-input1">
@@ -194,22 +236,57 @@ const ViewEditRegularPaymentModal = ({
                         </select>
                     </div>
 
-                    {/* Конкретизация цикла */}
+                    
+                    {/* Еженедельно */}
                     {formData.period === "Еженедельно" && (
                         <div className="form-row">
-                            <label htmlFor="cycleDay" className="form-label">День недели</label>
-                            <select id="cycleDay" name="cycleDay" value={formData.cycleDay} onChange={handleChange} className="form-input1">
-                                {daysOfWeek.map(day => <option key={day} value={day}>{day}</option>)}
-                            </select>
+                            <label htmlFor="cycleDay" className="form-label">День недели (1-7)</label>
+                            <input
+                                type="number"
+                                id="cycleDay"
+                                name="cycleDay"
+                                value={formData.cycleDay}
+                                onChange={handleChange}
+                                min="1"
+                                max="7"
+                                placeholder="1-7 (Пн-Вс)"
+                                className="form-input1"
+                            />
                         </div>
                     )}
 
+                    {/* Ежемесячно */}
                     {formData.period === "Ежемесячно" && (
                         <div className="form-row">
-                            <label htmlFor="cycleDay" className="form-label">Число месяца</label>
-                            <select id="cycleDay" name="cycleDay" value={formData.cycleDay} onChange={handleChange} className="form-input1">
-                                {daysOfMonth.map(day => <option key={day} value={day}>{day}</option>)}
-                            </select>
+                            <label htmlFor="cycleDay" className="form-label">Число месяца (1-31)</label>
+                            <input
+                                type="number"
+                                id="cycleDay"
+                                name="cycleDay"
+                                value={formData.cycleDay}
+                                onChange={handleChange}
+                                min="1"
+                                max="31"
+                                placeholder="1-31"
+                                className="form-input1"
+                            />
+                        </div>
+                    )}
+
+                    {/* Ежегодно */}
+                    {formData.period === "Ежегодно" && (
+                        <div className="form-row">
+                            <label htmlFor="cycleDay" className="form-label">Дата (в формате ДД.ММ)</label>
+                            <input
+                                type="text"
+                                id="cycleDay"
+                                name="cycleDay"
+                                value={formData.cycleDay}
+                                onChange={handleChange}
+                                placeholder="05.05"
+                                maxLength="5" 
+                                className="form-input1"
+                            />
                         </div>
                     )}
 
@@ -234,7 +311,7 @@ const ViewEditRegularPaymentModal = ({
                             <input
                                 type="text"
                                 id="nextPaymentDate"
-                                value={formatDate(formData.nextPaymentDate)}
+                                value={formatDate(formData.nextPaymentDate, formData.time)}
                                 readOnly
                                 className="form-input1"
                                 style={{ backgroundColor: 'var(--bg-color)', cursor: 'default' }} 

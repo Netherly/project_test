@@ -7,52 +7,89 @@ const defaultRegularPayments = [
     
 ];
 
+const getTodayISO = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const generateId = () => {
     return 'RP_' + Math.random().toString(36).substring(2, 9);
 };
 
 
 
+
 /**
- * Рассчитывает дату следующего платежа.
- * @param {string} period - Период ('Ежедневно', 'Еженедельно', 'Ежемесячно', 'Ежегодно').
- * @param {string} time - Время в формате 'HH:mm'.
- * @returns {string} - Дата в формате 'YYYY-MM-DD'.
+ * 
+ * @param {object} paymentData - Объект с { period, time, cycleDay }.
+ * @param {Date | string} referenceDateInput - Дата, ОТ которой вести расчет.
+ * @returns {string} - Новая дата в полном ISO формате (YYYY-MM-DDTHH:mm:ss.sssZ).
  */
-export const calculateNextPaymentDate = (period, time, lastPaymentDateStr) => {
+export const calculateNextPaymentDate = (paymentData, referenceDateInput) => {
+    const { period, time, cycleDay } = paymentData;
     
-    const startDate = lastPaymentDateStr ? new Date(lastPaymentDateStr) : new Date();
+    
+    const referenceDate = new Date(referenceDateInput);
     const [hours, minutes] = time.split(':');
+    
+    
+    let nextDate = new Date(referenceDate);
+    nextDate.setHours(hours, minutes, 0, 0); 
 
-    startDate.setHours(hours, minutes, 0, 0);
+    
+    const refDateWithTime = new Date(referenceDate);
+    refDateWithTime.setHours(hours, minutes, 0, 0);
 
-    const futureDate = new Date(startDate);
-
+    
     switch (period) {
         case 'Ежедневно':
-            futureDate.setDate(futureDate.getDate() + 1);
+            nextDate.setDate(nextDate.getDate() + 1);
             break;
+
         case 'Еженедельно':
-            futureDate.setDate(futureDate.getDate() + 7);
+            
+            const targetDay = parseInt(cycleDay, 10) % 7; 
+            const currentDay = nextDate.getDay();
+
+            let daysToAdd = (targetDay - currentDay + 7) % 7;
+            
+            
+            if (daysToAdd === 0) {
+                daysToAdd = 7;
+            }
+            
+            nextDate.setDate(nextDate.getDate() + daysToAdd);
             break;
+
         case 'Ежемесячно':
-            futureDate.setMonth(futureDate.getMonth() + 1);
+            const targetDate = parseInt(cycleDay, 10);
+            nextDate.setDate(targetDate);
+            
+           
+            if (nextDate <= refDateWithTime) {
+                nextDate.setMonth(nextDate.getMonth() + 1);
+            }
             break;
+
         case 'Ежегодно':
-            futureDate.setFullYear(futureDate.getFullYear() + 1);
+            const [day, month] = cycleDay.split('.').map(n => parseInt(n, 10));
+            nextDate.setMonth(month - 1); 
+            nextDate.setDate(day);
+
+            
+            if (nextDate <= refDateWithTime) {
+                nextDate.setFullYear(nextDate.getFullYear() + 1);
+            }
             break;
+
         default:
-            futureDate.setDate(futureDate.getDate() + 1); 
+            nextDate.setDate(nextDate.getDate() + 1); 
     }
-
-    
-    const year = futureDate.getFullYear();
-    const month = String(futureDate.getMonth() + 1).padStart(2, '0');
-    const day = String(futureDate.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
+    return nextDate.toISOString(); 
 };
-
 
 export const getRegularPayments = () => {
     try {
@@ -73,29 +110,44 @@ const saveRegularPayments = (payments) => {
 };
 
 
-export const addRegularPayment = (newPaymentData) => {
+export const addRegularPayment = (paymentData) => {
     const allPayments = getRegularPayments();
     
     const paymentToAdd = {
         id: generateId(),
         status: 'Активен',
-        ...newPaymentData,
-        nextPaymentDate: calculateNextPaymentDate(newPaymentData.period, newPaymentData.time, null),
+        ...paymentData,
+        
     };
     
-    
     const updatedPayments = [paymentToAdd, ...allPayments];
-    
     saveRegularPayments(updatedPayments);
     return updatedPayments;
 };
 
 
+
 export const updateRegularPayment = (updatedPayment) => {
     const allPayments = getRegularPayments();
-    const updatedList = allPayments.map(p =>
-        p.id === updatedPayment.id ? updatedPayment : p
-    );
+
+    const updatedList = allPayments.map(p => {
+        if (p.id !== updatedPayment.id) {
+            return p;
+        }
+
+        let paymentToSave = { ...updatedPayment };
+
+       
+        if (paymentToSave.nextPaymentDate === null) {
+            paymentToSave.nextPaymentDate = calculateNextPaymentDate(
+                paymentToSave, 
+                new Date()     
+            );
+        }
+        
+        return paymentToSave;
+    });
+
     saveRegularPayments(updatedList);
     return updatedList;
 };

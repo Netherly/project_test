@@ -34,7 +34,7 @@ export default function ClientModal({
   const safeClient = client ?? {};
   const isNew = !safeClient.id;    // новый клиент, ещё не сохранён
 
-  const [activeTab,   setActiveTab]   = useState('info');
+  const [activeTab,   setActiveTab]   = useState(isNew ? 'info' : 'summary');
   const [showCompany, setShowCompany] = useState(false);
   const [showImage,   setShowImage]   = useState(false);
   const [closing,     setClosing]     = useState(false);
@@ -127,22 +127,23 @@ export default function ClientModal({
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             errors={formErrors}
+            isNew={isNew}
           />
           <FormProvider {...methods}>
             <form
-              className="modal-body"
+              className="modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
               {activeTab === 'info'     && <InfoTab     companies={companies} onAddCompany={() => setShowCompany(true)} />}
               {activeTab === 'contacts' && <ContactsTab countries={countries}  openImage={() => getValues('photo_link') && setShowImage(true)} />}
               {activeTab === 'finances' && <FinancesTab currencies={currencies} referrers={referrers} employees={employees} />}
               {activeTab === 'accesses' && <AccessesTab />}
-              <div className="form-actions-bottom">
+            </form>
+          </FormProvider>
+          <div className="form-actions-bottom">
                 <button className="cancel-order-btn" type="button" onClick={()=>reset()} disabled={!isDirty}>Сбросить</button>
                 <button className="save-order-btn" type="submit">Сохранить</button>
               </div>
-            </form>
-          </FormProvider>
         </div>
 
         {/* ─── центр – чат ─── */}
