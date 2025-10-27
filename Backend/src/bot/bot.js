@@ -3,6 +3,7 @@ const { Telegraf } = require('telegraf');
 const prisma = require('../../prisma/client');
 const { consumeToken } = require('../services/link-token.service');
 const { t } = require('./i18n');
+const { fetchAndSaveTelegramAvatar } = require('../services/telegram-avatar.service');
 
 let bot = null;
 
@@ -29,7 +30,6 @@ async function initTelegramBot() {
 
   bot.start(async (ctx) => {
     const lang = ctx.from.language_code;
-
     try {
       const payload = readStartPayload(ctx);
       if (!payload) {
@@ -52,6 +52,11 @@ async function initTelegramBot() {
           telegramLinkedAt: new Date(),
           telegramVerified: true,
         },
+      });
+
+      await fetchAndSaveTelegramAvatar({
+        employeeId: emp.id,
+        telegramUserId: Number(ctx.from.id),
       });
 
       await ctx.reply(
