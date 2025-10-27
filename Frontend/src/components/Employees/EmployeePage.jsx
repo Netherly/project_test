@@ -25,25 +25,33 @@ const formatDate = (dateString) => {
 };
 
 const formatNumberWithSpaces = (num) => {
-        if (num === null || num === undefined || isNaN(Number(num))) {
-            return '0.00';
-        }
-        const fixedNum = Number(num).toFixed(2);
-        const parts = fixedNum.split('.');
-        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-        return parts.join('.');
-    };
+  if (num === null || num === undefined || isNaN(Number(num))) {
+    return "0.00";
+  }
+  const fixedNum = Number(num).toFixed(2);
+  const parts = fixedNum.split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.join(".");
+};
 
 const EmployeeCard = ({ employee, onClick }) => {
-  const avatar = employee.avatarUrl || avatarPlaceholder;
+  const avatar = employee.avatarUrl || employee.photoLink || avatarPlaceholder; // <- учли поле из БД
   const tags = Array.isArray(employee.tags) ? employee.tags : [];
   return (
     <div className="employee-card" onClick={onClick}>
-      <img src={avatar} alt={employee.fullName || "Сотрудник"} className="card-avatar" />
+      <img
+        src={avatar}
+        alt={employee.fullName || employee.full_name || "Сотрудник"} // <- fallback к full_name
+        className="card-avatar"
+      />
       <div className="card-details">
         <div className="card-header">
-          <span className="card-full-name">{employee.fullName}</span>
-          {employee.birthDate && <span className="card-birthdate">{formatDate(employee.birthDate)}</span>}
+          <span className="card-full-name">
+            {employee.fullName || employee.full_name || "Без имени"} {/* <- fallback к full_name */}
+          </span>
+          {employee.birthDate && (
+            <span className="card-birthdate">{formatDate(employee.birthDate)}</span>
+          )}
         </div>
         <div className="card-login-wrapper">
           <span className="card-login">{employee.login}</span>
@@ -52,7 +60,11 @@ const EmployeeCard = ({ employee, onClick }) => {
           <div className="card-tags-container">
             {tags.length > 0 ? (
               tags.map((tag) => (
-                <span key={tag.id || tag.name} className="tag-chip" style={{ backgroundColor: tag.color || "#777" }}>
+                <span
+                  key={tag.id || tag.name}
+                  className="tag-chip"
+                  style={{ backgroundColor: tag.color || "#777" }}
+                >
                   {tag.name}
                 </span>
               ))
@@ -62,7 +74,9 @@ const EmployeeCard = ({ employee, onClick }) => {
           </div>
           <div className="card-balance-container">
             <span className="card-label">Баланс:</span>
-            <span className="card-balance">{employee.balance || "N/A"}</span>
+            <span className="card-balance">
+              {formatNumberWithSpaces(employee.balance)} {/* <- единый формат */}
+            </span>
           </div>
         </div>
       </div>
@@ -105,7 +119,9 @@ const EmployeePage = () => {
       const saved = localStorage.getItem("employees");
       if (saved) {
         const parsed = JSON.parse(saved);
-        return Array.isArray(parsed) ? parsed.map(normalizeEmployee) : defaultEmployees.map(normalizeEmployee);
+        return Array.isArray(parsed)
+          ? parsed.map(normalizeEmployee)
+          : defaultEmployees.map(normalizeEmployee);
       }
     } catch (_) {}
     return defaultEmployees.map(normalizeEmployee);
@@ -132,7 +148,10 @@ const EmployeePage = () => {
         if (!mounted) return;
         setEmployees(list);
       } catch (e) {
-        console.warn("API /employees недоступен, используем кэш/localStorage. Причина:", e?.message || e);
+        console.warn(
+          "API /employees недоступен, используем кэш/localStorage. Причина:",
+          e?.message || e
+        );
         if (!mounted) return;
         // уже задали из localStorage в useState; просто пометим ошибку
         setError("Не удалось получить данные с сервера. Показаны сохранённые локально.");
@@ -161,7 +180,9 @@ const EmployeePage = () => {
 
   const upsertLocal = (data, existedId) => {
     if (existedId) {
-      setEmployees((prev) => prev.map((e) => (e.id === existedId ? normalizeEmployee({ ...e, ...data }) : e)));
+      setEmployees((prev) =>
+        prev.map((e) => (e.id === existedId ? normalizeEmployee({ ...e, ...data }) : e))
+      );
     } else {
       const newEmp = normalizeEmployee({ ...data, id: Date.now() });
       setEmployees((prev) => [...prev, newEmp]);
@@ -221,9 +242,9 @@ const EmployeePage = () => {
       <div className="employees-page-main-container">
         <header className="employees-header-container">
           <h1 className="employees-title">
-            <PageHeaderIcon pageName={"Сотрудники"}/>
+            <PageHeaderIcon pageName={"Сотрудники"} />
             СОТРУДНИКИ
-            </h1>
+          </h1>
 
           <div className="view-mode-buttons">
             <button
@@ -294,8 +315,12 @@ const EmployeePage = () => {
                     </tr>
                     {!collapsedGroups[groupName] &&
                       groupEmployees.map((employee) => (
-                        <tr key={employee.id} onClick={() => handleOpenModal(employee)} style={{ cursor: "pointer" }}>
-                          <td>{employee.fullName}</td>
+                        <tr
+                          key={employee.id}
+                          onClick={() => handleOpenModal(employee)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <td>{employee.fullName || employee.full_name || "Без имени"}</td> {/* <- ФИО из БД */}
                           <td>
                             {(Array.isArray(employee.tags) ? employee.tags : []).map((tag) => (
                               <span
@@ -318,12 +343,21 @@ const EmployeePage = () => {
                           <td>{employee.source}</td>
                           <td>{formatDate(employee.birthDate)}</td>
                           <td>{employee.phone}</td>
-                          <td><span className="copy-button-icon"
-                                onClick={(e) => {
+                          <td>
+                            <span
+                              className="copy-button-icon"
+                              onClick={async (e) => {
                                 e.stopPropagation();
-                                copyToClipboard(transaction.counterpartyRequisites);
-                                }}
-                              title="Копировать реквизиты"></span>
+                                const text =
+                                  typeof employee.requisites === "string"
+                                    ? employee.requisites
+                                    : JSON.stringify(employee.requisites || "Нет реквизитов");
+                                try {
+                                  await navigator.clipboard.writeText(text);
+                                } catch (_) {}
+                              }}
+                              title="Копировать реквизиты"
+                            ></span>
                           </td>
                           <td>{formatNumberWithSpaces(employee.balance)}</td>
                           <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
@@ -345,7 +379,11 @@ const EmployeePage = () => {
                   {!collapsedGroups[groupName] && (
                     <div className="cards-container">
                       {groupEmployees.map((employee) => (
-                        <EmployeeCard key={employee.id} employee={employee} onClick={() => handleOpenModal(employee)} />
+                        <EmployeeCard
+                          key={employee.id}
+                          employee={employee}
+                          onClick={() => handleOpenModal(employee)}
+                        />
                       ))}
                     </div>
                   )}

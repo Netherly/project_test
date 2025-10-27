@@ -79,7 +79,7 @@ export async function deleteClient(id) {
   return unwrap(r) ?? true;
 }
 
-// На всякий — объект-обёртка
+
 export const ClientsAPI = {
   fetch: fetchClients,
   create: createClient,

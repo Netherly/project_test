@@ -7,16 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ClientStatus {
-  active
-  paused
-  archived
-}
-
-enum OperationType {
-  DEPOSIT
-  WITHDRAW
-}
+/* =========================
+   Справочники / теги
+   ========================= */
 
 model TagCategory {
   id   String @id @default(uuid())
@@ -26,19 +19,19 @@ model TagCategory {
 }
 
 model Tag {
-  id    String @id @default(uuid())
-  name  String @db.VarChar(100)
-  color String @db.VarChar(16)
-
+  id         String        @id @default(uuid())
+  name       String        @db.VarChar(100)
+  color      String        @db.VarChar(16)
   categoryId String
-  category   TagCategory @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
-  employees EmployeeTag[]
-  clients   ClientTag[]
-  orders    OrderTag[]
+  category   TagCategory   @relation(fields: [categoryId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // m2m
+  clients    ClientTag[]
+  employees  EmployeeTag[]
+  orders     OrderTag[]
 
   @@unique([name, categoryId])
 }
@@ -50,23 +43,25 @@ model Country {
   iso3      String?    @unique @db.VarChar(3)
   isActive  Boolean    @default(true)
   order     Int        @default(0)
-  employees Employee[]
+
+  // обратки
   clients   Client[]
+  employees Employee[]
 }
 
 model CurrencyDict {
-  id       String  @id @default(uuid())
-  code     String  @unique @db.VarChar(10)
-  name     String? @db.VarChar(100)
-  isActive Boolean @default(true)
-  order    Int     @default(0)
+  id               String             @id @default(uuid())
+  code             String             @unique @db.VarChar(10)
+  name             String?            @db.VarChar(100)
+  isActive         Boolean            @default(true)
+  order            Int                @default(0)
 
-  clients Client[]
-  orders  Order[]
-  assets  Asset[]
-
-  // 👇 обратная связь для EmployeeSettings.currency
+  // обратки
+  assets           Asset[]
+  clients          Client[]
   employeeSettings EmployeeSettings[]
+  orders           Order[]
+  employees        Employee[]         // back relation for Employee.currency
 }
 
 model ClientSourceDict {
@@ -74,6 +69,8 @@ model ClientSourceDict {
   name     String   @unique @db.VarChar(100)
   isActive Boolean  @default(true)
   order    Int      @default(0)
+
+  // обратка
   clients  Client[]
 }
 
@@ -82,15 +79,19 @@ model ClientCategoryDict {
   name     String   @unique @db.VarChar(100)
   isActive Boolean  @default(true)
   order    Int      @default(0)
+
+  // обратка
   clients  Client[]
 }
 
 model ExecutorRoleDict {
-  id       String     @id @default(uuid())
-  name     String     @unique @db.VarChar(100)
-  isActive Boolean    @default(true)
-  order    Int        @default(0)
-  Employee Employee[]
+  id        String     @id @default(uuid())
+  name      String     @unique @db.VarChar(100)
+  isActive  Boolean    @default(true)
+  order     Int        @default(0)
+
+  // обратка
+  employees Employee[]
 }
 
 model AssetTypeDict {
@@ -98,6 +99,8 @@ model AssetTypeDict {
   name     String  @unique @db.VarChar(100)
   isActive Boolean @default(true)
   order    Int     @default(0)
+
+  // обратка
   assets   Asset[]
 }
 
@@ -106,6 +109,8 @@ model PaymentSystemDict {
   name     String  @unique @db.VarChar(100)
   isActive Boolean @default(true)
   order    Int     @default(0)
+
+  // обратка
   assets   Asset[]
 }
 
@@ -115,6 +120,8 @@ model CardDesign {
   imageUrl String? @db.VarChar(1000)
   isActive Boolean @default(true)
   order    Int     @default(0)
+
+  // обратка
   assets   Asset[]
 }
 
@@ -123,16 +130,19 @@ model OrderIntervalDict {
   value      String              @unique @db.VarChar(100)
   isActive   Boolean             @default(true)
   order      Int                 @default(0)
+
+  // обратка
   categories OrderCategoryDict[]
 }
 
 model OrderCategoryDict {
   id         String            @id @default(uuid())
   intervalId String
-  interval   OrderIntervalDict @relation(fields: [intervalId], references: [id])
   value      String            @db.VarChar(100)
   isActive   Boolean           @default(true)
   order      Int               @default(0)
+
+  interval   OrderIntervalDict @relation(fields: [intervalId], references: [id])
 
   @@unique([intervalId, value])
   @@index([intervalId])
@@ -143,8 +153,10 @@ model FinanceArticleDict {
   name         String                  @unique @db.VarChar(150)
   isActive     Boolean                 @default(true)
   order        Int                     @default(0)
-  transactions Transaction[]
+
+  // обратки
   subarticles  FinanceSubarticleDict[]
+  transactions Transaction[]
 }
 
 model FinanceSubcategoryDict {
@@ -152,22 +164,48 @@ model FinanceSubcategoryDict {
   name        String                  @unique @db.VarChar(150)
   isActive    Boolean                 @default(true)
   order       Int                     @default(0)
+
+  // обратка
   subarticles FinanceSubarticleDict[]
 }
 
 model FinanceSubarticleDict {
   id            String                  @id @default(uuid())
   articleId     String?
-  article       FinanceArticleDict?     @relation(fields: [articleId], references: [id])
   subcategoryId String?
-  subcategory   FinanceSubcategoryDict? @relation(fields: [subcategoryId], references: [id])
   name          String                  @db.VarChar(150)
   isActive      Boolean                 @default(true)
   order         Int                     @default(0)
+
+  article       FinanceArticleDict?     @relation(fields: [articleId], references: [id])
+  subcategory   FinanceSubcategoryDict? @relation(fields: [subcategoryId], references: [id])
+
+  // обратка
   transactions  Transaction[]
 
   @@index([articleId])
   @@index([subcategoryId])
+}
+
+/* =========================
+   Статусы / enum
+   ========================= */
+
+enum EmployeeStatus {
+  active
+  inactive
+  pending
+}
+
+enum ClientStatus {
+  active
+  paused
+  archived
+}
+
+enum OperationType {
+  DEPOSIT
+  WITHDRAW
 }
 
 enum EmployeeTheme {
@@ -175,75 +213,101 @@ enum EmployeeTheme {
   dark
 }
 
+/* =========================
+   Сущности
+   ========================= */
+
 model Employee {
-  id        String  @id @default(uuid())
-  status    String? @db.VarChar(50)
-  full_name String? @db.VarChar(255)
-  phone     String? @db.VarChar(50)
-  email     String? @db.VarChar(100)
-  login     String  @unique @db.VarChar(100)
-  password  String  @db.VarChar(255)
-  folder    String? @db.VarChar(255)
-   userid     String?  @unique @db.VarChar(9) @default(dbgenerated("to_char(floor(random()*100000000)::int, 'FM00000000')"))
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
+  id                   String   @id @default(cuid())
+  status               EmployeeStatus?
+  full_name            String?
+  phone                String?
+  email                String?
+  login                String?  @unique
+  password             String?
+  folder               String?
+  userid String? @unique @db.VarChar(8)
 
-  publicId String? @unique @db.VarChar(20)
 
-  roleId String?
-  role   ExecutorRoleDict? @relation(fields: [roleId], references: [id])
+  // связь с компанией как Client (НЕ модель Company)
+  companyId            String?
+  company              Client?           @relation("EmployeeCompany", fields: [companyId], references: [id])
 
-  countryId String?
-  country   Country? @relation(fields: [countryId], references: [id])
+  publicId             String?
+  roleId               String?
+  countryId            String?
 
-  telegramUserId   BigInt?   @unique @db.BigInt
-  telegramChatId   BigInt?   @unique @db.BigInt
-  telegramUsername String?   @db.VarChar(100)
-  telegramLinkedAt DateTime?
-  telegramVerified Boolean   @default(false)
+  // валюта сотрудника
+  currencyId           String?
+  currency             CurrencyDict?     @relation(fields: [currencyId], references: [id])
 
-  settings    EmployeeSettings?
-  linkTickets TelegramLinkTicket[]
+  // Telegram/contacts
+  telegramUserId       BigInt?  @unique
+  telegramChatId       BigInt?
+  telegramUsername     String?
+  telegramLinkedAt     DateTime?
+  telegramVerified     Boolean? @default(false)
 
-  tasks   Task[]
-  clients Client[]      @relation("ManagerClients")
-  tags    EmployeeTag[]
-  assets  Asset[]
+  balance              Decimal? @default(0)
 
-  requisites EmployeeRequisite[]
+  birthDate            DateTime?
+  passport             String?
+  address              String?
+  chatLink             String?
+  telegramDateTime     DateTime?
+  telegramId           BigInt?
+  telegramName         String?
+  telegramNickname     String?
+  telegramBindingLink  String?
+  photoLink            String?
+  rates                Json?
+  mainCurrency         String?
 
-  createdAt DateTime @default(now())
-  updatedAt  DateTime @updatedAt @default(now())
-  @@index([companyId])
-  @@index([countryId])
-  @@index([roleId])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // внешние связи
+  country              Country?          @relation(fields: [countryId], references: [id])
+  role                 ExecutorRoleDict? @relation(fields: [roleId], references: [id])
+
+  // ОДИН-К-ОДНОМУ настройки — обратка для EmployeeSettings.employee
+  settings             EmployeeSettings?
+
+  // обратки
+  telegramTickets      TelegramLinkTicket[]
+  orders               Order[]           // обратка: Order.employee
+  transactions         Transaction[]     // обратка: Transaction.employee
+  tags                 EmployeeTag[]
+  requisites           EmployeeRequisite[]
+  assets               Asset[]
+
+  // менеджер ⇄ клиенты (именованная связь)
+  clients              Client[]          @relation("ManagerClients")
+
+  tasks                Task[]
 }
 
 model EmployeeSettings {
-  id         String   @id @default(uuid())
-  employeeId String   @unique
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  id             String        @id @default(uuid())
+  employeeId     String        @unique
+  crmLanguage    String        @default("ua") @db.VarChar(5)
+  crmTheme       EmployeeTheme @default(light)
+  crmBackground  String?       @db.VarChar(1000)
+  currencyId     String?
+  timezone       String?       @db.VarChar(64)
+  notifySound    Boolean       @default(true)
+  notifyCounter  Boolean       @default(true)
+  notifyTelegram Boolean       @default(true)
+  workSchedule   Json?
+  botReminders   Json?
+  avatarUrl      String?       @db.VarChar(1000)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  crmLanguage   String        @default("ua") @db.VarChar(5)
-  crmTheme      EmployeeTheme @default(light)
-  crmBackground String?       @db.VarChar(1000)
+  currency       CurrencyDict? @relation(fields: [currencyId], references: [id])
 
-  currencyId String?
-  currency   CurrencyDict? @relation(fields: [currencyId], references: [id])
-
-  timezone String? @db.VarChar(64)
-
-  notifySound    Boolean @default(true)
-  notifyCounter  Boolean @default(true)
-  notifyTelegram Boolean @default(true)
-
-  workSchedule Json?
-  botReminders Json?
-
-  avatarUrl String? @db.VarChar(1000)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // связь к сотруднику
+  employee       Employee      @relation(fields: [employeeId], references: [id])
 
   @@index([currencyId])
 }
@@ -251,13 +315,12 @@ model EmployeeSettings {
 model EmployeeRequisite {
   id         String   @id @default(uuid())
   employeeId String
+  label      String   @db.VarChar(100)
+  value      String   @db.VarChar(1000)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   employee   Employee @relation(fields: [employeeId], references: [id])
-
-  label String @db.VarChar(100)
-  value String @db.VarChar(1000)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@index([employeeId])
 }
@@ -267,13 +330,9 @@ model TelegramLinkTicket {
   code       String    @unique @db.VarChar(12)
   expiresAt  DateTime
   consumedAt DateTime?
-
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
 
-  tgUserId   BigInt? @db.BigInt
-  tgChatId   BigInt? @db.BigInt
-  tgUsername String? @db.VarChar(100)
+  employee   Employee  @relation(fields: [employeeId], references: [id])
 
   @@index([expiresAt])
 }
@@ -281,122 +340,111 @@ model TelegramLinkTicket {
 model Company {
   id           String        @id @default(uuid())
   name         String        @db.VarChar(255)
-  clients      Client[]      @relation("CompanyClients")
-  tasks        Task[]
-  credentials  Credential[]
-  transactions Transaction[] @relation("CompanyTransactions")
+
+  // обратки и связи
   assets       Asset[]
-  Employee     Employee[]
+  credentials  Credential[]
+  tasks        Task[]
+  transactions Transaction[] @relation("CompanyTransactions")
 }
 
 model ClientGroup {
   id      String   @id @default(uuid())
   name    String   @unique @db.VarChar(100)
   order   Int      @default(0)
+
+  // обратка
   clients Client[]
 }
 
 model Client {
-  id      String       @id @default(uuid())
-  groupId String?
-  group   ClientGroup? @relation(fields: [groupId], references: [id])
-
-  name              String? @db.VarChar(255)
-  messenger_name    String? @db.VarChar(100)
+  id                String       @id @default(uuid())
+  groupId           String?
+  name              String?      @db.VarChar(255)
+  messenger_name    String?      @db.VarChar(100)
   intro_description String?
   note              String?
-
-  categoryId String?
-  category   ClientCategoryDict? @relation(fields: [categoryId], references: [id])
-
-  sourceId String?
-  source   ClientSourceDict? @relation(fields: [sourceId], references: [id])
-
-  full_name String? @db.VarChar(255)
-
-  countryId String?
-  country   Country? @relation(fields: [countryId], references: [id])
-
-  currencyId String?
-  currency   CurrencyDict? @relation(fields: [currencyId], references: [id])
-
-  phone String? @db.VarChar(50)
-  email String? @db.VarChar(100)
-  city  String? @db.VarChar(100)
-
-  payment_details String?
-  hourly_rate     Float?
-  percent         Float?
-  share_info      String?
-
-  status ClientStatus @default(active)
-
+  categoryId        String?
+  sourceId          String?
+  full_name         String?      @db.VarChar(255)
+  countryId         String?
+  currencyId        String?
+  phone             String?      @db.VarChar(50)
+  email             String?      @db.VarChar(100)
+  city              String?      @db.VarChar(100)
+  payment_details   String?
+  hourly_rate       Float?
+  percent           Float?
+  share_info        String?
+  status            ClientStatus @default(active)
   referrer_id       String?
-  referrer          Client?  @relation("ClientReferrer", fields: [referrer_id], references: [id])
   referrer_first_id String?
-  referrer_first    Client?  @relation("ClientFirstReferrer", fields: [referrer_first_id], references: [id])
-  referred          Client[] @relation("ClientReferrer")
-  firstReferred     Client[] @relation("ClientFirstReferrer")
 
-  manager_id String?
-  manager    Employee? @relation("ManagerClients", fields: [manager_id], references: [id])
+  // менеджер (именованная связь с Employee)
+  managerId         String?
+  // компания как self-relation
+  companyId         String?
 
-  company_id String?
-  company    Company? @relation("CompanyClients", fields: [company_id], references: [id])
+  chat_link         String?
+  photo_link        String?
+  folder_link       String?
 
-  chat_link   String?
-  photo_link  String?
-  folder_link String?
+  // справочники
+  group             ClientGroup?         @relation(fields: [groupId], references: [id])
+  category          ClientCategoryDict?  @relation(fields: [categoryId], references: [id])
+  source            ClientSourceDict?    @relation(fields: [sourceId], references: [id])
+  country           Country?             @relation(fields: [countryId], references: [id])
+  currency          CurrencyDict?        @relation(fields: [currencyId], references: [id])
 
-  tasks       Task[]
-  credentials Credential[]
-  orders      Order[]
-  tags        ClientTag[]
+  // self-relation: компания ↔ клиенты
+  company           Client?              @relation("CompanyClients", fields: [companyId], references: [id])
+  clients           Client[]             @relation("CompanyClients")
 
-  transactions Transaction[] @relation("ClientTransactions")
+  // сотрудники, для которых этот клиент является company (обратка к Employee.company с именем "EmployeeCompany")
+  employees         Employee[]           @relation("EmployeeCompany")
 
-  @@index([groupId])
-  @@index([manager_id])
-  @@index([company_id])
-  @@index([referrer_id])
-  @@index([referrer_first_id])
-  @@index([categoryId])
-  @@index([sourceId])
-  @@index([countryId])
-  @@index([currencyId])
+  // менеджер ↔ клиенты
+  manager           Employee?            @relation("ManagerClients", fields: [managerId], references: [id])
+
+  // обратки и связи
+  credentials       Credential[]
+  orders            Order[]
+  tasks             Task[]
+  transactions      Transaction[]        @relation("ClientTransactions")
+  tags              ClientTag[]
 }
 
 model Credential {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   login       String
   password    String
   description String?
+  clientId    String?
+  companyId   String?
 
-  clientId String?
-  client   Client? @relation(fields: [clientId], references: [id])
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
+  client      Client?  @relation(fields: [clientId], references: [id])
+  company     Company? @relation(fields: [companyId], references: [id])
 
   @@index([clientId])
   @@index([companyId])
 }
 
 model Order {
-  id       String @id @default(uuid())
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
+  id           String        @id @default(uuid())
+  clientId     String
+  title        String
+  amount       Decimal?      @db.Decimal(12, 2)
+  currencyId   String?
+  createdAt    DateTime      @default(now())
 
-  title  String
-  amount Decimal? @db.Decimal(12, 2)
-
-  currencyId String?
-  currency   CurrencyDict? @relation(fields: [currencyId], references: [id])
-
-  createdAt DateTime @default(now())
+  employeeId   String?
+  employee     Employee?     @relation(fields: [employeeId], references: [id])
 
   tags         OrderTag[]
   transactions Transaction[]
+
+  client       Client        @relation(fields: [clientId], references: [id])
+  currency     CurrencyDict? @relation(fields: [currencyId], references: [id])
 
   @@index([clientId, createdAt])
   @@index([currencyId])
@@ -404,30 +452,24 @@ model Order {
 }
 
 model Task {
-  id          String   @id @default(uuid())
-  title       String
-  description String
-  status      String   @default("pending")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  title              String
+  description        String
+  status             String   @default("pending")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employeeId         String
+  clientId           String?
+  companyId          String?
 
-  clientId String?
-  client   Client? @relation(fields: [clientId], references: [id])
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-
-  country      String?  @db.VarChar(100)
-  category     String?  @db.VarChar(100)
-  source       String?  @db.VarChar(100)
-  referer      String?  @db.VarChar(255)
-  refererFirst String?  @db.VarChar(255)
-  managerName  String?  @db.VarChar(255)
-  firstOrder   Boolean? @default(false)
-
+  country            String?  @db.VarChar(100)
+  category           String?  @db.VarChar(100)
+  source             String?  @db.VarChar(100)
+  referer            String?  @db.VarChar(255)
+  refererFirst       String?  @db.VarChar(255)
+  managerName        String?  @db.VarChar(255)
+  firstOrder         Boolean? @default(false)
   partnerName        String?  @db.VarChar(255)
   partnerDisabled    Boolean? @default(false)
   partnerPayment     Decimal? @db.Decimal(10, 2)
@@ -435,32 +477,31 @@ model Task {
   partnerPlanPercent Int?
   partnerPlanSum     Int?
   partnerDebt        Decimal? @db.Decimal(10, 2)
+
+  client             Client?  @relation(fields: [clientId], references: [id])
+  company            Company? @relation(fields: [companyId], references: [id])
+  employee           Employee @relation(fields: [employeeId], references: [id])
 }
 
 model ExchangeRates {
-  id   String   @id @default(uuid())
-  date DateTime @unique
-  uah  Decimal  @db.Decimal(18, 8)
-  usd  Decimal  @db.Decimal(18, 8)
-  rub  Decimal  @db.Decimal(18, 8)
-  usdt Decimal  @db.Decimal(18, 8)
-
-  uah_rub  Decimal @db.Decimal(18, 8)
-  uah_usd  Decimal @db.Decimal(18, 8)
-  uah_usdt Decimal @db.Decimal(18, 8)
-
-  usd_uah  Decimal @db.Decimal(18, 8)
-  usd_rub  Decimal @db.Decimal(18, 8)
-  usd_usdt Decimal @db.Decimal(18, 8)
-
-  usdt_uah Decimal @db.Decimal(18, 8)
-  usdt_usd Decimal @db.Decimal(18, 8)
-  usdt_rub Decimal @db.Decimal(18, 8)
-
-  rub_uah  Decimal @db.Decimal(18, 8)
-  rub_usd  Decimal @db.Decimal(18, 8)
-  rub_usdt Decimal @db.Decimal(18, 8)
-
+  id        String   @id @default(uuid())
+  date      DateTime @unique
+  uah       Decimal  @db.Decimal(18, 8)
+  usd       Decimal  @db.Decimal(18, 8)
+  rub       Decimal  @db.Decimal(18, 8)
+  usdt      Decimal  @db.Decimal(18, 8)
+  uah_rub   Decimal  @db.Decimal(18, 8)
+  uah_usd   Decimal  @db.Decimal(18, 8)
+  uah_usdt  Decimal  @db.Decimal(18, 8)
+  usd_uah   Decimal  @db.Decimal(18, 8)
+  usd_rub   Decimal  @db.Decimal(18, 8)
+  usd_usdt  Decimal  @db.Decimal(18, 8)
+  usdt_uah  Decimal  @db.Decimal(18, 8)
+  usdt_usd  Decimal  @db.Decimal(18, 8)
+  usdt_rub  Decimal  @db.Decimal(18, 8)
+  rub_uah   Decimal  @db.Decimal(18, 8)
+  rub_usd   Decimal  @db.Decimal(18, 8)
+  rub_usdt  Decimal  @db.Decimal(18, 8)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -468,61 +509,48 @@ model ExchangeRates {
 }
 
 model Transaction {
-  id   String   @id @default(uuid())
-  date DateTime
+  id                            String                 @id @default(uuid())
+  date                          DateTime
+  category                      String?                @db.VarChar(100)
+  subcategory                   String?                @db.VarChar(100)
+  categoryId                    String?
+  subcategoryId                 String?
+  description                   String?
+  accountId                     String
+  accountCurrency               String                 @db.VarChar(10)
+  operation                     OperationType
+  amount                        Decimal                @db.Decimal(14, 2)
+  commission                    Decimal?               @db.Decimal(14, 2)
+  counterparty                  String?
+  counterpartyRequisites        String?
+  orderId                       String?
+  orderNumber                   String?
+  orderCurrency                 String?                @db.VarChar(10)
+  sumUAH                        Decimal?               @db.Decimal(14, 2)
+  sumUSD                        Decimal?               @db.Decimal(14, 2)
+  sumRUB                        Decimal?               @db.Decimal(14, 2)
+  sumByRatesOrderAmountCurrency Decimal?               @db.Decimal(14, 2)
+  sumByRatesUAH                 Decimal?               @db.Decimal(14, 2)
+  sumByRatesUSD                 Decimal?               @db.Decimal(14, 2)
+  sumByRatesRUB                 Decimal?               @db.Decimal(14, 2)
+  sentToCounterparty            Boolean                @default(false)
+  sendLion                      Boolean                @default(false)
+  balanceBefore                 Decimal?               @db.Decimal(14, 2)
+  balanceAfter                  Decimal?               @db.Decimal(14, 2)
+  clientId                      String?
+  companyId                     String?
+  employeeId                    String?
+  createdAt                     DateTime               @default(now())
+  updatedAt                     DateTime               @updatedAt
 
-  category    String? @db.VarChar(100)
-  subcategory String? @db.VarChar(100)
+  account                       Asset                  @relation(fields: [accountId], references: [id])
+  categoryDict                  FinanceArticleDict?    @relation(fields: [categoryId], references: [id])
+  subcategoryDict               FinanceSubarticleDict? @relation(fields: [subcategoryId], references: [id])
 
-  categoryId   String?
-  categoryDict FinanceArticleDict? @relation(fields: [categoryId], references: [id])
-
-  subcategoryId   String?
-  subcategoryDict FinanceSubarticleDict? @relation(fields: [subcategoryId], references: [id])
-
-  description String?
-
-  accountId String
-  account   Asset  @relation(fields: [accountId], references: [id])
-
-  accountCurrency String @db.VarChar(10)
-
-  operation OperationType
-
-  amount     Decimal  @db.Decimal(14, 2)
-  commission Decimal? @db.Decimal(14, 2)
-
-  counterparty           String?
-  counterpartyRequisites String?
-
-  orderId       String?
-  order         Order?  @relation(fields: [orderId], references: [id])
-  orderNumber   String?
-  orderCurrency String? @db.VarChar(10)
-
-  sumUAH Decimal? @db.Decimal(14, 2)
-  sumUSD Decimal? @db.Decimal(14, 2)
-  sumRUB Decimal? @db.Decimal(14, 2)
-
-  sumByRatesOrderAmountCurrency Decimal? @db.Decimal(14, 2)
-  sumByRatesUAH                 Decimal? @db.Decimal(14, 2)
-  sumByRatesUSD                 Decimal? @db.Decimal(14, 2)
-  sumByRatesRUB                 Decimal? @db.Decimal(14, 2)
-
-  sentToCounterparty Boolean @default(false)
-  sendLion           Boolean @default(false)
-
-  balanceBefore Decimal? @db.Decimal(14, 2)
-  balanceAfter  Decimal? @db.Decimal(14, 2)
-
-  clientId String?
-  client   Client? @relation("ClientTransactions", fields: [clientId], references: [id])
-
-  companyId String?
-  company   Company? @relation("CompanyTransactions", fields: [companyId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  client                        Client?                @relation("ClientTransactions", fields: [clientId], references: [id])
+  company                       Company?               @relation("CompanyTransactions", fields: [companyId], references: [id])
+  order                         Order?                 @relation(fields: [orderId], references: [id])
+  employee                      Employee?              @relation(fields: [employeeId], references: [id])
 
   @@index([date])
   @@index([accountId])
@@ -531,11 +559,17 @@ model Transaction {
   @@index([operation])
   @@index([categoryId])
   @@index([subcategoryId])
+  @@index([employeeId])
 }
+
+/* =========================
+   M2M стыковочные таблицы
+   ========================= */
 
 model EmployeeTag {
   employeeId String
   tagId      String
+
   employee   Employee @relation(fields: [employeeId], references: [id])
   tag        Tag      @relation(fields: [tagId], references: [id])
 
@@ -546,6 +580,7 @@ model EmployeeTag {
 model ClientTag {
   clientId String
   tagId    String
+
   client   Client @relation(fields: [clientId], references: [id])
   tag      Tag    @relation(fields: [tagId], references: [id])
 
@@ -556,6 +591,7 @@ model ClientTag {
 model OrderTag {
   orderId String
   tagId   String
+
   order   Order  @relation(fields: [orderId], references: [id])
   tag     Tag    @relation(fields: [tagId], references: [id])
 
@@ -563,46 +599,40 @@ model OrderTag {
   @@index([tagId])
 }
 
+/* =========================
+   Активы / счета
+   ========================= */
+
 model Asset {
-  id String @id @default(uuid())
+  id                   String             @id @default(uuid())
+  accountName          String             @db.VarChar(255)
+  externalId           String?            @db.VarChar(255)
+  currencyId           String
+  typeId               String?
+  paymentSystemId      String?
+  cardDesignId         String?
+  employeeId           String?
+  companyId            String?
+  balance              Decimal            @default(0) @db.Decimal(14, 2)
+  turnoverStartBalance Decimal            @default(0) @db.Decimal(14, 2)
+  turnoverIncoming     Decimal            @default(0) @db.Decimal(14, 2)
+  turnoverOutgoing     Decimal            @default(0) @db.Decimal(14, 2)
+  turnoverEndBalance   Decimal            @default(0) @db.Decimal(14, 2)
+  balanceUAH           Decimal            @default(0) @db.Decimal(14, 2)
+  lastEntryDate        DateTime?
+  design               String?            @db.VarChar(100)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  accountName String  @db.VarChar(255)
-  externalId  String? @db.VarChar(255)
+  cardDesign           CardDesign?        @relation(fields: [cardDesignId], references: [id])
+  company              Company?           @relation(fields: [companyId], references: [id])
+  currency             CurrencyDict       @relation(fields: [currencyId], references: [id])
+  employee             Employee?          @relation(fields: [employeeId], references: [id])
+  paymentSystem        PaymentSystemDict? @relation(fields: [paymentSystemId], references: [id])
+  type                 AssetTypeDict?     @relation(fields: [typeId], references: [id])
 
-  currencyId String
-  currency   CurrencyDict @relation(fields: [currencyId], references: [id])
-
-  typeId String?
-  type   AssetTypeDict? @relation(fields: [typeId], references: [id])
-
-  paymentSystemId String?
-  paymentSystem   PaymentSystemDict? @relation(fields: [paymentSystemId], references: [id])
-
-  cardDesignId String?
-  cardDesign   CardDesign? @relation(fields: [cardDesignId], references: [id])
-
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-
-  balance              Decimal @default(0) @db.Decimal(14, 2)
-  turnoverStartBalance Decimal @default(0) @db.Decimal(14, 2)
-  turnoverIncoming     Decimal @default(0) @db.Decimal(14, 2)
-  turnoverOutgoing     Decimal @default(0) @db.Decimal(14, 2)
-  turnoverEndBalance   Decimal @default(0) @db.Decimal(14, 2)
-
-  balanceUAH    Decimal   @default(0) @db.Decimal(14, 2)
-  lastEntryDate DateTime?
-
-  design String? @db.VarChar(100)
-
-  requisites   AssetRequisite[]
-  transactions Transaction[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  requisites           AssetRequisite[]
+  transactions         Transaction[]
 
   @@index([currencyId])
   @@index([employeeId])
@@ -610,15 +640,14 @@ model Asset {
 }
 
 model AssetRequisite {
-  id      String @id @default(uuid())
-  assetId String
-  asset   Asset  @relation(fields: [assetId], references: [id])
-
-  label String @db.VarChar(100)
-  value String @db.VarChar(1000)
-
+  id        String   @id @default(uuid())
+  assetId   String
+  label     String   @db.VarChar(100)
+  value     String   @db.VarChar(1000)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  asset     Asset    @relation(fields: [assetId], references: [id])
 
   @@index([assetId])
 }
