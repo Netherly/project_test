@@ -22,8 +22,8 @@ async function deleteExpiredTokens() {
 
 
 function scheduleTokenCleanup() {
-  cron.schedule('0 * * * *', deleteExpiredTokens);
-  console.log('Scheduled token cleanup job to run every hour.');
+  cron.schedule('0 0 * * *', deleteExpiredTokens);
+  console.log('Scheduled token cleanup job to run every day at midnight.');
 }
 
 module.exports = { scheduleTokenCleanup };

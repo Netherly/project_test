@@ -1,4 +1,3 @@
-// src/routes/profile.routes.js
 const express = require("express");
 const router = express.Router();
 
@@ -22,9 +21,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// base: /api/profile (см. index.js: router.use('/profile', authJwt, profileRoutes))
 router.get("/", authJwt, ctrl.getProfile);
 router.put("/", authJwt, express.json(), ctrl.updateProfile);
 router.post("/background", authJwt, upload.single("file"), ctrl.uploadBackground);
+router.put("/password", authJwt, express.json(), ctrl.changePassword);
+router.post("/telegram/unlink", authJwt, ctrl.unlinkTelegram);
 
 module.exports = router;

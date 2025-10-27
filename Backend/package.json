@@ -24,7 +24,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^6.16.3",
+    "@prisma/client": "^6.18.0",
+    "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dayjs": "^1.11.18",
@@ -34,7 +35,7 @@
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "path": "^0.12.7",
-    "prisma": "^6.16.3",
+    "prisma": "^6.18.0",
     "telegraf": "^4.16.3",
     "uuid": "^13.0.0"
   },

@@ -12,6 +12,8 @@ const uploadRoutes = require('./upload.routes');
 const assetsRoutes = require('./assets.routes');
 const telegramRoutes = require('./telegram.routes');
 const profileRoutes = require('./profile.routes');
+const employeesRoutes = require('./employees.routes');
+
 
 const authJwt = require('../middlewares/auth.middleware');
 
@@ -19,6 +21,7 @@ router.use('/auth', authRoutes);
 router.use('/telegram', telegramRoutes);
 
 router.use('/tasks', authJwt, taskRoutes);
+router.use('/employees',authJwt,employeesRoutes);
 router.use('/clients', authJwt, clientRoutes);
 router.use('/transactions', authJwt, transactionRoutes);
 router.use('/rates', authJwt, ratesRoutes);
