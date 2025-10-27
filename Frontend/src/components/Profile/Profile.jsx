@@ -3,7 +3,15 @@ import { useForm, FormProvider } from "react-hook-form";
 import Sidebar from "../Sidebar";
 import Requisites from "../ui/Requisites/Requisites";
 import { ThemeContext } from "../../context/ThemeContext";
-import { fetchProfile, saveProfile, uploadProfileBackground, withDefaults } from "../../api/profile";
+import {
+  fetchProfile,
+  saveProfile,
+  uploadProfileBackground,
+  withDefaults,
+  changePassword,
+  createTelegramLink,
+  openTelegramDeepLink,
+} from "../../api/profile";
 import "../../styles/Profile.css";
 
 function Profile() {
@@ -13,7 +21,7 @@ function Profile() {
     () => ({
       nickname: "",
       telegramUsername: null,
-      password: "",
+      photoLink: null,
       email: "",
       userId: "",
       fullName: "",
@@ -33,31 +41,34 @@ function Profile() {
 
   const [settings, setSettings] = useState(emptySettings);
   const [originalSettings, setOriginalSettings] = useState(emptySettings);
-  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const methods = useForm({
-    defaultValues: { requisites: emptySettings.requisites },
-  });
-  const watchedRequisites = methods.watch("requisites");
-const handleLinkTelegram = () => {
-  // Ваша логика для привязки аккаунта
-  console.log("Привязка Telegram...");
-  // Пример обновления состояния
-  handleChange("telegramUsername", "my_user_name");
-};
+  // Смена пароля
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCur, setShowCur] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConf, setShowConf] = useState(false);
 
-const handleUnlinkTelegram = () => {
-  // Ваша логика для отвязки аккаунта
-  console.log("Отвязка Telegram...");
-  // Пример обновления состояния
-  handleChange("telegramUsername", null);
-};
+  const methods = useForm({ defaultValues: { requisites: emptySettings.requisites } });
+  const watchedRequisites = methods.watch("requisites");
+
   const changed =
     JSON.stringify({ ...settings, requisites: watchedRequisites }) !==
     JSON.stringify(originalSettings);
+
+  const reloadProfile = async () => {
+    const data = await fetchProfile();
+    const serverSettings = withDefaults({ ...emptySettings, ...data });
+    setSettings(serverSettings);
+    setOriginalSettings(serverSettings);
+    methods.reset({ requisites: serverSettings.requisites || emptySettings.requisites });
+    if (serverSettings.crmBackground) setBackgroundImage(serverSettings.crmBackground);
+    if (serverSettings.crmTheme !== theme) toggleTheme();
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -81,7 +92,8 @@ const handleUnlinkTelegram = () => {
     return () => {
       mounted = false;
     };
-  }, [emptySettings, methods, setBackgroundImage, theme, toggleTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const copyClientId = (clientId) => {
     navigator.clipboard
@@ -124,16 +136,35 @@ const handleUnlinkTelegram = () => {
     const requisitesFromForm = methods.getValues("requisites");
     const newErrors = {};
     if (!settings.nickname.trim()) newErrors.nickname = "Введите никнейм";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.email)) newErrors.email = "Введите корректный Email";
-    if (!settings.password.trim()) newErrors.password = "Введите пароль";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.email))
+      newErrors.email = "Введите корректный Email";
+
+    const anyPw = currentPassword || newPassword || confirmPassword;
+    if (anyPw) {
+      if (!currentPassword) newErrors.password = "Введите текущий пароль";
+      else if (!newPassword) newErrors.password = "Введите новый пароль";
+      else if (newPassword.length < 6) newErrors.password = "Новый пароль слишком короткий (мин. 6)";
+      else if (newPassword !== confirmPassword) newErrors.password = "Пароли не совпадают";
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
     setErrors({});
-    const payload = { ...settings, requisites: requisitesFromForm };
+
     try {
       setSaving(true);
+
+      if (anyPw) {
+        await changePassword({ currentPassword, newPassword });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        console.log("Пароль обновлён");
+      }
+
+      const payload = { ...settings, requisites: requisitesFromForm };
       const updated = await saveProfile(payload);
       const normalized = withDefaults(updated);
       setSettings(normalized);
@@ -153,6 +184,9 @@ const handleUnlinkTelegram = () => {
     setBackgroundImage(originalSettings.crmBackground);
     methods.reset({ requisites: originalSettings.requisites });
     setErrors({});
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
   };
 
   const handleBackgroundChange = async (event) => {
@@ -172,6 +206,24 @@ const handleUnlinkTelegram = () => {
     } finally {
       event.target.value = "";
     }
+  };
+
+  const handleLinkTelegram = async () => {
+    try {
+      const { code, tgLink, httpsLink } = await createTelegramLink(); // { link, code, ttlMinutes, tgLink, httpsLink }
+      await openTelegramDeepLink({ tg: tgLink, https: httpsLink, code });
+      console.log("Открыл Telegram для привязки:", code);
+      setTimeout(() => reloadProfile(), 2000); // легкий авто-рефреш
+    } catch (e) {
+      console.error("Не удалось получить ссылку для привязки:", e?.message || e);
+    }
+  };
+
+  const handleUnlinkTelegram = async () => {
+    // при необходимости сделай вызов /profile/telegram/unlink, сейчас — локально
+    console.log("Отвязка Telegram...");
+    handleChange("telegramUsername", null);
+    handleChange("photoLink", null);
   };
 
   if (loading) {
@@ -200,10 +252,20 @@ const handleUnlinkTelegram = () => {
           </div>
         )}
 
-        <h3 className="title-section">Настройки профиля</h3>
+        <h3 className="title-section">
+          Настройки профиля{" "}
+          <button className="refresh-btn" onClick={reloadProfile} title="Обновить данные">
+            ⟳
+          </button>
+        </h3>
+
         <div className="profile-box">
           <div className="profile-header">
-            <img src="/avatar.jpg" alt="Avatar" className="avatar-profile" />
+            <img
+              src={settings.photoLink || "/avatar.jpg"}
+              alt="Avatar"
+              className="avatar-profile"
+            />
             <div className="profile-fields">
               <div className="form-group">
                 <label className="title-label">Юзер ID</label>
@@ -215,10 +277,14 @@ const handleUnlinkTelegram = () => {
                   {settings.userId || "Не назначен"}
                 </span>
               </div>
+
               <div className="form-group">
                 <label className="title-label">ФИО</label>
-                <span className="user-fullname-span">{settings.fullName || "Не указано"}</span>
+                <span className="user-fullname-span">
+                  {settings.fullName || "Не указано"}
+                </span>
               </div>
+
               <div className="form-group">
                 <label className="title-label">Nickname</label>
                 <div className="input-error-container">
@@ -227,33 +293,14 @@ const handleUnlinkTelegram = () => {
                     type="text"
                     value={settings.nickname}
                     onChange={(e) => handleChange("nickname", e.target.value)}
-                    className={errors.nickname ? "input-error" : ""}
+                    className={`text-input ${errors.nickname ? "input-error" : ""}`}
                   />
-                  {errors.nickname && <div className="error-message">{errors.nickname}</div>}
+                  {errors.nickname && (
+                    <div className="error-message">{errors.nickname}</div>
+                  )}
                 </div>
               </div>
-              <div className="form-group">
-                <label className="title-label">Password</label>
-                <div className="input-error-container">
-                  <div className="input-with-button">
-                    <input
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      value={settings.password}
-                      onChange={(e) => handleChange("password", e.target.value)}
-                      className={errors.password ? "input-error" : ""}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="eye-button"
-                    >
-                      {showPassword ? "🙈" : "👁️"}
-                    </button>
-                  </div>
-                  {errors.password && <div className="error-message">{errors.password}</div>}
-                </div>
-              </div>
+
               <div className="form-group">
                 <label className="title-label">Email</label>
                 <div className="input-error-container">
@@ -262,9 +309,68 @@ const handleUnlinkTelegram = () => {
                     type="email"
                     value={settings.email}
                     onChange={(e) => handleChange("email", e.target.value)}
-                    className={errors.email ? "input-error" : ""}
+                    className={`text-input ${errors.email ? "input-error" : ""}`}
                   />
-                  {errors.email && <div className="error-message">{errors.email}</div>}
+                  {errors.email && (
+                    <div className="error-message">{errors.email}</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="title-label">Смена пароля</label>
+                <div className="pw-fields">
+                  <div className="input-error-container">
+                    <div className="input-with-button">
+                      <input
+                        name="currentPassword"
+                        type={showCur ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Текущий пароль"
+                        className="text-input"
+                      />
+                      <button type="button" onClick={() => setShowCur((p) => !p)} className="eye-button">
+                        {showCur ? "🙈" : "👁️"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="input-error-container">
+                    <div className="input-with-button">
+                      <input
+                        name="newPassword"
+                        type={showNew ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Новый пароль"
+                        className="text-input"
+                      />
+                      <button type="button" onClick={() => setShowNew((p) => !p)} className="eye-button">
+                        {showNew ? "🙈" : "👁️"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="input-error-container">
+                    <div className="input-with-button">
+                      <input
+                        name="confirmPassword"
+                        type={showConf ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Подтвердите пароль"
+                        className="text-input"
+                      />
+                      <button type="button" onClick={() => setShowConf((p) => !p)} className="eye-button">
+                        {showConf ? "🙈" : "👁️"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {errors.password && (
+                    <div className="error-message">{errors.password}</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -274,7 +380,7 @@ const handleUnlinkTelegram = () => {
         <h3 className="title-section">Реквизиты</h3>
         <div className="profile-box">
           <div className="profile-header">
-            <div className="avatar-padding"></div>
+            <div className="avatar-spacer" />
             <div className="profile-fields">
               <div className="form-group">
                 <label className="title-label">Реквизиты</label>
@@ -282,6 +388,7 @@ const handleUnlinkTelegram = () => {
                   <Requisites control={methods.control} />
                 </FormProvider>
               </div>
+
               <div className="form-group">
                 <label className="title-label">Оплата в час</label>
                 <div className="hourly-pay-table">
@@ -297,34 +404,30 @@ const handleUnlinkTelegram = () => {
                     </thead>
                     <tbody>
                       <tr>
-                        <td>
-                          <span>120</span>
-                        </td>
-                        <td>
-                          <span>120</span>
-                        </td>
-                        <td>
-                          <span>120</span>
-                        </td>
-                        <td>
-                          <span>120</span>
-                        </td>
-                        <td>
-                          <span>120</span>
-                        </td>
+                        <td><span>120</span></td>
+                        <td><span>120</span></td>
+                        <td><span>120</span></td>
+                        <td><span>120</span></td>
+                        <td><span>120</span></td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
+
               <div className="form-group">
                 <label className="title-label">Валюта учета</label>
-                <select value={settings.currency} onChange={(e) => handleChange("currency", e.target.value)}>
+                <select
+                  value={settings.currency}
+                  onChange={(e) => handleChange("currency", e.target.value)}
+                  className="select-input"
+                >
                   <option>UAH</option>
                   <option>RUB</option>
                   <option>USD</option>
                 </select>
               </div>
+
               <div className="form-group">
                 <label className="title-label">График работы</label>
                 <div className="work-schedule-table">
@@ -366,6 +469,7 @@ const handleUnlinkTelegram = () => {
                   </table>
                 </div>
               </div>
+
               <div className="form-group">
                 <label className="title-label">Напоминания от бота</label>
                 <div className="bot-reminders">
@@ -392,16 +496,21 @@ const handleUnlinkTelegram = () => {
         <h3 className="title-section">Интерфейс CRM</h3>
         <div className="profile-box">
           <div className="profile-header">
-            <div className="avatar-padding"></div>
+            <div className="avatar-spacer" />
             <div className="profile-fields">
               <div className="form-group">
                 <label className="title-label">Язык CRM</label>
-                <select value={settings.crmLanguage} onChange={(e) => handleChange("crmLanguage", e.target.value)}>
+                <select
+                  value={settings.crmLanguage}
+                  onChange={(e) => handleChange("crmLanguage", e.target.value)}
+                  className="select-input"
+                >
                   <option value="ua">Українська</option>
                   <option value="ru">Русский</option>
                   <option value="en">English</option>
                 </select>
               </div>
+
               <div className="form-group">
                 <label className="title-label">Тема CRM</label>
                 <button
@@ -414,6 +523,7 @@ const handleUnlinkTelegram = () => {
                   {settings.crmTheme === "light" ? "🌙 Темная тема" : "☀️ Светлая тема"}
                 </button>
               </div>
+
               <div className="form-group">
                 <label className="title-label">Настройка фона</label>
                 <label className="upload-bg">
@@ -424,38 +534,45 @@ const handleUnlinkTelegram = () => {
             </div>
           </div>
         </div>
-         <h3 className="title-section">Интеграция с Telegram</h3>
-<div className="profile-box">
-  <div className="profile-header">
-    <div className="avatar-padding"></div>
-    <div className="profile-fields">
-      <div className="form-group">
-        <label className="title-label">Статус подключения</label>
-        {settings.telegramUsername ? (
-          <div className="telegram-status">
-            <span>
-              Ваш аккаунт привязан: <strong>@{settings.telegramUsername}</strong>
-            </span>
-            <button className="cancel-btn" onClick={handleUnlinkTelegram}>
-              Отвязать
-            </button>
+
+        <h3 className="title-section">Интеграция с Telegram</h3>
+        <div className="profile-box">
+          <div className="profile-header">
+            <div className="avatar-spacer" />
+            <div className="profile-fields">
+              <div className="form-group">
+                <label className="title-label">Статус подключения</label>
+                {settings.telegramUsername ? (
+                  <div className="telegram-status">
+                    <span>
+                      Ваш аккаунт привязан: <strong>@{settings.telegramUsername}</strong>
+                    </span>
+                    <div className="tg-actions">
+                      <button className="cancel-btn" onClick={handleUnlinkTelegram}>
+                        Отвязать
+                      </button>
+                      <button className="link-btn" onClick={handleLinkTelegram} title="Подключить заново">
+                        Привязать повторно
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="telegram-status">
+                    <span>Telegram не привязан.</span>
+                    <button className="link-btn" onClick={handleLinkTelegram}>
+                      Привязать Telegram
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="telegram-status">
-            <span>Telegram не привязан.</span>
-            <button className="save-btn" onClick={handleLinkTelegram}>
-              Привязать Telegram
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-</div>
+        </div>
+
         <h3 className="title-section">Уведомления</h3>
         <div className="profile-box">
           <div className="profile-header">
-            <div className="avatar-padding"></div>
+            <div className="avatar-spacer" />
             <div className="profile-fields">
               <div className="form-group">
                 <label className="title-label">Звук уведомлений</label>
@@ -493,6 +610,7 @@ const handleUnlinkTelegram = () => {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

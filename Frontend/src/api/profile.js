@@ -49,10 +49,14 @@ export function withDefaults(p) {
     Array.isArray(v) ? v : Array(n).fill(fill);
   return {
     nickname: x.nickname || "",
-    password: x.password || "",
+    password: x.password || "",               // оставляем как у тебя
     email: x.email || "",
     userId: x.userId || "",
     fullName: x.fullName || "",
+    // +++ тг-поля тоже прилетят в профиль
+    telegramUsername: x.telegramUsername || null,
+    photoLink: x.photoLink || null,
+
     requisites: Array.isArray(x.requisites) && x.requisites.length
       ? x.requisites.map((r) => ({
           currency: r?.currency || "",
@@ -106,6 +110,62 @@ export const ProfileAPI = {
     return saveProfile({ ...cur, botReminders: Array.isArray(list) ? list : cur.botReminders });
   },
 };
+
+export async function changePassword({ currentPassword, newPassword }) {
+  const r = await httpPut("/profile/password", { currentPassword, newPassword });
+  return unwrap(r);
+}
+
+/**
+ * Утилита: построить deep-link к боту из botName и code
+ * Возвращает оба варианта: tg:// и https://
+ */
+export function buildTelegramDeepLinks({ botName, code, httpsLink }) {
+  const domain = botName?.replace(/^@/, '') || (typeof window !== 'undefined' && window.__PUBLIC_BOT_NAME) || 'gsse_assistant_bot';
+  const startCode = code || '';
+  const https = httpsLink || `https://t.me/${domain}?start=${encodeURIComponent(startCode)}`;
+  const tg = `tg://resolve?domain=${encodeURIComponent(domain)}&start=${encodeURIComponent(startCode)}`;
+  return { tg, https };
+}
+
+/**
+ * Попробовать открыть Telegram-клиент; если не получилось — открыть https
+ * и на всякий случай скопировать code в буфер обмена.
+ */
+export async function openTelegramDeepLink({ tg, https, code }) {
+  try {
+    // Сначала пробуем нативный протокол (мобильные/десктоп клиенты)
+    window.location.href = tg;
+    // небольшой fallback через таймаут
+    setTimeout(() => {
+      try { window.open(https, "_blank", "noopener,noreferrer"); } catch {}
+    }, 600);
+    if (code && navigator.clipboard?.writeText) {
+      try { await navigator.clipboard.writeText(code); } catch {}
+    }
+  } catch {
+    try { window.open(https, "_blank", "noopener,noreferrer"); } catch {}
+    if (code && navigator.clipboard?.writeText) {
+      try { await navigator.clipboard.writeText(code); } catch {}
+    }
+  }
+}
+
+/**
+ * Запрос на создание link-токена.
+ * Бэкенд возвращает { link, code, ttlMinutes }.
+ * Мы дополняем ответ вычисленными tg/https ссылками.
+ */
+export async function createTelegramLink() {
+  const r = await httpGet("/telegram/link/create");
+  const data = unwrap(r); // { link, code, ttlMinutes }
+  const { tg, https } = buildTelegramDeepLinks({
+    httpsLink: data?.link,
+    botName: undefined, // можно прокинуть, если хочешь переопределить
+    code: data?.code,
+  });
+  return { ...data, tgLink: tg, httpsLink: https };
+}
 
 export default {
   fetchProfile,

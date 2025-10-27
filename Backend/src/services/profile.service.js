@@ -1,5 +1,5 @@
 const prisma = require('../../prisma/client');
-const path = require('path');
+const bcrypt = require('bcrypt');
 
 function splitRequisiteLabel(label = '') {
   const [currency = '', bank = ''] = String(label).split(':');
@@ -36,7 +36,7 @@ function normalizeDefaults(row) {
     nickname: row?.login || '',
     password: '',
     email: row?.email || '',
-    userId: row?.userid || row?.publicId || '',   // <-- добавлено: берем userid, иначе publicId
+    userId: row?.userid || row?.publicId || '',
     fullName: row?.full_name || '',
     requisites,
     currency: row?.settings?.currency?.code || 'UAH',
@@ -48,6 +48,8 @@ function normalizeDefaults(row) {
     notifySound: settings.notifySound ?? true,
     notifyCounter: settings.notifyCounter ?? true,
     notifyTelegram: settings.notifyTelegram ?? true,
+    telegramUsername: row?.telegramUsername || null,
+    photoLink: row?.photoLink || null,
   };
 }
 
@@ -71,7 +73,6 @@ async function resolveCurrencyId(code) {
 
 async function replaceRequisites(employeeId, items) {
   await prisma.employeeRequisite.deleteMany({ where: { employeeId } });
-
   if (!Array.isArray(items) || items.length === 0) return;
 
   const data = items.map((it) => ({
@@ -90,9 +91,7 @@ async function updateProfile(employeeId, payload) {
   if (typeof payload.nickname === 'string') employeeData.login = payload.nickname;
   if (typeof payload.fullName === 'string') employeeData.full_name = payload.fullName;
   if (typeof payload.email === 'string') employeeData.email = payload.email;
-  if (typeof payload.password === 'string' && payload.password.trim()) {
-    employeeData.password = payload.password; // TODO: hash
-  }
+  // пароль здесь НЕ меняем — только через changePassword
 
   await prisma.$transaction(async (tx) => {
     await tx.employee.update({ where: { id: employeeId }, data: employeeData });
@@ -144,8 +143,49 @@ async function setBackground(employeeId, url) {
   return { url };
 }
 
+async function changePassword(employeeId, { currentPassword, newPassword }) {
+  if (!currentPassword || !newPassword) throw new Error('Both currentPassword and newPassword are required');
+
+  const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!emp) throw new Error('Employee not found');
+
+  const stored = emp.password || '';
+  const isBcrypt = typeof stored === 'string' && stored.startsWith('$2');
+  let ok = false;
+
+  if (isBcrypt) {
+    ok = await bcrypt.compare(String(currentPassword), stored);
+  } else {
+    ok = String(currentPassword) === stored;
+  }
+  if (!ok) throw new Error('Current password is incorrect');
+
+  const hashed = await bcrypt.hash(String(newPassword), 10);
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: { password: hashed },
+  });
+  return { ok: true };
+}
+
+async function unlinkTelegram(employeeId) {
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: {
+      telegramUserId: null,
+      telegramChatId: null,
+      telegramUsername: null,
+      telegramVerified: false,
+      photoLink: null,
+    },
+  });
+  return { ok: true };
+}
+
 module.exports = {
   getProfile,
   updateProfile,
   setBackground,
+  changePassword,
+  unlinkTelegram,
 };
