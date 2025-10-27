@@ -35,7 +35,7 @@ jobs:
         run: |
           rm -f .env .env.local .env.development .env.development.local .env.production.local || true
 
-      # 3) Валидируем и экспортируем VITE_API_URL из .env.production в окружение job
+      # 3) Валидируем и экспортируем VITE_API_URL из .env.production
       - name: Validate & export VITE_API_URL
         working-directory: ./${{ env.FE_DIR }}
         run: |
@@ -52,7 +52,6 @@ jobs:
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
         env:
-          # 4) ЖЁСТКО прокидываем в build-time — перекрывает файлы .env
           VITE_API_URL: ${{ env.VITE_API_URL }}
         run: |
           npm ci || npm install
@@ -65,7 +64,6 @@ jobs:
           test -d "${{ env.FE_DIR }}/${{ env.FE_OUT }}" || (echo "Build dir not found" && exit 1)
           find "${{ env.FE_DIR }}/${{ env.FE_OUT }}" -maxdepth 1 -type f | head -n 10
 
-      # Страж-проверки URL в бандле
       - name: Fail if bundle contains bad base url
         run: |
           set -e
@@ -119,9 +117,15 @@ jobs:
             fi
             rm -f frontend.tgz
 
-      - name: Pack backend source
+      - name: Pack backend source (with prisma hash)
         run: |
           set -e
+          # подготовим файл с хэшем схемы (если схемы нет — пусто)
+          if [ -f "${{ env.BE_DIR }}/prisma/schema.prisma" ]; then
+            (cd "${{ env.BE_DIR }}" && sha256sum prisma/schema.prisma | awk '{print $1}') > "${{ env.BE_DIR }}/.schema.sha256"
+          else
+            echo -n "" > "${{ env.BE_DIR }}/.schema.sha256"
+          fi
           EXCLUDES=(
             --exclude="${{ env.BE_DIR }}/node_modules"
             --exclude="${{ env.BE_DIR }}/.git"
@@ -150,6 +154,7 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+        # Распаковываем и кладем исходники в crm-backend
           script: |
             set -e
             cd /var/www
@@ -197,7 +202,7 @@ jobs:
               sudo npm i -g pm2
             fi
 
-      - name: Install backend deps, migrate, start pm2
+      - name: Install backend deps, auto-migrate on schema change, restart pm2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -205,14 +210,57 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
             cd /var/www/crm-backend
+
             export HUSKY=0
             npm ci --omit=dev || npm install --omit=dev
+
+            # вычисляем текущий хэш схемы
+            CURR_HASH=""
+            if [ -f prisma/schema.prisma ]; then
+              CURR_HASH=$(sha256sum prisma/schema.prisma | awk '{print $1}')
+            fi
+            PREV_HASH=$(cat .schema.sha256 2>/dev/null || echo "")
+
+            SCHEMA_CHANGED=0
+            if [ "$CURR_HASH" != "$PREV_HASH" ]; then
+              SCHEMA_CHANGED=1
+              echo "Prisma schema changed: $PREV_HASH -> $CURR_HASH"
+            else
+              echo "Prisma schema unchanged."
+            fi
+
+            # На всякий случай — всегда сгенерировать клиент
             npx prisma generate || true
-            npx prisma migrate deploy || npx prisma db push || true
-            npm run seed || true
+
+            if [ "$SCHEMA_CHANGED" -eq 1 ]; then
+              echo "Checking migrations..."
+              HAS_MIGRATIONS=0
+              if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
+                HAS_MIGRATIONS=1
+              fi
+
+              if [ "$HAS_MIGRATIONS" -eq 1 ]; then
+                echo "Running 'prisma migrate deploy'..."
+                npx prisma migrate deploy
+              else
+                echo "No migrations found. Running 'prisma db push'..."
+                if [ "${PRISMA_ACCEPT_DATA_LOSS}" = "yes" ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = "true" ]; then
+                  npx prisma db push --accept-data-loss
+                else
+                  # попытаемся без accept-data-loss (упадет при разрушительных изменениях)
+                  npx prisma db push
+                fi
+              fi
+
+              # записываем новый хэш, только если все прошло успешно
+              echo -n "$CURR_HASH" > .schema.sha256
+            fi
+
+            # старт/перезапуск pm2
             if npm run | grep -qE " start"; then
               pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start
             else
