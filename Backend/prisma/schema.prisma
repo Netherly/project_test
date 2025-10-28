@@ -483,30 +483,37 @@ model Task {
   employee           Employee @relation(fields: [employeeId], references: [id])
 }
 
+
 model ExchangeRates {
   id        String   @id @default(uuid())
   date      DateTime @unique
-  uah       Decimal  @db.Decimal(18, 8)
-  usd       Decimal  @db.Decimal(18, 8)
-  rub       Decimal  @db.Decimal(18, 8)
-  usdt      Decimal  @db.Decimal(18, 8)
-  uah_rub   Decimal  @db.Decimal(18, 8)
-  uah_usd   Decimal  @db.Decimal(18, 8)
-  uah_usdt  Decimal  @db.Decimal(18, 8)
-  usd_uah   Decimal  @db.Decimal(18, 8)
-  usd_rub   Decimal  @db.Decimal(18, 8)
-  usd_usdt  Decimal  @db.Decimal(18, 8)
-  usdt_uah  Decimal  @db.Decimal(18, 8)
-  usdt_usd  Decimal  @db.Decimal(18, 8)
-  usdt_rub  Decimal  @db.Decimal(18, 8)
-  rub_uah   Decimal  @db.Decimal(18, 8)
-  rub_usd   Decimal  @db.Decimal(18, 8)
-  rub_usdt  Decimal  @db.Decimal(18, 8)
+
+  // базовые номиналы — по умолчанию 1
+  uah       Decimal  @db.Decimal(18, 8) @default(1)
+  usd       Decimal  @db.Decimal(18, 8) @default(1)
+  rub       Decimal  @db.Decimal(18, 8) @default(1)
+  usdt      Decimal  @db.Decimal(18, 8) @default(1)
+
+  // парные — можно сделать nullable
+  uah_rub   Decimal? @db.Decimal(18, 8)
+  uah_usd   Decimal? @db.Decimal(18, 8)
+  uah_usdt  Decimal? @db.Decimal(18, 8)
+  usd_uah   Decimal? @db.Decimal(18, 8)
+  usd_rub   Decimal? @db.Decimal(18, 8)
+  usd_usdt  Decimal? @db.Decimal(18, 8)
+  usdt_uah  Decimal? @db.Decimal(18, 8)
+  usdt_usd  Decimal? @db.Decimal(18, 8)
+  usdt_rub  Decimal? @db.Decimal(18, 8)
+  rub_uah   Decimal? @db.Decimal(18, 8)
+  rub_usd   Decimal? @db.Decimal(18, 8)
+  rub_usdt  Decimal? @db.Decimal(18, 8)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([date])
 }
+
 
 model Transaction {
   id                            String                 @id @default(uuid())
