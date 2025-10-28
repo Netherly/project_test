@@ -10,7 +10,9 @@ app.use(cors({
   credentials: true
 }));
 
-// увеличили лимиты
+
+app.set('json replacer', (key, value) => (typeof value === 'bigint' ? value.toString() : value));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use('/uploads', express.static(path.join(__dirname,'..', 'uploads')));
