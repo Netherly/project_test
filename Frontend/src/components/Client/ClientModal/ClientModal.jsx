@@ -131,7 +131,7 @@ export default function ClientModal({
           />
           <FormProvider {...methods}>
             <form
-              className="modal-body custom-scrollbar"
+              className="client-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
               {activeTab === 'info'     && <InfoTab     companies={companies} onAddCompany={() => setShowCompany(true)} />}
@@ -141,7 +141,7 @@ export default function ClientModal({
             </form>
           </FormProvider>
           <div className="form-actions-bottom">
-                <button className="cancel-order-btn" type="button" onClick={()=>reset()} disabled={!isDirty}>Сбросить</button>
+                <button className="cancel-order-btn" type="button" onClick={()=>reset()} disabled={!isDirty}>Отменить</button>
                 <button className="save-order-btn" type="submit">Сохранить</button>
               </div>
         </div>

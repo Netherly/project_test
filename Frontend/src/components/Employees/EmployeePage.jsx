@@ -1,4 +1,3 @@
-// src/pages/EmployeePage.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import Sidebar from "../Sidebar";
 import EmployeeModal from "./EmployeesModal/EmployeeModal";
@@ -25,14 +24,29 @@ const formatDate = (dateString) => {
 };
 
 const formatNumberWithSpaces = (num) => {
-  if (num === null || num === undefined || isNaN(Number(num))) {
-    return "0.00";
-  }
-  const fixedNum = Number(num).toFixed(2);
-  const parts = fixedNum.split(".");
-  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return parts.join(".");
+    if (num === null || num === undefined || isNaN(Number(num))) {
+        return '0.00';
+    }
+    const fixedNum = Number(num).toFixed(2);
+    const parts = fixedNum.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return parts.join('.');
 };
+
+
+const getFirstRequisite = (requisites) => {
+    
+    if (!requisites || typeof requisites !== 'object' || Array.isArray(requisites)) {
+      return null;
+    }
+    
+    const allRequisiteArrays = Object.values(requisites);
+   
+    const firstValidArray = allRequisiteArrays.find(arr => Array.isArray(arr) && arr.length > 0);
+    
+    return firstValidArray ? firstValidArray[0] : null;
+};
+
 
 const EmployeeCard = ({ employee, onClick }) => {
   const avatar = employee.avatarUrl || employee.photoLink || avatarPlaceholder; // <- учли поле из БД
@@ -85,32 +99,38 @@ const EmployeeCard = ({ employee, onClick }) => {
 };
 
 const EmployeePage = () => {
-  // локальная «база» на случай оффлайна
+  
   const defaultEmployees = [
     {
       id: 1,
       fullName: "Иванов И.И.",
       tags: [{ id: "t1", name: "IT", color: "#4b7bec" }],
       login: "ivanov_i",
+      telegramNick: "@ivan_dev", 
+      startDate: "2024-01-10", 
       source: "Telegram",
       birthDate: "1990-01-01",
       phone: "+380501234567",
-      balance: "100$",
-      cashOnHand: "50грн",
+      balance: "100",
+      cashOnHand: "50",
       status: "active",
-      requisites: { UAH: [{ bank: "Mono", card: "1234..." }] },
+      requisites: { UAH: [{ bank: "ПриватБанк", card: "1234...", holder: "IVANOV I. I." }] }, 
+      hourlyRates: { uah: 350, usd: 10, usdt: 10.1, eur: 8, rub: 700 },
     },
     {
       id: 2,
       fullName: "Петров П.П.",
       tags: [{ id: "t2", name: "Sales", color: "#ff9f43" }],
       login: "petrov_p",
+      telegramNick: "@petr_sales",
+      startDate: "2023-05-20",
       source: "Viber",
       birthDate: "1985-11-05",
       phone: "+380679876543",
-      balance: "1000$",
-      cashOnHand: "50грн",
+      balance: "1000",
+      cashOnHand: "500",
       status: "inactive",
+      hourlyRates: { uah: 400, usd: 12, usdt: 12.1, eur: 10, rub: 800 },
     },
   ];
 
@@ -130,14 +150,14 @@ const EmployeePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // синк в localStorage как кэш
+  
   useEffect(() => {
     try {
       localStorage.setItem("employees", JSON.stringify(employees));
     } catch (_) {}
   }, [employees]);
 
-  // первичная загрузка из API (с фолбэком)
+  
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -153,7 +173,6 @@ const EmployeePage = () => {
           e?.message || e
         );
         if (!mounted) return;
-        // уже задали из localStorage в useState; просто пометим ошибку
         setError("Не удалось получить данные с сервера. Показаны сохранённые локально.");
       } finally {
         if (mounted) setLoading(false);
@@ -236,6 +255,7 @@ const EmployeePage = () => {
     setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
 
+
   return (
     <div className="employees-page">
       <Sidebar />
@@ -293,76 +313,91 @@ const EmployeePage = () => {
               <table className="employees-table">
                 <thead>
                   <tr>
-                    <th>Сотрудник</th>
-                    <th>Теги</th>
+                    <th>ФИО</th>
                     <th>Логин</th>
-                    <th>Источник</th>
+                    <th>Ник ТГ</th>
                     <th>ДР</th>
-                    <th>Телефон</th>
-                    <th>Рекв.</th>
+                    <th>Теги</th>
+                    <th>ДН</th>
+                    <th>UAH/ч</th>
+                    <th>USD/ч</th>
+                    <th>USDT/ч</th>
+                    <th>EUR/ч</th>
+                    <th>RUB/ч</th>
                     <th>Баланс</th>
-                    <th>Средства на руках</th>
+                    <th>Банк</th>
+                    <th>Карта</th>
+                    <th>Держатель</th>
+                    <th>На руках</th>
                   </tr>
                 </thead>
                 {Object.entries(groupedEmployees).map(([groupName, groupEmployees], idx) => (
                   <tbody key={groupName}>
                     <tr className="group-header" onClick={() => toggleGroup(groupName)}>
-                      <td colSpan="9">
+                     
+                      <td colSpan="16"> 
                         <span className={`collapse-icon ${collapsedGroups[groupName] ? "collapsed" : ""}`}>▼</span>
                         {`${idx + 1}. ${groupName.toUpperCase()}`}
                         <span className="group-count">{groupEmployees.length}</span>
                       </td>
                     </tr>
                     {!collapsedGroups[groupName] &&
-                      groupEmployees.map((employee) => (
-                        <tr
-                          key={employee.id}
-                          onClick={() => handleOpenModal(employee)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <td>{employee.fullName || employee.full_name || "Без имени"}</td> {/* <- ФИО из БД */}
-                          <td>
-                            {(Array.isArray(employee.tags) ? employee.tags : []).map((tag) => (
-                              <span
-                                key={tag.id || tag.name}
-                                style={{
-                                  backgroundColor: tag.color || "#555",
-                                  color: "#fff",
-                                  padding: "2px 8px",
-                                  borderRadius: "12px",
-                                  marginRight: "4px",
-                                  fontSize: "12px",
-                                  display: "inline-block",
-                                }}
-                              >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </td>
-                          <td>{employee.login}</td>
-                          <td>{employee.source}</td>
-                          <td>{formatDate(employee.birthDate)}</td>
-                          <td>{employee.phone}</td>
-                          <td>
-                            <span
-                              className="copy-button-icon"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const text =
-                                  typeof employee.requisites === "string"
-                                    ? employee.requisites
-                                    : JSON.stringify(employee.requisites || "Нет реквизитов");
-                                try {
-                                  await navigator.clipboard.writeText(text);
-                                } catch (_) {}
-                              }}
-                              title="Копировать реквизиты"
-                            ></span>
-                          </td>
-                          <td>{formatNumberWithSpaces(employee.balance)}</td>
-                          <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
-                        </tr>
-                      ))}
+                      groupEmployees.map((employee) => {
+                          
+                          const firstReq = getFirstRequisite(employee.requisites);
+
+                          return (
+                            <tr key={employee.id} onClick={() => handleOpenModal(employee)} style={{ cursor: "pointer" }}>
+                             
+                              <td>{employee.fullName}</td>
+                              
+                              <td>{employee.login}</td>
+                              
+                              <td>{employee.telegramNick || '—'}</td> 
+                              
+                              <td>{formatDate(employee.birthDate)}</td>
+                              
+                              <td>
+                                {(Array.isArray(employee.tags) ? employee.tags : []).map((tag) => (
+                                  <span
+                                    key={tag.id || tag.name}
+                                    style={{
+                                      backgroundColor: tag.color || "#555",
+                                      color: "#fff",
+                                      padding: "2px 8px",
+                                      borderRadius: "12px",
+                                      marginRight: "4px",
+                                      fontSize: "12px",
+                                      display: "inline-block",
+                                    }}
+                                  >
+                                    {tag.name}
+                                  </span>
+                                ))}
+                              </td>
+                          
+                              <td>{formatDate(employee.startDate) || '—'}</td>
+                              
+                             
+                              <td>{employee.hourlyRates?.uah}</td>
+                              <td>{employee.hourlyRates?.usd}</td>
+                              <td>{employee.hourlyRates?.usdt}</td>
+                              <td>{employee.hourlyRates?.eur}</td>
+                              <td>{employee.hourlyRates?.rub}</td>
+
+                              
+                              <td>{formatNumberWithSpaces(employee.balance)}</td>
+                              
+                              
+                              <td>{firstReq?.bank || '—'}</td>
+                              <td>{firstReq?.card || '—'}</td>
+                              <td>{firstReq?.holder || '—'}</td> 
+
+                             
+                              <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
+                            </tr>
+                          );
+                        })}
                   </tbody>
                 ))}
               </table>

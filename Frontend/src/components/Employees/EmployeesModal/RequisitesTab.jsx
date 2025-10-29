@@ -22,14 +22,17 @@ export default function RequisitesTab() {
     };
 
     return (
-        <div className="tab-section">
+       
+        <div className="tab-section requisites-tab-wrapper"> 
             <div className="employee-requisites-table">
                 
                 <div className="requisites-row header-row">
-                    <div className="requisites-cell">Валюта</div>
-                    <div className="requisites-cell">Банк</div>
-                    <div className="requisites-cell">Номер карты</div>
-                    <div className="requisites-cell">Владелец</div>
+                    <div className="header-content-wrapper">
+                        <div className="requisites-cell">Валюта</div>
+                        <div className="requisites-cell">Банк</div>
+                        <div className="requisites-cell">Номер карты</div>
+                        <div className="requisites-cell">Владелец</div>
+                    </div>
                     <div className="requisites-cell action-cell"></div> 
                 </div>
                 
@@ -49,7 +52,7 @@ export default function RequisitesTab() {
                             />
                         </div>
 
-                      
+                        
                         <div className="requisites-cell">
                             <Controller
                                 name={`${fieldArrayName}[${index}].bank`}
@@ -87,7 +90,7 @@ export default function RequisitesTab() {
 
                         
                         <div className="requisites-cell">
-                             <Controller
+                                <Controller
                                 name={`${fieldArrayName}[${index}].owner`}
                                 control={control}
                                 defaultValue={item.owner || ''}

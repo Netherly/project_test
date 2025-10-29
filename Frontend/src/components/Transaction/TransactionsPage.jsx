@@ -335,6 +335,7 @@ const TransactionsPage = () => {
                             </tr>
                         </thead>
                         <tbody>
+                            <tr className="table-spacer-row"><td colSpan={12}></td></tr>
                             {transactionsWithBalances.map((transaction) => (
                             <tr
                                 key={transaction.id}

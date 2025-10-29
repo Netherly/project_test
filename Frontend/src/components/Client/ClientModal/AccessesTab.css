@@ -1,42 +1,153 @@
 
+.accesses-tab-wrapper .employee-requisites-table {
+  width: 100%;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
 
-.accesses-tab-wrapper .requisites-cell {
-  flex-basis: 25%;
+.accesses-tab-wrapper .requisites-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+
+.accesses-tab-wrapper .requisites-row.header-row {
+  align-items: stretch;
+}
+
+.accesses-tab-wrapper .header-content-wrapper {
+  display: flex;        
+  flex-grow: 1;         
+  background-color: #141b2e;
+  color: #fff;
+  padding: 10px 0;
+}
+
+.accesses-tab-wrapper .requisites-row.header-row .requisites-cell {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   padding-right: 12px;
-  padding-left: 5px; 
+  padding-left: 5px;
+  display: flex;
+  align-items: center;
 }
 
 
-
-/* 1. Название */
-.accesses-tab-wrapper .requisites-cell:nth-child(1) { 
-  flex-basis: 20%; 
-} 
-/* 2. Логин */
-.accesses-tab-wrapper .requisites-cell:nth-child(2) { 
-  flex-basis: 25%; 
+.accesses-tab-wrapper .assets-workplan-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  
+  border-bottom: 1px solid var(--border-form-color, #444);
+  color: var(--text-color, #fff);
+  padding: 8px 0; 
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+  overflow: hidden;
+  transition: border-color 0.2s, background-color 0.2s;
 }
-/* 3. Пароль */
-.accesses-tab-wrapper .requisites-cell:nth-child(3) { 
-  flex-basis: 25%; 
-}
-/* 4. Описание */
-.accesses-tab-wrapper .requisites-cell:nth-child(4) { 
-  flex-basis: 30%; 
-  padding-right: 0; 
-} 
 
-/* 5. Кнопка "X" (Действия) */
-.accesses-tab-wrapper .requisites-cell.action-cell {
-  flex-basis: 40px; 
-  flex-shrink: 0;
+.accesses-tab-wrapper .assets-workplan-textarea::placeholder {
+  color: var(--text-secondary, #777);
+  opacity: 0.7;
+}
+
+
+.accesses-tab-wrapper .assets-workplan-textarea:focus {
+  outline: none;
+  border-bottom-color: var(--input-border-focus, #007bff);
+}
+
+.accesses-tab-wrapper .requisites-remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  padding-left: 10px;
+  transition: background-color 0.2s;
+}
+
+.accesses-tab-wrapper .requisites-remove-btn:hover {
+  background-color: rgba(255, 80, 80, 0.15); 
+}
+
+
+
+
+
+.accesses-tab-wrapper .requisites-row:not(.header-row) .requisites-cell {
+  padding-right: 12px;
+  padding-left: 5px;
+  display: flex;
+  align-items: center;
+}
+
+
+.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(1),
+.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(1) {
+  flex: 19; 
+  flex-basis: 0;
+}
+
+.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(2),
+.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(2) {
+  flex: 25;
+  flex-basis: 0;
+}
+
+.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(3),
+.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(3) {
+  flex: 25;
+  flex-basis: 0;
+}
+
+.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(4),
+.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(4) {
+  flex: 31;
+  flex-basis: 0;
   padding-right: 0;
 }
 
 
+.accesses-tab-wrapper .requisites-cell.action-cell {
+  flex: none;     
+  flex-basis: 40px;
+  flex-shrink: 0;
+  justify-content: center;
+  margin-left: 10px; 
+  padding-right: 0;
+  padding-left: 0; 
+}
+
+.accesses-tab-wrapper .add-requisites-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  margin-top: 10px;
+  width: auto;
+  background: none;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+
 @media (max-width: 768px) {
+  .accesses-tab-wrapper .employee-requisites-table {
+    background-color: transparent;
+    border: none;
+  }
+
   .accesses-tab-wrapper .requisites-row {
     flex-direction: column;
     align-items: stretch;
@@ -44,24 +155,29 @@
     margin-bottom: 10px;
     border: 1px solid var(--border-form-color);
     border-radius: 6px;
+    background-color: transparent;
+    border-bottom: none;
   }
-  
+
   .accesses-tab-wrapper .requisites-row.header-row {
-    display: none; 
+    display: none;
   }
 
   .accesses-tab-wrapper .requisites-cell {
-    flex-basis: auto !important; 
+    flex-basis: auto !important;
     width: 100%;
-    padding: 0 0 10px 0 !important; 
+    padding: 0 0 10px 0 !important;
+    margin-left: 0 !important; 
   }
 
   .accesses-tab-wrapper .requisites-cell.action-cell {
     padding-top: 5px;
     align-self: flex-end;
   }
-  
+
   .accesses-tab-wrapper .assets-workplan-textarea {
-    min-height: 40px; 
+    min-height: 40px;
+    border-bottom: 1px solid var(--border-form-color);
+    padding: 6px 4px;
   }
 }

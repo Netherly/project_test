@@ -105,15 +105,18 @@ const RegularPaymentsPage = () => {
         return account ? account.accountName : accountId;
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0'); 
-        const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${day}.${month}.${year}`;
+    const formatDate = (dateString, timeString) => {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); 
+            const year = date.getFullYear();
+            
+            // Время берем из timeString (которое 'HH:mm'), если оно есть
+            const time = timeString ? ` ${timeString}` : ''; 
+            
+            return `${day}.${month}.${year}${time}`;
     };
 
     const formatNumberWithSpaces = (num) => {
@@ -160,9 +163,10 @@ const RegularPaymentsPage = () => {
                             </tr>
                         </thead>
                         <tbody>
+                            <tr className="table-spacer-row"><td colSpan={12}></td></tr>
                             {regularPayments.map((payment) => (
                                 <tr key={payment.id} className="regular-payment-row" onClick={() => openViewEditModal(payment)}>
-                                    <td>{formatDate(payment.nextPaymentDate || 'N/A')}</td>
+                                    <td>{formatDate(payment.nextPaymentDate, payment.time)}</td>
                                     <td>{payment.category}</td>
                                     <td>{payment.subcategory}</td>
                                     <td>{payment.description}</td>

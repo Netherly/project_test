@@ -2,7 +2,7 @@
     display: flex;
     align-items: flex-start;
     gap: 16px;
-    padding: 20px 24px;
+    padding: 8px 24px;
     background: var(--bg-menu-color);
     position: relative;
 }
@@ -50,6 +50,9 @@
     display: flex;
     gap: 8px;
     align-items: center;
+    position: absolute; 
+    top: 20px;
+    right: 24px;
 }
 
 .actionItem {
@@ -208,6 +211,7 @@
     background: none;
     border: none;
     color: var(--text-color);
+    align-items: center;
     padding: 10px 15px;
     text-align: left;
     cursor: pointer;

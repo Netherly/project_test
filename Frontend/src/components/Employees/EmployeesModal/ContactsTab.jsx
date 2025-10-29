@@ -77,17 +77,6 @@ export default function ContactsTab({ isNew }) {
       <fieldset className="form-fieldset">
         <div className="grid-2-col">
           <Controller
-                name="chatLink"
-                control={control}
-                render={({ field }) => (
-                  <div className="form-field">
-                    <label>Ссылка на чат</label>
-                 
-                    <input {...field} placeholder="https://..." readOnly={!isNew} />
-                  </div>
-                )}
-              />
-          <Controller
             name="telegram.dateTime"
             control={control}
             render={({ field }) => (
@@ -142,6 +131,17 @@ export default function ContactsTab({ isNew }) {
               </div>
             )}
           />
+          <Controller
+                name="chatLink"
+                control={control}
+                render={({ field }) => (
+                  <div className="form-field">
+                    <label>Ссылка на чат</label>
+                 
+                    <input {...field} placeholder="https://..." readOnly={!isNew} />
+                  </div>
+                )}
+              />
         </div>
       </fieldset>
     </div>

@@ -123,8 +123,8 @@ const Sidebar = () => {
     ],
     settings: [
       { name: "Доступы", path: "/access", icon: RolesWebm },
-      { name: "Настройки полей", path: "/fields", icon: FieldSettingsWebm },
-      { name: "Курс валют", path: "/currency-rates", icon: CurrencyRatesWebm },
+      { name: "Поля", path: "/fields", icon: FieldSettingsWebm },
+      { name: "Курсы валют", path: "/currency-rates", icon: CurrencyRatesWebm },
     ],
   };
 

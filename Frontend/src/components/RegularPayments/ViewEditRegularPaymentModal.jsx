@@ -313,8 +313,7 @@ const ViewEditRegularPaymentModal = ({
                                 id="nextPaymentDate"
                                 value={formatDate(formData.nextPaymentDate, formData.time)}
                                 readOnly
-                                className="form-input1"
-                                style={{ backgroundColor: 'var(--bg-color)', cursor: 'default' }} 
+                                className="form-input1" 
                             />
                         </div>
                     )}
