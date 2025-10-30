@@ -316,7 +316,7 @@ const AccessModal = ({
                         </h2>
                         {selectedEmployee && !isGeneralMode && (
                             <div className="access-modal-employee-info">
-                                <p>Текущая роль: <strong>{originalRoles.find(r => r.id === selectedEmployee.roleId)?.name || selectedEmployee.roleName}</strong></p>
+                                <p>Текущая роль: <strong>{originalRoles.find(r => r.id === selectedEmployee.roleId)?.name || selectedEmployee.roleName || 'Роль не выбрана'}</strong></p>
                             </div>
                         )}
                     </div>
@@ -386,12 +386,10 @@ const AccessModal = ({
                                         </div>
                                     ))}
                                     <div className="access-modal-description-column">
-                                        {activeRole && (
-                                            <ModulePermissionStatus
-                                                rolePermissions={activeRole.permissions}
-                                                moduleKey={module.key}
-                                            />
-                                        )}
+                                        <ModulePermissionStatus
+                                            rolePermissions={activeRole?.permissions || {}}
+                                            moduleKey={module.key}
+                                        />
                                     </div>
                                 </div>
                             ))}

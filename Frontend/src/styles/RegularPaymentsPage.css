@@ -64,14 +64,11 @@
 }
 
 .regular-payments-table-container {
-    background-color: var(--container-bg);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    
     overflow: auto;
 }
 
 .regular-payments-table {
-    
     width: 100%;
     border-spacing: 0;
     text-align: left;
@@ -80,9 +77,7 @@
 }
 
 .regular-payments-table thead {
-    background-color: var(--container-bg);
     font-size: var(--font-size-table-header);
-    
     position: sticky;
     top: 0;
     z-index: 5;
@@ -96,8 +91,6 @@
     font-weight: 600;
     border-right: 1px solid var(--bg-color);
     text-align: center;
-    border-bottom: 10px solid var(--bg-color);
-    
     background-color: var(--container-bg);
 }
 
@@ -178,10 +171,10 @@
     width: 100px;
 }
 
-/* Следующий платеж (новая последняя колонка) */
+
 .regular-payments-table th:nth-child(13),
 .regular-payments-table td:nth-child(13) {
-    width: 140px; /* Оставил как в оригинале для этой колонки */
+    width: 140px; 
 }
 
 
@@ -191,6 +184,18 @@
 
 .regular-payments-table tbody tr.regular-payment-row:hover {
     background-color: var(--input-border-focus);
+}
+
+.regular-payments-table .table-spacer-row td {
+  background-color: transparent;
+  height: 5px;
+  border: none;
+  padding: 0;
+}
+
+.regular-payments-table .table-spacer-row:hover,
+.regular-payments-table .table-spacer-row:hover td {
+  background-color: transparent !important;
 }
 
 .regular-payments-table td {
@@ -205,6 +210,7 @@
     border-right: 1px solid var(--bg-color);
     text-align: center;
     font-size: var(--font-size-table-text);
+    background-color: var(--container-bg);
 }
 
 .amount-positive {

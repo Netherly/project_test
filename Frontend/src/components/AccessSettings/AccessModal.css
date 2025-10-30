@@ -33,7 +33,7 @@
 }
 
 .access-modal-header {
-    padding: 10px 25px;
+    padding: 5px 25px;
     background-color: var(--bg-menu-color);
     position: relative; 
     border-bottom: none;
@@ -49,11 +49,10 @@
     height: 1px;
     background-color: var(--border-form-color);
     left: 25px;
-    right: 35px;
+    right: 25px;
 }
 
 .access-modal-header h2 {
-    margin: 0 0 10px 0;
     font-size: 22px;
     font-weight: 700;
     color: var(--container-text-color, #333333);
@@ -106,21 +105,20 @@
 
 .access-modal-content {
     flex: 1;
-    padding: 10px 25px;
-    background-color: var(--bg-menu-color);
-    padding-bottom: 100px; 
+    padding: 5px 25px;
+    background-color: var(--bg-menu-color); 
 }
 
 .access-modal-roles-section {
     border-bottom: 1px solid var(--border-form-color);
-    padding: 10px;
+    padding: 0 10px;
 }
 
 .access-modal-roles-header {
     display: flex;
     gap: 10px;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 5px;
 }
 
 .access-modal-roles-label {
@@ -183,7 +181,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 18px;
+    padding: 5px;
     background-color: var(--button-bg); 
     border: 1px solid var(--input-bg); 
     border-radius: 8px;
@@ -327,7 +325,7 @@
 }
 
 .access-modal-permissions-title {
-    margin: 0 0 20px 0;
+    margin: 0 0 5px 0;
     font-size: 16px;
     font-weight: 700;
     color: var(--container-text-color, #333333);

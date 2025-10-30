@@ -466,6 +466,7 @@ function CurrencyRates() {
                 </tr>
               </thead>
               <tbody>
+                <tr className="table-spacer-row"><td colSpan={15}></td></tr>
                 {rates.map((row, rowIndex) => {
                   const isActive = activeRowId === row.id;
                   return (

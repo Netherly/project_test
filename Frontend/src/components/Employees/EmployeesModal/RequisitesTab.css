@@ -1,26 +1,37 @@
 
-.employee-requisites-table {
+
+.requisites-tab-wrapper .employee-requisites-table {
     display: flex;
     flex-direction: column;
     width: 100%;
     margin-bottom: 15px;
 }
 
-.requisites-row {
+.requisites-tab-wrapper .requisites-row {
     display: flex;
     align-items: stretch; 
     width: 100%;
 }
 
-.requisites-row.header-row {
+
+.requisites-tab-wrapper .requisites-row.header-row {
     color: var(--chips-color);
     font-size: 13px;
     font-weight: 500;
     margin-bottom: 5px;
-    padding: 0 8px; 
 }
 
-.requisites-cell {
+
+.requisites-tab-wrapper .header-content-wrapper {
+    display: flex;         
+    flex-grow: 1;          
+    padding: 10px 0;
+    background-color: rgb(20, 27, 46);
+    text-transform: uppercase;
+}
+
+
+.requisites-tab-wrapper .requisites-cell {
     display: flex;
     align-items: center;
     box-sizing: border-box;
@@ -29,19 +40,55 @@
 }
 
 
-.requisites-cell:nth-child(1) { flex-basis: 15%; padding-right: 15px; } 
-.requisites-cell:nth-child(2) { flex-basis: 25%; padding-right: 15px; } 
-.requisites-cell:nth-child(3) { flex-basis: 35%; padding-right: 15px; } 
-.requisites-cell:nth-child(4) { flex-basis: 25%; }                      
+.requisites-tab-wrapper .header-content-wrapper .requisites-cell {
+    padding-bottom: 0; 
+}
 
-.requisites-cell.action-cell {
+
+
+
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(1),
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(1) {
+    flex: 15; 
+    flex-basis: 0;
+    padding-right: 15px; 
+}
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(2),
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(2) {
+    flex: 25;
+    flex-basis: 0;
+    padding-right: 15px;
+}
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(3),
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(3) {
+    flex: 35;
+    flex-basis: 0;
+    padding-right: 15px;
+}
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(4),
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(4) {
+    flex: 25;
+    flex-basis: 0;
+}
+
+
+.requisites-tab-wrapper .requisites-cell.action-cell {
+    flex: none; 
     flex-basis: 40px;
     flex-shrink: 0;
     justify-content: center;
     padding-left: 10px;
+    padding-bottom: 0; 
 }
 
-.requisite-input {
+
+
+
+.requisites-tab-wrapper .assets-workplan-textarea {
     box-sizing: border-box;
     background: none;
     border: none;
@@ -58,27 +105,29 @@
     transition: border-color 0.2s ease;
 }
 
-.requisite-input:focus {
+.requisites-tab-wrapper .assets-workplan-textarea:focus {
     border-bottom-color: var(--input-border-focus);
 }
 
-.requisite-input::placeholder {
+.requisites-tab-wrapper .assets-workplan-textarea::placeholder {
     color: #777;
 }
 
 
-select.requisite-input {
+.requisites-tab-wrapper select.assets-workplan-textarea {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%236e7891%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
-    background-repeat: no-repeat;
-    background-position: right 8px top 50%;
-    background-size: .65em auto;
-    cursor: pointer;
 }
 
-.add-requisites-btn {
+
+.requisites-tab-wrapper select.assets-workplan-textarea option {
+    background-color: #19213A; 
+    color: var(--text-color);
+}
+
+
+.requisites-tab-wrapper .add-requisites-btn {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -93,8 +142,7 @@ select.requisite-input {
     transition: color 0.2s;
 }
 
-
-.requisites-remove-btn {
+.requisites-tab-wrapper .requisites-remove-btn {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -107,16 +155,4 @@ select.requisite-input {
     border-radius: 50%;
     cursor: pointer;
     transition: background-color 0.2s, color 0.2s;
-}
-
-
-
-select.assets-workplan-textarea {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-image: none; 
-  background-color: #19213A;
-  width: 50px;
-  margin-left: 5px;
 }

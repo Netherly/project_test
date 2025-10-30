@@ -5,13 +5,13 @@
 
 .select-plus{
   width: 100%;
-  max-width: 266px;
 }
 
 .custom-number-input {
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--border-form-color); 
+  width: 100%;
 }
 
 .num-btn {
@@ -55,5 +55,25 @@
 
 .custom-number-input input:focus,
 .num-btn:focus {
+  outline: none;
+}
+
+
+.fake-input-toggle {
+  background-color: #19213A;
+    border: none;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    color: var(--container-text-color);
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+    width: 100%; 
+    box-sizing: border-box;
+}
+
+
+.fake-input-toggle:focus {
   outline: none;
 }

@@ -9,7 +9,7 @@
   position: fixed;
   inset: 0;
   background: var(--opacity-container);
-  z-index: 1000;
+  z-index: 87;
 }
 
 /* ------------------- Root Layout ------------------- */
@@ -20,7 +20,7 @@
   flex-direction: row;
   background: var(--bg-color);
   color: var(--text-color);
-
+  margin-left: 72px;
 }
 
 .client-modal.tri-layout.closing {
@@ -39,10 +39,11 @@
 }
 
 /* Form Body */
-.modal-body {
+.client-modal-body {
   flex: 1;
   overflow-y: auto;
   background-color: #19213A;
+  padding: 0;
 }
 
 .form-field {
@@ -70,7 +71,6 @@
     padding: 10px 12px;
     border-bottom: 1px solid rgba(128, 128, 128, 0.3);
     width: 100%; 
-    max-width: 266px;
     box-sizing: border-box;
 }
 
@@ -87,7 +87,6 @@
     outline: none;
     color: var(--container-text-color);
     padding: 8px;
-    max-width: 266px;
     width: 100%;
     height: 38px;
     resize: vertical;
@@ -95,6 +94,7 @@
     font-size: 14px;
     line-height: 1.4;
     transition: border-color 0.2s ease;
+    overflow: hidden;
 }
 
 .form-field input:focus,

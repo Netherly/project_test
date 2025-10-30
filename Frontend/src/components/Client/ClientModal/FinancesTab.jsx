@@ -68,7 +68,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         render={({ field }) => (
           <div className="form-field full-width">
             <label>Реквизиты для оплаты</label>
-            <textarea {...field} placeholder="IBAN, PayPal, Crypto…" className='workplan-textarea' />
+            <textarea {...field} placeholder="IBAN, PayPal, Crypto…" className='textarea-input' />
           </div>
         )}
       />
@@ -120,18 +120,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
                 
                 
                 <div className="custom-number-input">
-                  
-                 
-                  <button
-                    type="button"
-                    className="num-btn minus-btn"
-                    onClick={handleDecrement}
-                    disabled={numValue <= min} 
-                  >
-                    <Minus/>
-                  </button>
-                  
-                  
                   <input
                     type="number"
                     {...restField} 
@@ -143,6 +131,14 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
                     className={errors.percent ? 'input-error' : ''}
                   />
                   
+                  <button
+                    type="button"
+                    className="num-btn minus-btn"
+                    onClick={handleDecrement}
+                    disabled={numValue <= min} 
+                  >
+                    <Minus/>
+                  </button>
                  
                   <button
                     type="button"
@@ -163,14 +159,25 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           name="share_info"
           control={control}
           render={({ field }) => (
-            <div className="form-field-checkbox">
+            <div className="form-field">
               <label>Есть доля?</label>
-                <input
-                  type="checkbox"
-                  {...field}
-                  onChange={e => field.onChange(e.target.checked)}
-                  className='form-checkbox'
-                />
+              
+              
+              <div
+                className="fake-input-toggle" 
+                onClick={() => field.onChange(!field.value)} 
+                tabIndex={0} 
+                role="switch" 
+                aria-checked={field.value} 
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    field.onChange(!field.value);
+                  }
+                }}
+              >
+                {field.value ? 'Да' : 'Нет'} 
+              </div>
             </div>
           )}
         />
