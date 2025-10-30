@@ -107,7 +107,7 @@
 }
 .form-field label {
   align-items: center;
-  width: 220px;
+  width: 150px;
   font-weight: 500;
   font-size: 14px;
   color: var(--chips-color);

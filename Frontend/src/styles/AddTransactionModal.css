@@ -59,7 +59,8 @@
   flex-direction: column;
   flex-grow: 1;
   overflow-y: auto;
-  padding-right: 10px;
+  overflow-x: hidden;
+  padding-right: 30px;
   padding-bottom: 20px;
 }
 

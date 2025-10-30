@@ -619,12 +619,7 @@ const AssetsPage = () => {
                                                     <td>{formatNumberWithSpaces(asset.turnoverOutgoing)}</td>
                                                     <td>{formatNumberWithSpaces(asset.turnoverEndBalance)}</td>
                                                 </tr>
-                                            ))}
-                                            {index < Object.keys(assetsByCurrency).length - 1 && (
-                                                <tr className="table-section-divider">
-                                                    <td colSpan="11"></td>
-                                                </tr>
-                                            )}
+                                            ))}ё
                                         </React.Fragment>
                                     ))}
                                 </tbody>

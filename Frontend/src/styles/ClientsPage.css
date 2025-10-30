@@ -1,21 +1,23 @@
 /* ====== Общий лэйаут ====== */
 .clients-layout{
   display: flex;
-  min-height: 100vh;
-  background-color: var(--bg-color);
+  height: 100vh;
   color: var(--text-color);
-  overflow-x: hidden;
+  overflow: hidden;
 }
 .clients-page{
   flex: 1;
   display: flex;
   flex-direction: column;
+
+  overflow-x: hidden;
+  height: 100vh;
 }
 
 /* ====== Обёртка таблицы ====== */
 .clients-table-wrapper{
-  background: var(--container-bg);
-
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* ====== Таблица ====== */
@@ -35,6 +37,7 @@
   padding: 5px 5px;
   border-bottom: 1px solid var(--border--color);
   border-right: 1px solid var(--border--color);
+  background: var(--container-bg);
 }
 .clients-table th:last-child,
 .clients-table td:last-child{
@@ -48,10 +51,9 @@
 }
 .clients-table th{
   position: sticky;
-    top: 60px;
+    top: 0px;
     z-index: 5;
   font-weight: 600;
-  background-color: var(--container-bg);
   text-align: center;
 
 }
@@ -66,15 +68,17 @@
 
 /* ====== Группы ====== */
 .group-row{
-  background-color: var(--bg-color);
   cursor: pointer;
   user-select: none;
+  opacity: 0.9;
 }
 .group-row td{
-  font-weight: bold;
-  color: #a0a0b0;
-  padding: 12px 16px;
-  font-size: 14px;
+  color: #FFFFFF;
+  font-size: var(--font-size-table-header);
+  font-weight: normal;
+  padding: 8px 15px;
+  border: none;
+  background-color: var(--bg-color);
 }
 
 
@@ -83,7 +87,7 @@
   margin-left: 8px;
   padding: 2px 6px;
   background-color: #444;
-  color: #a0a0b0;
+  color: #fff;
   border-radius: 4px;
   font-size: 12px;
 }
@@ -106,12 +110,17 @@
 
 .clients-table thead th:nth-child(2),
 .clients-table td:nth-child(2){
-  width: 220px;
+  width: 240px;
 }
 
 .clients-table thead th:nth-child(3),
 .clients-table td:nth-child(3){
-  width: 180px;
+  width: 200px;
+}
+
+.clients-table thead th:nth-child(4),
+.clients-table td:nth-child(4){
+  width: 100px;
 }
 
 .clients-table thead th:nth-child(5),
@@ -132,7 +141,7 @@
 
 .clients-table thead th:nth-child(8),
 .clients-table td:nth-child(8){
-  width: 40px;
+  width: 60px;
 }
 
 .clients-table td:nth-child(8){
@@ -158,7 +167,13 @@
 
 .clients-table thead th:nth-child(12),
 .clients-table td:nth-child(12){
-  width: 120px;
+  width: 50px;
+}
+
+.clients-table thead th:nth-child(13),
+.clients-table td:nth-child(13){
+  width: 100px;
+  text-align: center;
 }
 
 /* клик по рефереру — подчёркивание на ховере */

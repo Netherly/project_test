@@ -336,6 +336,9 @@ function AccessSettings() {
                             </tr>
                         </thead>
                         <tbody>
+                            <tr className="table-spacer-row">
+                                <td colSpan={2 + modules.length}></td>
+                            </tr>
                             {filteredEmployees.length > 0 ? (
                                 filteredEmployees.map((employee) => {
                                     const displayRole = getDisplayRole(employee);

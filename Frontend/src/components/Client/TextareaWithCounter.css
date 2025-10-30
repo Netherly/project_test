@@ -3,7 +3,6 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 266px; 
   gap: 6px;
   font-family: inherit;
 }

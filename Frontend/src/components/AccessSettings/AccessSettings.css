@@ -3,7 +3,6 @@
     display: flex;
     min-height: 100vh;
     color: var(--text-color);
-    background-color: var(--bg-color);
 }
 
 .access-page-main-container {
@@ -108,7 +107,6 @@
 }
 
 .access-table-container {
-    background-color: var(--container-bg);
     overflow: hidden;
     border: 1px solid var(--bg-color);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -133,9 +131,24 @@
     letter-spacing: 0.5px;
     border-bottom: 1px solid var(--bg-color);
     vertical-align: middle;
+    background-color: var(--container-bg);
 }
 
 .access-table th:first-child{
+}
+
+.access-table .table-spacer-row td {
+    height: 5px; 
+    background-color: transparent;
+    padding: 0;
+    border: none
+}
+
+.table-spacer-row:hover,
+.table-spacer-row:hover td {
+  background-color: transparent !important; 
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 
@@ -148,15 +161,9 @@
     text-align: center;
     overflow: hidden;
     text-overflow: ellipsis;
+    background-color: var(--container-bg);
 }
 
-
-.access-table tbody tr:hover {
-    background-color: var(--hover-bg);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-}
 
 .access-table tbody tr:last-child td {
     border-bottom: none;
@@ -395,9 +402,6 @@
     background: rgba(0, 0, 0, 0.01);
 }
 
-.permission-cell:hover {
-    background: rgba(0, 123, 255, 0.03);
-}
 
 .permission-status.no-access {
     color: var(--text-secondary);

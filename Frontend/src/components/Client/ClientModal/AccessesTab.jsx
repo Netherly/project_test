@@ -26,11 +26,13 @@ export default function AccessesTab() {
       <div className="employee-requisites-table"> 
         
         
-        <div className="requisites-row header-row">
-          <div className="requisites-cell">Название</div>
-          <div className="requisites-cell">Логин</div>
-          <div className="requisites-cell">Пароль</div>
-          <div className="requisites-cell">Описание</div>
+          <div className="requisites-row header-row">
+              <div className="header-content-wrapper"> 
+              <div className="requisites-cell">Название</div>
+              <div className="requisites-cell">Логин</div>
+              <div className="requisites-cell">Пароль</div>
+              <div className="requisites-cell">Описание</div>
+          </div>
           <div className="requisites-cell action-cell"></div>
         </div>
 

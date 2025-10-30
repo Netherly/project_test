@@ -3,7 +3,6 @@
   display: flex;
   min-height: 100vh;
   color: var(--text-color);
-  background-color: var(--bg-color);
 }
 
 .employees-page-main-container {
@@ -109,9 +108,9 @@
 
 .employees-table {
     border-collapse: collapse;
+    width: 100%;
     text-align: left;
     table-layout: fixed;
-    background-color: var(--container-bg);
 }
 
 .employees-table td{
@@ -120,54 +119,99 @@
 
 .employees-table th,
 .employees-table td {
-  padding: 10px 10px;
+  padding: 5px 5px;
   border-bottom: 1px solid var(--border--color);
   border-right: 1px solid var(--border--color);
+  background-color: var(--container-bg);
 }
+
 
 .employees-table th:nth-child(1),
 .employees-table td:nth-child(1){
-  width: 180px;
+  width: 170px; 
 }
+
 
 .employees-table th:nth-child(2),
 .employees-table td:nth-child(2){
-  width: 50px;
+  width: 100px; 
 }
+
 
 .employees-table th:nth-child(3),
 .employees-table td:nth-child(3){
-  width: 80px;
+  width: 100px; 
+  text-align: center;
 }
+
+
 
 .employees-table th:nth-child(4),
 .employees-table td:nth-child(4){
-  width: 60px;
+  width: 60px; 
 }
 
 .employees-table th:nth-child(5),
 .employees-table td:nth-child(5){
-  width: 60px;
+  width: 100px; 
 }
 
 .employees-table th:nth-child(6),
 .employees-table td:nth-child(6){
-  width: 90px;
+  width: 60px; 
+  text-align: center;
 }
 
 .employees-table th:nth-child(7),
 .employees-table td:nth-child(7){
-  width: 30px;
+  width: 60px; 
 }
 
 .employees-table th:nth-child(8),
 .employees-table td:nth-child(8){
-  width: 110px;
+  width: 60px; 
 }
 
 .employees-table th:nth-child(9),
 .employees-table td:nth-child(9){
-  width: 130px;
+  width: 60px; 
+}
+
+.employees-table th:nth-child(10),
+.employees-table td:nth-child(10){
+  width: 60px; 
+}
+
+.employees-table th:nth-child(11),
+.employees-table td:nth-child(11){
+  width: 60px; 
+}
+
+.employees-table th:nth-child(12),
+.employees-table td:nth-child(12){
+  width: 90px; 
+  text-align: center;
+}
+
+.employees-table th:nth-child(13),
+.employees-table td:nth-child(13){
+  width: 100px; 
+}
+
+.employees-table th:nth-child(14),
+.employees-table td:nth-child(14){
+  width: 140px; 
+}
+
+.employees-table th:nth-child(15),
+.employees-table td:nth-child(15){
+  width: 170px; 
+}
+
+.employees-table th:nth-child(16),
+.employees-table td:nth-child(16){
+  width: 70px; 
+  text-align: center;
 }
 
 
@@ -188,6 +232,7 @@
 .employees-table th {
   font-weight: 600;
   background-color: var(--container-bg);
+  text-align: center;
 }
 
 .employees-table tbody tr:hover {
@@ -200,13 +245,13 @@
 
 /* Групповые строки в таблице */
 .group-header {
-    background-color: var(--bg-color);
     cursor: pointer;
     user-select: none;
+    opacity: 0.9;
 }
 
-.group-header td:hover{
-    background-color: #1e2a3e;;
+.group-header td{
+    background-color: var(--bg-color);
 }
 
 .group-header td {
@@ -248,7 +293,6 @@
   font-weight: bold;
   color: #a0a0a0;
   border: 1px solid var(--border--color);
-  border-radius: 8px;
 }
 .cards-container {
     margin-top: 10px;

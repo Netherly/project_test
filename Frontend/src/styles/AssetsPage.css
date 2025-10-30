@@ -2,7 +2,6 @@
     display: flex;
     min-height: 100vh;
     color: var(--text-color);
-    background-color: var(--bg-color);
 }
 
 .assets-page-main-container {
@@ -56,7 +55,6 @@
 
 .assets-table-container {
     overflow-x: auto;
-    background-color: var(--container-bg);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -65,7 +63,6 @@
     border-collapse: separate;
     border-spacing: 0;
     text-align: left;
-    color: var(--container-text-color);
 }
 
 .assets-table th,
@@ -76,6 +73,7 @@
     border-top: 1px solid var(--bg-color);
     border-right: 1px solid var(--bg-color);
     vertical-align: middle;
+    background-color: var(--container-bg);
 }
 
 .assets-table td{
@@ -175,12 +173,12 @@
 
 .currency-group-header td {
     background-color: var(--bg-color);
+    opacity: 0.9;
     color: #FFFFFF;
     font-size: var(--font-size-table-header);
     font-weight: normal;
     padding: 8px 15px;
     border: none;
-    border-bottom: 1px solid var(--border--color) !important;
 }
 
 
@@ -208,10 +206,12 @@
 
 .table-section-divider td {
     background-color: var(--bg-color);
+    opacity: 0.9;
     height: 15px;
     padding: 0;
     border: none;
 }
+
 
 .highlight-green {
     color: #4CAF50;

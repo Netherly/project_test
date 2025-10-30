@@ -13,6 +13,14 @@ import "../styles/ClientsPage.css";
 import { sampleClients } from "../data/sampleClients";
 import { fetchClients, saveClient as saveClientApi } from "../api/clients";
 
+const statusToEmojiMap = {
+  "Лид": "🎯", "Изучаем ТЗ": "📄", "Обсуждаем с клиентом": "💬",
+  "Клиент думает": "🤔", "Ожидаем предоплату": "💳", "Взяли в работу": "🚀",
+  "Ведется разработка": "💻", "На уточнении у клиента": "📝", "Тестируем": "🧪",
+  "Тестирует клиент": "👀", "На доработке": "🔧", "Ожидаем оплату": "💸",
+  "Успешно завершен": "🏆", "Закрыт": "🏁", "Неудачно завершён": "❌", "Удаленные": "🗑️"
+};
+
 const STORAGE_KEY = "clientsTableWidths";
 const MIN_W = 24;
 
@@ -73,9 +81,9 @@ const Ellipsis = ({ value }) => {
 };
 
 export default function ClientsPage({
-  // пропсы остаются как фоллбек, но теперь основной источник — API
+  
   clients = sampleClients,
-  onSaveClient, // не используется (сохраняем через API внутри страницы)
+  onSaveClient, 
   onAddCompany = () => {},
   companies = [],
   employees = [],
@@ -87,7 +95,7 @@ export default function ClientsPage({
   const [search, setSearch] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [tagFilter, setTagFilter] = useState([]); // массив названий тегов
+  const [tagFilter, setTagFilter] = useState([]); 
   const [sourceFilter, setSourceFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -106,7 +114,7 @@ export default function ClientsPage({
         setList(Array.isArray(data) && data.length ? data : clients);
       } catch (e) {
         console.error("fetchClients failed:", e);
-        if (mounted) setList(clients); // фоллбек на локальные
+        if (mounted) setList(clients); 
       } finally {
         if (mounted) setLoading(false);
       }
@@ -114,9 +122,62 @@ export default function ClientsPage({
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // один раз при монтировании
+    
+  }, []); 
 
+  const latestOrderStatusMap = useMemo(() => {
+    const statusMap = new Map();
+    const clientOrders = new Map(); 
+    
+   
+    const ordersJson = localStorage.getItem('ordersData'); 
+    let ordersData = []; 
+
+    if (ordersJson) {
+      try {
+       
+        ordersData = JSON.parse(ordersJson);
+      } catch (error) {
+        console.error("Ошибка парсинга заказов из localStorage:", error);
+      }
+    }
+    
+    
+
+
+    
+    for (const order of ordersData) {
+      const clientIdNum = parseInt(order.order_client, 10);
+      if (isNaN(clientIdNum)) continue;
+
+      if (!clientOrders.has(clientIdNum)) {
+        clientOrders.set(clientIdNum, []);
+      }
+      clientOrders.get(clientIdNum).push(order);
+    }
+
+    
+    for (const [clientId, orders] of clientOrders.entries()) {
+      if (orders.length === 0) continue;
+
+      const sortedOrders = orders.sort((a, b) => {
+        const dateA = new Date(a.orderDate);
+        const dateB = new Date(b.orderDate);
+        
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
+        
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      const latestOrder = sortedOrders[0];
+      if (latestOrder && latestOrder.stage) {
+        statusMap.set(clientId, latestOrder.stage);
+      }
+    }
+
+    return statusMap;
+  }, []);
   /* === фильтрация === */
   const filteredRows = useMemo(() => {
     return (list || [])
@@ -214,7 +275,7 @@ export default function ClientsPage({
     "Реферер",
     "Реферер первый",
     "Статус",
-    "Дата последнего заказа",
+    "Дата посл. зак.",
   ];
   const COLS = headers.length;
 
@@ -311,15 +372,23 @@ export default function ClientsPage({
   const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
 
    const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0'); 
-        const year = date.getFullYear();
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${day}.${month}.${year}`;
-    };
+    
+    if (!dateString) return null; 
+
+    const date = new Date(dateString);
+
+    
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); 
+    const year = date.getFullYear();
+    
+    return `${day}.${month}.${year}`;
+  };
 
   return (
     <div className="clients-layout">
@@ -434,9 +503,19 @@ export default function ClientsPage({
                             >
                               <Ellipsis value={c.referrer_first_name} />
                             </td>
-                            <td>
-                              <StatusPill value={c.status} />
-                            </td>
+                            {(() => {
+                              const latestStatus = latestOrderStatusMap.get(c.id);
+                              const emoji = statusToEmojiMap[latestStatus] || '—';
+                              
+                              return (
+                                <td 
+                                  title={latestStatus || 'Нет заказов'} 
+                                  style={{ textAlign: 'center', fontSize: '1.3em', cursor: 'default' }}
+                                >
+                                  {emoji}
+                                </td>
+                              );
+                            })()}
                             <td>
                               <Ellipsis value={formatDate(c.last_order_date || "")} />
                             </td>
