@@ -308,7 +308,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
-                                    {fields?.currency?.map((item, index) => {
+                                    {/* Изменено: fields.generalFields.currency */}
+                                    {fields?.generalFields?.currency?.map((item, index) => {
                                         const value = typeof item === 'object' ? item.code || item.name : item;
                                         const display = typeof item === 'object' ? item.name : item;
                                         return <option key={index} value={value}>{display}</option>;
@@ -336,7 +337,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
-                                    {fields?.type?.map((item, index) => {
+                                    {/* Изменено: fields.assetsFields.type */}
+                                    {fields?.assetsFields?.type?.map((item, index) => {
                                         const value = typeof item === 'object' ? item.code || item.name : item;
                                         const display = typeof item === 'object' ? item.name : item;
                                         return <option key={index} value={value}>{display}</option>;
@@ -353,7 +355,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     className="form-input1"
                                 >
                                     <option value="">Не выбрано</option>
-                                    {fields?.paymentSystem?.map((item, index) => {
+                                    {/* Изменено: fields.assetsFields.paymentSystem */}
+                                    {fields?.assetsFields?.paymentSystem?.map((item, index) => {
                                         const value = typeof item === 'object' ? item.code || item.name : item;
                                         const display = typeof item === 'object' ? item.name : item;
                                         return <option key={index} value={value}>{display}</option>;
@@ -370,7 +373,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     className="form-input1"
                                 >
                                     <option value="">Не выбрано</option>
-                                    {fields?.cardDesigns?.map((design, index) => (
+                                    {/* Изменено: fields.assetsFields.cardDesigns */}
+                                    {fields?.assetsFields?.cardDesigns?.map((design, index) => (
                                         <option key={index} value={design.id}>{design.name}</option>
                                     ))}
                                 </select>

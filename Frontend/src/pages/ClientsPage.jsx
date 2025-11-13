@@ -447,7 +447,7 @@ export default function ClientsPage({
                       }
                     >
                       <td colSpan={COLS}>
-                        {expanded[gid] ? "▼" : "▶"} {gid}. {gname}{" "}
+                        {expanded[gid] ? "▼" : "▶"} {gname}{" "}
                         <span className="group-count">
                           {
                             filteredRows.filter(

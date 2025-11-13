@@ -15,6 +15,15 @@ async function getBundle(req, res, next) {
   }
 }
 
+async function getInactiveBundle(req, res, next) {
+  try {
+    const data = await svc.loadInactiveBundle(); // возвращает неактивные
+    ok(res, data);
+  } catch (e) {
+    next(e);
+  }
+}
+
 // Сохранить весь бандл списков (все группы разом)
 async function saveBundle(req, res, next) {
   try {
@@ -29,4 +38,5 @@ async function saveBundle(req, res, next) {
 module.exports = {
   getBundle,
   saveBundle,
+  getInactiveBundle,
 };

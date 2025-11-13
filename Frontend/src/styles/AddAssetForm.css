@@ -362,9 +362,6 @@
     transition: border-color 0.2s ease;
 }
 
-textarea.assets-workplan-textarea {
-    margin-top: 3.5px;
-}
 
 @media (max-width: 768px) {
     .add-asset-modal {

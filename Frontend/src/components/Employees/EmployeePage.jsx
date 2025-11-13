@@ -49,19 +49,19 @@ const getFirstRequisite = (requisites) => {
 
 
 const EmployeeCard = ({ employee, onClick }) => {
-  const avatar = employee.avatarUrl || employee.photoLink || avatarPlaceholder; // <- учли поле из БД
+  const avatar = employee.avatarUrl || employee.photoLink || avatarPlaceholder; 
   const tags = Array.isArray(employee.tags) ? employee.tags : [];
   return (
     <div className="employee-card" onClick={onClick}>
       <img
         src={avatar}
-        alt={employee.fullName || employee.full_name || "Сотрудник"} // <- fallback к full_name
+        alt={employee.fullName || employee.full_name || "Сотрудник"} 
         className="card-avatar"
       />
       <div className="card-details">
         <div className="card-header">
           <span className="card-full-name">
-            {employee.fullName || employee.full_name || "Без имени"} {/* <- fallback к full_name */}
+            {employee.fullName || employee.full_name || "Без имени"}
           </span>
           {employee.birthDate && (
             <span className="card-birthdate">{formatDate(employee.birthDate)}</span>
@@ -131,6 +131,21 @@ const EmployeePage = () => {
       cashOnHand: "500",
       status: "inactive",
       hourlyRates: { uah: 400, usd: 12, usdt: 12.1, eur: 10, rub: 800 },
+    },
+    {
+      id: 3,
+      fullName: "Сидоров С.С.",
+      tags: [],
+      login: "sidorov_s",
+      telegramNick: "@sid_devops",
+      startDate: "2024-03-15",
+      source: "Referral",
+      birthDate: "1995-07-20",
+      phone: "+380995554433",
+      balance: "0",
+      cashOnHand: "0",
+      status: "pending", 
+      hourlyRates: { uah: 500, usd: 15, usdt: 15.1, eur: 13, rub: 1000 },
     },
   ];
 
@@ -240,16 +255,40 @@ const EmployeePage = () => {
     }
   };
 
+  
   const groupedEmployees = useMemo(() => {
     return (employees || []).reduce(
       (acc, employee) => {
-        const key = employee.status === "inactive" ? "Не работает" : "Работает";
+        let key;
+        switch (employee.status) {
+          case "inactive":
+            key = "Не работает";
+            break;
+          case "pending": 
+            key = "На рассмотрении";
+            break;
+          case "active":
+          default:
+            key = "Работает";
+        }
+        
+      
+        if (!acc[key]) {
+          acc[key] = [];
+        }
         acc[key].push(employee);
         return acc;
       },
-      { Работает: [], "Не работает": [] }
+      {} 
     );
   }, [employees]);
+
+
+  const groupOrder = {
+    "На рассмотрении": 1,
+    "Работает": 2,
+    "Не работает": 3,
+  };
 
   const toggleGroup = (groupKey) => {
     setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
@@ -331,84 +370,88 @@ const EmployeePage = () => {
                     <th>На руках</th>
                   </tr>
                 </thead>
-                {Object.entries(groupedEmployees).map(([groupName, groupEmployees], idx) => (
+                {Object.entries(groupedEmployees)
+                  .sort(([groupNameA], [groupNameB]) => (groupOrder[groupNameA] || 99) - (groupOrder[groupNameB] || 99))
+                  .map(([groupName, groupEmployees], idx) => (
                   <tbody key={groupName}>
                     <tr className="group-header" onClick={() => toggleGroup(groupName)}>
-                     
+                      
                       <td colSpan="16"> 
                         <span className={`collapse-icon ${collapsedGroups[groupName] ? "collapsed" : ""}`}>▼</span>
-                        {`${idx + 1}. ${groupName.toUpperCase()}`}
+                        {`${groupName.toUpperCase()}`}
                         <span className="group-count">{groupEmployees.length}</span>
                       </td>
                     </tr>
                     {!collapsedGroups[groupName] &&
                       groupEmployees.map((employee) => {
+                        
+                        const firstReq = getFirstRequisite(employee.requisites);
+
+                        return (
+                          <tr key={employee.id} onClick={() => handleOpenModal(employee)} style={{ cursor: "pointer" }}>
+                            
+                            <td>{employee.fullName}</td>
+                            
+                            <td>{employee.login}</td>
+                            
+                            <td>{employee.telegramNick || '—'}</td> 
+                            
+                            <td>{formatDate(employee.birthDate)}</td>
+                            
+                            <td>
+                              {(Array.isArray(employee.tags) ? employee.tags : []).map((tag) => (
+                                <span
+                                  key={tag.id || tag.name}
+                                  style={{
+                                    backgroundColor: tag.color || "#555",
+                                    color: "#fff",
+                                    padding: "2px 8px",
+                                    borderRadius: "12px",
+                                    marginRight: "4px",
+                                    fontSize: "12px",
+                                    display: "inline-block",
+                                  }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </td>
                           
-                          const firstReq = getFirstRequisite(employee.requisites);
+                            <td>{formatDate(employee.startDate) || '—'}</td>
+                            
+                            
+                            <td>{employee.hourlyRates?.uah}</td>
+                            <td>{employee.hourlyRates?.usd}</td>
+                            <td>{employee.hourlyRates?.usdt}</td>
+                            <td>{employee.hourlyRates?.eur}</td>
+                            <td>{employee.hourlyRates?.rub}</td>
 
-                          return (
-                            <tr key={employee.id} onClick={() => handleOpenModal(employee)} style={{ cursor: "pointer" }}>
-                             
-                              <td>{employee.fullName}</td>
-                              
-                              <td>{employee.login}</td>
-                              
-                              <td>{employee.telegramNick || '—'}</td> 
-                              
-                              <td>{formatDate(employee.birthDate)}</td>
-                              
-                              <td>
-                                {(Array.isArray(employee.tags) ? employee.tags : []).map((tag) => (
-                                  <span
-                                    key={tag.id || tag.name}
-                                    style={{
-                                      backgroundColor: tag.color || "#555",
-                                      color: "#fff",
-                                      padding: "2px 8px",
-                                      borderRadius: "12px",
-                                      marginRight: "4px",
-                                      fontSize: "12px",
-                                      display: "inline-block",
-                                    }}
-                                  >
-                                    {tag.name}
-                                  </span>
-                                ))}
-                              </td>
-                          
-                              <td>{formatDate(employee.startDate) || '—'}</td>
-                              
-                             
-                              <td>{employee.hourlyRates?.uah}</td>
-                              <td>{employee.hourlyRates?.usd}</td>
-                              <td>{employee.hourlyRates?.usdt}</td>
-                              <td>{employee.hourlyRates?.eur}</td>
-                              <td>{employee.hourlyRates?.rub}</td>
+                            
+                            <td>{formatNumberWithSpaces(employee.balance)}</td>
+                            
+                            
+                            <td>{firstReq?.bank || '—'}</td>
+                            <td>{firstReq?.card || '—'}</td>
+                            <td>{firstReq?.holder || '—'}</td> 
 
-                              
-                              <td>{formatNumberWithSpaces(employee.balance)}</td>
-                              
-                              
-                              <td>{firstReq?.bank || '—'}</td>
-                              <td>{firstReq?.card || '—'}</td>
-                              <td>{firstReq?.holder || '—'}</td> 
-
-                             
-                              <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
-                            </tr>
-                          );
-                        })}
+                            
+                            <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 ))}
               </table>
             </div>
           ) : (
             <div className="employees-card-view">
-              {Object.entries(groupedEmployees).map(([groupName, groupEmployees], index) => (
+              {Object.entries(groupedEmployees)
+                .sort(([groupNameA], [groupNameB]) => (groupOrder[groupNameA] || 99) - (groupOrder[groupNameB] || 99))
+                .map(([groupName, groupEmployees], index) => (
                 <div key={groupName} className="card-group">
                   <h2 className="group-header card-group-header" onClick={() => toggleGroup(groupName)}>
                     <span className={`collapse-icon ${collapsedGroups[groupName] ? "collapsed" : ""}`}>▼</span>
-                    {`${index + 1}. ${groupName.toUpperCase()}`}
+                    {`${groupName.toUpperCase()}`}
                     <span className="group-count">{groupEmployees.length}</span>
                   </h2>
                   {!collapsedGroups[groupName] && (
