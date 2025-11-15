@@ -1,23 +1,18 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
-
-
-const TransactionsContext = createContext();
-
+import { FieldsAPI, withDefaults } from '../api/fields.js';
 import { sampleClients } from '../data/sampleClients';
 
+const TransactionsContext = createContext();
 
 export const useTransactions = () => {
     return useContext(TransactionsContext);
 };
 
-
 export const TransactionsProvider = ({ children }) => {
     
-    const defaultTransactions = [
-        
-    ];
+    const defaultTransactions = [];
 
+    
     const [transactions, setTransactions] = useState(() => {
         const saved = localStorage.getItem("transactionsData");
         if (saved) {
@@ -32,9 +27,10 @@ export const TransactionsProvider = ({ children }) => {
     });
 
     const [assets, setAssets] = useState([]);
-    const [financeFields, setFinanceFields] = useState({ articles: [], subarticles: [] });
     
-   
+    
+    const [financeFields, setFinanceFields] = useState({ articles: [], subarticles: [], subcategory: [] });
+    
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isViewEditModalOpen, setIsViewEditModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -44,14 +40,13 @@ export const TransactionsProvider = ({ children }) => {
 
     
     useEffect(() => {
+        let mounted = true;
+
+        
         const savedAssets = localStorage.getItem('assetsData');
         if (savedAssets) setAssets(JSON.parse(savedAssets));
 
-        const savedFields = localStorage.getItem('fieldsData');
-        if (savedFields) {
-            const parsed = JSON.parse(savedFields);
-            if (parsed.financeFields) setFinanceFields(parsed.financeFields);
-        }
+        
         const savedOrders = localStorage.getItem('ordersData');
         if (savedOrders) {
             try {
@@ -60,12 +55,12 @@ export const TransactionsProvider = ({ children }) => {
                 console.error("Ошибка парсинга заказов из localStorage:", e);
             }
         }
+
+        
         const loadCounterparties = () => {
-            
             const savedEmployees = localStorage.getItem('employees');
             const employees = savedEmployees ? JSON.parse(savedEmployees) : [];
 
-            
             const employeeCounterparties = employees.map(emp => ({
                 id: emp.id,
                 type: 'employee', 
@@ -73,7 +68,6 @@ export const TransactionsProvider = ({ children }) => {
                 requisites: emp.requisites || {} 
             }));
 
-            
             const clientCounterparties = sampleClients.map(client => ({
                 id: client.id,
                 type: 'client',
@@ -81,24 +75,43 @@ export const TransactionsProvider = ({ children }) => {
                 requisites: client.requisites || {} 
             }));
 
-            
             const allCounterparties = [...employeeCounterparties, ...clientCounterparties]
                 .sort((a, b) => a.name.localeCompare(b.name));
 
             setCounterparties(allCounterparties);
         };
-
         loadCounterparties();
-    }, []);
 
+        
+        const fetchFinanceFields = async () => {
+            try {
+                const data = await FieldsAPI.getFinance(); 
+                
+                
+                
+                if (mounted) {
+                    setFinanceFields(data || { articles: [], subarticles: [], subcategory: [] });
+                }
+            } catch (error) {
+                console.error("Ошибка при загрузке полей финансов:", error);
+            }
+        };
+
+        fetchFinanceFields();
+
+        return () => {
+            mounted = false;
+        };
+    }, []); 
+
+    
+    
     
     useEffect(() => {
         localStorage.setItem("transactionsData", JSON.stringify(transactions));
         updateAssetsInLocalStorage(transactions);
     }, [transactions]);
 
-
-    
 
     const updateAssetsInLocalStorage = (updatedTransactions) => {
         const savedAssets = JSON.parse(localStorage.getItem('assetsData')) || [];
@@ -138,8 +151,6 @@ export const TransactionsProvider = ({ children }) => {
         };
         addTransaction(newTransaction); 
     };
-
-    
 
     const openAddTransactionModal = (defaults = null) => {
         setInitialDataForModal(defaults);

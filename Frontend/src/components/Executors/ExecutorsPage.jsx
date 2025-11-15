@@ -67,19 +67,14 @@ const formatSecondsToHours = (totalSeconds) => {
 };
 
 const formatDate = (dateString) => {
-    if (!dateString) return 'Нет даты';
-    try {
-        
+        if (!dateString) return '';
         const date = new Date(dateString);
-        
-        if (isNaN(date.getTime())) {
-            return dateString; 
-        }
-        
-        return date.toISOString().split('T')[0];
-    } catch (error) {
-        return dateString; 
-    }
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0'); 
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month}.${year}`;
 };
 
 const ExecutorsPage = () => {
@@ -251,7 +246,9 @@ const ExecutorsPage = () => {
                 <Sidebar />
                 <div className="executors-page-main-container">
                     <header className="executors-header-container">
-                        <h1 className="executors-title">Исполнители</h1>
+                        <h1 className="executors-title">
+                            <PageHeaderIcon pageName={'Исполнители'}/>Исполнители
+                            </h1>
                          <div className="view-mode-buttons">
                              <button
                                  className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
@@ -273,7 +270,7 @@ const ExecutorsPage = () => {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus">
                                     <path d="M5 12h14" /><path d="M12 5v14" />
                                 </svg>
-                                Добавить исполнителя
+                                Добавить
                             </button>
                         </div>
                     </header>
@@ -286,11 +283,11 @@ const ExecutorsPage = () => {
                                             <th>Номер заказа</th>
                                             <th>Статус заказа</th>
                                             <th>Дата заказа</th>
-                                            <th>Описание заказа</th>
+                                            <th>Описание</th>
                                             <th>Клиент</th>
                                             <th>Исполнитель</th>
                                             <th>Роль в заказе</th>
-                                            <th>Валюта заказа</th>
+                                            <th>Валюта</th>
                                             <th>Сумма</th>
                                             <th>В час</th>
                                             <th>Остаток оплаты</th>
@@ -302,11 +299,12 @@ const ExecutorsPage = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        <tr className="table-spacer-row"><td colSpan={16}></td></tr>
                                         {enrichedExecutors.map((executor) => (
                                             <tr key={executor.id} className="executor-row" onClick={() => setModalExecutor(executor)}> {/* ИЗМЕНЕНО */}
                                                 <td>{executor.orderNumber}</td>
                                                 <td><span title={executor.orderStatus}>{executor.orderStatusEmoji}</span></td>
-                                                <td><FormattedDate dateString={executor.orderDate}/></td>
+                                                <td>{formatDate(executor.orderDate)}</td>
                                                 <td>{executor.orderDescription}</td>
                                                 <td>{executor.clientHidden ? "Не заполнено" : executor.order_main_client}</td>
                                                 <td>{executor.performer}</td>

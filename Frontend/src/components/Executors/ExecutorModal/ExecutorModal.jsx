@@ -47,12 +47,12 @@ export default function ExecutorModal({
             dateForPerformer: new Date().toISOString().split('T')[0], 
             hideClient: false,
             roundHours: false,
-            currency: fields?.currency?.[0] || '',
+            currency: fields?.currency?.[0]?.id || '',
             hourlyRate: '',
             amountInput: '',
             maxAmount: '',
             ...safeExecutor,
-            role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0] : ''),
+           role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].name : ''),
         },
     });
 
@@ -165,6 +165,14 @@ export default function ExecutorModal({
 
             </form>
           </FormProvider>
+          <div className='form-actions-bottom'>
+                              <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
+                                  Сбросить
+                              </button>
+                              <button className='save-order-btn' type="submit" disabled={!isDirty}>
+                                  Сохранить
+                              </button>
+                          </div>
         </div>
 
         

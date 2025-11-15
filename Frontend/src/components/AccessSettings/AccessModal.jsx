@@ -314,11 +314,6 @@ const AccessModal = ({
                         <h2>
                             {isGeneralMode ? 'Настройка доступов' : `Назначение роли - ${selectedEmployee?.fullName}`}
                         </h2>
-                        {selectedEmployee && !isGeneralMode && (
-                            <div className="access-modal-employee-info">
-                                <p>Текущая роль: <strong>{originalRoles.find(r => r.id === selectedEmployee.roleId)?.name || selectedEmployee.roleName || 'Роль не выбрана'}</strong></p>
-                            </div>
-                        )}
                     </div>
                     <div className="access-modal-header-actions">
                         <button className="access-modal-close-button" onClick={handleAttemptClose}><X/></button>
@@ -326,6 +321,11 @@ const AccessModal = ({
                 </div>
 
                 <div className="access-modal-content" ref={contentRef}>
+                    {selectedEmployee && !isGeneralMode && (
+                            <div className="access-modal-employee-info">
+                                <p>Текущая роль: <strong>{originalRoles.find(r => r.id === selectedEmployee.roleId)?.name || selectedEmployee.roleName || 'Роль не выбрана'}</strong></p>
+                            </div>
+                    )}
                     <div className="access-modal-roles-section">
                         <div className="access-modal-roles-header">
                             <span className="access-modal-roles-label">{isGeneralMode ? 'Роли' : 'Выберите роль'}</span>
@@ -362,10 +362,6 @@ const AccessModal = ({
                     </div>
 
                     <div className="access-modal-permissions-section">
-                        <h3 className="access-modal-permissions-title">
-                            {isGeneralMode ? 'Настройки роли:' : 'Права доступа роли:'} <span>{activeRole?.name}</span>
-                            {activeRole?.isProtected && <span style={{ marginLeft: '10px', verticalAlign: 'middle'}}><Lock size={20}/></span>}
-                        </h3>
                         <div className="access-modal-description-cell">
                                        <div className="description-line"><div className="permission-dot permission-dot-green" /><span>Разрешено</span></div>
                                        <div className="description-line"><div className="permission-dot permission-dot-orange" /><span>Если ответственный</span></div>

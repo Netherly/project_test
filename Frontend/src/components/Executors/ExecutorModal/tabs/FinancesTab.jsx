@@ -16,7 +16,6 @@ export default function FinancesTab({isNew, executor}) {
                 <div>Дата и время</div>
                 <div>Статья</div>
                 <div>Подстатья</div>
-                <div>Счет</div>
                 <div>Сумма операции</div>
             </div>
             
@@ -25,7 +24,6 @@ export default function FinancesTab({isNew, executor}) {
                     <input type="text" value={trx.date} readOnly />
                     <input type="text" value={trx.category} readOnly />
                     <input type="text" value={trx.subcategory} readOnly />
-                    <input type="text" value={trx.account} readOnly /> 
                     <input 
                         type="text" 
                         value={`${trx.amount.toFixed(2)} ${trx.accountCurrency}`}

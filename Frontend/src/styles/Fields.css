@@ -35,6 +35,15 @@
     position: relative;
 }
 
+.header-action-btn{
+    background-color: transparent;
+    border: none;
+    color: white;
+    padding: 0 15px;
+    border-right: 1px solid var(--border--color);
+}
+
+
 .header-title{
     font-size: 22px;
     font-weight: 700;
@@ -146,6 +155,8 @@
     scrollbar-width: none;
     width: auto;
     flex-shrink: 0;
+    background-color: var(--bg-color);
+    opacity: 0.9;
 }
 
 .tab-button {
@@ -479,9 +490,14 @@
     flex-shrink: 0;
 }
 
-.remove-category-btn:hover {
-    color: #f44336;
+.restore{
+    color: #478cff;
 }
+
+.restore:hover{
+    color: #478cff;
+}
+
 
 .add-category-btn {
     background-color: transparent;

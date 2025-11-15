@@ -35,11 +35,11 @@
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "path": "^0.12.7",
-    "prisma": "^6.18.0",
     "telegraf": "^4.16.3",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.1",
@@ -48,6 +48,7 @@
     "lint-staged": "^16.1.0",
     "nodemon": "^3.1.10",
     "prettier": "^3.5.3",
+    "prisma": "^6.18.0",
     "supertest": "^7.1.1"
   },
   "lint-staged": {

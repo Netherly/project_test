@@ -2,7 +2,9 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/fields.controller');
 
+router.get('/inactive', ctrl.getInactiveBundle);
 router.get('/', ctrl.getBundle);
 router.put('/', ctrl.saveBundle);
+
 
 module.exports = router;

@@ -110,8 +110,7 @@
 }
 
 .access-modal-roles-section {
-    border-bottom: 1px solid var(--border-form-color);
-    padding: 0 10px;
+    margin-top: 5px;
 }
 
 .access-modal-roles-header {
@@ -321,7 +320,6 @@
 }
 
 .access-modal-permissions-section {
-    padding: 10px;
 }
 
 .access-modal-permissions-title {

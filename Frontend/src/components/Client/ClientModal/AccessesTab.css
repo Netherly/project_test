@@ -1,9 +1,9 @@
 
 .accesses-tab-wrapper .employee-requisites-table {
   width: 100%;
-  margin-bottom: 15px;
   overflow: hidden;
 }
+
 
 .accesses-tab-wrapper .requisites-row {
   display: flex;
@@ -27,8 +27,9 @@
 .accesses-tab-wrapper .requisites-row.header-row .requisites-cell {
   font-weight: 600;
   font-size: 13px;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-align: center;
+  justify-content: center;
   padding-right: 12px;
   padding-left: 5px;
   display: flex;
@@ -84,7 +85,7 @@
 
 .accesses-tab-wrapper .requisites-row:not(.header-row) .requisites-cell {
   padding-right: 12px;
-  padding-left: 5px;
+  padding-left: 1px;
   display: flex;
   align-items: center;
 }
@@ -112,16 +113,15 @@
 .accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(4) {
   flex: 31;
   flex-basis: 0;
-  padding-right: 0;
+  padding-right: 5px;
 }
 
 
 .accesses-tab-wrapper .requisites-cell.action-cell {
   flex: none;     
-  flex-basis: 40px;
+  flex-basis: 25px;
   flex-shrink: 0;
   justify-content: center;
-  margin-left: 10px; 
   padding-right: 0;
   padding-left: 0; 
 }

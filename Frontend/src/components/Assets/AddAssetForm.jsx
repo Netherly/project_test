@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import '../../styles/AddAssetForm.css';
 import { Plus, X } from 'lucide-react';
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
-import { createAsset } from '../../api/assets';
-import { FieldsAPI } from '../../api/fields';
+// Убираем FieldsAPI, так как он больше не нужен здесь
+// import { FieldsAPI } from '../../api/fields'; 
 
 const designNameMap = {
     'Монобанк': 'monobank-black',
@@ -17,40 +17,22 @@ const designNameMap = {
     'Красный': 'red',
 };
 
-const AddAssetForm = ({ onAdd, onClose, employees }) => {
+// --- ИЗМЕНЕНИЕ 1: Получаем fields из пропсов ---
+const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // группы полей для вкладки "assets"
-    const [assetsFields, setAssetsFields] = useState({
-        currency: [],
-        type: [],
-        paymentSystem: [],
-        cardDesigns: [],
-    });
+    // --- ИЗМЕНЕНИЕ 2: Деструктурируем поля из пропсов ---
+    const { generalFields, assetsFields } = fields || { 
+        generalFields: { currency: [] }, 
+        assetsFields: { type: [], paymentSystem: [], cardDesigns: [] } 
+    };
 
-    useEffect(() => {
-        let mounted = true;
-        (async () => {
-            try {
-                const af = await FieldsAPI.getAssets();
-                if (mounted && af) {
-                    setAssetsFields({
-                        currency: af.currency || [],
-                        type: af.type || [],
-                        paymentSystem: af.paymentSystem || [],
-                        cardDesigns: af.cardDesigns || [],
-                    });
-                }
-            } catch (err) {
-                console.error('Failed to load assets fields', err);
-            }
-        })();
-        return () => {
-            mounted = false;
-        };
-    }, []);
+    // --- ИЗМЕНЕНИЕ 3: Удален useState для assetsFields и generalFields ---
+
+    // --- ИЗМЕНЕНИЕ 4: Удален useEffect для загрузки полей ---
+    // (useEffect, который вызывал FieldsAPI.getAssets() и FieldsAPI.getGeneral(), удален)
 
     const [formData, setFormData] = useState({
         accountName: '',
@@ -67,10 +49,12 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
         // подставляем дефолтные значения при загрузке
         setFormData((prev) => {
             const next = { ...prev };
-            if ((!prev.currency || prev.currency === '') && assetsFields.currency?.[0]) {
-                const first = assetsFields.currency[0];
+            // Используем generalFields.currency из пропсов
+            if ((!prev.currency || prev.currency === '') && generalFields.currency?.[0]) {
+                const first = generalFields.currency[0];
                 next.currency = typeof first === 'object' ? first.code || first.name : first;
             }
+            // Используем assetsFields из пропсов
             if ((!prev.type || prev.type === '') && assetsFields.type?.[0]) {
                 const first = assetsFields.type[0];
                 next.type = typeof first === 'object' ? first.code || first.name : first;
@@ -85,7 +69,7 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
             }
             return next;
         });
-    }, [assetsFields]);
+    }, [assetsFields, generalFields]); // Зависимости остаются, т.к. мы их деструктурировали
 
     const handleFormChange = () => {
         if (!hasUnsavedChanges) setHasUnsavedChanges(true);
@@ -127,6 +111,7 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isLoading) return; 
         setIsLoading(true);
 
         const filteredRequisites = formData.requisites.filter(
@@ -140,14 +125,14 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
         };
 
         try {
-            const savedAsset = await createAsset(newAssetPayload);
+            if (onAdd) {
+                await onAdd(newAssetPayload); 
+            }
             setHasUnsavedChanges(false);
-            if (onAdd) onAdd(savedAsset);
-            onClose();
+            
         } catch (error) {
-            console.error('Failed to create asset:', error);
-        } finally {
-            setIsLoading(false);
+            console.error('Ошибка при отправке данных родителю:', error);
+            setIsLoading(false); 
         }
     };
 
@@ -221,7 +206,8 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
                                 <option value="" disabled>
                                     Выберите валюту
                                 </option>
-                                {(assetsFields.currency || []).map((item, index) => {
+                                {/* Используем generalFields.currency из пропсов */}
+                                {(generalFields.currency || []).map((item, index) => {
                                     const value = typeof item === 'object' ? item.code || item.name : item;
                                     const display = typeof item === 'object' ? item.name : item;
                                     return (
@@ -265,6 +251,7 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
                                 <option value="" disabled>
                                     Выберите тип
                                 </option>
+                                {/* Используем assetsFields.type из пропсов */}
                                 {(assetsFields.type || []).map((item, index) => {
                                     const value = typeof item === 'object' ? item.code || item.name : item;
                                     const display = typeof item === 'object' ? item.name : item;
@@ -290,6 +277,7 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
                                 disabled={isLoading}
                             >
                                 <option value="">Не выбрано</option>
+                                {/* Используем assetsFields.paymentSystem из пропсов */}
                                 {(assetsFields.paymentSystem || []).map((item, index) => {
                                     const value = typeof item === 'object' ? item.code || item.name : item;
                                     const display = typeof item === 'object' ? item.name : item;
@@ -315,6 +303,7 @@ const AddAssetForm = ({ onAdd, onClose, employees }) => {
                                 disabled={isLoading}
                             >
                                 <option value="">Не выбрано</option>
+                                {/* Используем assetsFields.cardDesigns из пропсов */}
                                 {(assetsFields.cardDesigns || []).map((design, index) => (
                                     <option key={index} value={design.id}>
                                         {design.name}
