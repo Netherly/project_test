@@ -669,6 +669,21 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 className="form-checkbox"
                             />
                         </div>
+
+                        <div className="form-row second-checkbox-row">
+                            <label htmlFor="receivedCounterparty" className="form-label">
+                                В архиве
+                            </label>
+                            <input
+                                type="checkbox"
+                                id="receivedCounterparty"
+                                name="receivedCounterparty"
+                                checked={true} 
+                                disabled={true}
+                                onChange={handleChange}
+                                className="form-checkbox"
+                            />
+                        </div>
                 </form>
                 <div className="view-transaction-form-actions">
                         <button type="button" className="cancel-order-btn" onClick={handleCloseModal}>

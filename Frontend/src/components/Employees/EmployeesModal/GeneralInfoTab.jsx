@@ -178,9 +178,29 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
           </div>
         )}
       />
+      
+      <div className="form-field">
+        <label>Основная валюта</label>
+        <Controller
+          name="mainCurrency"
+          control={control}
+          render={({ field }) => (
+            <select {...field}>
+              <option value="">Выберите валюту</option>
+              {currencies.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          )}
+        />
+      </div>
 
-      <label className="currency-title" style={{ marginTop: 12 }}>Ставка в час</label>
-      <div className="currency-table">
+      
+      <div className="currency-field">
+        <label className="currency-title" style={{ marginTop: 12 }}>Ставка в час</label>
+        <div className="currency-table">
         {currencies.map((currency) => (
           <div
             key={currency}
@@ -188,20 +208,6 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
           >
             <span className="currency-label">
               {currency.toUpperCase()}
-              <Controller
-                name="mainCurrency"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    {...field}
-                    type="radio"
-                    value={currency}
-                    checked={field.value === currency}
-                    onChange={(e) => field.onChange(e.target.value)}
-                    style={{ marginLeft: 8 }}
-                  />
-                )}
-              />
             </span>
             <Controller
               name={`rates.${currency}`}
@@ -218,6 +224,7 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
             />
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

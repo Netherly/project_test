@@ -43,7 +43,7 @@
     height: 1px;
     background-color: var(--border-form-color);
     left: 30px;
-    right: 40px;
+    right: 30px;
 }
 
 .asset-modal-header h2 {
@@ -238,7 +238,7 @@
     height: 1px;
     background-color: var(--border-form-color);
     left: 30px;
-    right: 40px;
+    right: 30px;
 }
 
 .modal-cancel-button,

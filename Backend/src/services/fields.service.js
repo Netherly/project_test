@@ -125,11 +125,37 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
 ================================ */
 async function getAll(db) {
   const _db = db || prisma;
+  const whereActive = { where: { isActive: true } };
+  const whereActiveHardDelete = {}; 
 
-  // Orders
-  const [intervals, orderCats, orderCurrencies] = await Promise.all([
-    _db.orderIntervalDict.findMany({ orderBy: { value: 'asc' } }),
+  
+  const [
+    orderCurrencies, 
+    countries,
+    roles,
+    sources,
+    categories,
+    assetTypes,
+    paymentSystems,
+    articles,
+    subcategories,
+  ] = await Promise.all([
+    _db.currencyDict.findMany({ ...whereActive, orderBy: { code: 'asc' } }),
+    _db.country.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.executorRoleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.clientSourceDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.clientCategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.assetTypeDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.paymentSystemDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.financeArticleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.financeSubcategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+  ]);
+  
+  
+  const [intervals, orderCats, tags, cardDesigns, subarticles] = await Promise.all([
+    _db.orderIntervalDict.findMany({ ...whereActiveHardDelete, orderBy: { value: 'asc' } }),
     _db.orderCategoryDict.findMany({
+      ...whereActiveHardDelete,
       select: {
         id: true,
         value: true,
@@ -137,37 +163,10 @@ async function getAll(db) {
       },
       orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
     }),
-    _db.currencyDict.findMany({ orderBy: { code: 'asc' } }),
-  ]);
-
-  // Executor
-  const [executorCurrencies, roles] = await Promise.all([
-    _db.currencyDict.findMany({ orderBy: { code: 'asc' } }),
-    _db.executorRoleDict.findMany({ orderBy: { name: 'asc' } }),
-  ]);
-
-  // Client
-  const [sources, categories, countries, clientCurrencies, tags] = await Promise.all([
-    _db.clientSourceDict.findMany({ orderBy: { name: 'asc' } }),
-    _db.clientCategoryDict.findMany({ orderBy: { name: 'asc' } }),
-    _db.country.findMany({ orderBy: { name: 'asc' } }),
-    _db.currencyDict.findMany({ orderBy: { code: 'asc' } }),
-    _db.tag.findMany({ orderBy: { name: 'asc' } }),
-  ]);
-  const employeeCountries = countries;
-
-  // Assets
-  const [assetCurrencies, assetTypes, paymentSystems, cardDesigns] = await Promise.all([
-    _db.currencyDict.findMany({ orderBy: { code: 'asc' } }),
-    _db.assetTypeDict.findMany({ orderBy: { name: 'asc' } }),
-    _db.paymentSystemDict.findMany({ orderBy: { name: 'asc' } }),
-    _db.cardDesign.findMany({ orderBy: { name: 'asc' } }),
-  ]);
-
-  // Finance
-  const [articles, subarticles, subcategories] = await Promise.all([
-    _db.financeArticleDict.findMany({ orderBy: { name: 'asc' } }),
+    _db.tag.findMany({ ...whereActiveHardDelete, orderBy: { name: 'asc' } }),
+    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: { name: 'asc' } }),
     _db.financeSubarticleDict.findMany({
+      ...whereActiveHardDelete,
       select: {
         id: true,
         name: true,
@@ -176,8 +175,14 @@ async function getAll(db) {
       },
       orderBy: [{ article: { name: 'asc' } }, { name: 'asc' }],
     }),
-    _db.financeSubcategoryDict.findMany({ orderBy: { name: 'asc' } }),
   ]);
+  
+  
+  const executorCurrencies = orderCurrencies;
+  const clientCurrencies = orderCurrencies;
+  const assetCurrencies = orderCurrencies;
+  const employeeCountries = countries;
+
 
   return {
     orderFields: {
@@ -572,6 +577,95 @@ const FinanceSubarticles    = {
   },
 };
 
+async function getInactive(db) {
+  const _db = db || prisma;
+  const whereInactive = { where: { isActive: false } };
+  const [
+    currencies,
+    roles,
+    sources,
+    categories,
+    countries,
+    assetTypes,
+    paymentSystems,
+    articles,
+    subcategories,
+  ] = await Promise.all([
+    _db.currencyDict.findMany({ ...whereInactive, orderBy: { code: 'asc' } }),
+    _db.executorRoleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.clientSourceDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.country.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.assetTypeDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.paymentSystemDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.financeArticleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.financeSubcategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+  ]);
+
+  
+  const intervals = [];
+  const orderCats = [];
+  const tags = [];
+  const cardDesigns = [];
+  const subarticles = [];
+  
+  
+  const executorCurrencies = currencies;
+  const clientCurrencies = currencies;
+  const assetCurrencies = currencies;
+  const employeeCountries = countries;
+
+  return {
+    orderFields: {
+      intervals: intervals.map((x) => ({ id: x.id, value: x.value })),
+      categories: orderCats.map((x) => ({
+        id: x.id,
+        value: x.value,
+        intervalId: x.interval?.id || null,
+        intervalValue: x.interval?.value || null,
+      })),
+      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+    },
+
+    executorFields: {
+      currency: executorCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      role: roles.map((r) => ({ id: r.id, name: r.name })),
+    },
+
+    clientFields: {
+      source: sources.map((s) => ({ id: s.id, name: s.name })),
+      category: categories.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      currency: clientCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      tag: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+    },
+
+    employeeFields: {
+      country: employeeCountries.map((c) => ({ id: c.id, name: c.name })),
+    },
+
+    assetsFields: {
+      currency: assetCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
+      paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
+      cardDesigns: cardDesigns.map((d) => ({ id: d.id, name: d.name, url: d.imageUrl || '' })),
+    },
+
+    financeFields: {
+      articles: articles.map((a) => ({ id: a.id, name: a.name })),
+      subarticles: subarticles.map((s) => ({
+        id: s.id,
+        name: s.name,
+        articleId: s.article?.id || null,
+        articleName: s.article?.name || null,
+        subcategoryId: s.subcategory?.id || null,
+        subcategoryName: s.subcategory?.name || null,
+      })),
+      subcategory: subcategories.map((s) => ({ id: s.id, name: s.name })),
+    },
+  };
+}
+
 /* ==============================
    Exports
 ================================ */
@@ -579,10 +673,12 @@ module.exports = {
   // bundle
   loadBundle: () => getAll(),
   saveBundle: (payload) => saveAll(payload),
+  loadInactiveBundle: () => getInactive(),
 
   // expose for internal use / tests as well
   getAll,
   saveAll,
+  getInactive,
 
   // DAOs for makeDictController
   Countries,

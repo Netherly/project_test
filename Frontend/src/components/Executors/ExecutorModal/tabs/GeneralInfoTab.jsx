@@ -33,24 +33,23 @@ export default function GeneralInfoTab({ orders, fields }) {
     name: 'orderNumber',
   });
 
-  // 2. Состояние для хранения полного объекта выбранного заказа
+  
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // 3. Эффект, который срабатывает при изменении ID заказа
+  
   useEffect(() => {
     if (watchedOrderId) {
-      // Ищем в массиве orders объект с нужным ID
-      // Приводим ID к числу для корректного сравнения
+      
       const foundOrder = orders.find(order => order.id === Number(watchedOrderId));
       setSelectedOrder(foundOrder || null);
     } else {
-      setSelectedOrder(null); // Сбрасываем, если заказ не выбран
+      setSelectedOrder(null); 
     }
-  }, [watchedOrderId, orders]); // Зависимости: ID и сам массив заказов
+  }, [watchedOrderId, orders]); 
 
   return (
     <div className="general-tab-section">
-      {/* --- Номер заказа --- */}
+      
       <Controller
         name="orderNumber"
         control={control}
@@ -104,8 +103,8 @@ export default function GeneralInfoTab({ orders, fields }) {
             <label>Роль</label>
             <select {...field} className={errors.role ? 'input-error' : ''}>
               <option value="" disabled>Выберите роль</option>
-              {fields?.role?.map((role, index) => (
-                <option key={index} value={role}>{role}</option>
+              {fields?.role?.map((role) => (
+                <option key={role.id} value={role.name}>{role.name}</option>
               ))}
             </select>
             {errors.role && <p className="error-message">{errors.role.message}</p>}
@@ -126,20 +125,24 @@ export default function GeneralInfoTab({ orders, fields }) {
       />
             {/* --- Валюта --- */}
             <Controller
-              name="currency"
-              control={control}
-              render={({ field }) => (
-                <div className="form-field">
-                  <label>Валюта</label>
-                  <select {...field} className={errors.currency ? 'input-error' : ''}>
-                    <option value="" disabled>Выберите валюту</option>
-                    {fields?.currency?.map((item, index) => (
-                      <option key={index} value={item}>{item}</option>
-                    ))}
-                  </select>
-                  {errors.currency && <p className="error-message">{errors.currency.message}</p>}
-                </div>
-              )}
+                name="currency"
+                control={control}
+                render={({ field }) => (
+                    <div className="form-field">
+                        <label>Валюта</label>
+                        <select {...field} className={errors.currency ? 'input-error' : ''}>
+                            <option value="" disabled>Выберите валюту</option>
+                            
+                      
+                            {fields?.currency?.map((item) => (
+                                <option key={item.id} value={item.id}>{item.name}</option> 
+                        
+                            ))}
+
+                        </select>
+                        {errors.currency && <p className="error-message">{errors.currency.message}</p>}
+                    </div>
+                )}
             />
       
             {/* --- Ставка в час --- */}

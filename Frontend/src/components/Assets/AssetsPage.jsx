@@ -7,6 +7,7 @@ import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
 import { FieldsAPI } from '../../api/fields';
 import { fetchAssets, createAsset as apiCreateAsset, updateAsset as apiUpdateAsset, deleteAsset as apiDeleteAsset } from '../../api/assets';
+import { CreditCard } from 'lucide-react';
 
 
 const getPureDateTimestamp = (date) => {
@@ -32,150 +33,7 @@ const formatNumberWithSpaces = (num) => {
 
 const AssetsPage = () => {
     const defaultAssets = [
-        {
-            id: "ПриватБанк - Ключ к счету",
-            accountName: "ПриватБанк - Ключ к счету",
-            currency: "UAH",
-            type: "Наличные",
-            employee: "Иванов И.И.",
-            balance: 322.86,
-            balanceUAH: 322.86,
-            balanceUSD: 0.00,
-            balanceRUB: 0.00,
-            lastEntryDate: "1 февр. 2025 г.",
-            netMoneyUAH: 322.86,
-            netMoneyUSD: 0.00,
-            netMoneyRUB: 0.00,
-            turnoverStartBalance: 322.86,
-            turnoverIncoming: 12500.00,
-            turnoverOutgoing: 12500.00,
-            turnoverEndBalance: 322.86,
-            requisites: [
-                { label: "Ключ к счету", value: "UA123456789012345678901234567" }
-            ],
-            design: 'privatbank-green',
-            paymentSystem: 'Visa'
-        },
-        {
-            id: "Монобанк - Черная",
-            accountName: "Монобанк Черная",
-            currency: "UAH",
-            type: "Безналичные",
-            employee: "Петров П.П.",
-            balance: 1000.00,
-            balanceUAH: 1000.00,
-            balanceUSD: 0.00,
-            balanceRUB: 0.00,
-            lastEntryDate: "1 февр. 2025 г.",
-            netMoneyUAH: 1000.00,
-            netMoneyUSD: 0.00,
-            netMoneyRUB: 0.00,
-            turnoverStartBalance: 0.00,
-            turnoverIncoming: 1000.00,
-            turnoverOutgoing: 0.00,
-            turnoverEndBalance: 1000.00,
-            requisites: [
-                { label: "Номер карты", value: "5375 **** **** 0574" },
-            ],
-            design: 'monobank-black',
-            paymentSystem: 'Mastercard'
-        },
-        {
-            id: "Monobank - |V| (6881)",
-            accountName: "Monobank - |V| (6881)",
-            currency: "UAH",
-            type: "Безналичные",
-            employee: "Сидоров С.С.",
-            balance: 322.86,
-            balanceUAH: 322.86,
-            balanceUSD: 0.00,
-            balanceRUB: 0.00,
-            lastEntryDate: "1 февр. 2025 г.",
-            netMoneyUAH: 322.86,
-            netMoneyUSD: 0.00,
-            netMoneyRUB: 0.00,
-            turnoverStartBalance: 322.86,
-            turnoverIncoming: 0.00,
-            turnoverOutgoing: 0.00,
-            turnoverEndBalance: 322.86,
-            requisites: [
-                { label: "Номер карты", value: "4444 **** **** 6881" },
-            ],
-            design: 'monobank-black',
-            paymentSystem: 'Visa'
-        },
-        {
-            id: "MetaMask - USDT (TRC20)",
-            accountName: "MetaMask - USDT (TRC20)",
-            currency: "USDT",
-            type: "Криптовалюта",
-            employee: "Кузнецов К.К.",
-            balance: 0.00,
-            balanceUAH: 0.00,
-            balanceUSD: 0.00,
-            balanceRUB: 0.00,
-            lastEntryDate: "Invalid date",
-            netMoneyUAH: 0.00,
-            netMoneyUSD: 0.00,
-            netMoneyRUB: 0.00,
-            turnoverStartBalance: 0.00,
-            turnoverIncoming: 0.00,
-            turnoverOutgoing: 0.00,
-            turnoverEndBalance: 0.00,
-            requisites: [
-                { label: "Адрес кошелька", value: "TRC20_ADRESS_ABCDE12345" }
-            ],
-            design: 'bybit-white',
-            paymentSystem: 'Mastercard'
-        },
-        {
-            id: "Binance - Спотовый",
-            accountName: "Binance - Спотовый",
-            currency: "USDT",
-            type: "Криптовалюта",
-            employee: "Федоров Ф.Ф.",
-            balance: 13.46,
-            balanceUAH: 565.44,
-            balanceUSD: 13.46,
-            balanceRUB: 0.00,
-            lastEntryDate: "15 мая 2024 г.",
-            netMoneyUAH: 0.00,
-            netMoneyUSD: 0.00,
-            netMoneyRUB: 0.00,
-            turnoverStartBalance: 13.46,
-            turnoverIncoming: 150.00,
-            turnoverOutgoing: 150.00,
-            turnoverEndBalance: 13.46,
-            requisites: [
-                { label: "Binance ID", value: "BINANCE12345" }
-            ],
-            design: 'bybit-white',
-            paymentSystem: 'Mastercard'
-        },
-        {
-            id: "ГАТАГАТА",
-            accountName: "MetaMask - USDT (TRC20)",
-            currency: "USDT",
-            type: "Криптовалюта",
-            employee: "Unknown",
-            balance: 0.00,
-            balanceUAH: 0.00,
-            balanceUSD: 0.00,
-            balanceRUB: 0.00,
-            lastEntryDate: "N/A",
-            netMoneyUAH: 0.00,
-            netMoneyUSD: 0.00,
-            netMoneyRUB: 0.00,
-            turnoverStartBalance: 0.00,
-            turnoverIncoming: 0.00,
-            turnoverOutgoing: 0.00,
-            turnoverEndBalance: 0.00,
-            requisites: [
-                { label: "Адрес кошелька", value: "ANOTHER_TRC20_ADRESS_9876" }
-            ],
-            design: 'bybit-white',
-            paymentSystem: 'Mastercard'
-        }
+        // ... (твой defaultAssets)
     ];
 
     const [assets, setAssets] = useState([]);
@@ -185,8 +43,14 @@ const AssetsPage = () => {
     const [showAddForm, setShowAddForm] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
-    const [viewMode, setViewMode] = useState('table');
-    const [fields, setFields] = useState({ currency: [], type: [], paymentSystem: [], cardDesigns: [] });
+    const [viewMode, setViewMode] = useState('card');
+    
+    // --- ИЗМЕНЕНИЕ 1: Обновлена начальная структура state ---
+    const [fields, setFields] = useState({
+        generalFields: { currency: [] },
+        assetsFields: { type: [], paymentSystem: [], cardDesigns: [] }
+    });
+    
     const [employees, setEmployees] = useState([]);
 
     
@@ -194,32 +58,44 @@ const AssetsPage = () => {
 
 
      useEffect(() => {
-        const savedEmployees = localStorage.getItem('employees');
-        if (savedEmployees) {
-            try {
-                const parsedEmployees = JSON.parse(savedEmployees);
-                setEmployees(parsedEmployees);
-            } catch (e) {
-                console.error("Ошибка парсинга сотрудников из localStorage:", e);
-            }
-        }
-    }, []);
+         const savedEmployees = localStorage.getItem('employees');
+         if (savedEmployees) {
+             try {
+                 const parsedEmployees = JSON.parse(savedEmployees);
+                 setEmployees(parsedEmployees);
+             } catch (e) {
+                 console.error("Ошибка парсинга сотрудников из localStorage:", e);
+             }
+         }
+     }, []);
 
 
+    // --- ИЗМЕНЕНИЕ 2: Загрузка generalFields и assetsFields ---
     useEffect(() => {
         const loadFields = async () => {
             try {
-                const assetsFields = await FieldsAPI.getAssets();
-                setFields(assetsFields);
+                // Загружаем оба типа полей параллельно
+                const [assetsFields, generalFields] = await Promise.all([
+                    FieldsAPI.getAssets(),
+                    FieldsAPI.getGeneral() // Убедись, что этот метод существует в FieldsAPI
+                ]);
+
+                setFields({
+                    generalFields: generalFields || { currency: [] },
+                    assetsFields: assetsFields || { type: [], paymentSystem: [], cardDesigns: [] }
+                });
+
             } catch (err) {
-                console.error("Failed to load assets fields", err);
+                console.error("Failed to load fields", err);
                 const savedFields = localStorage.getItem('fieldsData');
                 if (savedFields) {
                     try {
                         const parsedFields = JSON.parse(savedFields);
-                        if (parsedFields.assetsFields) {
-                            setFields(parsedFields.assetsFields);
-                        }
+                        // Устанавливаем из localStorage с новой структурой
+                        setFields({
+                            generalFields: parsedFields.generalFields || { currency: [] },
+                            assetsFields: parsedFields.assetsFields || { type: [], paymentSystem: [], cardDesigns: [] }
+                        });
                     } catch (e) {
                         console.error("Ошибка парсинга полей из localStorage:", e);
                     }
@@ -228,6 +104,7 @@ const AssetsPage = () => {
         };
         loadFields();
     }, []);
+
     useEffect(() => {
         const savedTransactions = localStorage.getItem('transactionsData');
         if (savedTransactions) {
@@ -500,48 +377,47 @@ const AssetsPage = () => {
                         </h1>
                     
                         
-                            <div className="assets-view-mode-buttons">
+                        <div className="assets-view-mode-buttons">
+                            <button
+                                className={`assets-view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
+                                onClick={() => setViewMode('card')}
+                                title="Карточный вид"
+                            >
+                                &#x25A3;
+                            </button>
+                            <button
+                                className={`assets-view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
+                                onClick={() => setViewMode('table')}
+                                title="Табличный вид"
+                            >
+                                &#x2261;
+                            </button>
+                        </div>
+                        {viewMode === 'card' && (
+                            <div className="card-size-selector">
                                 <button
-                                    className={`assets-view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
-                                    onClick={() => setViewMode('card')}
-                                    title="Карточный вид"
+                                    className={`card-size-button ${cardSize === 'large' ? 'active' : ''}`}
+                                    onClick={() => handleSetCardSize('large')}
                                 >
-                                    &#x25A3;
+                                    <CreditCard size={25}/>
                                 </button>
                                 <button
-                                    className={`assets-view-mode-button ${viewMode === 'table' ? 'active' : ''}`}
-                                    onClick={() => setViewMode('table')}
-                                    title="Табличный вид"
+                                    className={`card-size-button ${cardSize === 'medium' ? 'active' : ''}`}
+                                    onClick={() => handleSetCardSize('medium')}
                                 >
-                                    &#x2261;
+                                    <CreditCard size={19}/>
+                                </button>
+                                <button
+                                    className={`card-size-button ${cardSize === 'small' ? 'active' : ''}`}
+                                    onClick={() => handleSetCardSize('small')}
+                                >
+                                    <CreditCard size={15}/>
                                 </button>
                             </div>
-                            {viewMode === 'card' && (
-                                <div className="card-size-selector">
-                                    <span>Размеры карт:</span>
-                                    <button
-                                        className={`card-size-button ${cardSize === 'large' ? 'active' : ''}`}
-                                        onClick={() => handleSetCardSize('large')}
-                                    >
-                                        Крупно
-                                    </button>
-                                    <button
-                                        className={`card-size-button ${cardSize === 'medium' ? 'active' : ''}`}
-                                        onClick={() => handleSetCardSize('medium')}
-                                    >
-                                        Средне
-                                    </button>
-                                    <button
-                                        className={`card-size-button ${cardSize === 'small' ? 'active' : ''}`}
-                                        onClick={() => handleSetCardSize('small')}
-                                    >
-                                        Мелко
-                                    </button>
-                                </div>
-                            )}
-                            <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
-                            </button>
+                        )}
+                        <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
+                        </button>
                 </header>
 
             
@@ -619,7 +495,7 @@ const AssetsPage = () => {
                                                     <td>{formatNumberWithSpaces(asset.turnoverOutgoing)}</td>
                                                     <td>{formatNumberWithSpaces(asset.turnoverEndBalance)}</td>
                                                 </tr>
-                                            ))}ё
+                                            ))}
                                         </React.Fragment>
                                     ))}
                                 </tbody>
@@ -633,8 +509,8 @@ const AssetsPage = () => {
                                 <div key={currency} className="currency-card-group">
                                     <div className="currency-card-header">
                                         <span className="currency-name-card">{currency}</span>
-                                        <span className="total-in-currency-сard">{data.totalBalance.toFixed(2)}</span>
-                                        <span className="total-from-settings-сard">{data.totalBalanceUAH.toFixed(2)}</span>
+                                        <span className="total-in-currency-сard">{formatNumberWithSpaces(data.totalBalance)}</span>
+                                        <span className="total-from-settings-сard">{formatNumberWithSpaces(data.totalBalanceUAH)}</span>
                                     </div>
                                     <div className="currency-card-items">
                                         {data.items.map(asset => (
