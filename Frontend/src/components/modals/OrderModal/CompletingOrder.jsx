@@ -1,5 +1,6 @@
 import React from 'react';
 import { Controller, useWatch } from 'react-hook-form';
+import AutoResizeTextarea from './AutoResizeTextarea';
 
 const CompletingOrder = ({ control }) => {
   const completingTime = useWatch({ control, name: 'completingTime' });
@@ -36,10 +37,7 @@ const CompletingOrder = ({ control }) => {
         render={({ field }) => (
           <div className="tab-content-row">
             <div className="tab-content-title">Впечатления о заказе</div>
-            <textarea
-              className='workplan-table textarea'
-              {...field}
-            ></textarea>
+             <AutoResizeTextarea {...field} placeholder='Введите впечатление о заказе' />
           </div>
         )}
       />
@@ -58,11 +56,6 @@ const CompletingOrder = ({ control }) => {
         ) : (
           <span className='modal-content-span-info'>—</span>
         )}
-      </div>
-
-      <div className="tab-content-row">
-        <div className="tab-content-title">Журнал выполнения</div>
-        <span className='modal-content-span-info'>В разработке...</span>
       </div>
 
     </div>

@@ -138,7 +138,7 @@ export default function ExecutorModal({
         <div className="left-panel">
           <FormProvider {...methods}>
             <form
-              className="employee-modal-body"
+              className="employee-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
               <ExecutorHeader

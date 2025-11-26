@@ -184,9 +184,26 @@ export default function ClientHeader({
           </ul>
         </div>
 
-        <button className={`${styles.btn} ${styles.actionItem}`} type="button" onClick={onClose}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>
+        <div className={styles.actionItem}>
+            <button className={styles.btn} type="button" onClick={onClose}>
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width="24" 
+                    height="24" 
+                    viewBox="0 0 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                >
+                    
+                    <path d="M18 6 6 18" style={{display: 'none'}} /> 
+                    <path d="M20 4 4 20" />
+                    <path d="M4 4 20 20" />
+                </svg>
+            </button>
+        </div>
       </div>
 
     </div>

@@ -45,6 +45,7 @@ body {
     --input-border: #4A5568;
     --input-border-focus: #478cff;
     --opacity-container: rgba(25, 33, 58, .7);
+	--accent-color: #478cff;
 }
 
 html, body, div, span, applet, object, iframe,
@@ -92,4 +93,9 @@ a {
 }
 .hidden-scroll::-webkit-scrollbar-thumb {
     display: none;
+}
+
+
+input[type="checkbox"] {
+    accent-color: var(--accent-color);
 }

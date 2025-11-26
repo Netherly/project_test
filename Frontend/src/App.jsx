@@ -22,6 +22,7 @@ import ExecutorsPage from './components/Executors/ExecutorsPage';
 import EmployeePage from './components/Employees/EmployeePage';
 import RegularPaymentsPage from './components/RegularPayments/RegularPaymentsPage';
 import { PaymentChecker } from './components/RegularPayments/PaymentChecker';
+import CompaniesPage from './components/Companies/CompaniesPage.jsx';
 
 const ProtectedRoute = ({ element }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -89,6 +90,7 @@ export default function App() {
           <Route path="/fields" element={<ProtectedRoute element={<FieldsPage />} />} />
           <Route path="/access" element={<ProtectedRoute element={<AccessSettings />} />} />
           <Route path="/tasks" element={<ProtectedRoute element={<TasksPage />} />} />
+          <Route path="/company" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
           <Route
             path="/clients"
             element={

@@ -122,10 +122,6 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
         />
       </div>
 
-      <div className="tab-content-row">
-        <h3>Третьи участники</h3>
-      </div>
-
        <div className="tab-content-row">
         <div className="tab-content-title">Основной клиент</div>
         <Controller
@@ -261,9 +257,6 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
         <span className='modal-content-span-info'>{clientInfo.isFirstOrder ? "Да" : "Нет"}</span>
       </div>
 
-      <div className="tab-content-row">
-        <h3>🤝 Партнер</h3>
-      </div>
 
       <div className="tab-content-row">
         <Controller
@@ -375,10 +368,7 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
           )}
         />
       </div>
-
-      <div className="tab-content-row">
-        <h3>👨‍💻 Исполнители</h3>
-      </div>
+      
            <div className="performers-section">
 
               
