@@ -179,11 +179,7 @@ const RegularPaymentsPage = () => {
                                     <td>{payment.period}</td>
                                     <td>{payment.cycleDay}</td>
                                     <td>{payment.time}</td>
-                                    <td>
-                                        <span className={`status-chip status-${payment.status === 'Активен' ? 'active' : 'paused'}`}>
-                                            {payment.status}
-                                        </span>
-                                    </td>
+                                    <td>{payment.status}</td>
                                 </tr>
                             ))}
                         </tbody>

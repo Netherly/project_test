@@ -1,0 +1,21 @@
+.auto-resize-textarea {
+  box-sizing: border-box;
+  background-color: transparent; 
+  border: none;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2); 
+  outline: none;
+  color: var(--container-text-color);
+  
+  padding: 8px;
+  width: 100%;
+  
+  resize: none; 
+  overflow-y: hidden; 
+  
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  
+  transition: border-color 0.2s ease;
+  min-height: 38px; 
+}

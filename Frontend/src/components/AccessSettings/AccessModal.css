@@ -416,7 +416,7 @@
     align-items: flex-start;
     justify-content: flex-start;
     height: 100%;
-    gap: 8px;
+    gap: 30px;
 }
 
 .description-line{

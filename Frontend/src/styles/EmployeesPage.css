@@ -264,7 +264,6 @@
   display: inline-block;
   margin-right: 12px;
   transition: transform 0.2s ease-in-out;
-  font-size: 10px;
 }
 
 .collapse-icon.collapsed {
@@ -288,11 +287,11 @@
   cursor: pointer;
   padding: 10px 16px;
   user-select: none;
+  display: flex;
   font-size: 16px;
   font-weight: bold;
-  color: #a0a0a0;
+  color: #a0a0b0;
   opacity: 0.9;
-  background-color: var(--bg-color);
   margin-bottom: 10px;
 }
 

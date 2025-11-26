@@ -3,22 +3,14 @@ import React, { useMemo } from 'react';
 export default function JournalTab({ executor, journalEntries, isNew }) {
     
     const executorWorkLog = useMemo(() => {
-        // Проверяем наличие журнала и имени исполнителя
-        // В объекте executor имя приходит в поле 'performer'
         if (!journalEntries || !executor?.performer) {
             return [];
         }
-
-        // 1. Фильтруем все записи журнала напрямую
         const filteredLogs = journalEntries.filter(
-            // Сравниваем 'executorRole' из записи журнала с именем 'performer'
             (entry) => entry.executorRole === executor.performer
         );
-
-        // 2. Сортируем отфильтрованные записи по дате (от новых к старым)
         return filteredLogs.sort((a, b) => new Date(b.workDate) - new Date(a.workDate));
-
-    }, [journalEntries, executor]); // Зависимости: массив журнала и объект исполнителя
+    }, [journalEntries, executor]);
 
     if (isNew) {
         return (
@@ -33,23 +25,39 @@ export default function JournalTab({ executor, journalEntries, isNew }) {
             <div className="tab-content-title">Журнал выполнения</div>
 
             {executorWorkLog.length > 0 ? (
-                <div className="executor-work-log-table">
-                    <div className="executor-work-log-header">
-                        <div>Номер заказа</div> 
-                        <div>Дата работы</div>
-                        <div>Часы</div>
-                        <div>Что было сделано?</div>
+                <div className="finances-log-table">
+                        
+                    {/* Заголовок */}
+                    <div className="finances-log-row header-row">
+                        <div className="finances-log-content-wrapper">
+                            <div className="finances-log-cell">Номер заказа</div>
+                            <div className="finances-log-cell">Дата работы</div>
+                            <div className="finances-log-cell">Часы</div>
+                            <div className="finances-log-cell">Что было сделано?</div>
+                        </div>
                     </div>
+
+                    {/* Строки данных */}
                     {executorWorkLog.map((log) => (
-                        <div key={log.id} className="executor-work-log-row">
-                            <div>{log.orderNumber || '-'}</div>
-                            <div>{new Date(log.workDate).toLocaleDateString() || '-'}</div>
-                            <div>{log.hours || '-'}</div>
-                            <div>{log.workDone || '-'}</div>
+                        <div key={log.id} className="finances-log-row">
+                            <div className="finances-log-content-wrapper">
+                                <div className="finances-log-cell">
+                                    <input type="text" value={log.orderNumber || '-'} readOnly />
+                                </div>
+                                <div className="finances-log-cell">
+                                    <input type="text" value={new Date(log.workDate).toLocaleDateString() || '-'} readOnly />
+                                </div>
+                                <div className="finances-log-cell">
+                                    <input type="text" value={log.hours || '-'} readOnly />
+                                </div>
+                                <div className="finances-log-cell">
+                                    <input type="text" value={log.workDone || '-'} readOnly />
+                                </div>
+                            </div>
                         </div>
                     ))}
                 </div>
-            ) : (
+                ) : (
                 <div className="placeholder-tab">
                     <p>Для этого исполнителя нет записей о выполненных работах.</p>
                 </div>

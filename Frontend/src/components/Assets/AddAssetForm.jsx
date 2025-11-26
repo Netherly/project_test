@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import '../../styles/AddAssetForm.css';
 import { Plus, X } from 'lucide-react';
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
-// Убираем FieldsAPI, так как он больше не нужен здесь
-// import { FieldsAPI } from '../../api/fields'; 
+import AutoResizeTextarea from '../modals/OrderModal/AutoResizeTextarea';
 
 const designNameMap = {
     'Монобанк': 'monobank-black',
@@ -17,22 +16,19 @@ const designNameMap = {
     'Красный': 'red',
 };
 
-// --- ИЗМЕНЕНИЕ 1: Получаем fields из пропсов ---
+
 const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // --- ИЗМЕНЕНИЕ 2: Деструктурируем поля из пропсов ---
+   
     const { generalFields, assetsFields } = fields || { 
         generalFields: { currency: [] }, 
         assetsFields: { type: [], paymentSystem: [], cardDesigns: [] } 
     };
 
-    // --- ИЗМЕНЕНИЕ 3: Удален useState для assetsFields и generalFields ---
-
-    // --- ИЗМЕНЕНИЕ 4: Удален useEffect для загрузки полей ---
-    // (useEffect, который вызывал FieldsAPI.getAssets() и FieldsAPI.getGeneral(), удален)
+    
 
     const [formData, setFormData] = useState({
         accountName: '',
@@ -46,15 +42,15 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
     });
 
     useEffect(() => {
-        // подставляем дефолтные значения при загрузке
+        
         setFormData((prev) => {
             const next = { ...prev };
-            // Используем generalFields.currency из пропсов
+            
             if ((!prev.currency || prev.currency === '') && generalFields.currency?.[0]) {
                 const first = generalFields.currency[0];
                 next.currency = typeof first === 'object' ? first.code || first.name : first;
             }
-            // Используем assetsFields из пропсов
+            
             if ((!prev.type || prev.type === '') && assetsFields.type?.[0]) {
                 const first = assetsFields.type[0];
                 next.type = typeof first === 'object' ? first.code || first.name : first;
@@ -69,7 +65,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
             }
             return next;
         });
-    }, [assetsFields, generalFields]); // Зависимости остаются, т.к. мы их деструктурировали
+    }, [assetsFields, generalFields]); 
 
     const handleFormChange = () => {
         if (!hasUnsavedChanges) setHasUnsavedChanges(true);
@@ -172,7 +168,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="add-asset-form">
-                        {/* Общие поля */}
                         <div className="form-row">
                             <label htmlFor="accountName" className="form-label">
                                 Наименование
@@ -206,7 +201,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                 <option value="" disabled>
                                     Выберите валюту
                                 </option>
-                                {/* Используем generalFields.currency из пропсов */}
                                 {(generalFields.currency || []).map((item, index) => {
                                     const value = typeof item === 'object' ? item.code || item.name : item;
                                     const display = typeof item === 'object' ? item.name : item;
@@ -251,7 +245,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                 <option value="" disabled>
                                     Выберите тип
                                 </option>
-                                {/* Используем assetsFields.type из пропсов */}
                                 {(assetsFields.type || []).map((item, index) => {
                                     const value = typeof item === 'object' ? item.code || item.name : item;
                                     const display = typeof item === 'object' ? item.name : item;
@@ -277,7 +270,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                 disabled={isLoading}
                             >
                                 <option value="">Не выбрано</option>
-                                {/* Используем assetsFields.paymentSystem из пропсов */}
                                 {(assetsFields.paymentSystem || []).map((item, index) => {
                                     const value = typeof item === 'object' ? item.code || item.name : item;
                                     const display = typeof item === 'object' ? item.name : item;
@@ -303,7 +295,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                 disabled={isLoading}
                             >
                                 <option value="">Не выбрано</option>
-                                {/* Используем assetsFields.cardDesigns из пропсов */}
                                 {(assetsFields.cardDesigns || []).map((design, index) => (
                                     <option key={index} value={design.id}>
                                         {design.name}
@@ -337,7 +328,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                             </select>
                         </div>
 
-                        {/* Реквизиты */}
+                       
                         <div className="requisites-section">
                             <h3 className="requisites-header">Реквизиты</h3>
                             <div className="requisites-table-wrapper">
@@ -356,19 +347,22 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                                 disabled={isLoading}
                                             />
                                         </div>
+
+                                        
                                         <div className="requisites-table-cell">
-                                            <textarea
+                                            <AutoResizeTextarea
                                                 name="value"
                                                 value={req.value}
-                                                onInput={(e) => {
+                                                onChange={(e) => {
                                                     handleRequisiteChange(index, e);
-                                                    handleTextareaAutoResize(e);
                                                 }}
                                                 placeholder="Введите значение"
-                                                className="form-input1"
+                                                className="assets-workplan-textarea" 
                                                 disabled={isLoading}
                                             />
                                         </div>
+
+                                       
                                         <div className="requisites-table-cell action-cell">
                                             {formData.requisites.length > 1 && (
                                                 <button
@@ -397,7 +391,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                             </button>
                         </div>
 
-                        {/* Кнопки */}
+                       
                         <div className="assets-form-actions">
                             <button
                                 type="button"

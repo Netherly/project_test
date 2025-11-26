@@ -76,7 +76,6 @@ function normalizeForCreateUpdate(input) {
 
   // безопасность: запрещаем прямую запись в денормализованные поля вывода
   delete copy.accountName;
-  delete copy.accountCurrency;
 
   return copy;
 }

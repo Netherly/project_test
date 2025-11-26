@@ -239,7 +239,6 @@
   width: 100%;
   margin-top: 15px;
   overflow: hidden; 
-  border-radius: 6px; 
 }
 
 .finances-log-row {
@@ -256,23 +255,24 @@
 
 
 .finances-log-row.header-row .finances-log-content-wrapper {
-  background-color: rgb(20, 27, 46); 
+  background-color: rgb(20, 27, 46);
   padding: 10px 0;
 }
         
 .finances-log-row.header-row .finances-log-cell {
-  color: var(--chips-color, #aaa);
-  font-size: 13px;
-  font-weight: 500;
-  text-align: left;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
+  font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-align: center;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    color: white;
 }
 
 
 .finances-log-row:not(.header-row) .finances-log-content-wrapper {
-  background-color: rgb(25, 33, 58); 
+  background-color: rgb(20, 27, 46);
   border-bottom: 1px solid #141b2e; 
   transition: background-color 0.2s ease;
 }
@@ -355,7 +355,6 @@
 
 .currency-field{
   display: flex;
-  align-items: center;
 }
 
 .currency-title{
@@ -363,6 +362,7 @@
   font-size: 13px;
   color: #c0c0c0;
   margin-bottom: 6px;
+  padding-top: 12px;
 }
 
 .currency-table {

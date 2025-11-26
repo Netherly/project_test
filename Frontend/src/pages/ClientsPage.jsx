@@ -441,13 +441,19 @@ export default function ClientsPage({
                 {Object.entries(groups).map(([gid, gname]) => (
                   <React.Fragment key={gid}>
                     <tr
-                      className="group-row"
+                      className="group-header" 
                       onClick={() =>
                         setExp((p) => ({ ...p, [gid]: !p[gid] }))
                       }
                     >
                       <td colSpan={COLS}>
-                        {expanded[gid] ? "▼" : "▶"} {gname}{" "}
+                       
+                        <span className={`collapse-icon ${!expanded[gid] ? "collapsed" : ""}`}>
+                          ▼
+                        </span>
+                        
+                        {gname.toUpperCase()}
+                        
                         <span className="group-count">
                           {
                             filteredRows.filter(

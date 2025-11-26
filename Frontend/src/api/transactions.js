@@ -16,26 +16,26 @@ const qs = (obj = {}) => {
 
 export async function fetchTransactions(params = {}) {
   const query = qs(params);
-  const resp = await httpGet(`/api/transactions?${query}`);
+  const resp = await httpGet(`/transactions?${query}`);
   return unwrap(resp);
 }
 
 export async function fetchTransactionById(id) {
-  const resp = await httpGet(`/api/transactions/${id}`);
+  const resp = await httpGet(`/transactions/${id}`);
   return unwrap(resp);
 }
 
 export async function createTransaction(payload) {
-  const resp = await httpPost('/api/transactions', payload);
+  const resp = await httpPost('/transactions', payload);
   return unwrap(resp);
 }
 
 export async function updateTransaction(id, payload) {
-  const resp = await httpPut(`/api/transactions/${id}`, payload);
+  const resp = await httpPut(`/transactions/${id}`, payload);
   return unwrap(resp);
 }
 
 export async function deleteTransaction(id) {
-  const resp = await httpDelete(`/api/transactions/${id}`);
+  const resp = await httpDelete(`/transactions/${id}`);
   return unwrap(resp);
 }

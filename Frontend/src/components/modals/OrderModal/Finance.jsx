@@ -1,12 +1,13 @@
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import CustomSelect from '../../ui/CustomSelect';
+import AutoResizeTextarea from './AutoResizeTextarea';
 
 const Finance = ({ control, orderFields, transactions = [] }) => {
     const { watch } = useFormContext();
-    const currency = watch('currency_type');
+   
 
-
+    
     const totalIncome = transactions
       .filter(t => t.operation === 'Зачисление')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -15,9 +16,8 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
       .filter(t => t.operation === 'Списание')
       .reduce((sum, t) => sum + t.amount, 0);
     
-    const balance = totalIncome - totalExpense;
-   
     
+
     const currencyOptions = (orderFields?.currency || []).map(curr => ({
         value: curr,
         label: curr,
@@ -27,7 +27,7 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
     const maxData = {
         ПартнерСумма: "2323",
         ВыручкаЗаказа: "34234234",
-        СуммаИсполнителям: "234234234234",
+        СммаИсполнителям: "234234234234",
         вЧас: "111",
         Прибыль: "222222222",
         ПрибыльПроцентВыручки: "345345345",
@@ -41,22 +41,23 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
         ВозвратВалюта: "888888",
         ВозвратАльтернатива: "678666",
     };
+
     const fieldLabels = {
-        ПартнерСумма: "Партнер сумма",
-        ВыручкаЗаказа: "Выручка заказа",
-        СуммаИсполнителям: "Исполнителям сумма",
-        вЧас: "В час",
-        Прибыль: "Прибыль",
-        ПрибыльПроцентВыручки: "Прибыль % от выручки",
-        ПрибыльПроцентСуммы: "Прибыль % от суммы",
-        Чаевые: "Чаевые",
-        ПрибыльПлюсЧаевые: "Прибыль + чаевые",
-        Оплата: "Оплата",
-        ОплатаВалюта: "Оплата валюта",
-        ОплатаАльтернатива: "Оплата альтернатива",
-        Возврат: "Возврат",
-        ВозвратВалюта: "Возврат валюта",
-        ВозвратАльтернатива: "Возврат альтернатива",
+         ПартнерСумма: "Партнер сумма",
+         ВыручкаЗаказа: "Выручка заказа",
+         СммаИсполнителям: "Исполнителям сумма",
+         вЧас: "В час",
+         Прибыль: "Прибыль",
+         ПрибыльПроцентВыручки: "Прибыль % от выручки",
+         ПрибыльПроцентСуммы: "Прибыль % от суммы",
+         Чаевые: "Чаевые",
+         ПрибыльПлюсЧаевые: "Прибыль + чаевые",
+         Оплата: "Оплата",
+         ОплатаВалюта: "Оплата валюта",
+         ОплатаАльтернатива: "Оплата альтернатива",
+         Возврат: "Возврат",
+         ВозвратВалюта: "Возврат валюта",
+         ВозвратАльтернатива: "Возврат альтернатива",
     };
 
     const handlePercentChange = (value, onChange) => {
@@ -89,7 +90,7 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                     </div>
                 )}
             />
-            <Controller
+             <Controller
                 name="budget"
                 control={control}
                 defaultValue=""
@@ -112,17 +113,20 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                 control={control}
                 defaultValue=""
                 render={({ field }) => (
-                    <CustomSelect
-                        {...field}
-                        onChange={e => field.onChange(e.target.value)}
-                        value={field.value}
-                        label="Валюта"
-                        options={currencyOptions}
-                    />
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Валюта</div>
+                        <div style={{ width: '100%' }}> 
+                            <CustomSelect
+                                {...field}
+                                onChange={e => field.onChange(e.target.value)}
+                                value={field.value}
+                                options={currencyOptions}
+                            />
+                        </div>
+                    </div>
                 )}
             />
 
-            
             <Controller
                 name="currency_rate"
                 control={control}
@@ -172,7 +176,7 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                     </div>
                 )}
             />
-            <Controller
+             <Controller
                 name="discount"
                 control={control}
                 render={({ field }) => (
@@ -228,48 +232,63 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                 name="payment_details"
                 control={control}
                 render={({ field }) => (
-                    <div className="tab-content-row-column">
+                    <div className="tab-content-row"> 
                         <div className="tab-content-title">Реквизиты для оплаты</div>
-                        <textarea {...field} className='workplan-textarea' placeholder="Введите реквизиты..."></textarea>
+                         <AutoResizeTextarea {...field} placeholder='Введите ревквизиты' />
                     </div>
                 )}
             />
 
+            
             <div className="tab-content-row-column">
                 <div className="tab-content-title">Журнал операций</div>
-                <div className="payment-log-table">
-                    <div className="payment-log-header">
-                        <div>Дата и время</div>
-                        <div>Статья</div>
-                        <div>Подстатья</div>
-                        <div>Счет</div>
-                        <div>Сумма операции</div>
+                
+                <div className="finances-log-table">
+                    <div className="finances-log-row header-row">
+                        <div className="finances-log-content-wrapper">
+                            <div className="finances-log-cell">Дата и время</div>
+                            <div className="finances-log-cell">Статья</div>
+                            <div className="finances-log-cell">Подстатья</div>
+                            <div className="finances-log-cell">Счет</div>
+                            <div className="finances-log-cell">Сумма</div>
+                        </div>
                     </div>
-                    
                     
                     {transactions.length > 0 ? (
                         transactions.map((trx) => (
-                            <div key={trx.id} className="payment-log-row">
-                                <input type="text" value={trx.date} readOnly />
-                                <input type="text" value={trx.category} readOnly />
-                                <input type="text" value={trx.subcategory} readOnly />
-                                <input type="text" value={trx.account} readOnly />
-                                <input 
-                                    type="text" 
-                                    value={`${trx.amount.toFixed(2)} ${trx.accountCurrency}`}
-                                    className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}
-                                    readOnly 
-                                />
-                                <div style={{ width: '40px' }}></div>
+                            <div key={trx.id} className="finances-log-row">
+                                <div className="finances-log-content-wrapper">
+                                    <div className="finances-log-cell">
+                                        <input type="text" value={trx.date} readOnly />
+                                    </div>
+                                    <div className="finances-log-cell">
+                                        <input type="text" value={trx.category} readOnly />
+                                    </div>
+                                    <div className="finances-log-cell">
+                                        <input type="text" value={trx.subcategory} readOnly />
+                                    </div>
+                                    <div className="finances-log-cell">
+                                        <input type="text" value={trx.account} readOnly />
+                                    </div>
+                                    <div className="finances-log-cell">
+                                        <input 
+                                            type="text" 
+                                            value={`${trx.amount.toFixed(2)} ${trx.accountCurrency || ''}`}
+                                            className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}
+                                            readOnly 
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         ))
                     ) : (
-                        <div className="no-transactions" style={{ textAlign: 'center', padding: '20px', color: '#888' }}>
+                        <div className="no-transactions" style={{ textAlign: 'center', padding: '20px', color: 'var(--container-text-color)', opacity: 0.7 }}>
                             Операции по этому заказу отсутствуют.
                         </div>
                     )}
                 </div>
             </div>
+            
         </div>
     );
 };
