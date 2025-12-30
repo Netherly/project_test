@@ -124,7 +124,7 @@
     appearance: none;
 }
 
-.register-modal input.input-error {
+.input-error {
     border-bottom-color: #ff4d4f !important; 
     box-shadow: 0 1px 0 0 #ff4d4f; 
 }

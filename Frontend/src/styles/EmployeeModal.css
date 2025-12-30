@@ -1,19 +1,4 @@
-/* ========== базовые переменные и нормализация ========== */
-:root {
-  /* при желании поправь под свою тему */
-  --sidebar-w: 72px;
 
-  --bg-color: #0f1526;
-  --container-bg: #151c2e;
-  --text-color: #e6eaf2;
-  --muted-text: #9aa3ad;
-
-  --border--color: rgba(255,255,255,.08);
-  --input-border-focus: #6a6aff;
-
-  --container-text-color: var(--text-color);
-  --chips-color: var(--text-color);
-}
 .employee-modal * { box-sizing: border-box; }
 
 /* ========== Overlay ========== */
@@ -24,11 +9,9 @@
   width: calc(100% - var(--sidebar-w));
   height: 100%;
   background-color: rgba(0, 0, 0, 0.7);
-
   display: flex;
   justify-content: center;
   align-items: center;
-
   z-index: 1000;
   opacity: 0;
   pointer-events: none;                /* чтобы клики не ловились, когда закрыто */

@@ -44,6 +44,10 @@ body {
     --input-border: #4A5568;
     --input-border-focus: #478cff;
     --opacity-container: rgba(25, 33, 58, .7);
+	--border-form-color: rgba(128, 128, 128, 0.3);
+	--font-size-page-title: 22px;
+    --font-size-table-header: 15px;
+    --font-size-table-text: 13px;
 }
 
 html, body, div, span, applet, object, iframe,
@@ -91,4 +95,37 @@ a {
 }
 .hidden-scroll::-webkit-scrollbar-thumb {
     display: none;
+}
+/*Настройка ширины/высоты полосы прокрутки*/
+::-webkit-scrollbar {
+    width: 8px; 
+    height: 8px;
+}
+/*Стилизация фона полосы прокрутки */
+::-webkit-scrollbar-track {
+    background-color: var(--bg-menu-color);
+    
+}
+/*Стилизация бегунка*/
+::-webkit-scrollbar-thumb {
+    background-color: var(--chips-color);
+    border-radius: 10px;
+    border: 2px solid var(--bg-menu-color); 
+}
+/*Ховер бегунка*/
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-color);
+}
+/* Стилизация для Firefox */
+/* Тут нам нужно указать конкретные контейнеры, к которым будем применять стилизацию 
+привел пример с формой добавления записи в журнал */
+.form-modal, 
+.log-entry-details-modal,
+.journal-table-container, 
+.role-checkbox-dropdown 
+{
+    scrollbar-width: thin; 
+    /*Оставлю и тут подсказку на будущее, чтобы не забыть нам
+	 thumb color (бегунок) / track color (дорожка) */
+    scrollbar-color: var(--chips-color) var(--bg-menu-color); 
 }

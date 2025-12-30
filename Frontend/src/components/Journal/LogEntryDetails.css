@@ -1,0 +1,195 @@
+.log-entry-details-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+    z-index: 1000;
+}
+
+.log-entry-details-modal {
+    background-color: var(--bg-menu-color);
+    border-radius: 8px 0 0 8px;
+    padding: 20px 30px;
+    width: 35%;
+    max-width: 750px;
+    min-width: 450px;
+    height: 100%;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.log-entry-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border--color);
+    flex-shrink: 0;
+}
+
+.log-entry-details-header h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+}
+.journal-header-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: 26px;
+}
+.journal-actions-btn,
+.journal-close-btn-container {
+    background: none;
+    border: none;
+    color: var(--chips-color);
+    font-size: 24px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    appearance: none;
+    padding: 0px 5px;
+    padding-bottom: 10px;
+    height: 16px;
+}
+
+.journal-modal-close-button {
+    background: none;
+    border: none;
+    height: 20px;
+    color: var(--chips-color);
+    cursor: pointer;
+    transition: color 0.2s ease;
+    align-items: center;
+}
+/* .journal-actions-btn:hover {
+    background-color: var(--input-border-focus)
+}
+.journal-modal-close-button:hover {
+    background-color: var(--input-border-focus)
+} */
+
+.log-entry-details-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    padding-bottom: 20px;
+}
+
+.journal-form-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.journal-form-group label {
+    flex-basis: 40%;
+    min-width: 120px;
+    text-align: left;
+    color: var(--chips-color);
+    font-size: 14px;
+    font-weight: 600;
+    align-items:center;
+}
+
+.journal-form-group input:not([type="checkbox"]),
+.journal-form-group select,
+.journal-form-group .custom-multiselect-input {
+    width: 100%;
+    padding: 10px 0px;
+    background-color: var(--bg-menu-color);
+    border: none;
+    border-bottom: 1px solid var(--border--color);
+    color: var(--text-color);
+    font-size: 15px;
+    min-height: 42px;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
+}
+.journal-form-group textarea {
+    width: 100%;
+    padding: 10px 0px;
+    background-color: var(--bg-menu-color);
+    border: none;
+    border-bottom: 1px solid var(--border--color);
+    color: var(--text-color);
+    font-size: 15px;
+    min-height: 21px;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
+    resize: vertical;
+    overflow: hidden;
+
+}
+.journal-form-group input:focus,
+.journal-form-group textarea:focus,
+.journal-form-group select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
+}
+.journal-form-group input.disabled-input,
+.journal-form-group input:disabled,
+.journal-form-group .read-only-input {
+    border-bottom: none !important;
+}
+.journal-form-group .read-only-input {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.journal-form-group input.disabled-input,
+.journal-form-group input:disabled {
+    color: var(--chips-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.form-journal-actions-bottom {
+    display: flex;
+    
+    gap: 10px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border--color);
+
+}
+
+.journal-action-button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.journal-save-button {
+    background-color: var(--button-bg);
+    color: #fff;
+}
+
+.journal-save-button:hover {
+    background-color: var(--accent-color);
+}
