@@ -58,21 +58,35 @@ const STATUS_MAP = {
   lead: { text: "Лид", cls: "status--lead" },
   blacklist: { text: "Блэклист", cls: "status--blacklist" },
 };
+
 function StatusPill({ value }) {
-  if (!value) return <span className="ellipsis">—</span>;
-  const key = String(value).toLowerCase();
-  const m = STATUS_MAP[key] || { text: value, cls: "status--neutral" };
+  // Если статус вдруг пришел объектом - вытаскиваем имя
+  const safeValue = (typeof value === 'object' && value !== null) ? value.name : value;
+
+  if (!safeValue) return <span className="ellipsis">—</span>;
+  const key = String(safeValue).toLowerCase();
+  const m = STATUS_MAP[key] || { text: safeValue, cls: "status--neutral" };
   return (
-    <span className={`status-pill ${m.cls}`} title={value}>
+    <span className={`status-pill ${m.cls}`} title={safeValue}>
       {m.text}
     </span>
   );
 }
 
+// !!! ИСПРАВЛЕНИЕ 1: Умный Ellipsis !!!
+// Теперь он понимает объекты и достает из них поле name
 const Ellipsis = ({ value }) => {
-  const text = Array.isArray(value)
-    ? value.map((t) => t.name).join(", ")
-    : String(value ?? "—");
+  let text;
+  
+  if (Array.isArray(value)) {
+    text = value.map((t) => t.name).join(", ");
+  } else if (value && typeof value === 'object') {
+    // Если это объект (страна, валюта), берем name
+    text = value.name || JSON.stringify(value);
+  } else {
+    text = String(value ?? "—");
+  }
+
   return (
     <span className="ellipsis" title={text}>
       {text}
@@ -81,7 +95,6 @@ const Ellipsis = ({ value }) => {
 };
 
 export default function ClientsPage({
-  
   clients = sampleClients,
   onSaveClient, 
   onAddCompany = () => {},
@@ -122,29 +135,22 @@ export default function ClientsPage({
     return () => {
       mounted = false;
     };
-    
   }, []); 
 
   const latestOrderStatusMap = useMemo(() => {
     const statusMap = new Map();
     const clientOrders = new Map(); 
     
-   
     const ordersJson = localStorage.getItem('ordersData'); 
     let ordersData = []; 
 
     if (ordersJson) {
       try {
-       
         ordersData = JSON.parse(ordersJson);
       } catch (error) {
         console.error("Ошибка парсинга заказов из localStorage:", error);
       }
     }
-    
-    
-
-
     
     for (const order of ordersData) {
       const clientIdNum = parseInt(order.order_client, 10);
@@ -156,7 +162,6 @@ export default function ClientsPage({
       clientOrders.get(clientIdNum).push(order);
     }
 
-    
     for (const [clientId, orders] of clientOrders.entries()) {
       if (orders.length === 0) continue;
 
@@ -178,7 +183,9 @@ export default function ClientsPage({
 
     return statusMap;
   }, []);
+
   /* === фильтрация === */
+  // !!! ИСПРАВЛЕНИЕ 2: Поиск теперь тоже понимает объекты !!!
   const filteredRows = useMemo(() => {
     return (list || [])
       .filter((c) => {
@@ -188,10 +195,11 @@ export default function ClientsPage({
           ...(c.tags || []).map((t) => t.name),
           c.note,
           c.intro_description,
-          c.source,
+          // Безопасно получаем имя, если поле — объект
+          c.source?.name || c.source,
           c.full_name,
-          c.country,
-          c.currency,
+          c.country?.name || c.country,
+          c.currency?.name || c.currency,
           String(c.hourly_rate),
           String(c.percent),
           c.referrer_name,
@@ -200,17 +208,25 @@ export default function ClientsPage({
           c.last_order_date,
           ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
         ];
+        // Собираем строку и ищем в нижнем регистре
         const text = parts.join(" ").toLowerCase();
         return text.includes(search.toLowerCase());
       })
-      .filter((c) => !currencyFilter || c.currency === currencyFilter)
+      .filter((c) => {
+        // Фильтры тоже должны сравнивать правильно
+        const curName = c.currency?.name || c.currency;
+        return !currencyFilter || curName === currencyFilter;
+      })
       .filter((c) => !statusFilter || c.status === statusFilter)
       .filter(
         (c) =>
           !tagFilter.length ||
           (c.tags || []).some((t) => tagFilter.includes(t.name))
       )
-      .filter((c) => !sourceFilter || c.source === sourceFilter)
+      .filter((c) => {
+        const srcName = c.source?.name || c.source;
+        return !sourceFilter || srcName === sourceFilter;
+      })
       .filter((c) => {
         if (
           dateFrom &&
@@ -242,7 +258,7 @@ export default function ClientsPage({
     () =>
       currencies.length
         ? currencies
-        : Array.from(new Set(list.map((c) => c.currency))).filter(Boolean),
+        : Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean),
     [currencies, list]
   );
   const statusOptions = useMemo(
@@ -257,7 +273,7 @@ export default function ClientsPage({
     [list]
   );
   const sourceOptions = useMemo(
-    () => Array.from(new Set(list.map((c) => c.source))).filter(Boolean),
+    () => Array.from(new Set(list.map((c) => c.source?.name || c.source))).filter(Boolean),
     [list]
   );
 
@@ -372,21 +388,14 @@ export default function ClientsPage({
   const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
 
    const formatDate = (dateString) => {
-    
     if (!dateString) return null; 
-
     const date = new Date(dateString);
-
-    
     if (isNaN(date.getTime())) {
       return null;
     }
-
-    
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0'); 
     const year = date.getFullYear();
-    
     return `${day}.${month}.${year}`;
   };
 
@@ -447,7 +456,7 @@ export default function ClientsPage({
                       }
                     >
                       <td colSpan={COLS}>
-                       
+                        
                         <span className={`collapse-icon ${!expanded[gid] ? "collapsed" : ""}`}>
                           ▼
                         </span>
@@ -498,7 +507,6 @@ export default function ClientsPage({
                             </td>
                             <td
                               className="ref-cell"
-                            
                               onClick={(e) => openRef(c.referrer_id, e)}
                             >
                               <Ellipsis value={c.referrer_name} />

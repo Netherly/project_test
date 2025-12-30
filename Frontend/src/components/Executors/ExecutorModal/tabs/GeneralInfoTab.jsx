@@ -50,7 +50,7 @@ export default function GeneralInfoTab({ orders, fields }) {
         </div>
       )}
 
-      {/* Остальная часть формы без изменений */}
+      {/* Остальная часть формы */}
       <Controller
         name="orderNumber"
         control={control}
@@ -94,7 +94,7 @@ export default function GeneralInfoTab({ orders, fields }) {
             <select {...field} className={errors.role ? 'input-error' : ''}>
               <option value="" disabled>Выберите роль</option>
               {fields?.role?.map((role) => (
-                <option key={role.id} value={role.name}>{role.name}</option>
+                <option key={role.id} value={role.value}>{role.value}</option>
               ))}
             </select>
             {errors.role && <p className="error-message">{errors.role.message}</p>}
@@ -113,6 +113,7 @@ export default function GeneralInfoTab({ orders, fields }) {
         )}
       />
 
+      {/* --- ИСПРАВЛЕННЫЙ БЛОК ВАЛЮТЫ --- */}
       <Controller
           name="currency"
           control={control}
@@ -121,14 +122,19 @@ export default function GeneralInfoTab({ orders, fields }) {
                   <label>Валюта</label>
                   <select {...field} className={errors.currency ? 'input-error' : ''}>
                       <option value="" disabled>Выберите валюту</option>
-                      {fields?.currency?.map((item) => (
-                          <option key={item.id} value={item.id}>{item.name}</option> 
-                      ))}
+                      {fields?.currency?.map((item, index) => {
+                          const val = item.value || item; 
+                          const key = item.id || index;
+                          return (
+                              <option key={key} value={val}>{val}</option> 
+                          );
+                      })}
                   </select>
                   {errors.currency && <p className="error-message">{errors.currency.message}</p>}
               </div>
           )}
       />
+      {/* ---------------------------------- */}
 
       <Controller
         name="hourlyRate"
@@ -150,6 +156,18 @@ export default function GeneralInfoTab({ orders, fields }) {
             <label>Сумма ввод</label>
             <input type="number" placeholder="0.00" {...field} />
              {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
+          </div>
+        )}
+      />
+
+      <Controller
+        name="minAmount"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Минимальная сумма</label>
+            <input type="number" placeholder="0.00" {...field} />
+            {errors.minAmount && <p className="error-message">{errors.minAmount.message}</p>}
           </div>
         )}
       />
@@ -185,6 +203,17 @@ export default function GeneralInfoTab({ orders, fields }) {
               <div className="form-field-checkbox">
                 <label htmlFor="roundHours">Округление часа</label>
                 <input type="checkbox" id="roundHours" {...field} checked={field.value} />
+              </div>
+            )}
+          />
+
+          <Controller
+            name="isReset"
+            control={control}
+            render={({ field }) => (
+              <div className="form-field-checkbox">
+                <label htmlFor="isReset">Обнуление</label>
+                <input type="checkbox" id="isReset" {...field} checked={field.value} />
               </div>
             )}
           />

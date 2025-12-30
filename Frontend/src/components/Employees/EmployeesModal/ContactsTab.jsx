@@ -1,7 +1,6 @@
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-
 export default function ContactsTab({ isNew }) {
   const { control, formState: { errors } } = useFormContext();
 
@@ -72,57 +71,60 @@ export default function ContactsTab({ isNew }) {
           </div>
         )}
       />
-
       
       <fieldset className="form-fieldset">
         <div className="grid-2-col">
+          {/* Исправлено: telegram.dateTime -> telegramDateTime */}
           <Controller
-            name="telegram.dateTime"
+            name="telegramDateTime"
             control={control}
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм дата и время</label>
-                
                 <input {...field} placeholder="Дата и время" readOnly={!isNew} />
               </div>
             )}
           />
+          
+          {/* Исправлено: telegram.id -> telegramId */}
           <Controller
-            name="telegram.id"
+            name="telegramId"
             control={control}
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм ID</label>
-             
                 <input {...field} placeholder="123456789" readOnly={!isNew} />
               </div>
             )}
           />
+          
+          {/* Исправлено: telegram.name -> telegramName */}
           <Controller
-            name="telegram.name"
+            name="telegramName"
             control={control}
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм имя</label>
-     
                 <input {...field} placeholder="Имя в Telegram" readOnly={!isNew} />
               </div>
             )}
           />
+          
+          {/* Исправлено: telegram.nickname -> telegramNickname */}
           <Controller
-            name="telegram.nickname"
+            name="telegramNickname"
             control={control}
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм никнейм</label>
-
                 <input {...field} placeholder="@nickname" />
               </div>
             )}
           />
           
+          {/* Исправлено: telegram.bindingLink -> telegramBindingLink */}
           <Controller
-            name="telegram.bindingLink" 
+            name="telegramBindingLink" 
             control={control}
             render={({ field }) => (
               <div className="form-field">
@@ -131,17 +133,17 @@ export default function ContactsTab({ isNew }) {
               </div>
             )}
           />
+          
           <Controller
-                name="chatLink"
-                control={control}
-                render={({ field }) => (
-                  <div className="form-field">
-                    <label>Ссылка на чат</label>
-                 
-                    <input {...field} placeholder="https://..." readOnly={!isNew} />
-                  </div>
-                )}
-              />
+            name="chatLink"
+            control={control}
+            render={({ field }) => (
+              <div className="form-field">
+                <label>Ссылка на чат</label>
+                <input {...field} placeholder="https://..." readOnly={!isNew} />
+              </div>
+            )}
+          />
         </div>
       </fieldset>
     </div>

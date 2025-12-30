@@ -5,7 +5,14 @@ export const clientSchema = yup.object().shape({
   name: yup.string().required('Клиент обязателен'),
   category: yup.string().required('Категория обязательна'),
   source: yup.string().required('Источник обязателен'),
-  tags: yup.array().of(yup.string()).min(1, 'Выберите хотя бы один тег'),
+  tags: yup.array()
+    .of(
+      yup.object().shape({
+        name: yup.string().required(), 
+        color: yup.string()            
+      })
+    )
+    .min(1, 'Выберите хотя бы один тег'),
   company_id: yup.string().required('Компания обязательна'),
   intro_description: yup.string().required('Вводное описание обязательно'),
   note: yup.string().required('Примечание обязательно'),

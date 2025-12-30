@@ -107,6 +107,23 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                 )}
             />
 
+            <Controller
+                name="minOrderAmount"
+                control={control}
+                defaultValue=""
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Мин. сумма</div>
+                        <input
+                            {...field}
+                            type="number"
+                            className='tab-content-input'
+                            placeholder="..."
+                        />
+                    </div>
+                )}
+            />
+
             
             <Controller
                 name="currency_type"
@@ -183,6 +200,24 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                     <div className="tab-content-row">
                         <div className="tab-content-title">Скидка</div>
                         <input {...field} type="number" className='tab-content-input' placeholder="..." />
+                    </div>
+                )}
+            />
+
+            <Controller
+                name="discountReason"
+                control={control}
+                defaultValue=""
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Причина скидки</div>
+                        {/* Используем обычный input или AutoResizeTextarea, если текст длинный */}
+                        <input 
+                            {...field} 
+                            type="text" 
+                            className='tab-content-input' 
+                            placeholder="Укажите причину..." 
+                        />
                     </div>
                 )}
             />

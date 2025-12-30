@@ -4,31 +4,16 @@ import { Plus, X } from 'lucide-react';
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import AutoResizeTextarea from '../modals/OrderModal/AutoResizeTextarea';
 
-const designNameMap = {
-    'Монобанк': 'monobank-black',
-    'ПриватБанк': 'privatbank-green',
-    'Сбербанк': 'sberbank-light-green',
-    'Bybit': 'bybit-white',
-    'Рубин': 'ruby',
-    'Сапфир': 'saphire',
-    'Атлас': 'atlas',
-    '3Д': '3d',
-    'Красный': 'red',
-};
-
-
 const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-   
+    // Безопасное извлечение полей
     const { generalFields, assetsFields } = fields || { 
         generalFields: { currency: [] }, 
         assetsFields: { type: [], paymentSystem: [], cardDesigns: [] } 
     };
-
-    
 
     const [formData, setFormData] = useState({
         accountName: '',
@@ -41,28 +26,35 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
         requisites: [{ label: '', value: '' }],
     });
 
+    // Установка дефолтных значений при загрузке справочников
     useEffect(() => {
-        
         setFormData((prev) => {
             const next = { ...prev };
             
+            // Валюта: нормализатор возвращает объект {id, value, isDeleted}. Нам нужно value.
             if ((!prev.currency || prev.currency === '') && generalFields.currency?.[0]) {
                 const first = generalFields.currency[0];
-                next.currency = typeof first === 'object' ? first.code || first.name : first;
+                next.currency = first.value || ''; 
             }
             
+            // Тип
             if ((!prev.type || prev.type === '') && assetsFields.type?.[0]) {
                 const first = assetsFields.type[0];
-                next.type = typeof first === 'object' ? first.code || first.name : first;
+                next.type = first.value || '';
             }
+
+            // Платежная система
             if ((!prev.paymentSystem || prev.paymentSystem === '') && assetsFields.paymentSystem?.[0]) {
                 const first = assetsFields.paymentSystem[0];
-                next.paymentSystem = typeof first === 'object' ? first.code || first.name : first;
+                next.paymentSystem = first.value || '';
             }
+
+            // Дизайн (здесь структура другая: {id, name, url})
             if ((!prev.design || prev.design === '') && assetsFields.cardDesigns?.[0]) {
                 const first = assetsFields.cardDesigns[0];
                 next.design = first?.id || '';
             }
+            
             return next;
         });
     }, [assetsFields, generalFields]); 
@@ -149,11 +141,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
         setShowConfirmationModal(false);
     };
 
-    const handleTextareaAutoResize = (e) => {
-        e.target.style.height = 'auto';
-        e.target.style.height = e.target.scrollHeight + 'px';
-    };
-
     return (
         <>
             <div className="add-asset-overlay" onClick={handleAttemptClose}>
@@ -202,11 +189,11 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                     Выберите валюту
                                 </option>
                                 {(generalFields.currency || []).map((item, index) => {
-                                    const value = typeof item === 'object' ? item.code || item.name : item;
-                                    const display = typeof item === 'object' ? item.name : item;
+                                    // item приходит из normStrs, у него есть поле .value
+                                    const val = item.value || item; 
                                     return (
-                                        <option key={index} value={value}>
-                                            {display}
+                                        <option key={item.id || index} value={val}>
+                                            {val}
                                         </option>
                                     );
                                 })}
@@ -246,11 +233,10 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                     Выберите тип
                                 </option>
                                 {(assetsFields.type || []).map((item, index) => {
-                                    const value = typeof item === 'object' ? item.code || item.name : item;
-                                    const display = typeof item === 'object' ? item.name : item;
+                                    const val = item.value || item;
                                     return (
-                                        <option key={index} value={value}>
-                                            {display}
+                                        <option key={item.id || index} value={val}>
+                                            {val}
                                         </option>
                                     );
                                 })}
@@ -271,11 +257,10 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                             >
                                 <option value="">Не выбрано</option>
                                 {(assetsFields.paymentSystem || []).map((item, index) => {
-                                    const value = typeof item === 'object' ? item.code || item.name : item;
-                                    const display = typeof item === 'object' ? item.name : item;
+                                    const val = item.value || item;
                                     return (
-                                        <option key={index} value={value}>
-                                            {display}
+                                        <option key={item.id || index} value={val}>
+                                            {val}
                                         </option>
                                     );
                                 })}
@@ -296,7 +281,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                             >
                                 <option value="">Не выбрано</option>
                                 {(assetsFields.cardDesigns || []).map((design, index) => (
-                                    <option key={index} value={design.id}>
+                                    <option key={design.id || index} value={design.id}>
                                         {design.name}
                                     </option>
                                 ))}
@@ -328,7 +313,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                             </select>
                         </div>
 
-                       
+                        
                         <div className="requisites-section">
                             <h3 className="requisites-header">Реквизиты</h3>
                             <div className="requisites-table-wrapper">
@@ -339,30 +324,24 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                                 type="text"
                                                 name="label"
                                                 value={req.label}
-                                                onInput={(e) => {
-                                                    handleRequisiteChange(index, e);
-                                                }}
+                                                onInput={(e) => handleRequisiteChange(index, e)}
                                                 placeholder="Введите название"
                                                 className="form-input1"
                                                 disabled={isLoading}
                                             />
                                         </div>
 
-                                        
                                         <div className="requisites-table-cell">
                                             <AutoResizeTextarea
                                                 name="value"
                                                 value={req.value}
-                                                onChange={(e) => {
-                                                    handleRequisiteChange(index, e);
-                                                }}
+                                                onChange={(e) => handleRequisiteChange(index, e)}
                                                 placeholder="Введите значение"
                                                 className="assets-workplan-textarea" 
                                                 disabled={isLoading}
                                             />
                                         </div>
 
-                                       
                                         <div className="requisites-table-cell action-cell">
                                             {formData.requisites.length > 1 && (
                                                 <button
@@ -391,7 +370,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                             </button>
                         </div>
 
-                       
+                        
                         <div className="assets-form-actions">
                             <button
                                 type="button"
