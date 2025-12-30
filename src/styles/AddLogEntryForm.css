@@ -1,0 +1,176 @@
+/* AddLogEntryForm.css - ОБНОВЛЕНО */
+
+.form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+    z-index: 1000;
+}
+
+.form-modal {
+    background-color: var(--bg-menu-color);
+    border-radius: 8px 0 0 8px;
+    padding: 20px 30px;
+    width: 35%; 
+    max-width: 750px;
+    min-width: 450px;
+    height: 100%;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border--color);
+    flex-shrink: 0;
+}
+
+.form-header h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.close-icon {
+    margin-left: 10px;
+    cursor: pointer;
+    font-size: 20px;
+    color: var(--chips-color);
+    transition: color 0.2s ease;
+}
+
+.close-icon:hover {
+    color: var(--accent-color);
+}
+
+.form-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    padding-bottom: 20px;
+}
+
+/* Новые стили для двух-колоночного макета */
+.form-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    flex-basis: 40%;
+    min-width: 120px;
+    text-align: left;
+    color: var(--chips-color);
+    font-size: 14px;
+    font-weight: 500;
+    padding-right: 10px;
+}
+
+.form-content input:not([type="checkbox"]),
+.form-content textarea,
+.form-content select, 
+.hours-display {
+    flex-basis: 70%;
+    width: 100%; 
+    padding: 10px 12px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    appearance: none;
+}
+
+.form-content input:focus,
+.form-content textarea:focus,
+.form-content select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.form-content input:focus,
+.form-content textarea:focus,
+.form-content select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.form-content input::placeholder,
+.form-content textarea::placeholder {
+    color: var(--chips-color);
+    opacity: 0.7;
+}
+
+.form-content textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.hours-display {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    background-color: #333842;
+}
+
+.form-actions-bottom1 {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid var(--border--color);
+    flex-shrink: 0;
+}
+
+.cancel-button {
+    background: none;
+    border: 1px solid var(--chips-color);
+    cursor: pointer;
+    padding: 10px 20px;
+    color: var(--chips-color);
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.cancel-button:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+    color: var(--text-color);
+}
+
+.save-button {
+    background-color: var(--button-bg);
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.save-button:hover {
+    background-color: var(--accent-color);
+}

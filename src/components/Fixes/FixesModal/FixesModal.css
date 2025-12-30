@@ -1,0 +1,452 @@
+.fixes-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+    z-index: 1000;
+}
+
+.fixes-modal-wrapper {
+    background-color: var(--bg-menu-color);
+    border-radius: 8px 0 0 8px;
+    padding: 20px 0 20px 30px;
+    width: 35%;
+    min-width: 320px;
+    max-width: 750px;
+    height: 100vh;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.fixes-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    margin-right: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-form-color);
+    flex-shrink: 0;
+}
+
+.fixes-modal-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-color);
+}
+
+.fixes-modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fixes-modal-actions .fixes-modal-icon {
+    cursor: pointer;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.fixes-modal-actions .fixes-modal-icon:hover {
+    color: var(--accent-color);
+}
+
+/* Стили для меню удаления с 3 точками */
+.fixes-modal-delete-menu {
+    position: relative;
+}
+
+.fixes-modal-menu-btn {
+    all: unset;
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s;
+    color: #a0a0b0;
+}
+
+.fixes-modal-menu-btn:hover {
+    color: #fff;
+}
+
+.fixes-modal-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--bg-menu-color);
+    border: 1px solid var(--border-form-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+    z-index: 1001;
+    padding: 5px 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.95);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+    overflow: hidden;
+}
+
+.fixes-modal-dropdown-show {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.fixes-modal-dropdown li {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    align-items: center;
+    padding: 10px 15px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    width: 100%;
+    white-space: nowrap;
+    transition: background-color 0.2s ease;
+    list-style: none;
+}
+
+.fixes-modal-dropdown li:hover {
+    background-color: rgba(255, 59, 48, 0.1);
+    color: #ff3b30;
+}
+
+.fixes-modal-form {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 30px;
+    padding-bottom: 20px;
+}
+
+.fixes-modal-form input[type="text"],
+.fixes-modal-form input[type="number"],
+.fixes-modal-form select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.fixes-modal-form-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.fixes-modal-form-label {
+    flex-basis: 35%;
+    min-width: 120px;
+    text-align: left;
+    color: var(--chips-color);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding-right: 15px;
+    padding-top: 10px;
+    box-sizing: border-box;
+}
+
+.fixes-modal-form-input {
+    flex-basis: 65%;
+    width: 100%;
+    padding: 10px 0;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border--color);
+    border-radius: 0;
+    color: var(--text-color);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.fixes-modal-form select.fixes-modal-form-input option {
+    background-color: var(--bg-menu-color);
+    color: var(--text-color);
+}
+
+/* Стили для заблокированных полей */
+.fixes-modal-form-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: var(--chips-color);
+}
+
+/* Стили для textarea */
+.fixes-modal-form-textarea {
+    flex-basis: 65%;
+    width: 100%;
+    min-height: 40px;
+    max-height: none;
+    padding: 10px 0;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border--color);
+    border-radius: 0;
+    color: var(--text-color);
+    font-size: 15px;
+    font-family: inherit;
+    line-height: 1.5;
+    outline: none;
+    box-sizing: border-box;
+    resize: none;
+    overflow-y: hidden;
+    transition: border-bottom-color 0.2s ease;
+}
+
+.fixes-modal-form-textarea::placeholder {
+    color: #999;
+    opacity: 1;
+}
+
+.fixes-modal-form-textarea:focus {
+    border-bottom-color: var(--accent-color);
+}
+
+.fixes-modal-form-textarea:disabled {
+    opacity: 0.7;
+    color: var(--text-color);
+    cursor: not-allowed;
+    background-color: transparent;
+}
+
+.fixes-modal-form-textarea:disabled:focus {
+    border-bottom-color: var(--border--color);
+}
+
+.fixes-modal-form-input::placeholder {
+    color: #999;
+    opacity: 1;
+}
+
+.fixes-modal-form-input:focus {
+    border-bottom-color: var(--accent-color);
+}
+
+.fixes-modal-form-input:disabled:focus {
+    border-bottom-color: var(--border--color);
+}
+
+.fixes-modal-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: auto;
+    margin-right: 15px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-top: 1px solid var(--border-form-color);
+    flex-shrink: 0;
+}
+
+.fixes-modal-cancel-btn {
+    background: none;
+    border: 1px solid rgba(128, 128, 128, 0.5);
+    cursor: pointer;
+    padding: 8px 16px;
+    color: var(--container-text-color);
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    opacity: 0.8;
+}
+
+.fixes-modal-cancel-btn:hover {
+    background-color: #ff4444;
+    color: white;
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.fixes-modal-save-btn {
+    background-color: var(--button-bg);
+    border: none;
+    cursor: pointer;
+    padding: 8px 16px;
+    color: #fff;
+    font-weight: bold;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.fixes-modal-save-btn:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    color: white;
+    background-color: var(--input-border-focus);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fixes-modal-form input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.fixes-modal-form input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+.fixes-modal-form input[type="datetime-local"]:disabled::-webkit-calendar-picker-indicator,
+.fixes-modal-form input[type="date"]:disabled::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Стили для загрузки файлов */
+.fixes-modal-file-upload-container {
+    flex-basis: 65%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fixes-modal-upload-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.fixes-modal-file-input-hidden {
+    display: none;
+}
+
+.fixes-modal-file-upload-btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    align-self: flex-start;
+}
+
+.fixes-modal-file-upload-btn:hover {
+    background-color: var(--container-hover-bg);
+    color: white;
+    border-color: var(--container-hover-bg);
+}
+
+.fixes-modal-file-upload-hint {
+    font-size: 12px;
+    color: var(--chips-color);
+    opacity: 0.7;
+}
+
+.fixes-modal-uploaded-file-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border--color);
+    border-radius: 6px;
+    gap: 10px;
+}
+
+.fixes-modal-file-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+}
+
+.fixes-modal-file-name {
+    font-size: 14px;
+    color: var(--text-color);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fixes-modal-file-size {
+    font-size: 12px;
+    color: var(--chips-color);
+    opacity: 0.8;
+}
+
+.fixes-modal-file-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fixes-modal-file-size-inline {
+    font-size: 13px;
+    color: var(--chips-color);
+    opacity: 0.9;
+    white-space: nowrap;
+}
+
+.fixes-modal-download-file-btn,
+.fixes-modal-remove-file-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background-color: transparent;
+    border: 1px solid var(--border--color);
+    border-radius: 4px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.fixes-modal-download-file-btn:hover {
+    background-color: rgba(52, 199, 89, 0.15);
+    border-color: rgba(52, 199, 89, 0.5);
+    color: #34c759;
+}
+
+.fixes-modal-remove-file-btn:hover {
+    background-color: rgba(255, 59, 48, 0.15);
+    border-color: rgba(255, 59, 48, 0.5);
+    color: #ff3b30;
+}
+
+.fixes-modal-upload-error {
+    padding: 8px 12px;
+    background-color: rgba(255, 59, 48, 0.1);
+    border: 1px solid rgba(255, 59, 48, 0.3);
+    border-radius: 6px;
+    color: #ff6b6b;
+    font-size: 13px;
+    font-weight: 500;
+}
