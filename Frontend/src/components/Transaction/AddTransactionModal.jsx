@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { createTransaction } from '../../api/transactions';
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
-
 
 const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialData = {}, orders = [], counterparties = [] }) => {
 
@@ -21,9 +20,16 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
+    const defaultCategory = useMemo(() => {
+        if (financeFields?.articles && financeFields.articles.length > 0) {
+            return financeFields.articles[0].articleValue;
+        }
+        return "";
+    }, [financeFields]);
+
     const initialFormData = useMemo(() => ({
         date: getCurrentDateTime(),
-        category: financeFields?.articles?.[0]?.articleValue || "",
+        category: defaultCategory,
         subcategory: "",
         description: "",
         account: "",
@@ -47,13 +53,16 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         sendLion: false,
         id: generateId("TRX_"),
         ...initialData,
-    }), [financeFields]);
+    }), [defaultCategory, initialData]);
 
 
-    const [formData, setFormData] = useState({
-        ...initialFormData,
-        ...initialData
-    });
+    const [formData, setFormData] = useState(initialFormData);
+
+    useEffect(() => {
+        if (!formData.category && defaultCategory) {
+            setFormData(prev => ({ ...prev, category: defaultCategory }));
+        }
+    }, [defaultCategory]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [currentRates, setCurrentRates] = useState(null);
@@ -96,8 +105,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         }
     }, []);
 
-
-
     const convertCurrency = (amount, fromCurrency, toCurrency) => {
         if (!currentRates || !amount || isNaN(amount) || amount === 0) {
             return "";
@@ -112,7 +119,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
             rate = 1 / currentRates[reverseRateKey];
         }
         if (rate === undefined) {
-            console.warn(`Курс для ${fromCurrency} -> ${toCurrency} не найден.`);
             return "";
         }
         return (amount * rate).toFixed(2);
@@ -164,6 +170,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                     accountCurrency: "",
                     amount: "",
                     commission: "",
+                    operation: "Зачисление",
                 }]);
             } else {
                 setShowDestinationAccountsBlock(false);
@@ -274,12 +281,9 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        console.log("НАЧАТА ОТПРАВКА (handleSubmit)");
         setIsLoading(true);
 
         let newTransactions = [];
-        
         
         const orderIdStr = formData.orderId ? String(formData.orderId) : null;
         const orderNumberStr = formData.orderNumber ? String(formData.orderNumber) : null;
@@ -292,7 +296,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
             const destinationAccountNames = destinationAccounts.map(acc => assets.find(a => a.id === acc.account)?.accountName).filter(Boolean).join(', ');
             
             const sourceTransaction = {
-                id: generateId("TRX_"),
                 date: formData.date.replace("T", " "),
                 category: formData.category,
                 subcategory: formData.subcategory || "",
@@ -321,7 +324,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
             
             destinationAccounts.forEach(destAcc => {
                 const destinationTransaction = {
-                    id: generateId("TRX_"),
                     date: formData.date.replace("T", " "),
                     category: formData.category,
                     subcategory: formData.subcategory || "",
@@ -349,7 +351,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
             });
         } else {
             const newTransactionBase = {
-                id: formData.id,
                 date: formData.date.replace("T", " "),
                 category: formData.category,
                 subcategory: formData.subcategory || "",
@@ -377,17 +378,13 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 sentToCounterparty: formData.sentToCounterparty,
                 sendLion: formData.sendLion,
             };
-
-            console.log("ОБЪЕКТ ДЛЯ ОТПРАВКИ:", newTransactionBase);
             newTransactions.push(newTransactionBase);
         }
         
         try {
             const createdTransactions = [];
             for (const trx of newTransactions) {
-                console.log("Отправка в API createTransaction:", trx);
                 const created = await createTransaction(trx);
-                console.log("Ответ от API:", created);
                 createdTransactions.push(created);
             }
             onAdd(createdTransactions);
@@ -423,14 +420,14 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 <div className="add-transaction-header">
                     <h2>Добавить транзакцию</h2>
                     <div className="add-transaction-actions">
-                        <span className="icon" onClick={handleOverlayClose}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" color="white" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+                        <span className="icon" onClick={handleOverlayClose}>
+                            <X size={24} color="white" />
+                        </span>
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
-                    
-                    {/* ... (все поля до <select> заказа) ... */}
-
+                    {/* ... (Форма осталась прежней, логика внутри исправлена в handleSubmit) ... */}
                     <div className="form-row">
                          <label htmlFor="date" className="form-label">
                              Дата и время
@@ -446,7 +443,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                          />
                     </div>
 
-                    
                     <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
                         <select
@@ -458,16 +454,14 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             className="form-input1"
                         >
                             <option value="" disabled>Выберите статью</option>
-                            
                             {financeFields?.articles
-                                .filter(article => article.articleValue && article.articleValue.trim() !== "")
+                                ?.filter(article => article.articleValue && article.articleValue.trim() !== "")
                                 .map((article) => (
                                     <option key={article.id} value={article.articleValue}>
                                         {article.articleValue}
                                     </option>
                                 ))
                             }
-
                             {!financeFields?.articles?.some(a => a.articleValue === "Смена счета") && (
                                 <option value="Смена счета">Смена счета</option>
                             )}
@@ -497,7 +491,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                         </div>
                     )}
 
-                    
                     <div className="form-row">
                         <label htmlFor="description" className="form-label">
                             Описание
@@ -512,7 +505,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             className="form-input1"
                         />
                     </div>
-                    
                     
                     <div className="form-row">
                         <label htmlFor="account" className="form-label">
@@ -564,7 +556,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             step="0.01"
                         />
                     </div>
-                    
 
                     <div className="form-row">
                         <label htmlFor="commission" className="form-label">Комиссия</label>
@@ -607,26 +598,26 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             <div className="duplicated-account-block" key={destAcc.id}>
                                 <div className="form-row flex-row">
                                     <label htmlFor={`dest-account-${destAcc?.id}`} className="form-label">
-                                        {index === destinationAccounts.length - 1 ? 'Счет зачисления' : 'Счет'}
-                                        {destAcc?.id && destAcc.accountCurrency ? ` (${destAcc.accountCurrency})` : ''}
+                                            {index === destinationAccounts.length - 1 ? 'Счет зачисления' : 'Счет'}
+                                            {destAcc?.id && destAcc.accountCurrency ? ` (${destAcc.accountCurrency})` : ''}
                                     </label>
                                     <div className="input-with-actions">
-                                        <select
-                                            id={`dest-account-${destAcc.id}`}
-                                            name="account"
-                                            value={destAcc.account}
-                                            onChange={(e) => handleDestinationAccountChange(e, destAcc.id)}
-                                            required
-                                            className="form-input1"
-                                        >
-                                            <option value="">Выберите счет</option>
-                                            {assets?.map((acc) => (
-                                                <option key={`dest-acc-${destAcc.id}-${acc.id}`} value={acc.id}>{acc.accountName}</option>
-                                            ))}
-                                        </select>
+                                            <select
+                                                id={`dest-account-${destAcc.id}`}
+                                                name="account"
+                                                value={destAcc.account}
+                                                onChange={(e) => handleDestinationAccountChange(e, destAcc.id)}
+                                                required
+                                                className="form-input1"
+                                            >
+                                                <option value="">Выберите счет</option>
+                                                {assets?.map((acc) => (
+                                                    <option key={`dest-acc-${destAcc.id}-${acc.id}`} value={acc.id}>{acc.accountName}</option>
+                                                ))}
+                                            </select>
                                     </div>
                                 </div>
-
+                                {/* ... остальные поля смены счета ... */}
                                 <div className="form-row">
                                     <label htmlFor={`dest-operation-${destAcc.id}`} className="form-label">Операция</label>
                                     <select
@@ -640,7 +631,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                         <option value="Списание">Списание</option>
                                     </select>
                                 </div>
-
                                 <div className="form-row">
                                     <label htmlFor={`dest-amount-${destAcc.id}`} className="form-label">Сумма</label>
                                     <input
@@ -688,8 +678,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                             onClick={() => removeDestinationAccount(destAcc.id)}
                                             className="transaction-action-button remove-button"
                                         >
-                                            
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                            <X size={24} />
                                             <span>Удалить</span>
                                         </button>
                                     )}
@@ -746,7 +735,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                         >
                             <option value="">Выберите номер заказа</option>
                             {orders.map(order => (
-                                
                                 <option key={order.id} value={order.id}>
                                     {order.id}
                                 </option>

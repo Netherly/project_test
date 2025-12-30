@@ -8,7 +8,10 @@ import "../../styles/ExecutorsPage.css";
 import * as executorService from './executorService.jsx';
 import FormattedDate from "../FormattedDate.jsx";
 
+// ИМПОРТ API ДЛЯ ПОЛЕЙ
+import { fetchFields, withDefaults } from '../../api/fields'; 
 
+// ... (функции getOrders, getJournalEntries и т.д. пока оставляем как есть, если нет API для заказов) ...
 const getOrders = () => {
     try {
         const savedOrders = localStorage.getItem('ordersData');
@@ -19,7 +22,6 @@ const getOrders = () => {
     }
 };
 
-
 const getJournalEntries = () => {
     try {
         const savedEntries = localStorage.getItem('journalEntries');
@@ -29,6 +31,7 @@ const getJournalEntries = () => {
         return [];
     }
 };
+
 const getTransactions = () => {
     try {
         const saved = localStorage.getItem('transactionsData');
@@ -49,7 +52,6 @@ const getAssets = () => {
     }
 };
 
-
 const parseHoursToSeconds = (timeStr) => {
     if (typeof timeStr !== 'string' || !timeStr) return 0;
     const parts = timeStr.split(':').map(Number);
@@ -58,7 +60,6 @@ const parseHoursToSeconds = (timeStr) => {
     const seconds = parts[2] || 0;
     return hours * 3600 + minutes * 60 + seconds;
 };
-
 
 const formatSecondsToHours = (totalSeconds) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -85,12 +86,14 @@ const ExecutorsPage = () => {
     const [orders, setOrders] = useState([]);
     const [journalEntries, setJournalEntries] = useState([]);
     const [viewMode, setViewMode] = useState('card');
+    
+    // Стейт для полей
     const [fields, setFields] = useState({ currency: [], role: [] });
+    
     const [transactions, setTransactions] = useState([]);
     const [assets, setAssets] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [isOrderModalOpen, setOrderModalOpen] = useState(false);
-
 
     const handleOpenOrderModal = (orderId) => {
         const fullOrder = orders.find(o => String(o.id) === String(orderId));
@@ -107,47 +110,70 @@ const ExecutorsPage = () => {
         setSelectedOrder(null);
     };
 
+    // --- ИСПРАВЛЕННЫЙ EFFECT: ЗАГРУЗКА ПОЛЕЙ ЧЕРЕЗ API ---
     useEffect(() => {
+        // 1. Загружаем локальные данные (Заказы, журнал и т.д.)
         setOrders(getOrders());
         setJournalEntries(getJournalEntries());
         setTransactions(getTransactions());
         setAssets(getAssets());
+        
         const employeesFromStorage = JSON.parse(localStorage.getItem('employees')) || [];
         setActiveEmployees(employeesFromStorage.filter(emp => emp.status === 'active'));
-        const savedFields = localStorage.getItem('fieldsData');
-        if (savedFields) {
+
+        // 2. Загружаем поля (Валюту и Роли) с сервера
+        const loadFields = async () => {
             try {
-                const parsedFields = JSON.parse(savedFields);
-                if (parsedFields.executorFields) {
-                    setFields(parsedFields.executorFields);
+                // Запрос к API
+                const rawFields = await fetchFields();
+                // Нормализация (добавление дефолтных значений, если пусто)
+                const allFields = withDefaults(rawFields);
+
+                // Обновляем стейт, выбирая нужные секции
+                setFields({
+                    // Валюта находится в generalFields
+                    currency: allFields.generalFields?.currency || [],
+                    // Роли находятся в executorFields
+                    role: allFields.executorFields?.role || []
+                });
+
+            } catch (err) {
+                console.error("Failed to load fields from API", err);
+                
+                // Fallback: Если API упал, пробуем достать старые данные из localStorage (на всякий случай)
+                const savedFields = localStorage.getItem('fieldsData');
+                if (savedFields) {
+                    try {
+                        const parsed = JSON.parse(savedFields);
+                        setFields({
+                            currency: parsed.generalFields?.currency || [],
+                            role: parsed.executorFields?.role || []
+                        });
+                    } catch (e) { console.error(e); }
                 }
-            } catch (e) {
-                console.error("Ошибка парсинга полей из localStorage:", e);
             }
-        }
+        };
+
+        loadFields();
     }, []);
+    // -----------------------------------------------------
 
     const closeModal = () => setModalExecutor(null); 
 
-    
     const generateId = () => 'perf_' + Date.now() + Math.random().toString(36).substring(2, 9);
-    
     
     const handleSaveExecutor = (executorData) => {
         const isNew = !executorData.id;
         
         const updatedOrders = orders.map(order => {
-            
             if (String(order.id) === String(executorData.orderNumber)) {
                 let updatedPerformers;
                 if (isNew) {
-                    
                     const newExecutor = {
                         ...executorData,
                         id: generateId(),
                         orderStatus: "В работе",
                         orderStatusEmoji: "⏳",
-                        
                         orderDate: formatDate(executorData.dateForPerformer || new Date()),
                     };
                     updatedPerformers = [...(order.performers || []), newExecutor];
@@ -166,12 +192,9 @@ const ExecutorsPage = () => {
         closeModal();
     };
     
-    
     const handleDeleteExecutor = (executorToDelete) => {
         const updatedOrders = orders.map(order => {
-           
             if (String(order.id) === String(executorToDelete.orderNumber)) {
-
                 const updatedPerformers = (order.performers || []).filter(
                     p => String(p.id) !== String(executorToDelete.id)
                 );
@@ -184,16 +207,12 @@ const ExecutorsPage = () => {
         localStorage.setItem('ordersData', JSON.stringify(updatedOrders));
         closeModal();
     };
-    
 
     const enrichedExecutors = useMemo(() => {
-
         const allPerformers = orders.flatMap(order =>
-
             (order.performers && Array.isArray(order.performers))
                 ? order.performers.map(performer => ({
                     ...performer,
-
                     orderId: order.id,
                     orderNumber: order.id,
                     orderName: order.name || 'Название заказа отсутствует',
@@ -202,7 +221,6 @@ const ExecutorsPage = () => {
                 }))
                 : []
         );
-
 
         return allPerformers.map(performer => {
             const relevantEntries = journalEntries.filter(
@@ -248,7 +266,7 @@ const ExecutorsPage = () => {
                     <header className="executors-header-container">
                         <h1 className="executors-title">
                             <PageHeaderIcon pageName={'Исполнители'}/>Исполнители
-                            </h1>
+                        </h1>
                          <div className="view-mode-buttons">
                              <button
                                  className={`view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
@@ -266,7 +284,7 @@ const ExecutorsPage = () => {
                              </button>
                          </div>
                         <div className="add-executor-wrapper">
-                            <button className="add-executor-button" onClick={() => setModalExecutor({})}> {/* ИЗМЕНЕНО */}
+                            <button className="add-executor-button" onClick={() => setModalExecutor({})}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus">
                                     <path d="M5 12h14" /><path d="M12 5v14" />
                                 </svg>
@@ -301,7 +319,7 @@ const ExecutorsPage = () => {
                                     <tbody>
                                         <tr className="table-spacer-row"><td colSpan={16}></td></tr>
                                         {enrichedExecutors.map((executor) => (
-                                            <tr key={executor.id} className="executor-row" onClick={() => setModalExecutor(executor)}> {/* ИЗМЕНЕНО */}
+                                            <tr key={executor.id} className="executor-row" onClick={() => setModalExecutor(executor)}>
                                                 <td>{executor.orderNumber}</td>
                                                 <td><span title={executor.orderStatus}>{executor.orderStatusEmoji}</span></td>
                                                 <td>{formatDate(executor.orderDate)}</td>

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { FieldsAPI, withDefaults } from '../api/fields.js';
+import { fetchFields, withDefaults } from '../api/fields.js';
 import { sampleClients } from '../data/sampleClients';
 
 const TransactionsContext = createContext();
@@ -12,7 +12,6 @@ export const TransactionsProvider = ({ children }) => {
     
     const defaultTransactions = [];
 
-    
     const [transactions, setTransactions] = useState(() => {
         const saved = localStorage.getItem("transactionsData");
         if (saved) {
@@ -28,7 +27,6 @@ export const TransactionsProvider = ({ children }) => {
 
     const [assets, setAssets] = useState([]);
     
-    
     const [financeFields, setFinanceFields] = useState({ articles: [], subarticles: [], subcategory: [] });
     
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -42,11 +40,9 @@ export const TransactionsProvider = ({ children }) => {
     useEffect(() => {
         let mounted = true;
 
-        
         const savedAssets = localStorage.getItem('assetsData');
         if (savedAssets) setAssets(JSON.parse(savedAssets));
 
-        
         const savedOrders = localStorage.getItem('ordersData');
         if (savedOrders) {
             try {
@@ -56,7 +52,6 @@ export const TransactionsProvider = ({ children }) => {
             }
         }
 
-        
         const loadCounterparties = () => {
             const savedEmployees = localStorage.getItem('employees');
             const employees = savedEmployees ? JSON.parse(savedEmployees) : [];
@@ -82,12 +77,15 @@ export const TransactionsProvider = ({ children }) => {
         };
         loadCounterparties();
 
-        
+        // ИЗМЕНЕНИЕ: Загрузка через новый API
         const fetchFinanceFields = async () => {
             try {
-                const data = await FieldsAPI.getFinance(); 
-                
-                
+                // 1. Загружаем всё
+                const rawData = await fetchFields();
+                // 2. Нормализуем
+                const allFields = withDefaults(rawData);
+                // 3. Берем только финансы
+                const data = allFields.financeFields;
                 
                 if (mounted) {
                     setFinanceFields(data || { articles: [], subarticles: [], subcategory: [] });
@@ -104,8 +102,6 @@ export const TransactionsProvider = ({ children }) => {
         };
     }, []); 
 
-    
-    
     
     useEffect(() => {
         localStorage.setItem("transactionsData", JSON.stringify(transactions));

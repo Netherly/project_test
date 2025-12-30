@@ -2,8 +2,14 @@
 import { httpGet, httpPost, httpPut, httpDelete } from './http';
 
 const unwrap = (resp) => {
-  if (resp.ok) return resp.data;
-  throw new Error(resp.error || 'API error');
+  // Если сервер вернул объект с полем error — выкидываем ошибку
+  if (resp.error) throw new Error(resp.error);
+  
+  // Если есть обертка { ok: true, data: ... } — разворачиваем
+  if (resp.ok && resp.data) return resp.data;
+
+  // Во всех остальных случаях считаем, что resp — это и есть наши данные
+  return resp;
 };
 
 const qs = (obj = {}) => {

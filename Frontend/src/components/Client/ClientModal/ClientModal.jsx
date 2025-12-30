@@ -32,7 +32,7 @@ export default function ClientModal({
   onDuplicate  = () => {}
 }) {
   const safeClient = client ?? {};
-  const isNew = !safeClient.id;    // новый клиент, ещё не сохранён
+  const isNew = !safeClient.id;
 
   const [activeTab,   setActiveTab]   = useState(isNew ? 'info' : 'summary');
   const [showCompany, setShowCompany] = useState(false);
@@ -40,7 +40,9 @@ export default function ClientModal({
   const [closing,     setClosing]     = useState(false);
   const [formErrors,  setFormErrors]  = useState(null);
 
-  // пример логов
+  // ID для связки формы и кнопки
+  const formId = "client-main-form"; 
+
   const sampleLogs = [
     { timestamp: '2023-03-07T12:36', author: 'Менеджеры', message: 'Отримувач: …' },
     { timestamp: '2023-03-07T12:38', author: 'Менеджеры', message: 'ДУБЛЬ!!!!!!!!!!!' },
@@ -88,10 +90,13 @@ export default function ClientModal({
 
   /* ---------- Сохранение / валидация ---------- */
   const submitHandler = data => {
+    console.log("Submit triggered with data:", data); // ДЕБАГ
     onSave(data);
     closeHandler();
   };
+  
   const onInvalid = err => {
+    console.log("Validation Errors:", err); // ДЕБАГ: Если кнопка нажалась, но есть ошибки
     const grouped = groupErrors(err);
     setFormErrors(grouped);
     const firstTab = ['info','contacts','finances','accesses'].find(t => grouped[t]);
@@ -130,7 +135,9 @@ export default function ClientModal({
             isNew={isNew}
           />
           <FormProvider {...methods}>
+            {/* ВАЖНО: Добавлен id={formId} */}
             <form
+              id={formId} 
               className="client-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
@@ -140,10 +147,12 @@ export default function ClientModal({
               {activeTab === 'accesses' && <AccessesTab />}
             </form>
           </FormProvider>
+          
           <div className="form-actions-bottom">
-                <button className="cancel-order-btn" type="button" onClick={()=>reset()} disabled={!isDirty}>Отменить</button>
-                <button className="save-order-btn" type="submit">Сохранить</button>
-              </div>
+            <button className="cancel-order-btn" type="button" onClick={()=>reset()} disabled={!isDirty}>Отменить</button>
+            {/* ВАЖНО: Добавлен form={formId} */}
+            <button className="save-order-btn" type="submit" form={formId}>Сохранить</button>
+          </div>
         </div>
 
         {/* ─── центр – чат ─── */}

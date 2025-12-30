@@ -5,10 +5,8 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ViewEditTransactionModal from "./ViewEditTransactionModal";
 import "../../styles/TransactionsPage.css";
 import { useTransactions } from "../../context/TransactionsContext";
-// import FormattedDate from "../FormattedDate.jsx"; // Этот импорт не используется
 
 const TransactionsPage = () => {
-    
     
     const {
         transactions,
@@ -28,7 +26,6 @@ const TransactionsPage = () => {
         orders, 
         counterparties,
     } = useTransactions();
-    
     
     const formatNumberWithSpaces = (num) => {
         if (num === null || num === undefined || isNaN(Number(num))) {
@@ -69,14 +66,12 @@ const TransactionsPage = () => {
 
         const sortedTransactions = [...transactions];
 
-        
         sortedTransactions.sort((a, b) => {
             const dateA = new Date(a.date);
             const dateB = new Date(b.date);
             if (dateB - dateA !== 0) {
                 return dateB - dateA; 
             }
-            
             
             if (a.operation === 'Зачисление' && b.operation !== 'Зачисление') {
                 return -1; 
@@ -88,10 +83,15 @@ const TransactionsPage = () => {
         });
 
         return sortedTransactions.map(transaction => {
-            const account = transaction.account;
+            // --- ИСПРАВЛЕНИЕ 1: Получаем имя счета корректно, даже если это объект ---
+            const accountRaw = transaction.account;
+            // Если account это объект — берем accountName, иначе (если старая запись) — саму строку
+            const accountName = accountRaw?.accountName || accountRaw; 
+            
             const amount = Number(transaction.amount) || 0;
 
-            const balanceAfter = runningBalances.get(account) ?? 0;
+            // Используем имя счета для поиска баланса
+            const balanceAfter = runningBalances.get(accountName) ?? 0;
 
             let balanceBefore;
             if (transaction.operation === 'Зачисление') {
@@ -100,7 +100,8 @@ const TransactionsPage = () => {
                 balanceBefore = balanceAfter + amount;
             }
             
-            runningBalances.set(account, balanceBefore);
+            // Обновляем текущий баланс для следующей итерации (идем от новых к старым)
+            runningBalances.set(accountName, balanceBefore);
 
             return {
                 ...transaction,
@@ -123,10 +124,9 @@ const TransactionsPage = () => {
                     <div className="add-transaction-wrapper">
                         <button
                             className="add-transaction-button"
-                            // === ШАГ 3: ИСПОЛЬЗУЕМ ОБРАБОТЧИК ИЗ КОНТЕКСТА ===
                             onClick={openAddTransactionModal} 
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
                         </button>
                     </div>
                 </header>
@@ -164,7 +164,8 @@ const TransactionsPage = () => {
                                 <td>
                                     <div className="transaction-account-info">
                                         <span className="transaction-account-main-name">
-                                            {transaction.account}
+                                            {/* --- ИСПРАВЛЕНИЕ 2: Корректный вывод имени счета --- */}
+                                            {transaction.account?.accountName || transaction.account}
                                         </span>
                                     </div>
                                 </td>
@@ -209,7 +210,7 @@ const TransactionsPage = () => {
                 </div>
             </div>
 
-           
+            
             {isAddModalOpen && (
                 <AddTransactionModal
                     onAdd={addTransaction}
