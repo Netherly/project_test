@@ -7,6 +7,7 @@ function HomePage() {
         <Sidebar />
         <h1>Добро пожаловать в CRM</h1>
         <WelcomeMessage />
+        
       </div>
     );
   }
