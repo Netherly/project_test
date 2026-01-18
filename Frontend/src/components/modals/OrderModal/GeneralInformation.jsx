@@ -10,18 +10,18 @@ const GeneralInformation = ({ control, orderFields }) => {
         { value: "3", label: "Жопа уже подгорает" },
         { value: "4", label: "ЛИБО СДАЛ ЛИБО ШТРАФ" },
     ];
-    const statusOptions = [
-        { value: "1", label: "Обсуждение" },
-        { value: "2", label: "Составление ТЗ" },
-        { value: "3", label: "Разработка" },
-        { value: "4", label: "Завершен" },
-    ];
-    const closeReasonOptions = [
-        { value: "1", label: "Завершен" },
-        { value: "2", label: "Кинули" },
-        { value: "3", label: "Заказчик умер" },
-        { value: "4", label: "Закончились деньги" },
-    ];
+    const statusOptions = (orderFields?.statuses || [])
+        .map((opt) => ({
+            value: opt?.value ?? opt?.name ?? "",
+            label: opt?.value ?? opt?.name ?? "",
+        }))
+        .filter((opt) => opt.value);
+    const closeReasonOptions = (orderFields?.closeReasons || [])
+        .map((opt) => ({
+            value: opt?.value ?? opt?.name ?? "",
+            label: opt?.value ?? opt?.name ?? "",
+        }))
+        .filter((opt) => opt.value);
 
     
     const selectedInterval = useWatch({
@@ -34,9 +34,14 @@ const GeneralInformation = ({ control, orderFields }) => {
         if (!selectedInterval || !orderFields?.categories) {
             return [];
         }
-        return orderFields.categories.filter(
-            (category) => category.categoryInterval === selectedInterval
-        );
+        return orderFields.categories.filter((category) => {
+            const intervalValue =
+                category?.categoryInterval ??
+                category?.intervalValue ??
+                category?.interval ??
+                "";
+            return intervalValue === selectedInterval;
+        });
     }, [selectedInterval, orderFields]);
 
 
@@ -116,11 +121,15 @@ const GeneralInformation = ({ control, orderFields }) => {
                     render={({ field }) => (
                         <select className='custom-content-input' {...field}>
                             <option value="">Выбрать интервал</option>
-                            {orderFields?.intervals?.map((interval, index) => (
-                                <option key={index} value={interval.intervalValue}>
-                                    {interval.intervalValue}
-                                </option>
-                            ))}
+                            {orderFields?.intervals?.map((interval, index) => {
+                                const value = interval?.intervalValue ?? interval?.value ?? "";
+                                if (!value) return null;
+                                return (
+                                    <option key={index} value={value}>
+                                        {value}
+                                    </option>
+                                );
+                            })}
                         </select>
                     )}
                 />
@@ -145,8 +154,8 @@ const GeneralInformation = ({ control, orderFields }) => {
                                     : "Выберите тип заказа"}
                             </option>
                             {availableOrderTypes.map((type, index) => (
-                                <option key={index} value={type.categoryValue}>
-                                    {type.categoryValue}
+                                <option key={index} value={type.categoryValue ?? type.value ?? ""}>
+                                    {type.categoryValue ?? type.value ?? ""}
                                 </option>
                             ))}
                         </select>

@@ -1,47 +1,58 @@
-import React, { useRef, useLayoutEffect } from 'react';
-import './AutoResizeTextarea.css'; 
+// src/components/modals/OrderModal/AutoResizeTextarea.jsx
+import React, { useEffect, useRef } from "react";
 
-const AutoResizeTextarea = React.forwardRef(({ 
-  value, 
-  onChange, 
-  className = '', 
-  placeholder = '', 
-  ...props 
-}, ref) => {
-  
-  const innerRef = useRef(null);
+/**
+ * Авто-ресайз textarea под контент.
+ * - Поддерживает forwardRef (и function ref, и object ref)
+ * - Корректно работает при внешнем изменении value
+ * - Не требует отдельного CSS, но className/стили можно передать
+ */
+const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
+  { value, onChange, onInput, className = "", style, rows = 1, ...rest },
+  ref
+) {
+  const localRef = useRef(null);
 
-
-  const adjustHeight = () => {
-    const textarea = innerRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    }
+  const setRefs = (node) => {
+    localRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
   };
 
+  const resize = (node) => {
+    if (!node) return;
+    node.style.height = "auto";
+    node.style.height = `${node.scrollHeight}px`;
+  };
 
-  useLayoutEffect(() => {
-    adjustHeight();
+  useEffect(() => {
+    resize(localRef.current);
   }, [value]);
+
+  const handleChange = (event) => {
+    // сначала даём родителю обновить value (если он контролирует)
+    onChange?.(event);
+    // если кто-то использует onInput отдельно — поддержим
+    if (onInput && onInput !== onChange) onInput(event);
+    // и ресайз под текущий DOM
+    resize(event.target);
+  };
+
+  const handleInput = (event) => {
+    onInput?.(event);
+    resize(event.target);
+  };
 
   return (
     <textarea
-      {...props}
-      ref={(node) => {
-        innerRef.current = node;
-        if (typeof ref === 'function') ref(node);
-        else if (ref) ref.current = node;
-      }}
-      className={`auto-resize-textarea ${className}`}
-      value={value || ''}
-      placeholder={placeholder}
-      rows={1} 
-      onChange={(e) => {
-        adjustHeight();
-        onChange(e);
-      }}
-      onInput={(e) => adjustHeight()} 
+      {...rest}
+      ref={setRefs}
+      value={value ?? ""}
+      rows={rows}
+      className={className}
+      style={style}
+      onChange={handleChange}
+      onInput={handleInput}
     />
   );
 });

@@ -1,24 +1,32 @@
 // src/pages/ClientsPage.jsx
-import React, {
-  useState,
-  useMemo,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
 import "../styles/ClientsPage.css";
-import { sampleClients } from "../data/sampleClients";
-import { fetchClients, saveClient as saveClientApi } from "../api/clients";
+
+import { fetchClients, saveClient as saveClientApi, deleteClient as deleteClientApi } from "../api/clients";
+import { fetchFields } from "../api/fields";
+import { fetchEmployees } from "../api/employees";
+import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 
 const statusToEmojiMap = {
-  "Лид": "🎯", "Изучаем ТЗ": "📄", "Обсуждаем с клиентом": "💬",
-  "Клиент думает": "🤔", "Ожидаем предоплату": "💳", "Взяли в работу": "🚀",
-  "Ведется разработка": "💻", "На уточнении у клиента": "📝", "Тестируем": "🧪",
-  "Тестирует клиент": "👀", "На доработке": "🔧", "Ожидаем оплату": "💸",
-  "Успешно завершен": "🏆", "Закрыт": "🏁", "Неудачно завершён": "❌", "Удаленные": "🗑️"
+  "Лид": "🎯",
+  "Изучаем ТЗ": "📄",
+  "Обсуждаем с клиентом": "💬",
+  "Клиент думает": "🤔",
+  "Ожидаем предоплату": "💳",
+  "Взяли в работу": "🚀",
+  "Ведется разработка": "💻",
+  "На уточнении у клиента": "📝",
+  "Тестируем": "🧪",
+  "Тестирует клиент": "👀",
+  "На доработке": "🔧",
+  "Ожидаем оплату": "💸",
+  "Успешно завершен": "🏆",
+  "Закрыт": "🏁",
+  "Неудачно завершён": "❌",
+  "Удаленные": "🗑️",
 };
 
 const STORAGE_KEY = "clientsTableWidths";
@@ -31,18 +39,18 @@ function TagsCell({ tags = [] }) {
   const rest = tags.length - visible.length;
 
   return (
-    <div className="tags-cell" title={tags.map((t) => t.name).join(", ")}>
+    <div className="tags-cell" title={tags.map((t) => t?.name ?? t).join(", ")}>
       {visible.map((t) => (
         <span
-          key={`${t.name}-${t.color || "nc"}`}
+          key={`${t?.name ?? t}-${t?.color || "nc"}`}
           className="tag-chip"
           style={{
-            background: t.color || "var(--chips-bg)",
-            color: t.textColor || "var(--chips-text)",
+            background: t?.color || "var(--chips-bg)",
+            color: t?.textColor || "var(--chips-text)",
           }}
-          title={t.name}
+          title={t?.name ?? String(t)}
         >
-          {t.name}
+          {t?.name ?? String(t)}
         </span>
       ))}
       {rest > 0 && <span className="more-chip">+{rest}</span>}
@@ -60,28 +68,26 @@ const STATUS_MAP = {
 };
 
 function StatusPill({ value }) {
-  // Если статус вдруг пришел объектом - вытаскиваем имя
-  const safeValue = (typeof value === 'object' && value !== null) ? value.name : value;
-
+  const safeValue = typeof value === "object" && value !== null ? value.name : value;
   if (!safeValue) return <span className="ellipsis">—</span>;
+
   const key = String(safeValue).toLowerCase();
   const m = STATUS_MAP[key] || { text: safeValue, cls: "status--neutral" };
+
   return (
-    <span className={`status-pill ${m.cls}`} title={safeValue}>
+    <span className={`status-pill ${m.cls}`} title={String(safeValue)}>
       {m.text}
     </span>
   );
 }
 
-// !!! ИСПРАВЛЕНИЕ 1: Умный Ellipsis !!!
-// Теперь он понимает объекты и достает из них поле name
+// Умный Ellipsis: понимает строки/объекты/массивы
 const Ellipsis = ({ value }) => {
   let text;
-  
+
   if (Array.isArray(value)) {
-    text = value.map((t) => t.name).join(", ");
-  } else if (value && typeof value === 'object') {
-    // Если это объект (страна, валюта), берем name
+    text = value.map((t) => (t && typeof t === "object" ? t.name ?? JSON.stringify(t) : String(t))).join(", ");
+  } else if (value && typeof value === "object") {
     text = value.name || JSON.stringify(value);
   } else {
     text = String(value ?? "—");
@@ -94,10 +100,24 @@ const Ellipsis = ({ value }) => {
   );
 };
 
+const normalizeStr = (value) => String(value ?? "").trim();
+const uniqueList = (arr) => Array.from(new Set(arr));
+
+const extractValues = (items, { preferCode = false } = {}) => {
+  const list = Array.isArray(items) ? items : [];
+  const values = list
+    .map((item) => {
+      if (typeof item === "string") return normalizeStr(item);
+      if (!item || typeof item !== "object") return "";
+      if (preferCode) return normalizeStr(item.code ?? item.value ?? item.name);
+      return normalizeStr(item.name ?? item.value ?? item.code);
+    })
+    .filter(Boolean);
+
+  return uniqueList(values);
+};
+
 export default function ClientsPage({
-  clients = sampleClients,
-  onSaveClient, 
-  onAddCompany = () => {},
   companies = [],
   employees = [],
   referrers = [],
@@ -108,7 +128,7 @@ export default function ClientsPage({
   const [search, setSearch] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [tagFilter, setTagFilter] = useState([]); 
+  const [tagFilter, setTagFilter] = useState([]);
   const [sourceFilter, setSourceFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -116,18 +136,133 @@ export default function ClientsPage({
   /* === загрузка данных === */
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState([]);
+  const [error, setError] = useState("");
+  const [countriesList, setCountriesList] = useState(countries);
+  const [currenciesList, setCurrenciesList] = useState(currencies);
+  const [companiesList, setCompaniesList] = useState(companies);
+  const [employeesList, setEmployeesList] = useState(employees);
+
+  const referrerOptions = useMemo(() => {
+    const items = [];
+    const seen = new Set();
+
+    const addItem = (id, name, label) => {
+      if (!id || !name) return;
+      const key = String(id);
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push({ id: key, name, label });
+    };
+
+    employeesList.forEach((e) => {
+      const name = e?.full_name || e?.fullName || "";
+      addItem(e?.id, name, name ? `${name} (сотрудник)` : "");
+    });
+
+    list.forEach((c) => {
+      const name = c?.name || c?.full_name || "";
+      addItem(c?.id, name, name ? `${name} (клиент)` : "");
+    });
+
+    if (!items.length && referrers.length) {
+      referrers.forEach((r) => addItem(r?.id, r?.name, r?.name));
+    }
+
+    return items.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  }, [employeesList, list, referrers]);
+
+  const referrerById = useMemo(
+    () => new Map(referrerOptions.map((r) => [String(r.id), r.name])),
+    [referrerOptions]
+  );
+
+  const withReferrerNames = (client) => {
+    if (!client || !referrerById.size) return client;
+    const refId = client.referrer_id != null ? String(client.referrer_id) : "";
+    const refFirstId = client.referrer_first_id != null ? String(client.referrer_first_id) : "";
+    return {
+      ...client,
+      referrer_name: client.referrer_name || referrerById.get(refId) || "",
+      referrer_first_name: client.referrer_first_name || referrerById.get(refFirstId) || "",
+    };
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchFields();
+        if (!mounted) return;
+        const nextCountries = extractValues(data?.clientFields?.country);
+        const nextCurrencies = extractValues(
+          data?.generalFields?.currency ?? data?.clientFields?.currency,
+          { preferCode: true }
+        );
+        if (nextCountries.length) setCountriesList(nextCountries);
+        if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
+      } catch (e) {
+        console.error("fetchFields (clients) failed:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchEmployees();
+        if (!mounted) return;
+        const normalized = Array.isArray(data)
+          ? data.map((e) => ({
+              id: e.id,
+              full_name: e.fullName ?? e.full_name ?? "",
+            }))
+          : [];
+        setEmployeesList(normalized);
+      } catch (e) {
+        console.error("fetchEmployees failed:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchCompanies();
+        if (!mounted) return;
+        setCompaniesList(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error("fetchCompanies failed:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       setLoading(true);
+      setError("");
       try {
         const data = await fetchClients();
         if (!mounted) return;
-        setList(Array.isArray(data) && data.length ? data : clients);
+        const normalized = Array.isArray(data) ? data.map(withReferrerNames) : [];
+        setList(normalized);
       } catch (e) {
         console.error("fetchClients failed:", e);
-        if (mounted) setList(clients); 
+        if (mounted) {
+          setError(e?.message || "Не удалось загрузить клиентов");
+          setList([]);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -135,67 +270,68 @@ export default function ClientsPage({
     return () => {
       mounted = false;
     };
-  }, []); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!referrerById.size) return;
+    setList((prev) => prev.map(withReferrerNames));
+  }, [referrerById]);
 
   const latestOrderStatusMap = useMemo(() => {
     const statusMap = new Map();
-    const clientOrders = new Map(); 
-    
-    const ordersJson = localStorage.getItem('ordersData'); 
-    let ordersData = []; 
+    const clientOrders = new Map();
+
+    const ordersJson = localStorage.getItem("ordersData");
+    let ordersData = [];
 
     if (ordersJson) {
       try {
         ordersData = JSON.parse(ordersJson);
-      } catch (error) {
-        console.error("Ошибка парсинга заказов из localStorage:", error);
+      } catch (err) {
+        console.error("Ошибка парсинга заказов из localStorage:", err);
       }
     }
-    
+
     for (const order of ordersData) {
       const clientIdNum = parseInt(order.order_client, 10);
-      if (isNaN(clientIdNum)) continue;
+      if (Number.isNaN(clientIdNum)) continue;
 
-      if (!clientOrders.has(clientIdNum)) {
-        clientOrders.set(clientIdNum, []);
-      }
+      if (!clientOrders.has(clientIdNum)) clientOrders.set(clientIdNum, []);
       clientOrders.get(clientIdNum).push(order);
     }
 
     for (const [clientId, orders] of clientOrders.entries()) {
-      if (orders.length === 0) continue;
+      if (!orders.length) continue;
 
       const sortedOrders = orders.sort((a, b) => {
         const dateA = new Date(a.orderDate);
         const dateB = new Date(b.orderDate);
-        
-        if (isNaN(dateA.getTime())) return 1;
-        if (isNaN(dateB.getTime())) return -1;
-        
+
+        if (Number.isNaN(dateA.getTime())) return 1;
+        if (Number.isNaN(dateB.getTime())) return -1;
+
         return dateB.getTime() - dateA.getTime();
       });
 
       const latestOrder = sortedOrders[0];
-      if (latestOrder && latestOrder.stage) {
-        statusMap.set(clientId, latestOrder.stage);
-      }
+      if (latestOrder?.stage) statusMap.set(clientId, latestOrder.stage);
     }
 
     return statusMap;
   }, []);
 
   /* === фильтрация === */
-  // !!! ИСПРАВЛЕНИЕ 2: Поиск теперь тоже понимает объекты !!!
   const filteredRows = useMemo(() => {
     return (list || [])
       .filter((c) => {
         if (!search) return true;
+
         const parts = [
           c.name,
-          ...(c.tags || []).map((t) => t.name),
+          ...(c.tags || []).map((t) => t?.name ?? t),
           c.note,
           c.intro_description,
-          // Безопасно получаем имя, если поле — объект
           c.source?.name || c.source,
           c.full_name,
           c.country?.name || c.country,
@@ -206,72 +342,44 @@ export default function ClientsPage({
           c.referrer_first_name,
           c.status,
           c.last_order_date,
-          ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
+          ...(c.credentials || []).flatMap((cr) => [cr?.login, cr?.description]),
         ];
-        // Собираем строку и ищем в нижнем регистре
+
         const text = parts.join(" ").toLowerCase();
         return text.includes(search.toLowerCase());
       })
       .filter((c) => {
-        // Фильтры тоже должны сравнивать правильно
         const curName = c.currency?.name || c.currency;
         return !currencyFilter || curName === currencyFilter;
       })
       .filter((c) => !statusFilter || c.status === statusFilter)
-      .filter(
-        (c) =>
-          !tagFilter.length ||
-          (c.tags || []).some((t) => tagFilter.includes(t.name))
-      )
+      .filter((c) => !tagFilter.length || (c.tags || []).some((t) => tagFilter.includes(t.name)))
       .filter((c) => {
         const srcName = c.source?.name || c.source;
         return !sourceFilter || srcName === sourceFilter;
       })
       .filter((c) => {
-        if (
-          dateFrom &&
-          c.last_order_date !== "—" &&
-          new Date(c.last_order_date) < new Date(dateFrom)
-        )
-          return false;
-        if (
-          dateTo &&
-          c.last_order_date !== "—" &&
-          new Date(c.last_order_date) > new Date(dateTo)
-        )
-          return false;
+        if (dateFrom && c.last_order_date !== "—" && new Date(c.last_order_date) < new Date(dateFrom)) return false;
+        if (dateTo && c.last_order_date !== "—" && new Date(c.last_order_date) > new Date(dateTo)) return false;
         return true;
       });
-  }, [
-    list,
-    search,
-    currencyFilter,
-    statusFilter,
-    tagFilter,
-    sourceFilter,
-    dateFrom,
-    dateTo,
-  ]);
+  }, [list, search, currencyFilter, statusFilter, tagFilter, sourceFilter, dateFrom, dateTo]);
 
   /* === опции селектов === */
-  const currencyOptions = useMemo(
-    () =>
-      currencies.length
-        ? currencies
-        : Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean),
-    [currencies, list]
-  );
-  const statusOptions = useMemo(
-    () => Array.from(new Set(list.map((c) => c.status))).filter(Boolean),
-    [list]
-  );
+  const currencyOptions = useMemo(() => {
+    const fromFields = currenciesList?.length ? currenciesList : [];
+    if (fromFields.length) return fromFields;
+
+    return Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean);
+  }, [currenciesList, list]);
+
+  const statusOptions = useMemo(() => Array.from(new Set(list.map((c) => c.status))).filter(Boolean), [list]);
+
   const tagOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(list.flatMap((c) => (c.tags || []).map((t) => t.name)))
-      ).filter(Boolean),
+    () => Array.from(new Set(list.flatMap((c) => (c.tags || []).map((t) => t.name)))).filter(Boolean),
     [list]
   );
+
   const sourceOptions = useMemo(
     () => Array.from(new Set(list.map((c) => c.source?.name || c.source))).filter(Boolean),
     [list]
@@ -298,13 +406,12 @@ export default function ClientsPage({
   const load = () => {
     try {
       const arr = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return Array.isArray(arr) && arr.length === COLS
-        ? arr
-        : Array(COLS).fill(null);
+      return Array.isArray(arr) && arr.length === COLS ? arr : Array(COLS).fill(null);
     } catch {
       return Array(COLS).fill(null);
     }
   };
+
   const [colWidths, setColWidths] = useState(load);
   const wrapRef = useRef(null);
 
@@ -323,9 +430,7 @@ export default function ClientsPage({
 
   /* === лог по credential логинам у отфильтрованных (для отладки) === */
   useEffect(() => {
-    const logins = filteredRows.flatMap((c) =>
-      (c.credentials || []).map((cr) => cr.login)
-    );
+    const logins = filteredRows.flatMap((c) => (c.credentials || []).map((cr) => cr?.login));
     console.log("Filtered credentials logins:", logins);
   }, [filteredRows]);
 
@@ -340,15 +445,17 @@ export default function ClientsPage({
     setActive(c);
     setShow(true);
   };
+
   const openRef = (id, e) => {
     e.stopPropagation();
     const r = idMap.get(id);
-    r && openEdit(r);
+    if (r) openEdit(r);
   };
 
   const save = async (data) => {
     try {
-      const saved = await saveClientApi(data);
+      setError("");
+      const saved = withReferrerNames(await saveClientApi(data));
       setList((prev) => {
         const idx = prev.findIndex((x) => x.id === saved.id);
         if (idx !== -1) {
@@ -358,17 +465,41 @@ export default function ClientsPage({
         }
         return [saved, ...prev];
       });
-      setShow(false);
+      return saved;
     } catch (e) {
       console.error("saveClient failed:", e);
-      // тут можно показать тост/модалку
+      setError(e?.message || "Не удалось сохранить клиента");
+      throw e;
+    }
+  };
+
+  const addCompany = async (payload) => {
+    const created = await createCompanyApi(payload);
+    setCompaniesList((prev) => {
+      const next = [...prev, created];
+      next.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+      return next;
+    });
+    return created;
+  };
+
+  const remove = async (id) => {
+    try {
+      setError("");
+      await deleteClientApi(id);
+      setList((prev) => prev.filter((c) => c.id !== id));
+    } catch (e) {
+      console.error("deleteClient failed:", e);
+      setError(e?.message || "Не удалось удалить клиента");
+      throw e;
     }
   };
 
   const onDown = (i, e) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startW = colWidths[i];
+    const startW = colWidths[i] ?? 0;
+
     const move = (ev) => {
       const next = Math.max(startW + (ev.clientX - startX), MIN_W);
       setColWidths((prev) => {
@@ -377,24 +508,24 @@ export default function ClientsPage({
         return arr;
       });
     };
+
     const up = () => {
       document.removeEventListener("mousemove", move);
       document.removeEventListener("mouseup", up);
     };
+
     document.addEventListener("mousemove", move);
     document.addEventListener("mouseup", up);
   };
 
   const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
 
-   const formatDate = (dateString) => {
-    if (!dateString) return null; 
+  const formatDate = (dateString) => {
+    if (!dateString) return null;
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return null;
-    }
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0'); 
+    if (Number.isNaN(date.getTime())) return null;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
     return `${day}.${month}.${year}`;
   };
@@ -402,6 +533,7 @@ export default function ClientsPage({
   return (
     <div className="clients-layout">
       <Sidebar />
+
       <div className="clients-page">
         <ClientsPageHeader
           onAdd={() => {
@@ -414,16 +546,15 @@ export default function ClientsPage({
           statusOptions={statusOptions}
           tagOptions={tagOptions}
           sourceOptions={sourceOptions}
-          onFilterChange={({ currency, status, tags, source, dateFrom, dateTo }) => {
+          onFilterChange={({ currency, status, tags, source, dateFrom: df, dateTo: dt }) => {
             setCurrencyFilter(currency);
             setStatusFilter(status);
             setTagFilter(tags);
             setSourceFilter(source);
-            setDateFrom(dateFrom);
-            setDateTo(dateTo);
+            setDateFrom(df);
+            setDateTo(dt);
           }}
         />
-    
 
         <div ref={wrapRef} className="clients-table-wrapper">
           {loading ? (
@@ -433,14 +564,9 @@ export default function ClientsPage({
               <thead className="fixed-task-panel">
                 <tr>
                   {headers.map((h, i) => (
-                    <th
-                      key={h}
-                    >
+                    <th key={h}>
                       {h}
-                      <span
-                        className="resizer"
-                        onMouseDown={(e) => onDown(i, e)}
-                      />
+                      <span className="resizer" onMouseDown={(e) => onDown(i, e)} />
                     </th>
                   ))}
                 </tr>
@@ -449,26 +575,12 @@ export default function ClientsPage({
               <tbody>
                 {Object.entries(groups).map(([gid, gname]) => (
                   <React.Fragment key={gid}>
-                    <tr
-                      className="group-header" 
-                      onClick={() =>
-                        setExp((p) => ({ ...p, [gid]: !p[gid] }))
-                      }
-                    >
+                    <tr className="group-header" onClick={() => setExp((p) => ({ ...p, [gid]: !p[gid] }))}>
                       <td colSpan={COLS}>
-                        
-                        <span className={`collapse-icon ${!expanded[gid] ? "collapsed" : ""}`}>
-                          ▼
-                        </span>
-                        
+                        <span className={`collapse-icon ${!expanded[gid] ? "collapsed" : ""}`}>▼</span>
                         {gname.toUpperCase()}
-                        
                         <span className="group-count">
-                          {
-                            filteredRows.filter(
-                              (c) => String(c.group) === gid
-                            ).length
-                          }
+                          {filteredRows.filter((c) => String(c.group) === gid).length}
                         </span>
                       </td>
                     </tr>
@@ -499,37 +611,29 @@ export default function ClientsPage({
                             <td>
                               <Ellipsis value={c.currency} />
                             </td>
-                            <td className="num">
-                              {c.hourly_rate ?? "—"}
-                            </td>
-                            <td className="num">
-                              {c.percent ?? "—"}
-                            </td>
-                            <td
-                              className="ref-cell"
-                              onClick={(e) => openRef(c.referrer_id, e)}
-                            >
+                            <td className="num">{c.hourly_rate ?? "—"}</td>
+                            <td className="num">{c.percent ?? "—"}</td>
+                            <td className="ref-cell" onClick={(e) => openRef(c.referrer_id, e)}>
                               <Ellipsis value={c.referrer_name} />
                             </td>
-                            <td
-                              className="ref-cell"
-                              onClick={(e) => openRef(c.referrer_first_id, e)}
-                            >
+                            <td className="ref-cell" onClick={(e) => openRef(c.referrer_first_id, e)}>
                               <Ellipsis value={c.referrer_first_name} />
                             </td>
+
+                            {/* Статус по последнему заказу (эмодзи) */}
                             {(() => {
                               const latestStatus = latestOrderStatusMap.get(c.id);
-                              const emoji = statusToEmojiMap[latestStatus] || '—';
-                              
+                              const emoji = statusToEmojiMap[latestStatus] || "—";
                               return (
-                                <td 
-                                  title={latestStatus || 'Нет заказов'} 
-                                  style={{ textAlign: 'center', fontSize: '1.3em', cursor: 'default' }}
+                                <td
+                                  title={latestStatus || "Нет заказов"}
+                                  style={{ textAlign: "center", fontSize: "1.3em", cursor: "default" }}
                                 >
                                   {emoji}
                                 </td>
                               );
                             })()}
+
                             <td>
                               <Ellipsis value={formatDate(c.last_order_date || "")} />
                             </td>
@@ -543,20 +647,21 @@ export default function ClientsPage({
         </div>
 
         {!loading && filteredRows.length === 0 && (
-          <div className="empty-state">Клиенты не найдены</div>
+          <div className="empty-state">{error || "Клиенты не найдены"}</div>
         )}
 
         {showModal && (
           <ClientModal
             client={active}
-            companies={companies}
-            employees={employees}
-            referrers={referrers}
-            countries={countries}
-            currencies={currencies}
+            companies={companiesList}
+            employees={employeesList}
+            referrers={referrerOptions}
+            countries={countriesList}
+            currencies={currenciesList}
             onClose={() => setShow(false)}
             onSave={save}
-            onAddCompany={onAddCompany}
+            onDelete={active?.id ? remove : null}
+            onAddCompany={addCompany}
           />
         )}
       </div>

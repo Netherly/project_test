@@ -1,5 +1,6 @@
-const { PrismaClient, OperationType } = require('@prisma/client');
-const prisma = new PrismaClient();
+// src/controllers/transaction.controller.js
+const { OperationType } = require('@prisma/client');
+const prisma = require('../../prisma/client');
 
 /** ===== HELPERS ===== */
 
@@ -30,9 +31,9 @@ function parseDateMaybe(x) {
 
 // Безопасное преобразование в число
 const safeNum = (v) => {
-    if (v === undefined || v === null || v === '') return 0;
-    const n = Number(v);
-    return isNaN(n) ? 0 : n;
+  if (v === undefined || v === null || v === '') return 0;
+  const n = Number(v);
+  return Number.isNaN(n) ? 0 : n;
 };
 
 const trxInclude = {
@@ -66,17 +67,31 @@ function viewModel(trx) {
  */
 async function prepareTransactionData(input) {
   const {
-    date, amount, description,
-    category, subcategory, accountId,
-    operation, commission,
-    counterparty, counterpartyRequisites,
-    orderId, 
-    sumUAH, sumUSD, sumRUB,
+    date,
+    amount,
+    description,
+    category,
+    subcategory,
+    accountId,
+    operation,
+    commission,
+    counterparty,
+    counterpartyRequisites,
+    orderId,
+    sumUAH,
+    sumUSD,
+    sumRUB,
     sumByRatesOrderAmountCurrency,
-    sumByRatesUAH, sumByRatesUSD, sumByRatesRUB,
-    sentToCounterparty, sendLion,
-    accountCurrency, orderNumber, orderCurrency,
-    balanceBefore, balanceAfter
+    sumByRatesUAH,
+    sumByRatesUSD,
+    sumByRatesRUB,
+    sentToCounterparty,
+    sendLion,
+    accountCurrency,
+    orderNumber,
+    orderCurrency,
+    balanceBefore,
+    balanceAfter,
   } = input;
 
   const data = {};
@@ -87,7 +102,7 @@ async function prepareTransactionData(input) {
 
   if (amount !== undefined) data.amount = safeNum(amount);
   if (description !== undefined) data.description = description;
-  
+
   const opEnum = uiToEnumOperation(operation);
   if (opEnum) data.operation = opEnum;
 
@@ -118,51 +133,39 @@ async function prepareTransactionData(input) {
   if (sendLion !== undefined) data.sendLion = Boolean(sendLion);
 
   // --- СВЯЗИ (SCALARS) ---
-  // Мы записываем ID напрямую в поля accountId, categoryId и т.д.
-  // Это надежнее, чем { connect: ... }, так как не падает с ошибкой, если ID кривой (просто запишет null или упадет с понятной ошибкой)
 
   // A. СЧЕТ (Обязательно)
   if (accountId) {
-      data.accountId = accountId;
+    data.accountId = accountId;
   }
 
   // B. КАТЕГОРИЯ (Ищем ID по имени)
   if (category) {
     const catObj = await prisma.financeArticleDict.findFirst({ where: { name: category } });
-    if (catObj) {
-        data.categoryId = catObj.id; // Записываем ID
-    } else {
-        data.categoryId = null; // Если не нашли, связь пустая, но имя категории в поле `category` останется
-    }
+    data.categoryId = catObj ? catObj.id : null;
   }
 
   // C. ПОДКАТЕГОРИЯ
   if (subcategory) {
     const subCatObj = await prisma.financeSubarticleDict.findFirst({ where: { name: subcategory } });
-    if (subCatObj) {
-        data.subcategoryId = subCatObj.id;
-    } else {
-        data.subcategoryId = null;
-    }
+    data.subcategoryId = subCatObj ? subCatObj.id : null;
   }
 
   // D. ЗАКАЗ
-  if (orderId && typeof orderId === 'string' && orderId.trim() !== "") {
-     // Проверяем, есть ли такой заказ физически, чтобы не нарушить FK
-     const orderExists = await prisma.order.findUnique({ where: { id: orderId } });
-     if (orderExists) {
-         data.orderId = orderId;
-     } else {
-         console.warn(`Заказ ${orderId} не найден, связь игнорируется.`);
-         data.orderId = null; 
-     }
-  } else {
+  if (orderId && typeof orderId === 'string' && orderId.trim() !== '') {
+    const orderExists = await prisma.order.findUnique({ where: { id: orderId } });
+    if (orderExists) {
+      data.orderId = orderId;
+    } else {
+      console.warn(`Заказ ${orderId} не найден, связь игнорируется.`);
       data.orderId = null;
+    }
+  } else {
+    data.orderId = null;
   }
 
   return data;
 }
-
 
 /** GET /api/transactions */
 exports.list = async (req, res, next) => {
@@ -183,11 +186,22 @@ exports.list = async (req, res, next) => {
     if (accountId) where.accountId = accountId;
 
     const [items, total] = await Promise.all([
-      prisma.transaction.findMany({ where, include: trxInclude, orderBy: { date: 'desc' }, skip, take }),
+      prisma.transaction.findMany({
+        where,
+        include: trxInclude,
+        orderBy: { date: 'desc' },
+        skip,
+        take,
+      }),
       prisma.transaction.count({ where }),
     ]);
 
-    res.json({ page: Number(page), pageSize: take, total, items: items.map(viewModel) });
+    res.json({
+      page: Number(page),
+      pageSize: take,
+      total,
+      items: items.map(viewModel),
+    });
   } catch (err) {
     next(err);
   }
@@ -196,7 +210,10 @@ exports.list = async (req, res, next) => {
 /** GET /api/transactions/:id */
 exports.getById = async (req, res, next) => {
   try {
-    const trx = await prisma.transaction.findUnique({ where: { id: req.params.id }, include: trxInclude });
+    const trx = await prisma.transaction.findUnique({
+      where: { id: req.params.id },
+      include: trxInclude,
+    });
     if (!trx) return res.status(404).json({ message: 'Transaction not found' });
     res.json(viewModel(trx));
   } catch (err) {
@@ -209,43 +226,42 @@ exports.create = async (req, res, next) => {
   try {
     const body = req.body;
 
-    // Вспомогательная функция для одного создания
     const createOne = async (rawItem) => {
-        const data = await prepareTransactionData(rawItem);
-        if (!data.accountId) throw new Error('accountId is required');
-        
-        // Если ID пришел с фронта (TRX_...), пробуем использовать его, если нет - призма сама сгенерит
-        if (rawItem.id && rawItem.id.startsWith('TRX_')) {
-             // Можно удалить id, чтобы база сгенерировала UUID, или оставить, если база принимает строки
-             // data.id = rawItem.id; 
-             // Лучше не передавать ID вручную, если в базе @default(uuid()), это вызовет ошибку формата
-             delete data.id; 
-        }
+      const data = await prepareTransactionData(rawItem);
 
-        return await prisma.transaction.create({ data, include: trxInclude });
+      if (!data.accountId) throw new Error('accountId is required');
+
+      // Если ID пришел с фронта (TRX_...), не передаем его в Prisma (если в БД UUID по умолчанию)
+      if (rawItem?.id && String(rawItem.id).startsWith('TRX_')) {
+        delete data.id;
+      }
+
+      return prisma.transaction.create({ data, include: trxInclude });
     };
 
     if (Array.isArray(body)) {
       const results = [];
       for (const item of body) {
-          results.push(await createOne(item));
+        results.push(await createOne(item));
       }
       return res.status(201).json(results.map(viewModel));
-    } else {
-      const created = await createOne(body);
-      return res.status(201).json(viewModel(created));
     }
+
+    const created = await createOne(body);
+    return res.status(201).json(viewModel(created));
   } catch (err) {
-    console.error("Create TRX Error:", err);
-    // Возвращаем JSON даже при ошибке, чтобы фронт не падал с "API Error"
-    return res.status(400).json({ ok: false, error: err.message || "Ошибка при создании транзакции" });
+    console.error('Create TRX Error:', err);
+    return res.status(400).json({
+      ok: false,
+      error: err.message || 'Ошибка при создании транзакции',
+    });
   }
 };
 
 /** PUT /api/transactions/:id */
 exports.update = async (req, res, next) => {
   try {
-    const data = await prepareTransactionData(req.body, true);
+    const data = await prepareTransactionData(req.body);
     const updated = await prisma.transaction.update({
       where: { id: req.params.id },
       data,
@@ -276,6 +292,7 @@ exports.duplicate = async (req, res, next) => {
     if (!trx) return res.status(404).json({ message: 'Transaction not found' });
 
     const { id, createdAt, updatedAt, ...rest } = trx;
+
     const copy = await prisma.transaction.create({
       data: {
         ...rest,
@@ -284,6 +301,7 @@ exports.duplicate = async (req, res, next) => {
       },
       include: trxInclude,
     });
+
     res.status(201).json(viewModel(copy));
   } catch (err) {
     next(err);

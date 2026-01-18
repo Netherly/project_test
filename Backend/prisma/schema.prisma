@@ -162,6 +162,34 @@ model OrderCategoryDict {
   @@index([intervalId])
 }
 
+model OrderStatusDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(100)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
+model OrderCloseReasonDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(150)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
+model OrderProjectDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(255)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
+model OrderDiscountReasonDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(255)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
 model FinanceArticleDict {
   id           String                  @id @default(uuid())
   name         String                  @unique @db.VarChar(150)
@@ -225,6 +253,39 @@ enum OperationType {
 enum EmployeeTheme {
   light
   dark
+}
+
+enum OrderStage {
+  LEAD
+  STUDY_TZ
+  DISCUSS_WITH_CLIENT
+  CLIENT_THINKS
+  WAIT_PREPAYMENT
+  IN_WORK
+  DEVELOPMENT
+  CLIENT_CLARIFICATION
+  TESTING
+  CLIENT_TESTING
+  REWORK
+  WAIT_PAYMENT
+  SUCCESS
+  CLOSED
+  FAILED
+  DELETED
+}
+
+enum OrderUrgency {
+  one
+  two
+  three
+  four
+}
+
+enum OrderChangeAction {
+  created
+  updated
+  stage_changed
+  deleted
 }
 
 /* =========================
@@ -294,6 +355,7 @@ model Employee {
   tags                 EmployeeTag[]
   requisites           EmployeeRequisite[]
   assets               Asset[]
+  orderChanges        OrderChange[]
 
   // менеджер ⇄ клиенты (именованная связь)
   clients              Client[]          @relation("ManagerClients")
@@ -360,6 +422,7 @@ model Company {
   name         String        @db.VarChar(255)
 
   // обратки и связи
+  clients      Client[]
   assets       Asset[]
   credentials  Credential[]
   tasks        Task[]
@@ -396,11 +459,13 @@ model Client {
   share_info        String?
   status            ClientStatus @default(active)
   referrer_id       String?
+  referrer_name     String?      @db.VarChar(255)
   referrer_first_id String?
+  referrer_first_name String?    @db.VarChar(255)
 
   // менеджер (именованная связь с Employee)
   managerId         String?
-  // компания как self-relation
+  // компания (Company)
   companyId         String?
 
   chat_link         String?
@@ -414,9 +479,8 @@ model Client {
   country           Country?             @relation(fields: [countryId], references: [id])
   currency          CurrencyDict?        @relation(fields: [currencyId], references: [id])
 
-  // self-relation: компания ↔ клиенты
-  company           Client?              @relation("CompanyClients", fields: [companyId], references: [id])
-  clients           Client[]             @relation("CompanyClients")
+  // компания
+  company           Company?             @relation(fields: [companyId], references: [id])
 
   // сотрудники, для которых этот клиент является company (обратка к Employee.company с именем "EmployeeCompany")
   employees         Employee[]           @relation("EmployeeCompany")
@@ -448,25 +512,121 @@ model Credential {
 }
 
 model Order {
-  id           String        @id @default(uuid())
-  clientId     String
-  title        String
-  amount       Decimal?      @db.Decimal(12, 2)
-  currencyId   String?
-  createdAt    DateTime      @default(now())
+  id                String        @id @default(uuid())
 
-  employeeId   String?
-  employee     Employee?     @relation(fields: [employeeId], references: [id])
+  // опционально, если хочешь привязку к Client
+  clientId          String?
+  client            Client?       @relation(fields: [clientId], references: [id])
 
-  tags         OrderTag[]
-  transactions Transaction[]
+  // поля под фронт
+  numberOrder       String?       @db.VarChar(50)
+  orderSequence     Int?
+  name              String?       @db.VarChar(255)
+  clientName        String?       @db.VarChar(255)
 
-  client       Client        @relation(fields: [clientId], references: [id])
-  currency     CurrencyDict? @relation(fields: [currencyId], references: [id])
+  isOldOrder        Boolean?      @default(false)
+  appealDate        DateTime?
+  proposalDate      DateTime?
+  orderDate         DateTime?
+  interval          String?       @db.VarChar(100)
+  orderType         String?       @db.VarChar(100)
+  orderStatus       String?       @db.VarChar(100)
+  closeReason       String?       @db.VarChar(150)
+  plannedStartDate  DateTime?
+  project           String?       @db.VarChar(255)
+  orderDescription  String?
+  techTags          Json?
+  taskTags          Json?
+  workList          Json?
+  techSpecifications String?
+  additionalConditions String?
+  notes             String?
+  orderMainClient   String?       @db.VarChar(255)
+  clientCompany     String?       @db.VarChar(255)
+  partnerName       String?       @db.VarChar(255)
+  thirdParties      Json?
+  partnerDisableShare Boolean?     @default(false)
+  partnerPayment    Decimal?      @db.Decimal(12, 2)
+  partnerPlan       Int?
+  partnerPlanPercent Int?
+  partnerPlanSum    Decimal?      @db.Decimal(12, 2)
+  partnerUnderpayment Decimal?    @db.Decimal(12, 2)
+  performers        Json?
+  sharePercent      Float?
+  budget            Decimal?      @db.Decimal(12, 2)
+  currencyType      String?       @db.VarChar(16)
+  currencyRate      Decimal?      @db.Decimal(12, 4)
+  hourlyRate        Decimal?      @db.Decimal(12, 2)
+  roundHour         Boolean?      @default(false)
+  discount          Decimal?      @db.Decimal(12, 2)
+  upsell            Decimal?      @db.Decimal(12, 2)
+  expenses          Decimal?      @db.Decimal(12, 2)
+  tips              Decimal?      @db.Decimal(12, 2)
+  paymentDetails    String?
+  paymentLog        Json?
+  executionTime     String?       @db.VarChar(100)
+  startDate         DateTime?
+  endDate           DateTime?
+  countDays         Int?
+  completedDate     DateTime?
+  completingTime    String?       @db.VarChar(100)
+  completingLink    String?       @db.VarChar(1000)
+  orderImpressions  String?
+  workLog           Json?
+
+  stage             OrderStage    @default(LEAD)
+  stageIndex        Int           @default(0)   // <-- порядок внутри стадии
+
+  price             Decimal?      @db.Decimal(12, 2)
+  date              DateTime?
+  plannedFinishDate DateTime?
+  urgency           OrderUrgency?
+
+  // старые поля, чтобы ничего не ломать (можешь убрать позже)
+  title             String?       @db.VarChar(255)
+  amount            Decimal?      @db.Decimal(12, 2)
+
+  // дополнительная информация с фронта (финансы/план/поля формы)
+  meta              Json?
+
+  currencyId        String?
+  currency          CurrencyDict? @relation(fields: [currencyId], references: [id])
+
+  employeeId        String?
+  employee          Employee?     @relation(fields: [employeeId], references: [id])
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tags              OrderTag[]
+  transactions      Transaction[]
+
+  changes           OrderChange[]
 
   @@index([clientId, createdAt])
   @@index([currencyId])
+  @@index([stage, stageIndex])
+  @@index([orderSequence])
   @@map("orders")
+}
+
+model OrderChange {
+  id         String            @id @default(uuid())
+  orderId    String
+  employeeId String?
+  action     OrderChangeAction @default(updated)
+
+  field      String?           @db.VarChar(50)
+  oldValue   Json?
+  newValue   Json?
+
+  createdAt  DateTime          @default(now())
+
+  order      Order             @relation(fields: [orderId], references: [id])
+  employee   Employee?         @relation(fields: [employeeId], references: [id])
+
+  @@index([orderId, createdAt])
+  @@index([employeeId])
 }
 
 model Task {

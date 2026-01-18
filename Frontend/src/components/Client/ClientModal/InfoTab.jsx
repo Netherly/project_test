@@ -22,6 +22,7 @@ export default function InfoTab({
 
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
+  const [tagOptions, setTagOptions] = useState([]);
 
   const [loadingLists, setLoadingLists] = useState(true);
   const [savingCat, setSavingCat] = useState(false);
@@ -49,17 +50,20 @@ export default function InfoTab({
     (async () => {
       try {
         const clientFields = await FieldsAPI.getClient();
-        const apiCats = extractNames(clientFields?.category);
-        const apiSrcs = extractNames(clientFields?.source);
+  const apiCats = extractNames(clientFields?.category);
+  const apiSrcs = extractNames(clientFields?.source);
+  const apiTags = Array.isArray(clientFields?.tags) ? clientFields.tags : [];
         const initCats = extractNames(categoriesInit);
         const initSrcs = extractNames(sourcesInit);
         if (!mounted) return;
         setCategories(apiCats.length ? apiCats : initCats);
         setSources(apiSrcs.length ? apiSrcs : initSrcs);
+  setTagOptions(apiTags);
       } catch (e) {
         console.error("FieldsAPI.getClient failed:", e);
         setCategories(extractNames(categoriesInit));
         setSources(extractNames(sourcesInit));
+        setTagOptions([]);
       } finally {
         if (mounted) setLoadingLists(false);
       }
@@ -217,6 +221,22 @@ export default function InfoTab({
               warningThreshold={0.8}
             />
             {errors.note && <p className="error grid-error">{errors.note.message}</p>}
+          </div>
+        )}
+      />
+
+      {/* Теги клиента */}
+      <Controller
+        name="tags"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field full-width">
+            <label>Теги</label>
+            <TagSelector
+              options={tagOptions}
+              tags={Array.isArray(field.value) ? field.value : []}
+              onChange={field.onChange}
+            />
           </div>
         )}
       />

@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { TransactionsProvider } from './context/TransactionsContext';
@@ -17,7 +17,6 @@ import FieldsPage from "./pages/FieldsPage";
 import AccessSettings from "./components/AccessSettings/AccessSettingsPage";
 import TasksPage from "./components/TasksPage/TasksPage";
 
-import { sampleClients } from './data/sampleClients';
 import ExecutorsPage from './components/Executors/ExecutorsPage';
 import EmployeePage from './components/Employees/EmployeePage';
 import RegularPaymentsPage from './components/RegularPayments/RegularPaymentsPage';
@@ -30,47 +29,6 @@ const ProtectedRoute = ({ element }) => {
 };
 
 export default function App() {
-  const [clients, setClients] = useState(sampleClients);
-
-  // Примеры справочников для формы клиента
-  const [companies, setCompanies] = useState([
-    { id: 1, name: 'ООО «Ромашка»' },
-    { id: 2, name: 'Acme Corp' },
-  ]);
-  const [employees] = useState([
-    { id: 1, full_name: 'Петров Пётр' },
-    { id: 2, full_name: 'Сидорова Светлана' },
-  ]);
-  const [referrers] = useState([
-    { id: 1, name: 'Яндекс.Директ' },
-    { id: 2, name: 'Google Ads' },
-  ]);
-  const [countries] = useState([
-    'Украина','Россия','Белоруссия','Бразилия','Германия','Израиль','Индонезия','Испания','Казахстан',
-    'Канада','Кыргызстан','Латвия','Мексика','ОАЭ','Польша','США','Таджикистан','Узбекистан','Чехия',
-    'Япония','Неизвестно'
-  ]);
-  const [currencies] = useState(['RUB', 'UAH', 'USD', 'EUR', 'USDT']);
-
-  // Создать или обновить клиента
-  const handleSaveClient = (data) => {
-    if (data.id) {
-      setClients((prev) => prev.map((c) => (c.id === data.id ? data : c)));
-      return data;
-    } else {
-      const newClient = { ...data, id: clients.length + 1 };
-      setClients((prev) => [newClient, ...prev]);
-      return newClient;
-    }
-  };
-
-  // Добавить компанию (примерно, без API)
-  const handleAddCompany = async (newCompany) => {
-    const created = { ...newCompany, id: companies.length + 1 };
-    setCompanies((prev) => [...prev, created]);
-    return created;
-  };
-
   return (
     <ThemeProvider>
       <TransactionsProvider>
@@ -97,14 +55,6 @@ export default function App() {
               <ProtectedRoute
                 element={
                   <ClientsPage
-                    clients={clients}
-                    onSaveClient={handleSaveClient}
-                    onAddCompany={handleAddCompany}
-                    companies={companies}
-                    employees={employees}
-                    referrers={referrers}
-                    countries={countries}
-                    currencies={currencies}
                   />
                 }
               />

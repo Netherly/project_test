@@ -23,12 +23,13 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
   const [performerToDelete, setPerformerToDelete] = useState(null);
 
 
-  const allClientsOptions = clientsData.map(client => ({
+  const safeClients = Array.isArray(clientsData) ? clientsData : [];
+  const allClientsOptions = safeClients.map(client => ({
     value: client.id,
     label: client.name,
   }));
   
-  const partnerOptions = clientsData
+  const partnerOptions = safeClients
     .filter(client => client.group === 1) 
     .map(partner => ({
       value: partner.id,
@@ -40,13 +41,13 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
 
   useEffect(() => {
     if (selectedClientId) {
-      const clientIdNumber = Number(selectedClientId);
-      const client = clientsData.find(c => c.id === clientIdNumber);
+      if (!safeClients.length) return;
+      const client = safeClients.find(c => String(c.id) === String(selectedClientId));
       
       if (client) {
         setSelectedClientInfo(client);
-        setValue('order_main_client', client.full_name, { shouldDirty: true });
-        setValue('client_company', client.name, { shouldDirty: true });
+        setValue('order_main_client', client.full_name || client.name || '', { shouldDirty: true });
+        setValue('client_company', client.name || '', { shouldDirty: true });
         setValue('share_percent', client.percent, { shouldDirty: true });
         setValue('currency_type', client.currency, { shouldDirty: true });
       }

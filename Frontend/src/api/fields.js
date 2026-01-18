@@ -15,7 +15,10 @@ export const normStrs = (arr) => {
   const out = [];
   const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
-    const v = (typeof item === 'string') ? tidy(item) : tidy(item?.value ?? item?.name ?? item?.code);
+    const v =
+      typeof item === "string"
+        ? tidy(item)
+        : tidy(item?.value ?? item?.name ?? item?.code);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
@@ -37,7 +40,9 @@ export const normCategories = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     // Важно: берем либо то что пришло с фронта, либо структуру с бека (interval.value)
-    categoryInterval: tidy(it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue),
+    categoryInterval: tidy(
+      it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group
+    ),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
     isDeleted: it?.isDeleted || false,
   }));
@@ -45,7 +50,7 @@ export const normCategories = (arr) =>
 export const normArticles = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
-    articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it), 
+    articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -53,7 +58,13 @@ export const normSubarticles = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     // Родитель может быть статьей или подкатегорией
-    subarticleInterval: tidy(it?.subarticleInterval ?? it?.interval ?? it?.group ?? it?.parentArticleName ?? it?.parentSubcategoryName),
+    subarticleInterval: tidy(
+      it?.subarticleInterval ??
+        it?.interval ??
+        it?.group ??
+        it?.parentArticleName ??
+        it?.parentSubcategoryName
+    ),
     subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
     isDeleted: it?.isDeleted || false,
   }));
@@ -72,12 +83,17 @@ export const normTags = (arr) => {
   const out = [];
   const source = Array.isArray(arr) ? arr : [];
   for (const t of source) {
-    const name = (typeof t === "string") ? tidy(t) : tidy(t?.name ?? t?.value);
+    const name = typeof t === "string" ? tidy(t) : tidy(t?.name ?? t?.value);
     if (!name) continue;
     const k = name.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      const color = (typeof t === "string") ? "#ffffff" : (isHex(t?.color) ? t.color : "#ffffff");
+      const color =
+        typeof t === "string"
+          ? "#ffffff"
+          : isHex(t?.color)
+          ? t.color
+          : "#ffffff";
       out.push({ id: t?.id || rid(), name, color, isDeleted: t?.isDeleted || false });
     }
   }
@@ -122,8 +138,12 @@ export function withDefaults(fields) {
       currency: normStrs(f?.generalFields?.currency),
     },
     orderFields: {
+      currency: normStrs(f?.orderFields?.currency),
       intervals: normIntervals(f?.orderFields?.intervals),
       categories: normCategories(f?.orderFields?.categories),
+      statuses: normStrs(f?.orderFields?.statuses),
+      closeReasons: normStrs(f?.orderFields?.closeReasons),
+      projects: normStrs(f?.orderFields?.projects),
       tags: normTags(f?.orderFields?.tags),
       techTags: normTags(f?.orderFields?.techTags),
       taskTags: normTags(f?.orderFields?.taskTags),
@@ -136,9 +156,9 @@ export function withDefaults(fields) {
       source: normStrs(f?.clientFields?.source),
       category: normStrs(f?.clientFields?.category),
       country: normStrs(f?.clientFields?.country),
-      tags: normTags(f?.clientFields?.tags ?? f?.clientFields?.tag), 
+      tags: normTags(f?.clientFields?.tags ?? f?.clientFields?.tag),
     },
-    companyFields: { 
+    companyFields: {
       tags: normTags(f?.companyFields?.tags),
     },
     employeeFields: {
@@ -163,7 +183,7 @@ export function withDefaults(fields) {
     },
     taskFields: {
       tags: normTags(f?.taskFields?.tags),
-    }
+    },
   };
 }
 
@@ -172,7 +192,7 @@ export function withDefaults(fields) {
 export const serByName = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter(item => !item.isDeleted);
+  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
   for (const item of source) {
     const v = tidy(item?.value ?? item?.name);
     if (!v) continue;
@@ -188,7 +208,7 @@ export const serByName = (arr) => {
 export const serByCode = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter(item => !item.isDeleted);
+  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
   for (const item of source) {
     const v = tidy(item?.value ?? item?.code);
     if (!v) continue;
@@ -203,47 +223,46 @@ export const serByCode = (arr) => {
 
 export const serIntervals = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter(item => !item.isDeleted)
+    .filter((item) => !item.isDeleted)
     .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value) }))
     .filter((x) => x.value !== "");
 
 export const serCategories = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter(item => !item.isDeleted)
+    .filter((item) => !item.isDeleted)
     .map((it) => ({
       id: it?.id || rid(),
-      // Явно указываем значение интервала
       intervalValue: tidy(it?.categoryInterval),
-      value: tidy(it?.categoryValue)
+      value: tidy(it?.categoryValue),
     }))
     .filter((x) => x.intervalValue && x.value);
 
 export const serArticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter(item => !item.isDeleted)
+    .filter((item) => !item.isDeleted)
     .map((it) => ({ id: it?.id || rid(), name: tidy(it?.articleValue) }))
     .filter((x) => x.name !== "");
 
 export const serSubarticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter(item => !item.isDeleted)
+    .filter((item) => !item.isDeleted)
     .map((it) => ({
       id: it?.id || rid(),
-      parentName: tidy(it?.subarticleInterval), 
-      name: tidy(it?.subarticleValue)
+      parentName: tidy(it?.subarticleInterval),
+      name: tidy(it?.subarticleValue),
     }))
-    .filter((x) => (x.parentName && x.name));
+    .filter((x) => x.parentName && x.name);
 
 export const serDesigns = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter(item => !item.isDeleted)
+    .filter((item) => !item.isDeleted)
     .map((d) => ({ id: d?.id || rid(), name: tidy(d?.name), url: tidy(d?.url), size: d?.size ?? null }))
-    .filter((d) => d.name); 
+    .filter((d) => d.name);
 
 export const serTags = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter(item => !item.isDeleted);
+  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
   for (const t of source) {
     const name = tidy(t?.name);
     if (!name) continue;
@@ -263,15 +282,18 @@ export function serializeForSave(values) {
 
   return {
     generalFields: {
-       currency: currencyList,
+      currency: currencyList,
     },
     orderFields: {
       intervals: serIntervals(values?.orderFields?.intervals),
       categories: serCategories(values?.orderFields?.categories),
+      statuses: serByName(values?.orderFields?.statuses),
+      closeReasons: serByName(values?.orderFields?.closeReasons),
+      projects: serByName(values?.orderFields?.projects),
       discountReason: serByName(values?.orderFields?.discountReason),
-      tags: serTags(values?.orderFields?.tags),         
-      techTags: serTags(values?.orderFields?.techTags), 
-      taskTags: serTags(values?.orderFields?.taskTags), 
+      tags: serTags(values?.orderFields?.tags),
+      techTags: serTags(values?.orderFields?.techTags),
+      taskTags: serTags(values?.orderFields?.taskTags),
     },
     executorFields: {
       role: serByName(values?.executorFields?.role),
@@ -283,7 +305,7 @@ export function serializeForSave(values) {
       tags: serTags(values?.clientFields?.tags),
     },
     companyFields: {
-      tags: serTags(values?.companyFields?.tags), 
+      tags: serTags(values?.companyFields?.tags),
     },
     employeeFields: {
       country: serByName(values?.employeeFields?.country),
@@ -303,8 +325,8 @@ export function serializeForSave(values) {
       typeWork: serByName(values?.sundryFields?.typeWork),
     },
     taskFields: {
-      tags: serTags(values?.taskFields?.tags), 
-    }
+      tags: serTags(values?.taskFields?.tags),
+    },
   };
 }
 
@@ -319,7 +341,7 @@ export async function setGroup(groupKey, groupData) {
   return saveFields(next);
 }
 
-export const FieldsAPI = {}; 
+export const FieldsAPI = {};
 
 export default {
   fetchFields,

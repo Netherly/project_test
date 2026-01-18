@@ -65,6 +65,10 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
     }
   };
 
+  useEffect(() => {
+    setCurrencyList(Array.isArray(currencies) ? currencies : []);
+  }, [currencies]);
+
   const {
     control,
     setValue,
@@ -80,6 +84,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
     } else {
       clearErrors('referrer_id');
       setValue('referrer_id', '', { shouldValidate: false, shouldDirty: true });
+      setValue('referrer_name', '', { shouldValidate: false, shouldDirty: true });
     }
   }, [shareInfo, setValue, clearErrors]);
 
@@ -88,8 +93,31 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
     [shareInfo]
   );
 
+  const referrerById = useMemo(
+    () => new Map((referrers || []).map((r) => [String(r.id), r.name])),
+    [referrers]
+  );
+
+  const handleReferrerChange = (field, nameField) => (event) => {
+    const nextId = event.target.value;
+    field.onChange(nextId);
+    const nextName = referrerById.get(String(nextId)) || '';
+    setValue(nameField, nextName, { shouldDirty: true });
+  };
+
   return (
     <div className="tab-section finances-tab">
+      <Controller
+        name="referrer_name"
+        control={control}
+        render={({ field }) => <input type="hidden" {...field} />}
+      />
+      <Controller
+        name="referrer_first_name"
+        control={control}
+        render={({ field }) => <input type="hidden" {...field} />}
+      />
+
       {/* Валюта */}
       <Controller
         name="currency"
@@ -227,10 +255,14 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         render={({ field }) => (
           <div className="form-field">
             <label>Реферер{shareInfo && <span className="req">*</span>}</label>
-            <select {...field} className={errors.referrer_id ? 'input-error' : ''}>
+            <select
+              {...field}
+              onChange={handleReferrerChange(field, 'referrer_name')}
+              className={errors.referrer_id ? 'input-error' : ''}
+            >
               <option value="">-- выбрать --</option>
               {referrers.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+                <option key={r.id} value={r.id}>{r.label || r.name}</option>
               ))}
             </select>
             {errors.referrer_id && <p className="error">{errors.referrer_id.message}</p>}
@@ -245,10 +277,10 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         render={({ field }) => (
           <div className="form-field">
             <label>Первый реферер</label>
-            <select {...field}>
+            <select {...field} onChange={handleReferrerChange(field, 'referrer_first_name')}>
               <option value="">-- выбрать --</option>
               {referrers.map(r => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+                <option key={r.id} value={r.id}>{r.label || r.name}</option>
               ))}
             </select>
           </div>
