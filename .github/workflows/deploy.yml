@@ -68,13 +68,21 @@ jobs:
         run: |
           set -e
           echo "Searching for '/undefined/' in bundle..."
-          if grep -RIn --no-messages "/undefined/" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" ; then
+          if grep -RIn --no-messages "/undefined/" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" >/dev/null ; then
             echo "Bundle contains '/undefined/'. Check VITE_API_URL!" >&2
             exit 1
           fi
-          echo "Searching for 'localhost:3000' in bundle..."
-          if grep -RIn --no-messages "localhost:3000" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" ; then
-            echo "Bundle contains 'localhost:3000'. Fix VITE_API_URL or client fallback." >&2
+          echo "Validating VITE_API_URL..."
+          if [ -z "${{ env.VITE_API_URL }}" ]; then
+            echo "VITE_API_URL is missing." >&2
+            exit 1
+          fi
+          if echo "${{ env.VITE_API_URL }}" | grep -Eqi '(localhost|127\.0\.0\.1)'; then
+            echo "VITE_API_URL points to localhost. Fix FRONTEND_ENV." >&2
+            exit 1
+          fi
+          if ! grep -RInF --no-messages "${{ env.VITE_API_URL }}" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" >/dev/null ; then
+            echo "Bundle does not contain VITE_API_URL. Check env injection/build." >&2
             exit 1
           fi
           echo "OK: bundle URLs look clean"
@@ -117,15 +125,9 @@ jobs:
             fi
             rm -f frontend.tgz
 
-      - name: Pack backend source (with prisma hash)
+      - name: Pack backend source
         run: |
           set -e
-          # подготовим файл с хэшем схемы (если схемы нет — пусто)
-          if [ -f "${{ env.BE_DIR }}/prisma/schema.prisma" ]; then
-            (cd "${{ env.BE_DIR }}" && sha256sum prisma/schema.prisma | awk '{print $1}') > "${{ env.BE_DIR }}/.schema.sha256"
-          else
-            echo -n "" > "${{ env.BE_DIR }}/.schema.sha256"
-          fi
           EXCLUDES=(
             --exclude="${{ env.BE_DIR }}/node_modules"
             --exclude="${{ env.BE_DIR }}/.git"
@@ -163,11 +165,11 @@ jobs:
             mkdir -p .releases/backend_new
             tar -xzf backend.tgz -C .releases/backend_new
             if [ -d ".releases/backend_new/backend" ]; then
-              rsync -a --delete ".releases/backend_new/backend/" "crm-backend/"
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/backend/" "crm-backend/"
             elif [ -d ".releases/backend_new/Backend" ]; then
-              rsync -a --delete ".releases/backend_new/Backend/" "crm-backend/"
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/Backend/" "crm-backend/"
             else
-              rsync -a --delete ".releases/backend_new/" "crm-backend/"
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/" "crm-backend/"
             fi
             rm -f backend.tgz
 
