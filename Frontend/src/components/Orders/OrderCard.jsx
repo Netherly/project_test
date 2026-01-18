@@ -133,7 +133,11 @@ const OrderCard = ({
     >
       <div className="order-card-header">
         <div className="order-left-content">
-          <div>{order.numberOrder ? `Заказ № ${order.numberOrder}` : `Заявка #${order.id}`}</div>
+          <div>
+            {order.numberOrder
+              ? `${order.orderSequence !== undefined && order.orderSequence !== null ? "Заказ №" : "Заявка №"} ${order.numberOrder}`
+              : `Заявка #${order.id}`}
+          </div>
           {order.client && <div>{order.client}</div>}
           {order.urgency && <div className="order-urgency">{getUrgencyText(order.urgency)}</div>}
         </div>

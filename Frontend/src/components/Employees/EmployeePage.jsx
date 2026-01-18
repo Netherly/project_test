@@ -229,16 +229,19 @@ const EmployeePage = () => {
       if (selectedEmployee && selectedEmployee.id) {
         const saved = await apiUpdateEmployee(selectedEmployee.id, outgoing);
         setEmployees((prev) => prev.map((e) => (e.id === saved.id ? saved : e)));
+        return saved;
       } else {
         const created = await apiCreateEmployee(outgoing);
         setEmployees((prev) => [...prev, created]);
+        return created;
       }
     } catch (e) {
       console.warn("Сохранение через API не удалось, применяю локально:", e?.message || e);
       upsertLocal(outgoing, selectedEmployee?.id);
       setError("Сервер недоступен. Изменения сохранены локально.");
+      return normalizeEmployee({ ...outgoing, id: selectedEmployee?.id ?? Date.now() });
     } finally {
-      handleCloseModal();
+      // modal closes itself after successful save
     }
   };
 

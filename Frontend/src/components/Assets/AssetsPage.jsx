@@ -237,11 +237,15 @@ const AssetsPage = () => {
         } catch (err) {
             console.error("Failed to create asset", err);
             // Fallback: add locally
+            const selectedEmployee = employees?.find((emp) => emp.id === newAsset.employeeId);
             const assetWithDefaults = {
                 ...newAsset,
                 id: newAsset.accountName,
                 design: newAsset.design || 'default-design',
-                paymentSystem: newAsset.paymentSystem || null
+                paymentSystem: newAsset.paymentSystem || null,
+                employeeId: newAsset.employeeId || null,
+                employee: newAsset.employeeName || selectedEmployee?.fullName || '',
+                employeeName: newAsset.employeeName || selectedEmployee?.fullName || ''
             };
             setAssets(prevAssets => [...prevAssets, assetWithDefaults]);
             setShowAddForm(false);
@@ -520,6 +524,7 @@ const AssetsPage = () => {
                                                 onCardClick={() => handleRowClick(asset)}
                                                 onCopyValue={copyToClipboard}
                                                 onCopyRequisites={(e) => handleCopyRequisites(e, asset.requisites)}
+                                                cardDesigns={fields?.assetsFields?.cardDesigns || []}
                                             />
                                         ))}
                                     </div>

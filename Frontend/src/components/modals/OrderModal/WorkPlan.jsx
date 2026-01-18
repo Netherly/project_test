@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Controller, useFieldArray, useWatch, useFormContext } from 'react-hook-form';
+import AutoResizeTextarea from './AutoResizeTextarea';
 
-const WorkPlan = ({ control }) => {
+const WorkPlan = ({ control, orderFields }) => {
   
   const { getValues, setValue } = useFormContext();
   
@@ -26,8 +27,10 @@ const WorkPlan = ({ control }) => {
   const taskTagInputRef = useRef(null);
   const taskTagDropdownRef = useRef(null);
 
-  const defaultTechTags = ["React", "Node.js", "JavaScript", "Python", "Vue", "TypeScript", "MongoDB", "PostgreSQL"];
-  const defaultTaskTags = ["Разработка", "Тестирование", "Дизайн", "Реализация", "Аналитика", "Документация"];
+  const defaultTechTags = (orderFields?.techTags || []).map((t) => t.name).filter(Boolean);
+  const defaultTaskTags = (orderFields?.taskTags || []).map((t) => t.name).filter(Boolean);
+  const fallbackTechTags = ["React", "Node.js", "JavaScript", "Python", "Vue", "TypeScript", "MongoDB", "PostgreSQL"];
+  const fallbackTaskTags = ["Разработка", "Тестирование", "Дизайн", "Реализация", "Аналитика", "Документация"];
   const descriptionOptions = ["Описание 1", "Описание 2", "Описание 3"];
 
   
@@ -47,11 +50,14 @@ const WorkPlan = ({ control }) => {
   }, []);
 
  
-  const filteredTechTags = defaultTechTags.filter(tag =>
+  const techOptions = defaultTechTags.length ? defaultTechTags : fallbackTechTags;
+  const taskOptions = defaultTaskTags.length ? defaultTaskTags : fallbackTaskTags;
+
+  const filteredTechTags = techOptions.filter(tag =>
     !techTags.includes(tag) && tag.toLowerCase().includes(customTechTag.toLowerCase())
   );
 
-  const filteredTaskTags = defaultTaskTags.filter(tag =>
+  const filteredTaskTags = taskOptions.filter(tag =>
     !taskTags.includes(tag) && tag.toLowerCase().includes(customTaskTag.toLowerCase())
   );
 
@@ -79,28 +85,28 @@ const WorkPlan = ({ control }) => {
 
 
  
-const handleTextareaAutoResize = (e) => {
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
-  };
-
- 
   const handleAddWorkRow = () => {
     append({ description: '', amount: '', specification: '', sale: false });
   };
 
   const handleCopyWorkRow = (index) => {
-    const row = fields[index];
-    const textToCopy = `Описание: ${row.description}, Сумма: ${row.amount}, ТЗ: ${row.specification}, Продажа: ${row.sale ? "Да" : "Нет"}`;
+    const currentDescription = getValues(`workList.${index}.description`);
+    const currentAmount = getValues(`workList.${index}.amount`);
+    const currentSpec = getValues(`workList.${index}.specification`);
+    const currentSale = getValues(`workList.${index}.sale`);
+    const textToCopy = `Описание: ${currentDescription || ''}, Сумма: ${currentAmount || ''}, ТЗ: ${currentSpec || ''}, Продажа: ${currentSale ? "Да" : "Нет"}`;
     navigator.clipboard.writeText(textToCopy).then(() => alert("Данные скопированы в буфер обмена!"));
   };
 
-  const projectOptions = [
-  "Проект Альфа",
-  "Разработка CRM",
-  "Интернет-магазин 'Космос'",
-  "Лендинг для конференции"
-];
+  const projectOptions = (orderFields?.projects || [])
+    .map((p) => p.value ?? p.name ?? "")
+    .filter(Boolean);
+  const fallbackProjects = [
+    "Проект Альфа",
+    "Разработка CRM",
+    "Интернет-магазин 'Космос'",
+    "Лендинг для конференции",
+  ];
 
   return (
     <div className="tab-content-container">
@@ -113,7 +119,7 @@ const handleTextareaAutoResize = (e) => {
             render={({ field }) => (
               <select {...field} className="custom-content-input"> 
                 <option value="" disabled>Выберите проект</option>
-                {projectOptions.map((project, index) => (
+                {(projectOptions.length ? projectOptions : fallbackProjects).map((project, index) => (
                   <option key={index} value={project}>
                     {project}
                   </option>
@@ -130,17 +136,10 @@ const handleTextareaAutoResize = (e) => {
           name="orderDescription"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
-              onInput={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
+              placeholder="Введите описание заказа"
             />
           )}
         />
@@ -361,14 +360,9 @@ const handleTextareaAutoResize = (e) => {
                     control={control}
                     name={`workList.${index}.specification`}
                     render={({ field }) => (
-                      <textarea
+                      <AutoResizeTextarea
                         {...field}
                         placeholder="Введите ТЗ"
-                        onInput={handleTextareaAutoResize}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          handleTextareaAutoResize(e);
-                        }}
                         className="input-textarea"
                       />
                     )}
@@ -411,15 +405,10 @@ const handleTextareaAutoResize = (e) => {
           name="techSpecifications"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
               onKeyDown={(e) => handleAddTechSpecToTextarea(e, field)}
-              onInput={handleTextareaAutoResize}
             />
           )}
         />
@@ -432,15 +421,10 @@ const handleTextareaAutoResize = (e) => {
           name="additionalConditions"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
               placeholder="Введите дополнительные условия..."
-              onInput={handleTextareaAutoResize}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
             />
           )}
         />
@@ -453,15 +437,10 @@ const handleTextareaAutoResize = (e) => {
           name="notes"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
               placeholder="Введите примечание..."
-              onInput={handleTextareaAutoResize}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
             />
           )}
         />

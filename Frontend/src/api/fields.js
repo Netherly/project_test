@@ -50,7 +50,12 @@ export const normIntervals = (arr) =>
 export const normCategories = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
-    categoryInterval: tidy(it?.categoryInterval ?? it?.interval ?? it?.group),
+    categoryInterval: tidy(
+      it?.categoryInterval ??
+      it?.intervalValue ??
+      it?.interval ??
+      it?.group
+    ),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
     isDeleted: it?.isDeleted || false,
   }));
@@ -149,8 +154,12 @@ export function withDefaults(fields) {
     },
     
     orderFields: {
+      currency: normStrs(f?.orderFields?.currency),
       intervals: normIntervals(f?.orderFields?.intervals),
       categories: normCategories(f?.orderFields?.categories),
+      statuses: normStrs(f?.orderFields?.statuses),
+      closeReasons: normStrs(f?.orderFields?.closeReasons),
+      projects: normStrs(f?.orderFields?.projects),
       tags: normTags(f?.orderFields?.tags),
       techTags: normTags(f?.orderFields?.techTags),
       taskTags: normTags(f?.orderFields?.taskTags),
@@ -290,10 +299,17 @@ export function serializeForSave(values) {
   const currencyList = serByCode(values?.generalFields?.currency);
 
   return {
+    generalFields: {
+      currency: currencyList,
+    },
     orderFields: {
       currency: currencyList,
       intervals: serIntervals(values?.orderFields?.intervals),
       categories: serCategories(values?.orderFields?.categories),
+      statuses: serByName(values?.orderFields?.statuses),
+      closeReasons: serByName(values?.orderFields?.closeReasons),
+      projects: serByName(values?.orderFields?.projects),
+      discountReason: serByName(values?.orderFields?.discountReason),
       tags: serTags(values?.orderFields?.tags),
       techTags: serTags(values?.orderFields?.techTags),
       taskTags: serTags(values?.orderFields?.taskTags),
@@ -313,6 +329,7 @@ export function serializeForSave(values) {
       tags: serTags(values?.companyFields?.tags),
     },
     employeeFields: {
+      country: serByName(values?.employeeFields?.country),
       tags: serTags(values?.employeeFields?.tags),
     },
     assetsFields: {
@@ -325,6 +342,12 @@ export function serializeForSave(values) {
       articles: serArticles(values?.financeFields?.articles),
       subarticles: serSubarticles(values?.financeFields?.subarticles),
       subcategory: serByName(values?.financeFields?.subcategory),
+    },
+    taskFields: {
+      tags: serTags(values?.taskFields?.tags),
+    },
+    sundryFields: {
+      typeWork: serByName(values?.sundryFields?.typeWork),
     },
   };
 }

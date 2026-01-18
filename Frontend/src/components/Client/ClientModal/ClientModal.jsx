@@ -39,6 +39,7 @@ export default function ClientModal({
   const [showImage,   setShowImage]   = useState(false);
   const [closing,     setClosing]     = useState(false);
   const [formErrors,  setFormErrors]  = useState(null);
+  const formId = "client-form";
 
   // пример логов
   const sampleLogs = [
@@ -87,9 +88,15 @@ export default function ClientModal({
   };
 
   /* ---------- Сохранение / валидация ---------- */
-  const submitHandler = data => {
-    onSave(data);
-    closeHandler();
+  const submitHandler = async (data) => {
+    try {
+      const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
+      await onSave?.(payload);
+      closeHandler();
+    } catch (e) {
+      setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
+      console.error("saveClient failed:", e);
+    }
   };
   const onInvalid = err => {
     const grouped = groupErrors(err);
@@ -131,6 +138,7 @@ export default function ClientModal({
           />
           <FormProvider {...methods}>
             <form
+              id={formId}
               className="client-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
@@ -142,7 +150,7 @@ export default function ClientModal({
           </FormProvider>
           <div className="form-actions-bottom">
                 <button className="cancel-order-btn" type="button" onClick={()=>reset()} disabled={!isDirty}>Отменить</button>
-                <button className="save-order-btn" type="submit">Сохранить</button>
+                <button className="save-order-btn" type="submit" form={formId}>Сохранить</button>
               </div>
         </div>
 

@@ -14,7 +14,7 @@ import FinancesTab from "./FinancesTab";
 import OrdersTab from "./OrdersTab";
 import ChatPanel from "../../Client/ClientModal/ChatPanel";
 
-import { fetchEmployees, createEmployee, updateEmployee, normalizeEmployee, serializeEmployee } from "../../../api/employees";
+import { normalizeEmployee } from "../../../api/employees";
 import { fetchFields, withDefaults } from "../../../api/fields";
 
 import "../../../styles/EmployeeModal.css";
@@ -92,20 +92,11 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     return grouped;
   };
 
-  const apiSave = async (data) => {
-    const payload = serializeEmployee(data);
-    if (isNew) {
-      const created = await createEmployee(payload);
-      return created;
-    }
-    const updated = await updateEmployee(safeEmployee.id, payload);
-    return updated;
-  };
-
   const submitHandler = async (data) => {
     try {
-      const saved = await apiSave(data);
-      if (typeof onSave === "function") onSave(saved);
+      if (typeof onSave === "function") {
+        await onSave(data);
+      }
       closeHandler();
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });

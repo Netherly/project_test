@@ -5,6 +5,7 @@ const app =require('./app');
 const { initRatesAutofillJob } = require('./jobs/rates.autofill.job');
 const { scheduleTokenCleanup } = require('./jobs/tokens.cleanup.job');
 const { initTelegramBot, stopTelegramBot } = require('./bot/bot');
+const { ensureDefaultCompanies } = require('./seeds/companies.seed');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -67,6 +68,13 @@ function setupGracefulShutdown(server, isBotActive) {
 }
 
 async function boot() {
+  try {
+    await ensureDefaultCompanies();
+    console.log('[seed] default companies ensured');
+  } catch (e) {
+    console.error('[seed] companies failed:', e?.message || e);
+  }
+
   const server = app.listen(PORT, () => {
     console.log(`[api] listening on :${PORT}`);
   });
