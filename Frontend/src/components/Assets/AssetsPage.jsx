@@ -524,6 +524,7 @@ const AssetsPage = () => {
                                                 onCardClick={() => handleRowClick(asset)}
                                                 onCopyValue={copyToClipboard}
                                                 onCopyRequisites={(e) => handleCopyRequisites(e, asset.requisites)}
+                                                cardDesigns={fields?.assetsFields?.cardDesigns || []}
                                             />
                                         ))}
                                     </div>

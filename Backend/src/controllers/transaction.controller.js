@@ -1,6 +1,6 @@
 // src/controllers/transaction.controller.js
-const { PrismaClient, OperationType } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { OperationType } = require('@prisma/client');
+const prisma = require('../../prisma/client');
 
 /** ===== helpers ===== */
 

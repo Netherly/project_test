@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Controller, useFieldArray, useWatch, useFormContext } from 'react-hook-form';
+import AutoResizeTextarea from './AutoResizeTextarea';
 
 const WorkPlan = ({ control, orderFields }) => {
   
@@ -84,19 +85,16 @@ const WorkPlan = ({ control, orderFields }) => {
 
 
  
-const handleTextareaAutoResize = (e) => {
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
-  };
-
- 
   const handleAddWorkRow = () => {
     append({ description: '', amount: '', specification: '', sale: false });
   };
 
   const handleCopyWorkRow = (index) => {
-    const row = fields[index];
-    const textToCopy = `Описание: ${row.description}, Сумма: ${row.amount}, ТЗ: ${row.specification}, Продажа: ${row.sale ? "Да" : "Нет"}`;
+    const currentDescription = getValues(`workList.${index}.description`);
+    const currentAmount = getValues(`workList.${index}.amount`);
+    const currentSpec = getValues(`workList.${index}.specification`);
+    const currentSale = getValues(`workList.${index}.sale`);
+    const textToCopy = `Описание: ${currentDescription || ''}, Сумма: ${currentAmount || ''}, ТЗ: ${currentSpec || ''}, Продажа: ${currentSale ? "Да" : "Нет"}`;
     navigator.clipboard.writeText(textToCopy).then(() => alert("Данные скопированы в буфер обмена!"));
   };
 
@@ -138,17 +136,10 @@ const handleTextareaAutoResize = (e) => {
           name="orderDescription"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
-              onInput={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
+              placeholder="Введите описание заказа"
             />
           )}
         />
@@ -369,14 +360,9 @@ const handleTextareaAutoResize = (e) => {
                     control={control}
                     name={`workList.${index}.specification`}
                     render={({ field }) => (
-                      <textarea
+                      <AutoResizeTextarea
                         {...field}
                         placeholder="Введите ТЗ"
-                        onInput={handleTextareaAutoResize}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          handleTextareaAutoResize(e);
-                        }}
                         className="input-textarea"
                       />
                     )}
@@ -419,15 +405,10 @@ const handleTextareaAutoResize = (e) => {
           name="techSpecifications"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
               onKeyDown={(e) => handleAddTechSpecToTextarea(e, field)}
-              onInput={handleTextareaAutoResize}
             />
           )}
         />
@@ -440,15 +421,10 @@ const handleTextareaAutoResize = (e) => {
           name="additionalConditions"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
               placeholder="Введите дополнительные условия..."
-              onInput={handleTextareaAutoResize}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
             />
           )}
         />
@@ -461,15 +437,10 @@ const handleTextareaAutoResize = (e) => {
           name="notes"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
               className="workplan-textarea"
               placeholder="Введите примечание..."
-              onInput={handleTextareaAutoResize}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
             />
           )}
         />

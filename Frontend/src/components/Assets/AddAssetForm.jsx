@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import '../../styles/AddAssetForm.css';
 import { Plus, X } from 'lucide-react';
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
+import AutoResizeTextarea from '../modals/OrderModal/AutoResizeTextarea';
 // Убираем FieldsAPI, так как он больше не нужен здесь
 // import { FieldsAPI } from '../../api/fields'; 
 
@@ -163,11 +164,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
 
     const handleCancelClose = () => {
         setShowConfirmationModal(false);
-    };
-
-    const handleTextareaAutoResize = (e) => {
-        e.target.style.height = 'auto';
-        e.target.style.height = e.target.scrollHeight + 'px';
     };
 
     return (
@@ -369,15 +365,12 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                             />
                                         </div>
                                         <div className="requisites-table-cell">
-                                            <textarea
+                                            <AutoResizeTextarea
                                                 name="value"
                                                 value={req.value}
-                                                onInput={(e) => {
-                                                    handleRequisiteChange(index, e);
-                                                    handleTextareaAutoResize(e);
-                                                }}
+                                                onChange={(e) => handleRequisiteChange(index, e)}
                                                 placeholder="Введите значение"
-                                                className="form-input1"
+                                                className="assets-workplan-textarea"
                                                 disabled={isLoading}
                                             />
                                         </div>

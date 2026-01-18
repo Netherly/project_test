@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import '../../styles/AssetCard.css';
-import { FieldsAPI } from '../../api/fields';
 import { fileUrl } from '../../api/http';
 
 import visaLogo from '../../assets/assets-card/visa.png';
@@ -21,25 +20,8 @@ const designNameMap = {
     'Красный': 'red',
 };
 
-const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesigns: propCardDesigns = [] }) => {
+const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesigns = [] }) => {
     const [isFlipped, setIsFlipped] = useState(false);
-    const [cardDesigns, setCardDesigns] = useState(propCardDesigns);
-
-    useEffect(() => {
-        if (propCardDesigns.length === 0) {
-            const loadCardDesigns = async () => {
-                try {
-                    const af = await FieldsAPI.getAssets();
-                    setCardDesigns(af.cardDesigns || []);
-                } catch (err) {
-                    console.error("Failed to load card designs", err);
-                }
-            };
-            loadCardDesigns();
-        } else {
-            setCardDesigns(propCardDesigns);
-        }
-    }, [propCardDesigns]);
 
     const handleFlip = (e) => {
         e.stopPropagation();
@@ -65,9 +47,10 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesi
         }
     };
 
-    const displayAccountName = asset.accountName.includes("Binance")
-        ? asset.accountName.replace("Binance", "CRYPTO")
-        : asset.accountName;
+    const accountName = asset.accountName || '';
+    const displayAccountName = accountName.includes("Binance")
+        ? accountName.replace("Binance", "CRYPTO")
+        : accountName;
 
     const paymentSystemValue = asset.paymentSystemRaw ?? asset.paymentSystem;
     const currencyValue = asset.currencyRaw ?? asset.currency;
@@ -82,7 +65,9 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesi
             designNameMap[d.name] === designNameValue
     );
     const designClass = designValue ? `card-design-${designValue}` : 'card-design-default';
-    const designUrl = asset.cardDesign?.url ? fileUrl(asset.cardDesign.url) : designObj?.viewUrl;
+    const designUrl = asset.cardDesign?.url
+        ? fileUrl(asset.cardDesign.url)
+        : designObj?.viewUrl || (designObj?.url ? fileUrl(designObj.url) : null);
 
     const getCardTypeLogo = () => {
         const ps = typeof paymentSystemValue === 'object' ? paymentSystemValue.name || paymentSystemValue.code : paymentSystemValue;
@@ -130,15 +115,6 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesi
 
     return (
         <div className={`asset-card-wrapper ${isFlipped ? 'flipped' : ''} ${designClass}`} onClick={onCardClick} style={{ backgroundImage: designUrl ? `url(${designUrl})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' }}>
-            {asset.cardDesign && (
-                <div className="card-design-info">
-                    <div>ID: {asset.cardDesign.id}</div>
-                    <div>Name: {asset.cardDesign.name}</div>
-                    <div>URL: {asset.cardDesign.url}</div>
-                    <div>Is Active: {asset.cardDesign.isActive ? 'Yes' : 'No'}</div>
-                    <div>Order: {asset.cardDesign.order}</div>
-                </div>
-            )}
             <div className="asset-card-inner">
                 <div className="asset-card-front">
                     <div className="card-top-left-name">

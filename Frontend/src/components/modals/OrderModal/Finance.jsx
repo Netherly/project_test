@@ -1,6 +1,7 @@
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import CustomSelect from '../../ui/CustomSelect';
+import AutoResizeTextarea from './AutoResizeTextarea';
 
 const Finance = ({ control, orderFields, transactions = [] }) => {
     const { watch } = useFormContext();
@@ -109,6 +110,23 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                 )}
             />
 
+            <Controller
+                name="minOrderAmount"
+                control={control}
+                defaultValue=""
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Мин. сумма</div>
+                        <input
+                            {...field}
+                            type="number"
+                            className='tab-content-input'
+                            placeholder="..."
+                        />
+                    </div>
+                )}
+            />
+
             
             <Controller
                 name="currency_type"
@@ -187,6 +205,23 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
             />
 
             <Controller
+                name="discountReason"
+                control={control}
+                defaultValue=""
+                render={({ field }) => (
+                    <div className="tab-content-row">
+                        <div className="tab-content-title">Причина скидки</div>
+                        <input
+                            {...field}
+                            type="text"
+                            className='tab-content-input'
+                            placeholder="Укажите причину..."
+                        />
+                    </div>
+                )}
+            />
+
+            <Controller
                 name="upsell"
                 control={control}
                 render={({ field }) => (
@@ -233,7 +268,11 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                 render={({ field }) => (
                     <div className="tab-content-row-column">
                         <div className="tab-content-title">Реквизиты для оплаты</div>
-                        <textarea {...field} className='workplan-textarea' placeholder="Введите реквизиты..."></textarea>
+                        <AutoResizeTextarea
+                            {...field}
+                            className='workplan-textarea'
+                            placeholder="Введите реквизиты..."
+                        />
                     </div>
                 )}
             />
