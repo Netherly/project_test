@@ -1,0 +1,192 @@
+.currency-rates-page {
+    display: flex;
+    min-height: 100vh; 
+}
+
+.currency-rates-main-container {
+    flex-grow: 1; 
+    color: var(--text-color);
+}
+
+
+.currency-rates-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    margin-bottom: 10px;
+    height: 60px;
+    background-color: var(--container-bg);
+    border-bottom: 1px solid var(--border--color);
+}
+.currency-rates-header-title {
+    border-right: 1px solid var(--border--color);
+    padding: 0px 15px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-page-title);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0; 
+}
+
+
+.currency-rates-header-actions{
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    border-left: 1px solid var(--border--color);
+    height: 100%;
+    padding: 0px 15px;
+    align-items: center;
+    min-width: 244px;
+    box-sizing: border-box;
+}
+
+.currency-rates-table-container {
+    color: var(--text-color);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); 
+    overflow-x: auto; 
+}
+
+
+.currency-rates-table {
+    width: 100%;
+    border-collapse: separate; 
+    border-spacing: 0;
+    text-align: left;
+    table-layout: fixed;
+}
+
+
+.currency-rates-table thead {
+    background-color: var(--container-bg);
+    font-size: var(--font-size-table-header);
+}
+
+.currency-rates-table th {
+    padding: 12px 15px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    text-align: center;
+    border-right: 1px solid var(--bg-color);
+}
+
+
+.currency-rates-table .table-spacer-row td {
+  background-color: transparent;
+  height: 5px;
+  border: none;
+  padding: 0;
+}
+
+.currency-rates-table .table-spacer-row:hover,
+.currency-rates-table .table-spacer-row:hover td {
+  background-color: transparent !important;
+}
+
+
+.currency-rates-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+
+.currency-rates-table tbody tr:hover {
+    background-color: var(--input-border-focus);
+}
+
+.currency-rates-table td {
+    background-color: var(--container-bg);
+    padding: 12px 15px;
+    text-align: center;
+    color: var(--text-color);
+    vertical-align: middle; 
+    border-bottom: 1px solid var(--bg-color);
+    border-top: 1px solid var(--bg-color);
+    border-right: 1px solid var(--bg-color);
+    white-space: normal;
+    word-wrap: break-word;
+    font-size: var(--font-size-table-text);
+}
+
+.currency-rates-table td:last-child {
+    border-right: none;
+}
+
+
+.currency-rates-table td.currency-rates-editable-cell {
+  position: relative;
+  padding: 0 !important;  
+}
+
+
+
+
+.currency-rates-table td.currency-rates-editable-cell .currency-rates-editable-input {
+  position: absolute;
+  inset: 0;                 
+  width: 100%;
+  height: 100%;
+  border: none;             
+  padding: 0;               
+  background: var(--input-bg);
+  color: var(--text-color);
+  text-align: center;
+  font: inherit;            
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-size: 15px;
+}
+
+.currency-rates-editable-input:focus {
+    outline: none;
+}
+
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+    width: 100%;
+    padding: 0; 
+    box-sizing: border-box;
+}
+
+.cancel-order-btn {
+    background: none;
+    border: 1px solid rgba(128, 128, 128, 0.5);
+    cursor: pointer;
+    padding: 8px 16px;
+    color: var(--container-text-color);
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    opacity: 0.8;
+}
+
+.cancel-order-btn:hover {
+    background-color: #ff4444;
+    color: white;
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+.save-order-btn {
+    background-color: var(--button-bg);
+    border: none;
+    cursor: pointer;
+    padding: 8px 16px;
+    color: #fff; 
+    font-weight: bold;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.save-order-btn:hover {
+    background-color: var(--input-border-focus); 
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

@@ -1,0 +1,412 @@
+.add-asset-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+    z-index: 1000;
+}
+
+.add-asset-modal {
+    background-color: var(--bg-menu-color);
+    border-radius: 8px 0 0 8px;
+    padding: 20px 30px;
+    width: 35%;
+    max-width: 750px;
+    height: 100vh;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.add-asset-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-form-color);
+    flex-shrink: 0;
+}
+
+.add-asset-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.add-asset-actions .icon {
+    margin-left: 15px;
+    cursor: pointer;
+    font-size: 22px;
+    color: var(--chips-color);
+}
+
+.add-asset-actions .icon:hover {
+    color: var(--accent-color);
+}
+
+.tabs {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+    margin-top: 30px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    outline: none;
+    border-bottom: 2px solid transparent;
+    color: var(--container-text-color);
+    padding: 4px 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    border-radius: 4px 4px 0 0;
+}
+
+.tab-button:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+    opacity: 1;
+}
+
+.tab-button.active {
+    border-bottom-color: var(--container-text-color);
+    opacity: 1;
+    color: var(--container-text-color);
+    background-color: rgba(128, 128, 128, 0.15);
+}
+
+.add-asset-form {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+}
+
+.form-label {
+    flex-basis: 40%;
+    min-width: 120px;
+    text-align: left;
+    color: var(--chips-color);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding-right: 10px;
+    box-sizing: border-box;
+}
+
+.form-value {
+    flex-basis: 70%;
+    width: 100%;
+    padding: 10px 0;
+    color: var(--text-color);
+    font-size: 15px;
+    font-style: italic;
+    box-sizing: border-box;
+    text-align: right;
+}
+
+.form-input1 {
+    background-color: var(--bg-menu-color);
+    border: none;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+    flex-basis: 70%;
+    width: 100%;
+    min-width: 410px;
+    padding: 10px 12px;
+    color: var(--text-color);
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.add-asset-form input[type="text"],
+.add-asset-form input[type="number"],
+.add-asset-form select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.add-asset-form input::placeholder {
+    color: var(--chips-color);
+    opacity: 0.7;
+}
+
+.form-input1:focus, .assets-workplan-textarea:focus {
+    border-color: var(--accent-color);
+}
+
+.add-asset-requisite-item {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--border--color);
+}
+
+.add-asset-requisite-item:last-of-type {
+    border-bottom: none;
+}
+
+.add-asset-requisite-item .form-row-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.add-asset-requisite-item .form-row-inner .form-label {
+    flex-basis: 35%;
+    min-width: 80px;
+    text-align: left;
+}
+
+.add-asset-requisite-item .form-row-inner .form-input {
+    flex-basis: 65%;
+    width: 100%;
+}
+
+.remove-requisite-button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+    margin-top: 10px;
+    align-self: flex-end;
+    max-width: fit-content;
+}
+
+.remove-requisite-button:hover {
+    background-color: #c82333;
+}
+
+.add-requisite-button {
+    background-color: var(--button-bg);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+    margin-top: 20px;
+    width: fit-content;
+    align-self: flex-start;
+}
+
+.add-requisite-button:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.assets-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-top: 1px solid var(--border-form-color);
+    flex-shrink: 0;
+}
+
+.cancel-button {
+    background: none;
+    border: 1px solid var(--chips-color);
+    cursor: pointer;
+    padding: 10px 20px;
+    color: var(--chips-color);
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.cancel-button:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+    color: var(--text-color);
+}
+
+.save-button {
+    background-color: var(--button-bg);
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.save-button:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.requisites-table-wrapper {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.requisites-table {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.requisites-table-header {
+    display: flex;
+    text-align: left;
+    color: var(--chips-color);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.requisites-table-row {
+    display: flex;
+    align-items: center;
+}
+
+
+.requisites-table-cell {
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.requisites-table-row .requisites-table-cell:first-child {
+    flex-basis: 40%;
+    padding-right: 10px; 
+}
+
+.requisites-table-row .requisites-table-cell:nth-child(2) {
+    flex-basis: 65%;
+}
+
+
+.requisites-table-cell.action-cell {
+    flex: 0 0 30px; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 10px;
+}
+
+.form-input-table {
+    background: none;
+    outline: none;
+    border: none;
+    color: var(--chips-color);
+    width: 100%;
+    height: 100%;
+    font-size: 14px;
+    padding: 8px 0;
+}
+
+.add-requisite-btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding-top: 15px;
+    display: flex;
+    align-items: center;
+    color: white;
+    gap: 5px;
+}
+
+.add-asset-form input::placeholder,
+.add-asset-form textarea::placeholder { 
+    color: var(--chips-color);
+    opacity: 0.7;
+}
+
+.assets-workplan-textarea {
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    outline: none;
+    color: var(--container-text-color);
+    padding: 8px;
+    width: 100%;
+    height: 38px;
+    resize: none;
+    font-family: inherit;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+
+@media (max-width: 768px) {
+    .add-asset-modal {
+        width: 100%;
+        min-width: unset;
+        max-width: unset;
+        border-radius: 0;
+        padding: 15px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        margin-bottom: 10px;
+    }
+
+    .form-label,
+    .form-input,
+    .form-select,
+    .form-value {
+        flex-basis: auto;
+        width: 100%;
+        text-align: left;
+    }
+
+    .form-value {
+        text-align: left;
+    }
+
+    .requisite-item .form-row-inner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+        margin-bottom: 5px;
+    }
+
+    .requisite-item .form-row-inner .form-label,
+    .requisite-item .form-row-inner .form-input {
+        flex-basis: auto;
+        width: 100%;
+    }
+
+    .remove-requisite-button {
+        align-self: stretch;
+        max-width: unset;
+    }
+}
