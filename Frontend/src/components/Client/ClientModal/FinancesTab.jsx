@@ -5,10 +5,59 @@ import {
   useFormContext
 } from 'react-hook-form';
 import './FinancesTab.css';
-import {Plus, Minus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
+
+// <--- ДОБАВЛЕНО: Утилита форматирования
+const formatNumberWithSpaces = (num) => {
+  if (num === null || num === undefined || isNaN(Number(num))) {
+    return '0.00';
+  }
+  const fixedNum = Number(num).toFixed(2);
+  const parts = fixedNum.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return parts.join('.');
+};
+
+// <--- ДОБАВЛЕНО: Тестовые данные для клиента
+const mockTransactions = [
+  {
+    id: 'mock1',
+    date: '15-11-2025',
+    category: 'Оплата клиента',
+    subcategory: 'Оплата заказа Z-102',
+    operation: 'Зачисление', // <-- Будет зеленым
+    amount: 50000,
+    accountCurrency: 'EUR',
+    orderNumber: 'Z-102'
+  },
+  {
+    id: 'mock2',
+    date: '14-11-2025',
+    category: 'Возврат',
+    subcategory: 'Возврат по заказу Z-100',
+    operation: 'Списание', // <-- Будет красным
+    amount: 2500,
+    accountCurrency: 'EUR',
+    orderNumber: 'Z-100'
+  }
+];
 
 export default function FinancesTab({ currencies = [], referrers = [], employees = [] }) {
   const [currencyList, setCurrencyList] = useState(currencies);
+  
+  // <--- ДОБАВЛЕНО: Состояние для таблицы транзакций
+  const [transactions, setTransactions] = useState(mockTransactions);
+
+  // TODO: Позже здесь будет логика загрузки реальных транзакций для клиента
+  // useEffect(() => {
+  //   // const clientId = getValues('id'); // или получить id из пропсов
+  //   // if (clientId) {
+  //   //   // ...логика загрузки транзакций по clientId...
+  //   //   // setTransactions(loadedTransactions);
+  //   // }
+  // }, []);
+
+
   const addCurrency = () => {
     const val = prompt('Новая валюта (пример: CHF):');
     if (val && val.trim() && !currencyList.includes(val.trim())) {
@@ -91,23 +140,16 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           name="percent"
           control={control}
           render={({ field }) => {
-           
             const { onChange, value, ...restField } = field;
-
-            
             const min = 0;
             const max = 100;
             const step = 5;
-
-            
             const numValue = parseFloat(value) || 0;
 
-            
             const handleDecrement = () => {
               const newValue = Math.max(min, numValue - step);
               onChange(newValue); 
             };
-
             
             const handleIncrement = () => {
               const newValue = Math.min(max, numValue + step);
@@ -117,8 +159,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
             return (
               <div className="form-field">
                 <label>% доли</label>
-                
-                
                 <div className="custom-number-input">
                   <input
                     type="number"
@@ -130,7 +170,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
                     step={step}
                     className={errors.percent ? 'input-error' : ''}
                   />
-                  
                   <button
                     type="button"
                     className="num-btn minus-btn"
@@ -139,7 +178,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
                   >
                     <Minus/>
                   </button>
-                 
                   <button
                     type="button"
                     className="num-btn plus-btn"
@@ -161,8 +199,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           render={({ field }) => (
             <div className="form-field">
               <label>Есть доля?</label>
-              
-              
               <div
                 className="fake-input-toggle" 
                 onClick={() => field.onChange(!field.value)} 
@@ -235,6 +271,71 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           </div>
         )}
       />
+      
+      
+      
+      
+      <div className="tab-content-title full-width">Журнал операций</div>
+      
+      <div className="finances-log-table full-width">
+        
+        {/* Заголовок таблицы */}
+        <div className="finances-log-row header-row">
+          <div className="finances-log-content-wrapper">
+            <div className="finances-log-cell">Дата</div>
+            <div className="finances-log-cell">Статья</div>
+            <div className="finances-log-cell">Подстатья</div>
+            <div className="finances-log-cell">Операция</div>
+            <div className="finances-log-cell">Сумма</div>
+            <div className="finances-log-cell">Номер заказа</div>
+          </div>
+        </div>
+
+        {/* Строки таблицы */}
+        {transactions.length > 0 ? (
+          transactions.map((trx) => (
+            <div key={trx.id} className="finances-log-row">
+              <div className="finances-log-content-wrapper">
+                
+                <div className="finances-log-cell">
+                  <input type="text" value={trx.date || ''} readOnly />
+                </div>
+                
+                <div className="finances-log-cell">
+                  <input type="text" value={trx.category || ''} readOnly />
+                </div>
+                
+                <div className="finances-log-cell">
+                  <input type="text" value={trx.subcategory || ''} readOnly />
+                </div>
+                
+                <div className="finances-log-cell">
+                  <input type="text" value={trx.operation || ''} readOnly />
+                </div>
+                
+                <div className="finances-log-cell">
+                  <input
+                    type="text"
+                    value={`${formatNumberWithSpaces(trx.amount)} ${trx.accountCurrency || ''}`}
+                    className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}
+                    readOnly
+                  />
+                </div>
+
+                <div className="finances-log-cell">
+                  <input type="text" value={trx.orderNumber || 'N/A'} readOnly />
+                </div>
+
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="no-transactions">
+            Транзакции по этому клиенту отсутствуют.
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

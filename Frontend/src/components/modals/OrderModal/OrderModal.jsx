@@ -19,6 +19,8 @@ import { addLogEntry, getEmployees, getOrders } from '../../Journal/journalApi'
 import { stageColors, getStageColor } from '../../Orders/stageColors';
 import { sampleClients } from '../../../data/sampleClients'; 
 import '../../../styles/OrderModal.css';
+import { X, Trash2, Copy, MoreVertical } from 'lucide-react';
+
 
 const stages = [
   "Лид", "Изучаем ТЗ", "Обсуждаем с клиентом", "Клиент думает",
@@ -69,11 +71,13 @@ const newOrderDefaults = {
     performers: [],
     share_percent: "",
     budget: "",
+    minOrderAmount: "",
     currency_type: "",
     currency_rate: "",
     hourly_rate: "",
     round_hour: false,
     discount: "",
+    discountReason: "",
     upsell: "",
     expenses: "",
     tips: "",
@@ -130,11 +134,13 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
       performers: order?.performers || [],
       share_percent: order?.share_percent || "",
       budget: order?.budget || "",
+      minOrderAmount: order?.minOrderAmount || "",
       currency_type: order?.currency_type || "",
       currency_rate: order?.currency_rate || "",
       hourly_rate: order?.hourly_rate || "",
       round_hour: order?.round_hour || false,
       discount: order?.discount || "",
+      discountReason: order?.discountReason || "",
       upsell: order?.upsell || "",
       expenses: order?.expenses || "",
       tips: order?.tips || "",
@@ -574,62 +580,56 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
 
   return (
     <div className="order-modal-overlay">
-      <div className="order-modal-content">
+      <div className="order-modal-content custom-scrollbar">
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit(onSubmit)} className="order-modal-form">
             <div className="order-modal-header-section">
               <div className='header-top-row'>
-                 <button className="close-button" onClick={onClose}>{'<'}</button>
-                 <div className="modal-header">
-              <h2 className="modal-order-title">
-                {mode === 'create'
-                  ? 'Создание нового заказа'
-                  : (order?.name || (order?.numberOrder ? `Заказ № ${order.numberOrder}` : `Заявка #${order?.id}`))
-                }
-              </h2>
-              {isDirty && (
-                  <div className="action-buttons">
-                  <button
-                      type="button"
-                      className="cancel-order-btn"
-                      onClick={resetChanges}
-                  >
-                      Отменить
-                  </button>
-                  <button type="submit" className="save-order-btn">Сохранить</button>
+                 <div className="order-modal-header">
+                    <h2 className="modal-order-title">
+                        {mode === 'create'
+                        ? 'Создание нового заказа'
+                        : (order?.name || (order?.numberOrder ? `Заказ № ${order.numberOrder}` : `Заявка #${order?.id}`))
+                        }
+                    </h2>
+              
+                    
+                    <div className="header-controls">
+                      {mode === 'edit' && (
+                          <div className="order-actions-menu">
+                              <button
+                                  type="button"
+                                  className="order-actions-btn"
+                                  onClick={() => setShowActionsMenu(!showActionsMenu)}
+                              >
+                                <MoreVertical size={20} />
+                              </button>
+
+                              {showActionsMenu && (
+                                  <div className="order-options-menu">
+                                      <button
+                                          type="button"
+                                          className="order-menu-item"
+                                          onClick={() => handleActionSelect('duplicate')}
+                                      >
+                                          <span className="order-menu-icon"><Copy size={14}/></span> Дублировать заказ
+                                      </button>
+                                      <button
+                                          type="button"
+                                          className="order-menu-item order-delete-item"
+                                          onClick={() => handleActionSelect('delete')}
+                                      >
+                                          <span className="order-menu-icon"><Trash2 size={14}/></span> Удалить заказ
+                                      </button>
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                      <button className="close-button" onClick={onClose} type="button"><X /></button>
                   </div>
-              )}
-              {mode === 'edit' && (
-                <div className="order-actions-menu">
-                  <button
-                    type="button"
-                    className="order-actions-btn"
-                    onClick={() => setShowActionsMenu(!showActionsMenu)}
-                  >
-                    ⋮
-                  </button>
-                  {showActionsMenu && (
-                    <div className="order-actions-dropdown">
-                      <button
-                        type="button"
-                        className="order-action-item"
-                        onClick={() => handleActionSelect('duplicate')}
-                      >
-                        Дублировать заказ
-                      </button>
-                      <button
-                        type="button"
-                        className="order-action-item"
-                        onClick={() => handleActionSelect('delete')}
-                      >
-                        Удалить заказ
-                      </button>
-                    </div>
-                  )}
                 </div>
-              )}
-               </div>
               </div>
+
                 <div className="tags-section-header">
                   <Controller
                     control={control}
@@ -641,6 +641,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                             type="text"
                             placeholder="Добавить тег"
                             className="input-tag"
+                            style={{ width: '95px' }}
                             value={customTag}
                             onChange={handleTagInputChange}
                             onKeyDown={(e) => handleCustomTagAdd(e, onChange)}
@@ -737,7 +738,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                       ))}
                   </div>
                 </div>
-                 <div className="tabs-container">
+                 <div className="order-tabs-container">
                 <div className="tabs">
                     {tabs.map(tab => (
                         <button
@@ -753,8 +754,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                  </div>
             </div>
             
-
-
+            
             <div className='order-modal-body-section'>
                   <div className="tab-content">
                     {activeTab === "Сводка" && <OrderSummary />}
@@ -777,6 +777,21 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                     {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} />}
                   </div>
             </div>
+
+            
+            <div className="order-modal-footer">
+                <div className="action-buttons">
+                    <button
+                        type="button"
+                        className="cancel-order-btn"
+                        onClick={resetChanges}
+                    >
+                        Отменить
+                    </button>
+                    <button type="submit" className="save-order-btn">Сохранить</button>
+                </div>
+            </div>
+
           </form>
         </FormProvider>
       </div>

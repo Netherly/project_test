@@ -8,4 +8,7 @@
     color: var(--container-text-color);
     background-color: var(--container-bg);
     cursor: pointer;
+    width: 100%;
+    box-sizing: border-box; 
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
 }

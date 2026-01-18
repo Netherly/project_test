@@ -1,21 +1,21 @@
+
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
-import defaultAvatar from '../../../assets/avatar-placeholder.svg';
+import defaultAvatar from '../../../assets/avatar-placeholder.svg'; 
+
 
 import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
-import { Trash2, Save, RotateCcw } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
+const defaultTags = ["VIP", "Партнер", "Проблема", "Лид"]; 
 
-const defaultTags = ["Срочно", "VIP", "Повторный", "Проблема"];
-
-export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
+export default function CompanyHeader({ onClose, onDelete, isNew }) {
     const { watch, control } = useFormContext();
 
     
-    const performerName = watch('performer')?.trim() || 'Имя исполнителя';
-    const orderNumber = watch('orderNumber');
-    const orderNumberDisplay = orderNumber ? `Заказ №${orderNumber}` : 'Выберите заказ';
-    
+    const companyName = watch('name')?.trim() || 'Название компании';
+    const companyEmail = watch('email') || 'Email не указан';
     
     const avatarSrc = defaultAvatar; 
 
@@ -33,7 +33,6 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
     const handleTagSelect = (tagName, fieldOnChange) => {
         const currentTags = Array.isArray(watchedTags) ? watchedTags : [];
         if (tagName && !currentTags.find(t => t.name === tagName)) {
-            
             fieldOnChange([...currentTags, { name: tagName, color: '#777' }]);
         }
         setCustomTag('');
@@ -53,7 +52,8 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
     };
 
     const filteredTags = defaultTags.filter(
-        tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !watchedTags.find(t => t.name === tagString)
+        tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && 
+                     (!watchedTags || !watchedTags.find(t => t.name === tagString))
     );
     
     
@@ -87,16 +87,14 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
     return (
         <div className={styles.employeeHeader}>
             <div className={styles.avatarContainer}>
-                
-                <img src={avatarSrc} alt="Аватар исполнителя" className={styles.avatar} />
+                <img src={avatarSrc} alt="Аватар компании" className={styles.avatar} />
             </div>
 
             <div className={styles.mainContent}>
                 <div className={styles.info}>
-                    <h2 className={performerName === 'Имя исполнителя' ? styles.placeholder : ''}>{performerName}</h2>
-                    <span className={!orderNumber ? styles.placeholder : ''}>{orderNumberDisplay}</span>
+                    <h2 className={companyName === 'Название компании' ? styles.placeholder : ''}>{companyName}</h2>
+                    <span className={!watch('email') ? styles.placeholder : ''}>{companyEmail}</span>
                 </div>
-                
                 
                 <div className={styles.tagsSectionHeader}>
                     <Controller
@@ -150,40 +148,22 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
                 </div>
             </div>
 
-            
             <div className={styles.actions}>
                 <div ref={menuRef} className={styles.actionItem}>
                     <button className={styles.btn} type="button" onClick={() => setMenuOpen(o => !o)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                     </button>
-                    {onDelete && (
+                    {onDelete && !isNew && ( 
                         <ul className={`${styles.dropdown} ${menuOpen ? styles.show : ''}`}>
                             <li onClick={() => { onDelete(); setMenuOpen(false); }}>
-                                <Trash2 size={14} /> Удалить исполнителя
+                                <Trash2 size={14} /> Удалить компанию
                             </li>
                         </ul>
                     )}
                 </div>
-                <div className={styles.actionItem}>
-                    <button className={styles.btn} type="button" onClick={onClose}>
-                        <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            width="24" 
-                            height="24" 
-                            viewBox="0 0 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                        >
-                            
-                            <path d="M18 6 6 18" style={{display: 'none'}} />
-                            <path d="M20 4 4 20" />
-                            <path d="M4 4 20 20" />
-                        </svg>
-                    </button>
-                </div>
+                <button className={`${styles.btn} ${styles.actionItem}`} type="button" onClick={onClose}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
         </div>
     );

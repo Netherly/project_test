@@ -1,26 +1,13 @@
 import React from 'react';
-import { Controller, useWatch, useFieldArray } from 'react-hook-form';
+import { useWatch } from 'react-hook-form';
 
 const OrderExecution = ({ control }) => {
   const executionTime = useWatch({ control, name: 'executionTime' });
   const startDate = useWatch({ control, name: 'startDate' });
   const endDate = useWatch({ control, name: 'endDate' });
   const countDays = useWatch({ control, name: 'countDays' });
-
- const { fields, append, remove } = useFieldArray({
-        control,
-        name: "work_log"
-    });
-
-  const addNewLogRow = () => {
-        append({
-            executor: '',
-            role: '',
-            work_date: new Date().toISOString().split('T')[0], 
-            hours: '',
-            description: ''
-        });
-    };
+  
+  const workLog = useWatch({ control, name: 'work_log' }) || [];
 
   return (
     <div className='tab-content-container'>
@@ -40,32 +27,55 @@ const OrderExecution = ({ control }) => {
         <div className="tab-content-title">Дней на выполнение</div>
         <span>{countDays || '—'}</span>
       </div>
+
       <div className="tab-content-row-column">
-                <div className='title-with-button'>
-                    <div className="tab-content-title">Журнал выполнения</div>
-                    <button type="button" className="add-row-btn" onClick={addNewLogRow}>
-                        + Добавить запись
-                    </button>
-                </div>
-                <div className="work-log-table">
-                    <div className="work-log-header">
-                        <div>Исполнитель</div>
-                        <div>Роль</div>
-                        <div>Дата работы</div>
-                        <div>Часы</div>
-                        <div>Что было сделано?</div>
-                    </div>
-                    {fields.map((item, index) => (
-                        <div key={item.id} className="work-log-row">
-                            <Controller name={`work_log.${index}.executor`} control={control} render={({ field }) => <input placeholder="Исполнитель..." {...field} />} />
-                            <Controller name={`work_log.${index}.role`} control={control} render={({ field }) => <input placeholder="Роль..." {...field} />} />
-                            <Controller name={`work_log.${index}.work_date`} control={control} render={({ field }) => <input type="date" {...field} />} />
-                            <Controller name={`work_log.${index}.hours`} control={control} render={({ field }) => <input placeholder="Часы..." {...field} />} />
-                            <Controller name={`work_log.${index}.description`} control={control} render={({ field }) => <textarea placeholder="Что было сделано?" {...field}></textarea>} />
-                        </div>
-                    ))}
+        <div className="tab-content-title">Журнал выполнения</div>
+        
+        
+        <div className="finances-log-table execution-log-table">
+           
+            <div className="finances-log-row header-row">
+                <div className="finances-log-content-wrapper">
+                    <div className="finances-log-cell">Исполнитель</div>
+                    <div className="finances-log-cell">Email</div>
+                    <div className="finances-log-cell">Дата работы</div>
+                    <div className="finances-log-cell">Часы</div>
+                    <div className="finances-log-cell">Что было сделано?</div>
                 </div>
             </div>
+
+            
+            {workLog.length > 0 ? (
+                workLog.map((item, index) => (
+                    <div key={index} className="finances-log-row">
+                        <div className="finances-log-content-wrapper">
+                           
+                            <div className="finances-log-cell">
+                                <input type="text" value={item.role} readOnly />
+                            </div>
+                            
+                            <div className="finances-log-cell">
+                                <input type="text" value={item.executor} readOnly />
+                            </div>
+                            <div className="finances-log-cell">
+                                <input type="text" value={item.work_date} readOnly />
+                            </div>
+                            <div className="finances-log-cell">
+                                <input type="text" value={item.hours} readOnly />
+                            </div>
+                            <div className="finances-log-cell">
+                                <input type="text" value={item.description} title={item.description} readOnly />
+                            </div>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <div className="no-transactions" style={{ textAlign: 'center', padding: '20px', color: 'var(--container-text-color)', opacity: 0.7 }}>
+                    Записи в журнале выполнения отсутствуют.
+                </div>
+            )}
+        </div>
+      </div>
     </div>
   );
 };

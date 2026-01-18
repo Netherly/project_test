@@ -138,6 +138,11 @@
     box-sizing: border-box;
 }
 
+.requisites-table-cell .form-input1 {
+    min-width: 0; 
+    width: 100%; 
+}
+
 .add-asset-form input[type="text"],
 .add-asset-form input[type="number"],
 .add-asset-form select {
@@ -291,7 +296,6 @@
 
 .requisites-table-row {
     display: flex;
-    align-items: center;
 }
 
 
@@ -350,10 +354,10 @@
     box-sizing: border-box;
     background: none;
     border: none;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
     outline: none;
     color: var(--container-text-color);
-    padding: 8px;
+    padding: 7px;
     width: 100%;
     height: 38px;
     resize: none;

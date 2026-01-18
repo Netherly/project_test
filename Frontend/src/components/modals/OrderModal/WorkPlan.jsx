@@ -1,20 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Controller, useFieldArray, useWatch, useFormContext } from 'react-hook-form';
+import { X, Plus, Copy } from 'lucide-react';
+import AutoResizeTextarea from './AutoResizeTextarea'; 
 
 const WorkPlan = ({ control }) => {
   
   const { getValues, setValue } = useFormContext();
-  
   
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'workList',
   });
 
-  
   const techTags = useWatch({ control, name: 'techTags' }) || [];
   const taskTags = useWatch({ control, name: 'taskTags' }) || [];
-  const techSpecifications = useWatch({ control, name: 'techSpecifications' }) || '';
 
   const [customTechTag, setCustomTechTag] = useState('');
   const [customTaskTag, setCustomTaskTag] = useState('');
@@ -29,7 +28,6 @@ const WorkPlan = ({ control }) => {
   const defaultTechTags = ["React", "Node.js", "JavaScript", "Python", "Vue", "TypeScript", "MongoDB", "PostgreSQL"];
   const defaultTaskTags = ["Разработка", "Тестирование", "Дизайн", "Реализация", "Аналитика", "Документация"];
   const descriptionOptions = ["Описание 1", "Описание 2", "Описание 3"];
-
   
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -46,7 +44,6 @@ const WorkPlan = ({ control }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
- 
   const filteredTechTags = defaultTechTags.filter(tag =>
     !techTags.includes(tag) && tag.toLowerCase().includes(customTechTag.toLowerCase())
   );
@@ -54,56 +51,50 @@ const WorkPlan = ({ control }) => {
   const filteredTaskTags = defaultTaskTags.filter(tag =>
     !taskTags.includes(tag) && tag.toLowerCase().includes(customTaskTag.toLowerCase())
   );
-
   
   const handleAddTechSpecToTextarea = (e, field) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    
-    const workListValues = getValues('workList') || [];
-   
-    const techSpecs = workListValues.map(row => row.specification || '').join('\n');
-    const currentValue = getValues('techSpecifications') || '';
-    const newValue = currentValue + (currentValue ? '\n' : '') + techSpecs;
-    setValue('techSpecifications', newValue, { shouldDirty: true });
-    field.onChange(newValue);
-  }
-  if (e.key === 'Enter' && e.shiftKey) {
-    e.preventDefault();
-    const currentValue = getValues('techSpecifications') || '';
-    const newValue = currentValue + '\n';
-    setValue('techSpecifications', newValue, { shouldDirty: true });
-    field.onChange(newValue);
-  }
-};
-
-
- 
-const handleTextareaAutoResize = (e) => {
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const workListValues = getValues('workList') || [];
+        const techSpecs = workListValues.map(row => row.specification || '').join('\n');
+        const currentValue = getValues('techSpecifications') || '';
+        const newValue = currentValue + (currentValue ? '\n' : '') + techSpecs;
+        setValue('techSpecifications', newValue, { shouldDirty: true });
+        field.onChange(newValue);
+    }
+    if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        const currentValue = getValues('techSpecifications') || '';
+        const newValue = currentValue + '\n';
+        setValue('techSpecifications', newValue, { shouldDirty: true });
+        field.onChange(newValue);
+    }
   };
 
- 
   const handleAddWorkRow = () => {
     append({ description: '', amount: '', specification: '', sale: false });
   };
 
   const handleCopyWorkRow = (index) => {
     const row = fields[index];
-    const textToCopy = `Описание: ${row.description}, Сумма: ${row.amount}, ТЗ: ${row.specification}, Продажа: ${row.sale ? "Да" : "Нет"}`;
+    const currentDescription = getValues(`workList.${index}.description`);
+    const currentAmount = getValues(`workList.${index}.amount`);
+    const currentSpec = getValues(`workList.${index}.specification`);
+    const currentSale = getValues(`workList.${index}.sale`);
+
+    const textToCopy = `Описание: ${currentDescription || ''}, Сумма: ${currentAmount || ''}, ТЗ: ${currentSpec || ''}, Продажа: ${currentSale ? "Да" : "Нет"}`;
     navigator.clipboard.writeText(textToCopy).then(() => alert("Данные скопированы в буфер обмена!"));
   };
 
   const projectOptions = [
-  "Проект Альфа",
-  "Разработка CRM",
-  "Интернет-магазин 'Космос'",
-  "Лендинг для конференции"
-];
+    "Проект Альфа",
+    "Разработка CRM",
+    "Интернет-магазин 'Космос'",
+    "Лендинг для конференции"
+  ];
 
   return (
-    <div className="tab-content-container">
+    <div className="tab-content-container workplan-tab-wrapper"> 
 
        <div className="tab-content-row">
           <div className="tab-content-title">Проект</div>
@@ -123,30 +114,19 @@ const handleTextareaAutoResize = (e) => {
           />
         </div>
 
-      
+      {/* ОПИСАНИЕ ЗАКАЗА */}
       <div className="tab-content-row">
         <div className="tab-content-title">Описание заказа</div>
         <Controller
           name="orderDescription"
           control={control}
           render={({ field }) => (
-            <textarea
-              {...field}
-              className="workplan-textarea"
-              onInput={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
-            />
+            <AutoResizeTextarea {...field} />
           )}
         />
       </div>
 
-      
+      {/* ТЕГИ (Технологии) */}
       <div className="tab-content-row">
         <div className="tab-content-title">Технологии</div>
         <Controller
@@ -225,7 +205,7 @@ const handleTextareaAutoResize = (e) => {
         />
       </div>
 
-      {/* Тип задач (теги) */}
+      {/* ТЕГИ (Тип задач) */}
       <div className="tab-content-row">
         <div className="tab-content-title">Тип задач</div>
         <Controller
@@ -304,106 +284,126 @@ const handleTextareaAutoResize = (e) => {
         />
       </div>
 
-      
+      {/* --- ТАБЛИЦА СПИСКА РАБОТ --- */}
       <div className="tab-content-table">
         <div className="tab-content-title">Список работ</div>
-        <table className="workplan-table">
-          <thead>
-            <tr>
-              <th>Описание</th>
-              <th>Сумма</th>
-              <th>ТЗ</th>
-              <th>Продажа?</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
-          <tbody>
+        
+        <div className="work-list-table">
+            
+            <div className="work-list-row header-row">
+                <div className="header-content-wrapper">
+                    <div className="work-list-cell">Описание</div>
+                    <div className="work-list-cell">Сумма</div>
+                    <div className="work-list-cell">ТЗ</div>
+                    <div className="work-list-cell">Продажа?</div>
+                </div>
+                <div className="work-list-cell action-cell"></div>
+            </div>
+
+            
             {fields.map((row, index) => (
-              <tr key={row.id}>
-                <td>
-                  <Controller
-                    control={control}
-                    name={`workList.${index}.description`}
-                    render={({ field }) => (
-                      <>
-                        <input
-                          {...field}
-                          type="text"
-                          placeholder="Введите описание"
-                          list="description-options"
-                          className="input-text"
+                <div key={row.id} className="work-list-row">
+                    
+                   
+                    <div className="work-list-cell">
+                        <Controller
+                            control={control}
+                            name={`workList.${index}.description`}
+                            render={({ field }) => (
+                            <>
+                                <AutoResizeTextarea
+                                    {...field}
+                                    placeholder="Описание"
+                                    list={`description-options-${index}`} 
+                                />
+                                <datalist id={`description-options-${index}`}>
+                                    {descriptionOptions.map((opt, idx) => (
+                                        <option key={idx} value={opt} />
+                                    ))}
+                                </datalist>
+                            </>
+                            )}
                         />
-                        <datalist id="description-options">
-                          {descriptionOptions.map((opt, idx) => (
-                            <option key={idx} value={opt} />
-                          ))}
-                        </datalist>
-                      </>
-                    )}
-                  />
-                </td>
-                <td>
-                  <Controller
-                    control={control}
-                    name={`workList.${index}.amount`}
-                    render={({ field }) => (
-                      <input
-                        {...field}
-                        type="number"
-                        placeholder="..."
-                        className="input-number"
-                      />
-                    )}
-                  />
-                </td>
-                <td>
-                  <Controller
-                    control={control}
-                    name={`workList.${index}.specification`}
-                    render={({ field }) => (
-                      <textarea
-                        {...field}
-                        placeholder="Введите ТЗ"
-                        onInput={handleTextareaAutoResize}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          handleTextareaAutoResize(e);
-                        }}
-                        className="input-textarea"
-                      />
-                    )}
-                  />
-                </td>
-                <td>
-                  <Controller
-                    control={control}
-                    name={`workList.${index}.sale`}
-                    render={({ field }) => (
-                      <input
-                        {...field}
-                        type="checkbox"
-                        checked={field.value || false}
-                        onChange={e => field.onChange(e.target.checked)}
-                        className="workplan-checkbox"
-                      />
-                    )}
-                  />
-                </td>
-                <td>
-                  <div className="table-btn-section">
-                    <button type="button" onClick={() => handleCopyWorkRow(index)}>📑</button>
-                    <button type="button" onClick={() => remove(index)}>❌</button>
-                  </div>
-                </td>
-              </tr>
+                    </div>
+
+                   
+                    <div className="work-list-cell">
+                        <Controller
+                            control={control}
+                            name={`workList.${index}.amount`}
+                            render={({ field }) => (
+                                <AutoResizeTextarea
+                                    {...field}
+                                    placeholder="0"
+                                />
+                            )}
+                        />
+                    </div>
+
+                   
+                    <div className="work-list-cell">
+                        <Controller
+                            control={control}
+                            name={`workList.${index}.specification`}
+                            render={({ field }) => (
+                                <AutoResizeTextarea
+                                    {...field}
+                                    placeholder="ТЗ"
+                                />
+                            )}
+                        />
+                    </div>
+
+                   
+                    <div className="work-list-cell">
+                        <Controller
+                            control={control}
+                            name={`workList.${index}.sale`}
+                            render={({ field }) => (
+                                <input
+                                    {...field}
+                                    type="checkbox"
+                                    checked={field.value || false}
+                                    onChange={e => field.onChange(e.target.checked)}
+                                    className="workplan-checkbox"
+                                />
+                            )}
+                        />
+                    </div>
+
+                   
+                    <div className="work-list-cell action-cell">
+                        <button 
+                            type="button" 
+                            className="action-btn-icon" 
+                            onClick={() => handleCopyWorkRow(index)}
+                            title="Копировать строку"
+                        >
+                            <Copy size={16} color='white' />
+                        </button>
+                        <button 
+                            type="button" 
+                            className="action-btn-icon" 
+                            onClick={() => remove(index)}
+                            title="Удалить строку"
+                        >
+                            <X size={18} color="#ff4d4f" />
+                        </button>
+                    </div>
+                </div>
             ))}
-          </tbody>
-        </table>
-        <div className="add-work-row">
-          <button type="button" onClick={handleAddWorkRow}>➕</button>
         </div>
+
+        <button 
+            type="button" 
+            className="add-requisites-btn" 
+            onClick={handleAddWorkRow}
+        >
+            <Plus size={16} /> Добавить
+        </button>
       </div>
 
+      
       
       <div className="tab-content-row">
         <div className="tab-content-title">ТЗ</div>
@@ -411,15 +411,9 @@ const handleTextareaAutoResize = (e) => {
           name="techSpecifications"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
-              className="workplan-textarea"
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
               onKeyDown={(e) => handleAddTechSpecToTextarea(e, field)}
-              onInput={handleTextareaAutoResize}
             />
           )}
         />
@@ -432,15 +426,9 @@ const handleTextareaAutoResize = (e) => {
           name="additionalConditions"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
-              className="workplan-textarea"
-              placeholder="Введите дополнительные условия..."
-              onInput={handleTextareaAutoResize}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
+              placeholder="Введите дополнительные условия"
             />
           )}
         />
@@ -453,15 +441,9 @@ const handleTextareaAutoResize = (e) => {
           name="notes"
           control={control}
           render={({ field }) => (
-            <textarea
+            <AutoResizeTextarea
               {...field}
-              className="workplan-textarea"
-              placeholder="Введите примечание..."
-              onInput={handleTextareaAutoResize}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
+              placeholder="Введите примечание"
             />
           )}
         />

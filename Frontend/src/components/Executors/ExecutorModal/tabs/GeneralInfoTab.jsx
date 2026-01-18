@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import AutoResizeTextarea from '../../../modals/OrderModal/AutoResizeTextarea';
 
+// Вынес компонент поля выше
 const OrderDetailField = ({ label, value }) => (
   <div className="form-field read-only-field">
     <label>{label}</label>
     {label.includes('Описание') || label.includes('ТЗ') ? (
-       <textarea onInput={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }}
-              onChange={(e) => {
-                field.onChange(e);
-                handleTextareaAutoResize(e);
-              }} value={value || 'Нет данных'} readOnly rows={3}></textarea>
+       <AutoResizeTextarea 
+          value={value || ''} 
+          readOnly={true} 
+          placeholder="Нет данных"
+          className="read-only-textarea"
+       />
     ) : (
       <div className="read-only-value">{value || 'Нет данных'}</div>
     )}
@@ -22,24 +22,15 @@ const OrderDetailField = ({ label, value }) => (
 export default function GeneralInfoTab({ orders, fields }) {
   const { control, formState: { errors } } = useFormContext();
 
-
-   const handleTextareaAutoResize = (e) => {
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
-  };
-
   const watchedOrderId = useWatch({
     control,
     name: 'orderNumber',
   });
 
-  
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  
   useEffect(() => {
     if (watchedOrderId) {
-      
       const foundOrder = orders.find(order => order.id === Number(watchedOrderId));
       setSelectedOrder(foundOrder || null);
     } else {
@@ -49,7 +40,17 @@ export default function GeneralInfoTab({ orders, fields }) {
 
   return (
     <div className="general-tab-section">
-      
+
+      {selectedOrder && (
+        <div className="executor-order-details-block">
+          <OrderDetailField label="Статус заказа" value={selectedOrder.stage} />
+          <OrderDetailField label="Клиент" value={selectedOrder.order_main_client} />
+          <OrderDetailField label="Описание заказа" value={selectedOrder.orderDescription} />
+          <OrderDetailField label="ТЗ заказа" value={selectedOrder.techSpecifications} />
+        </div>
+      )}
+
+      {/* Остальная часть формы */}
       <Controller
         name="orderNumber"
         control={control}
@@ -67,16 +68,6 @@ export default function GeneralInfoTab({ orders, fields }) {
         )}
       />
 
-      {selectedOrder && (
-        <div className="executor-order-details-block">
-          <OrderDetailField label="Статус заказа" value={selectedOrder.stage} />
-          <OrderDetailField label="Клиент" value={selectedOrder.order_main_client} />
-          <OrderDetailField label="Описание заказа" value={selectedOrder.orderDescription} />
-          <OrderDetailField label="ТЗ заказа" value={selectedOrder.techSpecifications} />
-        </div>
-      )}
-
-      {/* --- Исполнитель --- */}
       <Controller
         name="performer"
         control={control}
@@ -94,7 +85,6 @@ export default function GeneralInfoTab({ orders, fields }) {
         )}
       />
 
-      {/* --- Роль в заказе --- */}
       <Controller
         name="role"
         control={control}
@@ -104,7 +94,7 @@ export default function GeneralInfoTab({ orders, fields }) {
             <select {...field} className={errors.role ? 'input-error' : ''}>
               <option value="" disabled>Выберите роль</option>
               {fields?.role?.map((role) => (
-                <option key={role.id} value={role.name}>{role.name}</option>
+                <option key={role.id} value={role.value}>{role.value}</option>
               ))}
             </select>
             {errors.role && <p className="error-message">{errors.role.message}</p>}
@@ -112,7 +102,6 @@ export default function GeneralInfoTab({ orders, fields }) {
         )}
       />
 
-      {/* --- Дата для исполнителя --- */}
       <Controller
         name="dateForPerformer"
         control={control}
@@ -123,68 +112,79 @@ export default function GeneralInfoTab({ orders, fields }) {
           </div>
         )}
       />
-            {/* --- Валюта --- */}
-            <Controller
-                name="currency"
-                control={control}
-                render={({ field }) => (
-                    <div className="form-field">
-                        <label>Валюта</label>
-                        <select {...field} className={errors.currency ? 'input-error' : ''}>
-                            <option value="" disabled>Выберите валюту</option>
-                            
-                      
-                            {fields?.currency?.map((item) => (
-                                <option key={item.id} value={item.id}>{item.name}</option> 
-                        
-                            ))}
 
-                        </select>
-                        {errors.currency && <p className="error-message">{errors.currency.message}</p>}
-                    </div>
-                )}
-            />
-      
-            {/* --- Ставка в час --- */}
-            <Controller
-              name="hourlyRate"
-              control={control}
-              render={({ field }) => (
-                <div className="form-field">
-                  <label>Ставка в час</label>
-                  <input type="number" placeholder="0.00" {...field} />
-                  {errors.hourlyRate && <p className="error-message">{errors.hourlyRate.message}</p>}
-                </div>
-              )}
-            />
-      
-            {/* --- Сумма ввод --- */}
-            <Controller
-              name="amountInput"
-              control={control}
-              render={({ field }) => (
-                <div className="form-field">
-                  <label>Сумма ввод</label>
-                  <input type="number" placeholder="0.00" {...field} />
-                   {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
-                </div>
-              )}
-            />
-      
-            {/* --- Сумма макс --- */}
-            <Controller
-              name="maxAmount"
-              control={control}
-              render={({ field }) => (
-                <div className="form-field">
-                  <label>Сумма макс</label>
-                  <input type="number" placeholder="0.00" {...field} />
-                  {errors.maxAmount && <p className="error-message">{errors.maxAmount.message}</p>}
-                </div>
-              )}
-            />
-            {/* --- Чекбоксы --- */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {/* --- ИСПРАВЛЕННЫЙ БЛОК ВАЛЮТЫ --- */}
+      <Controller
+          name="currency"
+          control={control}
+          render={({ field }) => (
+              <div className="form-field">
+                  <label>Валюта</label>
+                  <select {...field} className={errors.currency ? 'input-error' : ''}>
+                      <option value="" disabled>Выберите валюту</option>
+                      {fields?.currency?.map((item, index) => {
+                          const val = item.value || item; 
+                          const key = item.id || index;
+                          return (
+                              <option key={key} value={val}>{val}</option> 
+                          );
+                      })}
+                  </select>
+                  {errors.currency && <p className="error-message">{errors.currency.message}</p>}
+              </div>
+          )}
+      />
+      {/* ---------------------------------- */}
+
+      <Controller
+        name="hourlyRate"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Ставка в час</label>
+            <input type="number" placeholder="0.00" {...field} />
+            {errors.hourlyRate && <p className="error-message">{errors.hourlyRate.message}</p>}
+          </div>
+        )}
+      />
+
+      <Controller
+        name="amountInput"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Сумма ввод</label>
+            <input type="number" placeholder="0.00" {...field} />
+             {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
+          </div>
+        )}
+      />
+
+      <Controller
+        name="minAmount"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Минимальная сумма</label>
+            <input type="number" placeholder="0.00" {...field} />
+            {errors.minAmount && <p className="error-message">{errors.minAmount.message}</p>}
+          </div>
+        )}
+      />
+
+      <Controller
+        name="maxAmount"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Сумма макс</label>
+            <input type="number" placeholder="0.00" {...field} />
+            {errors.maxAmount && <p className="error-message">{errors.maxAmount.message}</p>}
+          </div>
+        )}
+      />
+
+      <div className="checkbox-container-modal" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <Controller
             name="hideClient"
             control={control}
@@ -203,6 +203,17 @@ export default function GeneralInfoTab({ orders, fields }) {
               <div className="form-field-checkbox">
                 <label htmlFor="roundHours">Округление часа</label>
                 <input type="checkbox" id="roundHours" {...field} checked={field.value} />
+              </div>
+            )}
+          />
+
+          <Controller
+            name="isReset"
+            control={control}
+            render={({ field }) => (
+              <div className="form-field-checkbox">
+                <label htmlFor="isReset">Обнуление</label>
+                <input type="checkbox" id="isReset" {...field} checked={field.value} />
               </div>
             )}
           />

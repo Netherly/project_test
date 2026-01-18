@@ -82,11 +82,9 @@
 }
 
 .access-button {
-    padding: 10px 20px;
-    background-color: var(--accent-color);
     color: white;
     border: none;
-    border-radius: 5px;
+    background-color: var(--container-bg);
     font-size: var(--font-size-table-header);
     font-weight: 700;
     cursor: pointer;
@@ -103,7 +101,7 @@
 }
 
 .access-button:hover {
-    background-color: var(--accent-color-hover);
+    background-color: var(--accent-color);
 }
 
 .access-table-container {

@@ -14,11 +14,14 @@
 
 
 .requisites-tab-wrapper .requisites-row.header-row {
-    color: var(--chips-color);
+    font-weight: 600;
     font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 5px;
+    letter-spacing: 0.5px;
     text-align: center;
+    justify-content: center;
+    display: flex;
+    align-items: center;
+    color: white;
 }
 
 

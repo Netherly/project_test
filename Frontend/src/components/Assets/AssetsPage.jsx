@@ -5,7 +5,7 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
-import { FieldsAPI } from '../../api/fields';
+import { fetchFields, withDefaults } from '../../api/fields';
 import { fetchAssets, createAsset as apiCreateAsset, updateAsset as apiUpdateAsset, deleteAsset as apiDeleteAsset } from '../../api/assets';
 import { CreditCard } from 'lucide-react';
 
@@ -17,27 +17,19 @@ const getPureDateTimestamp = (date) => {
 };
 
 const formatNumberWithSpaces = (num) => {
-
     if (num === null || num === undefined || isNaN(Number(num))) {
         return '0.00';
     }
-
     const fixedNum = Number(num).toFixed(2);
-    
     const parts = fixedNum.split('.');
-
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-
     return parts.join('.');
 };
 
 const AssetsPage = () => {
-    const defaultAssets = [
-        // ... (твой defaultAssets)
-    ];
+    const defaultAssets = [];
 
     const [assets, setAssets] = useState([]);
-
     const [transactions, setTransactions] = useState([]);
     const [currencyRates, setCurrencyRates] = useState({});
     const [showAddForm, setShowAddForm] = useState(false);
@@ -45,53 +37,49 @@ const AssetsPage = () => {
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [viewMode, setViewMode] = useState('card');
     
-    // --- ИЗМЕНЕНИЕ 1: Обновлена начальная структура state ---
     const [fields, setFields] = useState({
         generalFields: { currency: [] },
         assetsFields: { type: [], paymentSystem: [], cardDesigns: [] }
     });
     
     const [employees, setEmployees] = useState([]);
-
-    
     const [cardSize, setCardSize] = useState('medium');
 
+    useEffect(() => {
+        const savedEmployees = localStorage.getItem('employees');
+        if (savedEmployees) {
+            try {
+                const parsedEmployees = JSON.parse(savedEmployees);
+                setEmployees(parsedEmployees);
+            } catch (e) {
+                console.error("Ошибка парсинга сотрудников из localStorage:", e);
+            }
+        }
+    }, []);
 
-     useEffect(() => {
-         const savedEmployees = localStorage.getItem('employees');
-         if (savedEmployees) {
-             try {
-                 const parsedEmployees = JSON.parse(savedEmployees);
-                 setEmployees(parsedEmployees);
-             } catch (e) {
-                 console.error("Ошибка парсинга сотрудников из localStorage:", e);
-             }
-         }
-     }, []);
 
-
-    // --- ИЗМЕНЕНИЕ 2: Загрузка generalFields и assetsFields ---
+    // --- ИЗМЕНЕНИЕ 2: Загрузка полей через новый API ---
     useEffect(() => {
         const loadFields = async () => {
             try {
-                // Загружаем оба типа полей параллельно
-                const [assetsFields, generalFields] = await Promise.all([
-                    FieldsAPI.getAssets(),
-                    FieldsAPI.getGeneral() // Убедись, что этот метод существует в FieldsAPI
-                ]);
+                // Загружаем ВСЕ поля одним запросом
+                const rawFields = await fetchFields();
+                // Нормализуем их (превращаем в удобную структуру)
+                const allFields = withDefaults(rawFields);
 
+                // Записываем в стейт только то, что нужно этой странице
                 setFields({
-                    generalFields: generalFields || { currency: [] },
-                    assetsFields: assetsFields || { type: [], paymentSystem: [], cardDesigns: [] }
+                    generalFields: allFields.generalFields,
+                    assetsFields: allFields.assetsFields
                 });
 
             } catch (err) {
                 console.error("Failed to load fields", err);
+                // Fallback (если нужно)
                 const savedFields = localStorage.getItem('fieldsData');
                 if (savedFields) {
                     try {
                         const parsedFields = JSON.parse(savedFields);
-                        // Устанавливаем из localStorage с новой структурой
                         setFields({
                             generalFields: parsedFields.generalFields || { currency: [] },
                             assetsFields: parsedFields.assetsFields || { type: [], paymentSystem: [], cardDesigns: [] }
@@ -124,7 +112,6 @@ const AssetsPage = () => {
             try {
                 const ratesData = JSON.parse(savedRates);
                 if (ratesData.length > 0) {
-                    
                     const latestRates = ratesData[0];
                     setCurrencyRates({
                         UAH_TO_USD: latestRates.UAH_USD,
@@ -174,7 +161,7 @@ const AssetsPage = () => {
                 if (rate) {
                     newBalanceUAH = parseFloat(newBalance) * rate;
                 } else {
-                    console.warn(`Обменный курс для ${rateKey} не найден. Используется предыдущий баланс в UAH.`);
+                    // console.warn(`Обменный курс для ${rateKey} не найден.`);
                     newBalanceUAH = asset.balanceUAH;
                 }
             }
@@ -261,14 +248,12 @@ const AssetsPage = () => {
     };
 
     const handleDuplicateAsset = async (assetToDuplicate) => {
+        // Логика дублирования через API пока отсутствует, оставляем локально или можно дописать API
         try {
-            console.log('Duplicating asset:', assetToDuplicate.id);
-            const duplicatedAsset = await duplicateAsset(assetToDuplicate.id);
-            console.log('Duplicated asset from API:', duplicatedAsset);
-            await loadAssets(); // Reload from API
-        } catch (err) {
-            console.error("Failed to duplicate asset", err);
-            // Fallback: duplicate locally
+             // Example if API exists: await apiDuplicateAsset(assetToDuplicate.id);
+             // await loadAssets();
+             
+             // Fallback local:
             const newId = `${assetToDuplicate.accountName} (Копия ${Date.now()})`;
             const duplicatedAsset = {
                 ...assetToDuplicate,
@@ -285,6 +270,9 @@ const AssetsPage = () => {
                 requisites: assetToDuplicate.requisites.map(req => ({ ...req }))
             };
             setAssets(prevAssets => [...prevAssets, duplicatedAsset]);
+
+        } catch (err) {
+            console.error("Failed to duplicate asset", err);
         }
     };
 
@@ -416,7 +404,7 @@ const AssetsPage = () => {
                             </div>
                         )}
                         <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
                         </button>
                 </header>
 
@@ -446,56 +434,56 @@ const AssetsPage = () => {
                                 <tbody>
                                     {Object.entries(assetsByCurrency).map(([currency, data], index) => (
                                         <React.Fragment key={currency}>
-                                             <tr className="currency-group-header">
-                                                <td colSpan="2">{currency}</td>
-                                                <td>{formatNumberWithSpaces(data.totalBalance)}</td>
-                                                <td>{formatNumberWithSpaces(data.totalBalanceUAH)}</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td></td>
-                                                <td>{formatNumberWithSpaces(data.totalTurnoverStartBalance)}</td>
-                                                <td>{formatNumberWithSpaces(data.totalTurnoverIncoming)}</td>
-                                                <td>{formatNumberWithSpaces(data.totalTurnoverOutgoing)}</td>
-                                                <td>{formatNumberWithSpaces(data.totalTurnoverEndBalance)}</td>
-                                            </tr>
-                                            {data.items.map((asset) => (
-                                                <tr key={asset.id} className="asset-row" onClick={() => handleRowClick(asset)}>
-                                                    <td>
-                                                        <div className="account-info">
-                                                            <span className="account-main-name">{asset.accountName}</span>
-                                                            {asset.id !== asset.accountName && (
-                                                                <span className="account-sub-id">
-                                                                    {asset.id.replace(asset.accountName, '').trim()}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td>{typeof asset.currency === 'object' ? asset.currency.name : asset.currency}</td>
-                                                    <td>{formatNumberWithSpaces(asset.balance)}</td>
-                                                    <td className={
-                                                        Number(asset.balance.toFixed(2)) === Number(asset.turnoverEndBalance.toFixed(2)) 
-                                                        ? 'highlight-green' 
-                                                        : 'highlight-red'
-                                                    }>
-                                                        {formatNumberWithSpaces(asset.balance)}
-                                                    </td>
-                                                    <td>
-                                                        <div className="copy-button-container">
-                                                            <span
-                                                                className="copy-button-icon"
-                                                                onClick={(e) => handleCopyRequisites(e, asset.requisites)}
-                                                                title="Копировать реквизиты"
-                                                            ></span>
-                                                        </div>
-                                                    </td>
-                                                    <td>{asset.employee}</td>
-                                                    <td>{asset.limitTurnover ? formatNumberWithSpaces(asset.limitTurnover) : ''}</td>
-                                                    <td>{formatNumberWithSpaces(asset.turnoverStartBalance)}</td>
-                                                    <td>{formatNumberWithSpaces(asset.turnoverIncoming)}</td>
-                                                    <td>{formatNumberWithSpaces(asset.turnoverOutgoing)}</td>
-                                                    <td>{formatNumberWithSpaces(asset.turnoverEndBalance)}</td>
+                                                <tr className="currency-group-header">
+                                                    <td colSpan="2">{currency}</td>
+                                                    <td>{formatNumberWithSpaces(data.totalBalance)}</td>
+                                                    <td>{formatNumberWithSpaces(data.totalBalanceUAH)}</td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td>{formatNumberWithSpaces(data.totalTurnoverStartBalance)}</td>
+                                                    <td>{formatNumberWithSpaces(data.totalTurnoverIncoming)}</td>
+                                                    <td>{formatNumberWithSpaces(data.totalTurnoverOutgoing)}</td>
+                                                    <td>{formatNumberWithSpaces(data.totalTurnoverEndBalance)}</td>
                                                 </tr>
-                                            ))}
+                                                {data.items.map((asset) => (
+                                                    <tr key={asset.id} className="asset-row" onClick={() => handleRowClick(asset)}>
+                                                        <td>
+                                                            <div className="account-info">
+                                                                <span className="account-main-name">{asset.accountName}</span>
+                                                                {asset.id !== asset.accountName && (
+                                                                    <span className="account-sub-id">
+                                                                        {asset.id.replace(asset.accountName, '').trim()}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td>{typeof asset.currency === 'object' ? asset.currency.name : asset.currency}</td>
+                                                        <td>{formatNumberWithSpaces(asset.balance)}</td>
+                                                        <td className={
+                                                            Number(asset.balance.toFixed(2)) === Number(asset.turnoverEndBalance.toFixed(2)) 
+                                                            ? 'highlight-green' 
+                                                            : 'highlight-red'
+                                                        }>
+                                                            {formatNumberWithSpaces(asset.balance)}
+                                                        </td>
+                                                        <td>
+                                                            <div className="copy-button-container">
+                                                                <span
+                                                                    className="copy-button-icon"
+                                                                    onClick={(e) => handleCopyRequisites(e, asset.requisites)}
+                                                                    title="Копировать реквизиты"
+                                                                ></span>
+                                                            </div>
+                                                        </td>
+                                                        <td>{asset.employee}</td>
+                                                        <td>{asset.limitTurnover ? formatNumberWithSpaces(asset.limitTurnover) : ''}</td>
+                                                        <td>{formatNumberWithSpaces(asset.turnoverStartBalance)}</td>
+                                                        <td>{formatNumberWithSpaces(asset.turnoverIncoming)}</td>
+                                                        <td>{formatNumberWithSpaces(asset.turnoverOutgoing)}</td>
+                                                        <td>{formatNumberWithSpaces(asset.turnoverEndBalance)}</td>
+                                                    </tr>
+                                                ))}
                                         </React.Fragment>
                                     ))}
                                 </tbody>
@@ -517,6 +505,8 @@ const AssetsPage = () => {
                                             <AssetCard
                                                 key={asset.id}
                                                 asset={asset}
+                                                // ИЗМЕНЕНИЕ 3: Передаем дизайны в карточку, чтобы она их не грузила сама
+                                                cardDesigns={fields.assetsFields.cardDesigns}
                                                 onCardClick={() => handleRowClick(asset)}
                                                 onCopyValue={copyToClipboard}
                                                 onCopyRequisites={(e) => handleCopyRequisites(e, asset.requisites)}
