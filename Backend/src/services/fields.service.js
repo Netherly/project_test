@@ -1,4 +1,4 @@
-// src/services/fields.service.js
+// src/services/fields.service.js (пример; оставь свой путь)
 const prisma = require('../../prisma/client');
 const fs = require('fs');
 const path = require('path');
@@ -9,6 +9,7 @@ const path = require('path');
 const ensureDir = (dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 };
+
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const CARD_DIR = path.join(UPLOADS_ROOT, 'card-designs');
 ensureDir(CARD_DIR);
@@ -28,7 +29,9 @@ async function saveDataUrlToFile(dataUrl, fileBaseName) {
 }
 
 async function safeUnlink(absPath) {
-  try { await fs.promises.unlink(absPath); } catch (_) {}
+  try {
+    await fs.promises.unlink(absPath);
+  } catch (_) {}
 }
 
 function urlToAbsPath(url) {
@@ -37,13 +40,14 @@ function urlToAbsPath(url) {
 }
 
 /* ==============================
-   Helpers (строки/словарики)
+   Helpers
 ================================ */
 const pickStr = (v) => {
   if (typeof v === 'string') return v.trim();
   if (v && typeof v === 'object') return String(v.value ?? v.name ?? v.code ?? '').trim();
   return '';
 };
+
 const arrToUniqueStrings = (list, key = 'name') => {
   const out = new Set();
   (Array.isArray(list) ? list : []).forEach((x) => {
@@ -70,28 +74,15 @@ const normalizeSimpleValues = (list) => {
   return Array.from(out);
 };
 
-async function upsertSimpleDict(db, model, values, opts = {}) {
-  const field = opts.field || 'name';
-  const unique = Array.from(new Set((values || []).map((s) => String(s ?? '').trim()).filter(Boolean)));
-  if (!unique.length) return db[model].findMany({ orderBy: { [field]: 'asc' } });
-
-  const existing = await db[model].findMany({ select: { id: true, [field]: true } });
-  const existingBy = new Map(existing.map((e) => [String(e[field]).toLowerCase(), e]));
-  const toCreate = unique.filter((v) => !existingBy.has(v.toLowerCase()));
-  if (toCreate.length) {
-    await db[model].createMany({ data: toCreate.map((v) => ({ [field]: v })), skipDuplicates: true });
-  }
-  return db[model].findMany({ orderBy: { [field]: 'asc' } });
-}
-
 const syncSimpleDict = async (tx, model, list, opts = {}) => {
   const field = opts.field || 'name';
-  const hasIsActive = opts.hasIsActive !== false; // default true
+  const hasIsActive = opts.hasIsActive !== false;
   const values = normalizeSimpleValues(list);
   const dbModel = tx[model];
-  if (!dbModel) throw new Error(`Model ${model} not found in transaction`);
 
-  if (!values.length) {
+  if (!dbModel) return;
+
+  if (!values || !values.length) {
     if (hasIsActive) {
       await dbModel.updateMany({ data: { isActive: false } });
     } else {
@@ -104,7 +95,7 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
     values.map((value) =>
       dbModel.upsert({
         where: { [field]: value },
-        update: { isActive: hasIsActive ? true : undefined },
+        update: { ...(hasIsActive ? { isActive: true } : {}) },
         create: { id: rid(), [field]: value, ...(hasIsActive ? { isActive: true } : {}) },
       })
     )
@@ -121,6 +112,10 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
     });
   }
 };
+
+/* ==============================
+   Tags (единая версия)
+================================ */
 
 async function ensureTagCategory(tx, code, name) {
   return tx.tagCategory.upsert({
@@ -141,6 +136,7 @@ async function upsertTags(tx, tagsList, { categoryCode = 'default', categoryName
     if (!name) continue;
     const color = isHexColor(t?.color) ? t.color : '#ffffff';
     desiredNames.add(name);
+
     await tx.tag.upsert({
       where: { name_categoryId: { name, categoryId: tagCategory.id } },
       update: { color },
@@ -159,20 +155,19 @@ async function upsertTags(tx, tagsList, { categoryCode = 'default', categoryName
 }
 
 /* ==============================
-   READ bundle (GET /fields)
+   GET ACTIVE (Загрузка активных)
 ================================ */
 async function getAll(db) {
   const _db = db || prisma;
   const whereActive = { where: { isActive: true } };
-  const whereActiveHardDelete = {}; 
+  const whereActiveHardDelete = {};
 
-  
   const [
-    orderCurrencies, 
+    orderCurrencies,
     countries,
     roles,
     sources,
-    categories,
+    clientCategories,
     orderStatuses,
     orderCloseReasons,
     orderProjects,
@@ -196,17 +191,12 @@ async function getAll(db) {
     _db.financeArticleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.financeSubcategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
   ]);
-  
-  
+
   const [intervals, orderCats, cardDesigns, subarticles, tagCategories] = await Promise.all([
     _db.orderIntervalDict.findMany({ ...whereActiveHardDelete, orderBy: { value: 'asc' } }),
     _db.orderCategoryDict.findMany({
       ...whereActiveHardDelete,
-      select: {
-        id: true,
-        value: true,
-        interval: { select: { id: true, value: true } },
-      },
+      select: { id: true, value: true, interval: { select: { id: true, value: true } } },
       orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
     }),
     _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: { name: 'asc' } }),
@@ -247,13 +237,6 @@ async function getAll(db) {
     tagsByCode('employee'),
     tagsByCode('task'),
   ]);
-  
-  
-  const executorCurrencies = orderCurrencies;
-  const clientCurrencies = orderCurrencies;
-  const assetCurrencies = orderCurrencies;
-  const employeeCountries = countries;
-
 
   return {
     generalFields: {
@@ -273,36 +256,35 @@ async function getAll(db) {
       closeReasons: orderCloseReasons.map((r) => ({ id: r.id, name: r.name })),
       projects: orderProjects.map((p) => ({ id: p.id, name: p.name })),
       discountReason: orderDiscountReasons.map((d) => ({ id: d.id, name: d.name })),
-  tags: orderTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-  techTags: orderTechTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-  taskTags: orderTaskTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: orderTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      techTags: orderTechTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      taskTags: orderTaskTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
     },
 
     executorFields: {
-      currency: executorCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       role: roles.map((r) => ({ id: r.id, name: r.name })),
     },
 
     clientFields: {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
-      category: categories.map((c) => ({ id: c.id, name: c.name })),
+      category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
       country: countries.map((c) => ({ id: c.id, name: c.name })),
-      currency: clientCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-  tag: clientTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-  tags: clientTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-    },
-
-    employeeFields: {
-      country: employeeCountries.map((c) => ({ id: c.id, name: c.name })),
-  tags: employeeTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      tags: clientTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
     },
 
     companyFields: {
-  tags: companyTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: companyTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+    },
+
+    employeeFields: {
+      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      tags: employeeTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
     },
 
     assetsFields: {
-      currency: assetCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
       paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
       cardDesigns: cardDesigns.map((d) => ({ id: d.id, name: d.name, url: d.imageUrl || '' })),
@@ -317,12 +299,13 @@ async function getAll(db) {
         articleName: s.article?.name || null,
         subcategoryId: s.subcategory?.id || null,
         subcategoryName: s.subcategory?.name || null,
+        subarticleInterval: s.article?.name || s.subcategory?.name || null,
       })),
       subcategory: subcategories.map((s) => ({ id: s.id, name: s.name })),
     },
 
     taskFields: {
-  tags: taskTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: taskTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
     },
 
     sundryFields: {
@@ -332,519 +315,348 @@ async function getAll(db) {
 }
 
 /* ==============================
-   WRITE bundle (PUT /fields)
+   GET INACTIVE (Загрузка скрытых)
 ================================ */
-async function saveAll(payload) {
-  return prisma.$transaction(async (tx) => {
-    /** ---- CURRENCIES (централизованно, по code) ---- */
-    const allCurrencyCodes = new Set([
-      ...arrToUniqueStrings(payload?.generalFields?.currency, 'code'),
-      ...arrToUniqueStrings(payload?.orderFields?.currency, 'code'),
-      ...arrToUniqueStrings(payload?.executorFields?.currency, 'code'),
-      ...arrToUniqueStrings(payload?.clientFields?.currency, 'code'),
-      ...arrToUniqueStrings(payload?.assetsFields?.currency, 'code'),
-    ]);
-    await syncSimpleDict(tx, 'currencyDict', Array.from(allCurrencyCodes), { field: 'code' });
-
-    /** ---- ORDERS ---- */
-    // intervals
-    const intervalValues = (Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [])
-      .map((i) => pickStr(i?.value ?? i?.intervalValue ?? i))
-      .filter(Boolean);
-    await upsertSimpleDict(tx, 'orderIntervalDict', intervalValues, { field: 'value' });
-
-    // mark missing intervals inactive instead of hard delete (safer for existing links)
-    const existingIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
-    const keepSet = new Set(intervalValues);
-    const intervalsToDeactivate = existingIntervals.filter((i) => !keepSet.has(i.value));
-    if (intervalsToDeactivate.length) {
-      const toDeactivateIds = intervalsToDeactivate.map((i) => i.id);
-      await tx.orderCategoryDict.updateMany({ where: { intervalId: { in: toDeactivateIds } }, data: { isActive: false } });
-      await tx.orderIntervalDict.updateMany({ where: { id: { in: toDeactivateIds } }, data: { isActive: false } });
-    }
-
-    // categories
-    const catsIncoming = (Array.isArray(payload?.orderFields?.categories) ? payload.orderFields.categories : [])
-      .map((c) => ({
-        intervalValue: pickStr(c?.intervalValue ?? c?.categoryInterval ?? c?.interval),
-        value: pickStr(c?.value ?? c?.categoryValue),
-      }))
-      .filter((c) => c.intervalValue && c.value);
-
-    const finalIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
-    const intervalByValue = new Map(finalIntervals.map((i) => [i.value, i.id]));
-
-    // ensure intervals exist for any categories that reference a non-existent interval
-    for (const c of catsIncoming) {
-      if (!intervalByValue.has(c.intervalValue)) {
-        const created = await tx.orderIntervalDict.create({ data: { value: c.intervalValue } });
-        intervalByValue.set(created.value, created.id);
-      }
-    }
-
-    for (const c of catsIncoming) {
-      const intervalId = intervalByValue.get(c.intervalValue);
-      if (!intervalId) continue;
-      const exists = await tx.orderCategoryDict.findFirst({ where: { value: c.value, intervalId } });
-      if (!exists) await tx.orderCategoryDict.create({ data: { value: c.value, intervalId } });
-    }
-
-    // remove not desired per interval
-    for (const [value, intervalId] of intervalByValue.entries()) {
-      const desired = new Set(catsIncoming.filter((c) => c.intervalValue === value).map((c) => c.value));
-      await tx.orderCategoryDict.updateMany({ where: { intervalId, NOT: { value: { in: Array.from(desired) } } }, data: { isActive: false } });
-      await tx.orderCategoryDict.updateMany({ where: { intervalId, value: { in: Array.from(desired) } }, data: { isActive: true } });
-    }
-
-    await syncSimpleDict(tx, 'orderStatusDict', arrToUniqueStrings(payload?.orderFields?.statuses, 'name'));
-    await syncSimpleDict(tx, 'orderCloseReasonDict', arrToUniqueStrings(payload?.orderFields?.closeReasons, 'name'));
-    await syncSimpleDict(tx, 'orderProjectDict', arrToUniqueStrings(payload?.orderFields?.projects, 'name'));
-    await syncSimpleDict(tx, 'orderDiscountReasonDict', arrToUniqueStrings(payload?.orderFields?.discountReason, 'name'));
-
-    /** ---- EXECUTOR ---- */
-    await syncSimpleDict(tx, 'executorRoleDict', arrToUniqueStrings(payload?.executorFields?.role, 'name'));
-
-    /** ---- CLIENT ---- */
-    await syncSimpleDict(tx, 'clientSourceDict', arrToUniqueStrings(payload?.clientFields?.source, 'name'));
-    await syncSimpleDict(tx, 'clientCategoryDict', arrToUniqueStrings(payload?.clientFields?.category, 'name'));
-    await syncSimpleDict(tx, 'country', arrToUniqueStrings(payload?.clientFields?.country, 'name'));
-    await Promise.all([
-      upsertTags(tx, payload?.orderFields?.tags, { categoryCode: 'order', categoryName: 'Order' }),
-      upsertTags(tx, payload?.orderFields?.techTags, { categoryCode: 'order-tech', categoryName: 'Order Tech' }),
-      upsertTags(tx, payload?.orderFields?.taskTags, { categoryCode: 'order-task', categoryName: 'Order Task' }),
-      upsertTags(tx, payload?.clientFields?.tags ?? payload?.clientFields?.tag, { categoryCode: 'client', categoryName: 'Client' }),
-      upsertTags(tx, payload?.companyFields?.tags, { categoryCode: 'company', categoryName: 'Company' }),
-      upsertTags(tx, payload?.employeeFields?.tags, { categoryCode: 'employee', categoryName: 'Employee' }),
-      upsertTags(tx, payload?.taskFields?.tags, { categoryCode: 'task', categoryName: 'Task' }),
-    ]);
-
-    /** ---- ASSETS ---- */
-    await syncSimpleDict(tx, 'assetTypeDict', arrToUniqueStrings(payload?.assetsFields?.type, 'name'));
-    await syncSimpleDict(tx, 'paymentSystemDict', arrToUniqueStrings(payload?.assetsFields?.paymentSystem, 'name'));
-
-    // card designs (soft deactivate missing)
-    const incomingDesigns = (Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [])
-      .map((d) => ({
-        id: d?.id || null,
-        name: pickStr(d?.name),
-        url: typeof d?.url === 'string' ? d.url : '',
-      }))
-      .filter((d) => d.name);
-
-    const existingDesigns = await tx.cardDesign.findMany({ select: { id: true, name: true, imageUrl: true, isActive: true } });
-    const existingById = new Map(existingDesigns.map((d) => [d.id, d]));
-
-    for (const d of incomingDesigns) {
-      let imageUrl = d.url;
-
-      if (imageUrl && imageUrl.startsWith('data:image/')) {
-        const baseName = `${Date.now()}_${Math.round(Math.random() * 1e9)}`;
-        imageUrl = await saveDataUrlToFile(imageUrl, baseName);
-      }
-
-      if (d.id && existingById.has(d.id)) {
-        const prev = existingById.get(d.id);
-        const isNew = imageUrl && imageUrl !== prev.imageUrl;
-        await tx.cardDesign.update({
-          where: { id: d.id },
-          data: { name: d.name, imageUrl: imageUrl || prev.imageUrl || null, isActive: true },
-        });
-        if (isNew && prev.imageUrl) {
-          const abs = urlToAbsPath(prev.imageUrl);
-          if (abs) await safeUnlink(abs);
-        }
-      } else {
-        await tx.cardDesign.create({ data: { name: d.name, imageUrl: imageUrl || null, isActive: true } });
-      }
-    }
-
-    const incomingIds = new Set(incomingDesigns.filter((d) => d.id).map((d) => d.id));
-    const toDeactivate = existingDesigns.filter((d) => !incomingIds.has(d.id));
-    if (toDeactivate.length) {
-      await tx.cardDesign.updateMany({ where: { id: { in: toDeactivate.map((d) => d.id) } }, data: { isActive: false } });
-    }
-
-    /** ---- FINANCE ---- */
-    await syncSimpleDict(tx, 'financeArticleDict', arrToUniqueStrings(payload?.financeFields?.articles, 'name'));
-    await syncSimpleDict(tx, 'financeSubcategoryDict', arrToUniqueStrings(payload?.financeFields?.subcategory, 'name'));
-
-    const desiredSubs = (Array.isArray(payload?.financeFields?.subarticles) ? payload.financeFields.subarticles : [])
-      .map((s) => ({
-        parentArticleName: pickStr(s?.articleName ?? s?.subarticleInterval ?? s?.parent),
-        parentSubcategoryName: pickStr(s?.subcategoryName),
-        name: pickStr(s?.name ?? s?.subarticleValue),
-      }))
-      .filter((s) => s.name && (s.parentArticleName || s.parentSubcategoryName));
-
-    const [arts, subcats, subsExisting] = await Promise.all([
-      tx.financeArticleDict.findMany({ select: { id: true, name: true } }),
-      tx.financeSubcategoryDict.findMany({ select: { id: true, name: true } }),
-      tx.financeSubarticleDict.findMany({ select: { id: true, name: true, articleId: true, subcategoryId: true } }),
-    ]);
-
-    const artByName = new Map(arts.map((a) => [a.name, a.id]));
-    const subcatByName = new Map(subcats.map((s) => [s.name, s.id]));
-
-    for (const s of desiredSubs) {
-      const articleId = s.parentArticleName ? artByName.get(s.parentArticleName) || null : null;
-      const subcategoryId = !articleId && s.parentSubcategoryName ? subcatByName.get(s.parentSubcategoryName) || null : null;
-      if (!articleId && !subcategoryId) continue;
-
-      const exists = await tx.financeSubarticleDict.findFirst({
-        where: { name: s.name, articleId: articleId || undefined, subcategoryId: subcategoryId || undefined },
-      });
-      if (!exists) {
-        await tx.financeSubarticleDict.create({ data: { name: s.name, articleId, subcategoryId } });
-      }
-    }
-
-    const keyOf = (row) => `${row.name}|${row.articleId || ''}|${row.subcategoryId || ''}`;
-    const desiredKeys = new Set();
-    for (const s of desiredSubs) {
-      const articleId = s.parentArticleName ? artByName.get(s.parentArticleName) || null : null;
-      const subcategoryId = !articleId && s.parentSubcategoryName ? subcatByName.get(s.parentSubcategoryName) || null : null;
-      if (!articleId && !subcategoryId) continue;
-      desiredKeys.add(`${s.name}|${articleId || ''}|${subcategoryId || ''}`);
-    }
-    const toDeactivateSubs = subsExisting.filter((r) => !desiredKeys.has(keyOf(r)));
-    if (toDeactivateSubs.length) {
-      await tx.financeSubarticleDict.updateMany({ where: { id: { in: toDeactivateSubs.map((r) => r.id) } }, data: { isActive: false } });
-    }
-
-    // reactivate desired subarticles
-    const desiredIds = subsExisting.filter((r) => desiredKeys.has(keyOf(r))).map((r) => r.id);
-    if (desiredIds.length) {
-      await tx.financeSubarticleDict.updateMany({ where: { id: { in: desiredIds } }, data: { isActive: true } });
-    }
-
-    // Вернём свежий бандл
-    return getAll(tx);
-  }, { maxWait: 20000, timeout: 60000 });
-}
-
-/* ==============================
-   Простые DAO для makeDictController
-   (используются в fields.controller.js)
-================================ */
-
-function simpleDictDAO({ model, field = 'name', searchFields = [field] }) {
-  return {
-    async list({ q, activeOnly } = {}) {
-      const where = {};
-      if (q && String(q).trim()) {
-        const term = String(q).trim();
-        where.OR = searchFields.map((f) => ({ [f]: { contains: term, mode: 'insensitive' } }));
-      }
-      // activeOnly можно расширить под ваши схемы (isActive/archivedAt и т.п.)
-      return prisma[model].findMany({ where, orderBy: { [field]: 'asc' } });
-    },
-    async create(body = {}) {
-      const data = {};
-      if (body[field] !== undefined) data[field] = body[field];
-      if (model === 'currencyDict') {
-        if (body.code) data.code = body.code;
-        if (body.name) data.name = body.name;
-      }
-      return prisma[model].create({ data });
-    },
-    async update(id, body = {}) {
-      const data = {};
-      if (body[field] !== undefined) data[field] = body[field];
-      if (model === 'currencyDict') {
-        if (body.code !== undefined) data.code = body.code;
-        if (body.name !== undefined) data.name = body.name;
-      }
-      return prisma[model].update({ where: { id }, data });
-    },
-    async remove(id/* , { soft } */) {
-      return prisma[model].delete({ where: { id } });
-    },
-  };
-}
-
-const Countries         = simpleDictDAO({ model: 'country' });
-const Currencies        = simpleDictDAO({ model: 'currencyDict', field: 'name', searchFields: ['code', 'name'] });
-const ClientSources     = simpleDictDAO({ model: 'clientSourceDict' });
-const ClientCategories  = simpleDictDAO({ model: 'clientCategoryDict' });
-const ExecutorRoles     = simpleDictDAO({ model: 'executorRoleDict' });
-const AssetTypes        = simpleDictDAO({ model: 'assetTypeDict' });
-const PaymentSystems    = simpleDictDAO({ model: 'paymentSystemDict' });
-const CardDesigns       = {
-  async list() { return prisma.cardDesign.findMany({ orderBy: { name: 'asc' } }); },
-  async create(body = {}) {
-    let imageUrl = body.imageUrl || body.url || '';
-    if (imageUrl && imageUrl.startsWith('data:image/')) {
-      imageUrl = await saveDataUrlToFile(imageUrl, `${Date.now()}_${Math.round(Math.random()*1e9)}`);
-    }
-    return prisma.cardDesign.create({ data: { name: body.name || '', imageUrl: imageUrl || null } });
-  },
-  async update(id, body = {}) {
-    const prev = await prisma.cardDesign.findUnique({ where: { id } });
-    let imageUrl = body.imageUrl ?? body.url ?? prev?.imageUrl ?? null;
-
-    if (typeof imageUrl === 'string' && imageUrl.startsWith('data:image/')) {
-      const newUrl = await saveDataUrlToFile(imageUrl, `${Date.now()}_${Math.round(Math.random()*1e9)}`);
-      if (prev?.imageUrl && newUrl && newUrl !== prev.imageUrl) {
-        const abs = urlToAbsPath(prev.imageUrl);
-        if (abs) await safeUnlink(abs);
-      }
-      imageUrl = newUrl;
-    }
-    return prisma.cardDesign.update({ where: { id }, data: { name: body.name ?? prev?.name ?? '', imageUrl } });
-  },
-  async remove(id) {
-    const prev = await prisma.cardDesign.findUnique({ where: { id } });
-    if (prev?.imageUrl) {
-      const abs = urlToAbsPath(prev.imageUrl);
-      if (abs) await safeUnlink(abs);
-    }
-    return prisma.cardDesign.delete({ where: { id } });
-  },
-};
-
-const OrderIntervals    = simpleDictDAO({ model: 'orderIntervalDict', field: 'value' });
-const OrderCategories   = {
-  async list({ q } = {}) {
-    const where = {};
-    if (q && String(q).trim()) {
-      const term = String(q).trim();
-      where.OR = [{ value: { contains: term, mode: 'insensitive' } }];
-    }
-    return prisma.orderCategoryDict.findMany({
-      where,
-      select: { id: true, value: true, intervalId: true },
-      orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
-    });
-  },
-  async listByInterval(intervalId, { activeOnly } = {}) {
-    return prisma.orderCategoryDict.findMany({
-      where: { intervalId },
-      select: { id: true, value: true, intervalId: true },
-      orderBy: { value: 'asc' },
-    });
-  },
-  async create(body = {}) {
-    const value = pickStr(body?.value ?? body?.name);
-    const intervalId = body?.intervalId;
-    if (!value || !intervalId) throw Object.assign(new Error('value and intervalId required'), { status: 400 });
-    return prisma.orderCategoryDict.create({ data: { value, intervalId } });
-  },
-  async update(id, body = {}) {
-    const data = {};
-    if (body?.value !== undefined) data.value = pickStr(body.value);
-    if (body?.intervalId !== undefined) data.intervalId = body.intervalId;
-    return prisma.orderCategoryDict.update({ where: { id }, data });
-  },
-  async remove(id) {
-    return prisma.orderCategoryDict.delete({ where: { id } });
-  },
-};
-
-const FinanceArticles       = simpleDictDAO({ model: 'financeArticleDict' });
-const FinanceSubcategories  = simpleDictDAO({ model: 'financeSubcategoryDict' });
-const FinanceSubarticles    = {
-  async list({ q } = {}) {
-    const where = {};
-    if (q && String(q).trim()) {
-      const term = String(q).trim();
-      where.OR = [{ name: { contains: term, mode: 'insensitive' } }];
-    }
-    return prisma.financeSubarticleDict.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        articleId: true,
-        subcategoryId: true,
-        article: { select: { id: true, name: true } },
-        subcategory: { select: { id: true, name: true } },
-      },
-      orderBy: [{ article: { name: 'asc' } }, { name: 'asc' }],
-    });
-  },
-  async listByArticle(articleId, { activeOnly } = {}) {
-    return prisma.financeSubarticleDict.findMany({
-      where: { articleId },
-      select: { id: true, name: true, articleId: true, subcategoryId: true },
-      orderBy: { name: 'asc' },
-    });
-  },
-  async listBySubcategory(subcategoryId, { activeOnly } = {}) {
-    return prisma.financeSubarticleDict.findMany({
-      where: { subcategoryId },
-      select: { id: true, name: true, articleId: true, subcategoryId: true },
-      orderBy: { name: 'asc' },
-    });
-  },
-  async create(body = {}) {
-    const name = pickStr(body?.name);
-    const articleId = body?.articleId || null;
-    const subcategoryId = body?.subcategoryId || null;
-    if (!name || (!articleId && !subcategoryId)) {
-      throw Object.assign(new Error('name and (articleId OR subcategoryId) required'), { status: 400 });
-    }
-    return prisma.financeSubarticleDict.create({ data: { name, articleId, subcategoryId } });
-  },
-  async update(id, body = {}) {
-    const data = {};
-    if (body?.name !== undefined) data.name = pickStr(body.name);
-    if (body?.articleId !== undefined) data.articleId = body.articleId || null;
-    if (body?.subcategoryId !== undefined) data.subcategoryId = body.subcategoryId || null;
-    return prisma.financeSubarticleDict.update({ where: { id }, data });
-  },
-  async remove(id) {
-    return prisma.financeSubarticleDict.delete({ where: { id } });
-  },
-};
-
 async function getInactive(db) {
   const _db = db || prisma;
   const whereInactive = { where: { isActive: false } };
+
   const [
     currencies,
+    countries,
     roles,
     sources,
-    categories,
-    countries,
-    orderStatuses,
-    orderCloseReasons,
-    orderProjects,
-    orderDiscountReasons,
+    clientCategories,
     assetTypes,
     paymentSystems,
     articles,
     subcategories,
+    discountReasons,
+    typeWorks,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereInactive, orderBy: { code: 'asc' } }),
+    _db.country.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.executorRoleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.country.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.orderStatusDict.findMany({ ...whereInactive, orderBy: { order: 'asc' } }),
-    _db.orderCloseReasonDict.findMany({ ...whereInactive, orderBy: { order: 'asc' } }),
-    _db.orderProjectDict.findMany({ ...whereInactive, orderBy: { order: 'asc' } }),
-    _db.orderDiscountReasonDict.findMany({ ...whereInactive, orderBy: { order: 'asc' } }),
     _db.assetTypeDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.paymentSystemDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.financeArticleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.financeSubcategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.orderDiscountReasonDict
+      ? _db.orderDiscountReasonDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
+      : [],
+    _db.sundryTypeWorkDict
+      ? _db.sundryTypeWorkDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
+      : [],
   ]);
 
-  
-  const intervals = [];
-  const orderCats = [];
-  const tags = [];
-  const cardDesigns = [];
-  const subarticles = [];
-  
-  
-  const executorCurrencies = currencies;
-  const clientCurrencies = currencies;
-  const assetCurrencies = currencies;
-  const employeeCountries = countries;
+  const emptyArr = [];
 
   return {
     generalFields: {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
     },
-
     orderFields: {
-      intervals: intervals.map((x) => ({ id: x.id, value: x.value })),
-      categories: orderCats.map((x) => ({
-        id: x.id,
-        value: x.value,
-        intervalId: x.interval?.id || null,
-        intervalValue: x.interval?.value || null,
-      })),
+      intervals: emptyArr,
+      categories: emptyArr,
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      statuses: orderStatuses.map((s) => ({ id: s.id, name: s.name })),
-      closeReasons: orderCloseReasons.map((r) => ({ id: r.id, name: r.name })),
-      projects: orderProjects.map((p) => ({ id: p.id, name: p.name })),
-      discountReason: orderDiscountReasons.map((d) => ({ id: d.id, name: d.name })),
-      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-      techTags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-      taskTags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      discountReason: discountReasons.map((r) => ({ id: r.id, name: r.name })),
+      tags: emptyArr,
+      techTags: emptyArr,
+      taskTags: emptyArr,
+      statuses: emptyArr,
+      closeReasons: emptyArr,
+      projects: emptyArr,
     },
-
     executorFields: {
-      currency: executorCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       role: roles.map((r) => ({ id: r.id, name: r.name })),
     },
-
     clientFields: {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
-      category: categories.map((c) => ({ id: c.id, name: c.name })),
+      category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
       country: countries.map((c) => ({ id: c.id, name: c.name })),
-      currency: clientCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      tag: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      tags: emptyArr,
     },
-
-    employeeFields: {
-      country: employeeCountries.map((c) => ({ id: c.id, name: c.name })),
-      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-    },
-
     companyFields: {
-      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: emptyArr,
     },
-
+    employeeFields: {
+      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      tags: emptyArr,
+    },
     assetsFields: {
-      currency: assetCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
       paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
-      cardDesigns: cardDesigns.map((d) => ({ id: d.id, name: d.name, url: d.imageUrl || '' })),
+      cardDesigns: emptyArr,
     },
-
     financeFields: {
       articles: articles.map((a) => ({ id: a.id, name: a.name })),
-      subarticles: subarticles.map((s) => ({
-        id: s.id,
-        name: s.name,
-        articleId: s.article?.id || null,
-        articleName: s.article?.name || null,
-        subcategoryId: s.subcategory?.id || null,
-        subcategoryName: s.subcategory?.name || null,
-      })),
+      subarticles: emptyArr,
       subcategory: subcategories.map((s) => ({ id: s.id, name: s.name })),
     },
-
-    taskFields: {
-      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-    },
-
     sundryFields: {
-      typeWork: [],
+      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name })),
+    },
+    taskFields: {
+      tags: emptyArr,
     },
   };
 }
 
 /* ==============================
-   Exports
+   PUT (Сохранение)
+================================ */
+async function saveAll(payload) {
+  return prisma.$transaction(
+    async (tx) => {
+      // 1. ВАЛЮТЫ
+      const allCurrencyCodes = new Set([
+        ...arrToUniqueStrings(payload?.generalFields?.currency, 'code'),
+        ...arrToUniqueStrings(payload?.orderFields?.currency, 'code'),
+        ...arrToUniqueStrings(payload?.executorFields?.currency, 'code'),
+        ...arrToUniqueStrings(payload?.clientFields?.currency, 'code'),
+        ...arrToUniqueStrings(payload?.assetsFields?.currency, 'code'),
+      ]);
+      await syncSimpleDict(tx, 'currencyDict', Array.from(allCurrencyCodes), { field: 'code' });
+
+      // 2. ЗАКАЗЫ (Интервалы и категории)
+      const intervalValues = (Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [])
+        .map((i) => pickStr(i?.value ?? i?.intervalValue ?? i))
+        .filter(Boolean);
+
+      await syncSimpleDict(tx, 'orderIntervalDict', intervalValues, { field: 'value' });
+
+      // мягко деактивируем отсутствующие интервалы (и их категории), чтобы не рвать связи
+      const existingIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
+      const keepSet = new Set(intervalValues);
+      const intervalsToDeactivate = existingIntervals.filter((i) => !keepSet.has(i.value));
+      if (intervalsToDeactivate.length) {
+        const toDeactivateIds = intervalsToDeactivate.map((i) => i.id);
+        await tx.orderCategoryDict.updateMany({
+          where: { intervalId: { in: toDeactivateIds } },
+          data: { isActive: false },
+        });
+        await tx.orderIntervalDict.updateMany({
+          where: { id: { in: toDeactivateIds } },
+          data: { isActive: false },
+        });
+      }
+
+      const catsIncoming = (Array.isArray(payload?.orderFields?.categories) ? payload.orderFields.categories : [])
+        .map((c) => ({
+          intervalValue: pickStr(c?.intervalValue ?? c?.categoryInterval ?? c?.interval),
+          value: pickStr(c?.value ?? c?.categoryValue),
+        }))
+        .filter((c) => c.intervalValue && c.value);
+
+      const finalIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
+      const intervalByValue = new Map(finalIntervals.map((i) => [i.value, i.id]));
+
+      // ensure intervals exist for any categories that reference a non-existent interval
+      for (const c of catsIncoming) {
+        if (!intervalByValue.has(c.intervalValue)) {
+          const created = await tx.orderIntervalDict.create({ data: { value: c.intervalValue } });
+          intervalByValue.set(created.value, created.id);
+        }
+      }
+
+      // create missing categories
+      for (const c of catsIncoming) {
+        const intervalId = intervalByValue.get(c.intervalValue);
+        if (!intervalId) continue;
+
+        const exists = await tx.orderCategoryDict.findFirst({ where: { value: c.value, intervalId } });
+        if (!exists) {
+          await tx.orderCategoryDict.create({ data: { value: c.value, intervalId } });
+        }
+      }
+
+      // activate desired & deactivate others per interval
+      for (const [value, intervalId] of intervalByValue.entries()) {
+        const desired = new Set(catsIncoming.filter((c) => c.intervalValue === value).map((c) => c.value));
+
+        await tx.orderCategoryDict.updateMany({
+          where: { intervalId, NOT: { value: { in: Array.from(desired) } } },
+          data: { isActive: false },
+        });
+
+        await tx.orderCategoryDict.updateMany({
+          where: { intervalId, value: { in: Array.from(desired) } },
+          data: { isActive: true },
+        });
+      }
+
+      // 3. Статусы/причины/проекты/скидки (если таблицы есть)
+      if (tx.orderStatusDict) {
+        await syncSimpleDict(tx, 'orderStatusDict', arrToUniqueStrings(payload?.orderFields?.statuses, 'name'));
+      }
+      if (tx.orderCloseReasonDict) {
+        await syncSimpleDict(tx, 'orderCloseReasonDict', arrToUniqueStrings(payload?.orderFields?.closeReasons, 'name'));
+      }
+      if (tx.orderProjectDict) {
+        await syncSimpleDict(tx, 'orderProjectDict', arrToUniqueStrings(payload?.orderFields?.projects, 'name'));
+      }
+      if (tx.orderDiscountReasonDict) {
+        await syncSimpleDict(tx, 'orderDiscountReasonDict', arrToUniqueStrings(payload?.orderFields?.discountReason, 'name'));
+      }
+
+      // 4. EXECUTOR
+      await syncSimpleDict(tx, 'executorRoleDict', arrToUniqueStrings(payload?.executorFields?.role, 'name'));
+
+      // 5. CLIENTS
+      await syncSimpleDict(tx, 'clientSourceDict', arrToUniqueStrings(payload?.clientFields?.source, 'name'));
+      await syncSimpleDict(tx, 'clientCategoryDict', arrToUniqueStrings(payload?.clientFields?.category, 'name'));
+      await syncSimpleDict(tx, 'country', arrToUniqueStrings(payload?.clientFields?.country, 'name'));
+
+      // 6. TAGS (единая система через TagCategory+Tag)
+      await Promise.all([
+        upsertTags(tx, payload?.orderFields?.tags, { categoryCode: 'order', categoryName: 'Order' }),
+        upsertTags(tx, payload?.orderFields?.techTags, { categoryCode: 'order-tech', categoryName: 'Order Tech' }),
+        upsertTags(tx, payload?.orderFields?.taskTags, { categoryCode: 'order-task', categoryName: 'Order Task' }),
+        upsertTags(tx, payload?.clientFields?.tags ?? payload?.clientFields?.tag, { categoryCode: 'client', categoryName: 'Client' }),
+        upsertTags(tx, payload?.companyFields?.tags, { categoryCode: 'company', categoryName: 'Company' }),
+        upsertTags(tx, payload?.employeeFields?.tags, { categoryCode: 'employee', categoryName: 'Employee' }),
+        upsertTags(tx, payload?.taskFields?.tags, { categoryCode: 'task', categoryName: 'Task' }),
+      ]);
+
+      // 7. ASSETS
+      await syncSimpleDict(tx, 'assetTypeDict', arrToUniqueStrings(payload?.assetsFields?.type, 'name'));
+      await syncSimpleDict(tx, 'paymentSystemDict', arrToUniqueStrings(payload?.assetsFields?.paymentSystem, 'name'));
+
+      // Card designs (soft deactivate missing)
+      const incomingDesigns = (Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [])
+        .map((d) => ({
+          id: d?.id || null,
+          name: pickStr(d?.name),
+          url: typeof d?.url === 'string' ? d.url : '',
+        }))
+        .filter((d) => d.name);
+
+      const existingDesigns = await tx.cardDesign.findMany({
+        select: { id: true, name: true, imageUrl: true, isActive: true },
+      });
+      const existingById = new Map(existingDesigns.map((d) => [d.id, d]));
+
+      for (const d of incomingDesigns) {
+        let imageUrl = d.url;
+
+        if (imageUrl && imageUrl.startsWith('data:image/')) {
+          const baseName = `${Date.now()}_${Math.round(Math.random() * 1e9)}`;
+          imageUrl = await saveDataUrlToFile(imageUrl, baseName);
+        }
+
+        if (d.id && existingById.has(d.id)) {
+          const prev = existingById.get(d.id);
+          const isNew = imageUrl && imageUrl !== prev.imageUrl;
+
+          await tx.cardDesign.update({
+            where: { id: d.id },
+            data: { name: d.name, imageUrl: imageUrl || prev.imageUrl || null, isActive: true },
+          });
+
+          if (isNew && prev.imageUrl) {
+            const abs = urlToAbsPath(prev.imageUrl);
+            if (abs) await safeUnlink(abs);
+          }
+        } else {
+          await tx.cardDesign.create({ data: { name: d.name, imageUrl: imageUrl || null, isActive: true } });
+        }
+      }
+
+      const incomingIds = new Set(incomingDesigns.filter((d) => d.id).map((d) => d.id));
+      const toDeactivate = existingDesigns.filter((d) => !incomingIds.has(d.id));
+      if (toDeactivate.length) {
+        await tx.cardDesign.updateMany({
+          where: { id: { in: toDeactivate.map((d) => d.id) } },
+          data: { isActive: false },
+        });
+      }
+
+      // 8. FINANCE
+      await syncSimpleDict(tx, 'financeArticleDict', arrToUniqueStrings(payload?.financeFields?.articles, 'name'));
+      await syncSimpleDict(tx, 'financeSubcategoryDict', arrToUniqueStrings(payload?.financeFields?.subcategory, 'name'));
+
+      const desiredSubs = (Array.isArray(payload?.financeFields?.subarticles) ? payload.financeFields.subarticles : [])
+        .map((s) => ({
+          parentName: pickStr(s?.parentName ?? s?.subarticleInterval ?? s?.parent),
+          name: pickStr(s?.name ?? s?.subarticleValue),
+        }))
+        .filter((s) => s.name && s.parentName);
+
+      const [arts, subcats, subsExisting] = await Promise.all([
+        tx.financeArticleDict.findMany({ select: { id: true, name: true } }),
+        tx.financeSubcategoryDict.findMany({ select: { id: true, name: true } }),
+        tx.financeSubarticleDict.findMany({ select: { id: true, name: true, articleId: true, subcategoryId: true } }),
+      ]);
+
+      const artByName = new Map(arts.map((a) => [a.name, a.id]));
+      const subcatByName = new Map(subcats.map((s) => [s.name, s.id]));
+
+      // create missing
+      for (const s of desiredSubs) {
+        const articleId = artByName.get(s.parentName) || null;
+        const subcategoryId = !articleId ? subcatByName.get(s.parentName) || null : null;
+        if (!articleId && !subcategoryId) continue;
+
+        const exists = await tx.financeSubarticleDict.findFirst({
+          where: { name: s.name, articleId: articleId || undefined, subcategoryId: subcategoryId || undefined },
+        });
+        if (!exists) {
+          await tx.financeSubarticleDict.create({ data: { name: s.name, articleId, subcategoryId } });
+        }
+      }
+
+      const keyOf = (row) => `${row.name}|${row.articleId || ''}|${row.subcategoryId || ''}`;
+      const desiredKeys = new Set();
+
+      for (const s of desiredSubs) {
+        const articleId = artByName.get(s.parentName) || null;
+        const subcategoryId = !articleId ? subcatByName.get(s.parentName) || null : null;
+        if (!articleId && !subcategoryId) continue;
+        desiredKeys.add(`${s.name}|${articleId || ''}|${subcategoryId || ''}`);
+      }
+
+      const toDeactivateSubs = subsExisting.filter((r) => !desiredKeys.has(keyOf(r)));
+      if (toDeactivateSubs.length) {
+        await tx.financeSubarticleDict.updateMany({
+          where: { id: { in: toDeactivateSubs.map((r) => r.id) } },
+          data: { isActive: false },
+        });
+      }
+
+      // reactivate desired
+      const desiredIds = subsExisting.filter((r) => desiredKeys.has(keyOf(r))).map((r) => r.id);
+      if (desiredIds.length) {
+        await tx.financeSubarticleDict.updateMany({
+          where: { id: { in: desiredIds } },
+          data: { isActive: true },
+        });
+      }
+
+      // 9. SUNDRY
+      if (tx.sundryTypeWorkDict) {
+        await syncSimpleDict(tx, 'sundryTypeWorkDict', arrToUniqueStrings(payload?.sundryFields?.typeWork, 'name'));
+      }
+
+      // Вернём свежий бандл
+      return getAll(tx);
+    },
+    { maxWait: 20000, timeout: 60000 }
+  );
+}
+
+/* ==============================
+   EXPORTS
 ================================ */
 module.exports = {
-  // bundle
   loadBundle: () => getAll(),
   saveBundle: (payload) => saveAll(payload),
   loadInactiveBundle: () => getInactive(),
-
-  // expose for internal use / tests as well
   getAll,
   saveAll,
   getInactive,
-
-  // DAOs for makeDictController
-  Countries,
-  Currencies,
-  ClientSources,
-  ClientCategories,
-  ExecutorRoles,
-  AssetTypes,
-  PaymentSystems,
-  CardDesigns,
-  OrderIntervals,
-  OrderCategories,
-  FinanceArticles,
-  FinanceSubcategories,
-  FinanceSubarticles,
 };

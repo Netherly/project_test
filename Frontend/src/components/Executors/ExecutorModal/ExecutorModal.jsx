@@ -47,12 +47,12 @@ export default function ExecutorModal({
             dateForPerformer: new Date().toISOString().split('T')[0], 
             hideClient: false,
             roundHours: false,
-            currency: fields?.currency?.[0]?.id || '',
+            currency: fields?.currency?.[0]?.value || '', 
             hourlyRate: '',
             amountInput: '',
             maxAmount: '',
             ...safeExecutor,
-           role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].name : ''),
+           role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].value : ''),
         },
     });
 
@@ -138,7 +138,7 @@ export default function ExecutorModal({
         <div className="left-panel">
           <FormProvider {...methods}>
             <form
-              className="employee-modal-body"
+              className="employee-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
               <ExecutorHeader

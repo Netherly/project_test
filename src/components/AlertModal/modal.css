@@ -1,0 +1,162 @@
+/* ====== БЭКДРОП ====== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--bg-color) 70%, black 30%);
+  backdrop-filter: blur(2px);
+  animation: modal-fade-in .18s ease-out both;
+}
+
+/* ====== ОКНО ====== */
+.modal-window {
+  width: min(560px, 92vw);
+  background: var(--container-bg, #151a24);
+  color: var(--text-color, #e7ecf3);
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--text-color) 10%, transparent);
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, .45),
+    0 2px 0 color-mix(in oklab, var(--text-color) 6%, transparent) inset;
+  overflow: hidden;
+  transform-origin: 50% 42%;
+  animation: modal-zoom-in .18s ease-out both;
+}
+
+/* ВЕРХНЯЯ ЛИНИЯ ПО ТИПУ */
+.modal-info    { box-shadow: 0 -3px 0 0 #3b82f6 inset, var(--modal-shadow, 0 18px 60px rgba(0,0,0,.45)); }
+.modal-warning { box-shadow: 0 -3px 0 0 #f59e0b inset, var(--modal-shadow, 0 18px 60px rgba(0,0,0,.45)); }
+.modal-success { box-shadow: 0 -3px 0 0 #10b981 inset, var(--modal-shadow, 0 18px 60px rgba(0,0,0,.45)); }
+.modal-error   { box-shadow: 0 -3px 0 0 #ef4444 inset, var(--modal-shadow, 0 18px 60px rgba(0,0,0,.45)); }
+
+/* ====== ШАПКА ====== */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: color-mix(in oklab, var(--bg-color) 80%, black 20%);
+  border-bottom: 1px solid color-mix(in oklab, var(--text-color) 8%, transparent);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: .2px;
+  color: var(--text-color);
+}
+
+/* Крестик */
+.modal-close-btn {
+  --_btn-color: color-mix(in oklab, var(--text-color) 70%, transparent);
+  background: transparent;
+  border: none;
+  color: var(--_btn-color);
+  font-size: 22px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .06s ease;
+}
+.modal-close-btn:hover {
+  background: color-mix(in oklab, var(--text-color) 6%, transparent);
+  color: var(--text-color);
+  transform: translateY(-1px);
+}
+.modal-close-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--button-bg, #3b82f6) 70%, white 30%);
+  outline-offset: 2px;
+}
+
+/* ====== ТЕЛО ====== */
+.modal-body {
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-color);
+}
+
+/* ====== ФУТЕР (КНОПКИ) ====== */
+.modal-footer {
+  padding: 12px 16px 16px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* БАЗОВАЯ КНОПКА */
+.btn {
+  --_bg: color-mix(in oklab, var(--container-bg) 60%, #2b3444 40%);
+  --_border: color-mix(in oklab, var(--text-color) 10%, transparent);
+  background: var(--_bg);
+  color: var(--text-color);
+  border: 1px solid var(--_border);
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform .06s ease,
+              opacity .2s ease,
+              background .2s ease,
+              border-color .2s ease,
+              box-shadow .2s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ВАРИАНТЫ */
+.btn-primary {
+  --_bg: var(--button-bg, #3b82f6);
+  --_border: var(--button-bg, #3b82f6);
+  color: #fff;
+}
+.btn-primary:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+
+.btn-danger {
+  --_bg: #ef4444;
+  --_border: #ef4444;
+  color: #fff;
+}
+
+.btn-ghost {
+  --_bg: transparent;
+  --_border: color-mix(in oklab, var(--text-color) 25%, transparent);
+}
+.btn-ghost:hover {
+  background: color-mix(in oklab, var(--text-color) 8%, transparent);
+}
+
+/* ====== АДАПТИВ ====== */
+@media (max-width: 420px) {
+  .modal-window { width: 94vw; }
+  .modal-header { padding: 12px; }
+  .modal-body   { padding: 12px; }
+  .modal-footer { padding: 10px 12px 12px; gap: 8px; }
+}
+
+/* ====== АНИМАЦИИ ====== */
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-zoom-in {
+  from { transform: scale(.96); opacity: .96; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* Уважение к настройке пользователя */
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop, .modal-window { animation: none !important; }
+}
+
+/* ====== ХЭЛПЕРЫ (необязательно) ====== */
+/* Контентные состояния по типу — мягкий оттенок текста */
+.modal-window.modal-warning .modal-body { color: color-mix(in oklab, #fbbf24 30%, var(--text-color)); }
+.modal-window.modal-success .modal-body { color: color-mix(in oklab, #10b981 25%, var(--text-color)); }
+.modal-window.modal-error   .modal-body { color: color-mix(in oklab, #ef4444 25%, var(--text-color)); }

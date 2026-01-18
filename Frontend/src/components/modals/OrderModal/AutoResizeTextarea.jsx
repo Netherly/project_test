@@ -1,23 +1,27 @@
-import React, { useEffect, useRef } from 'react';
+// src/components/modals/OrderModal/AutoResizeTextarea.jsx
+import React, { useEffect, useRef } from "react";
 
+/**
+ * Авто-ресайз textarea под контент.
+ * - Поддерживает forwardRef (и function ref, и object ref)
+ * - Корректно работает при внешнем изменении value
+ * - Не требует отдельного CSS, но className/стили можно передать
+ */
 const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
-  { value, onChange, onInput, className, style, ...rest },
+  { value, onChange, onInput, className = "", style, rows = 1, ...rest },
   ref
 ) {
   const localRef = useRef(null);
 
   const setRefs = (node) => {
     localRef.current = node;
-    if (typeof ref === 'function') {
-      ref(node);
-    } else if (ref) {
-      ref.current = node;
-    }
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
   };
 
   const resize = (node) => {
     if (!node) return;
-    node.style.height = 'auto';
+    node.style.height = "auto";
     node.style.height = `${node.scrollHeight}px`;
   };
 
@@ -26,8 +30,16 @@ const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
   }, [value]);
 
   const handleChange = (event) => {
-    if (onChange) onChange(event);
+    // сначала даём родителю обновить value (если он контролирует)
+    onChange?.(event);
+    // если кто-то использует onInput отдельно — поддержим
     if (onInput && onInput !== onChange) onInput(event);
+    // и ресайз под текущий DOM
+    resize(event.target);
+  };
+
+  const handleInput = (event) => {
+    onInput?.(event);
     resize(event.target);
   };
 
@@ -35,10 +47,12 @@ const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
     <textarea
       {...rest}
       ref={setRefs}
-      value={value ?? ''}
-      onChange={handleChange}
+      value={value ?? ""}
+      rows={rows}
       className={className}
       style={style}
+      onChange={handleChange}
+      onInput={handleInput}
     />
   );
 });

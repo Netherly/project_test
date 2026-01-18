@@ -1,0 +1,86 @@
+/* -------------------------------------------------------------------------
+   Add-Company Modal
+   --------------------------------------------------------------------- */
+
+/* затемняющий фон */
+.company-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;                     /* чуть выше client-modal (1000) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* контейнер */
+.company-modal {
+  background: var(--bg-color);
+  color: var(--container-text-color);
+  width: 92%;
+  max-width: 480px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* заголовок */
+.company-modal h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* поле формы (используем те же параметры, что и .form-field) */
+.company-modal .form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.company-modal label {
+  font-size: 0.85rem;
+  color: var(--chips-color);
+}
+
+.company-modal input {
+  background: var(--input-bg);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: var(--container-text-color);
+}
+
+.company-modal input:focus {
+  outline: none;
+  border-color: var(--container-text-color);
+}
+
+/* нижние кнопки */
+.company-modal .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.company-modal .form-actions button {
+  all: unset;
+  padding: 8px 20px;
+  border-radius: 4px;
+  background: var(--button-bg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: center;
+}
+
+.company-modal .form-actions button:hover {
+  background: var(--container-text-color);
+  color: var(--bg-color);
+}

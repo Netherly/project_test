@@ -27,16 +27,14 @@ const isUuid = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value || "")
   );
+
 const toOptional = (v) => {
   const text = toText(v);
   return text ? text : undefined;
 };
 
 const isCurrencyCode = (value) => /^[A-Z]{3,5}$/i.test(String(value || "").trim());
-const normalizeCurrencyCode = (value) => {
-  const text = toText(value).toUpperCase();
-  return text;
-};
+const normalizeCurrencyCode = (value) => toText(value).toUpperCase();
 
 const normalizeDateOnly = (value) => {
   const text = toText(value);
@@ -73,24 +71,12 @@ const toNumberSafe = (v, fallback = 0) => {
 
 /* ----------------------- normalizers ----------------------- */
 
-/**
- * Универсальная нормализация тегов.
- * Поддерживает:
- * - [{ id, name, color }]
- * - [{ tag: { id, name, color }, tagId? }]
- * - ["Name", { name: "Name", color: "#..." }]
- * - e.EmployeeTag и т.п.
- */
 function normalizeTags(raw) {
   if (!raw) return [];
   const input = Array.isArray(raw) ? raw : raw.tags || raw.EmployeeTag || [];
 
   const flat = input
     .map((t) => {
-      // Возможные формы:
-      // t = { id, name, color }
-      // t = { tag: { id, name, color }, tagId? }
-      // t = "Sales"
       if (typeof t === "string") {
         return { id: rid(), name: tidy(t), color: "#777777" };
       }
@@ -106,7 +92,6 @@ function normalizeTags(raw) {
     })
     .filter(Boolean);
 
-  // де-дуп по имени (кейс-инсенситив)
   const seen = new Set();
   const result = [];
   for (const t of flat) {
@@ -119,8 +104,10 @@ function normalizeTags(raw) {
 }
 
 /**
- * Реквизиты: приводим EmployeeRequisite[] (или другой формат)
- * к простому массиву { id, label, value }.
+ * Реквизиты:
+ * нормализуем любые форматы к:
+ * - list: [{ id, currency, bank, card, owner }]
+ * - map:  { [currency]: [{ bank, card, holder }] }
  */
 function parseRequisiteLabel(label) {
   const text = toText(label);
@@ -139,6 +126,7 @@ function parseRequisiteValue(value) {
   const text = toText(value);
   if (!text) return { bank: "", card: "", owner: "", currency: "", structured: false };
 
+  // JSON
   if (text.startsWith("{") || text.startsWith("[")) {
     try {
       const parsed = JSON.parse(text);
@@ -154,11 +142,13 @@ function parseRequisiteValue(value) {
     } catch (_) {}
   }
 
+  // pipe-format: bank|card|owner
   if (text.includes("|")) {
     const [bank, card, owner] = text.split("|").map((p) => toText(p));
     return { bank, card, owner, currency: "", structured: true };
   }
 
+  // key:value;key:value
   if (text.includes(";") && text.includes(":")) {
     const out = {};
     text
@@ -172,6 +162,7 @@ function parseRequisiteValue(value) {
         const val = part.slice(idx + 1).trim();
         if (key) out[key] = val;
       });
+
     if (Object.keys(out).length) {
       return {
         bank: toText(out.bank),
@@ -183,6 +174,7 @@ function parseRequisiteValue(value) {
     }
   }
 
+  // plain string -> treat as card
   return { bank: "", card: text, owner: "", currency: "", structured: false };
 }
 
@@ -218,6 +210,8 @@ function normalizeRequisites(raw) {
   if (Array.isArray(source)) {
     source.forEach((item) => {
       if (!item) return;
+
+      // form {label,value}
       if (typeof item === "object" && ("label" in item || "value" in item)) {
         const labelInfo = parseRequisiteLabel(item.label);
         const valueInfo = parseRequisiteValue(item.value);
@@ -230,11 +224,11 @@ function normalizeRequisites(raw) {
         });
         return;
       }
-      if (typeof item === "object") {
-        pushItem(item);
-      }
+
+      if (typeof item === "object") pushItem(item);
     });
   } else if (source && typeof source === "object") {
+    // map format: { UAH:[...], USD:[...] }
     Object.entries(source).forEach(([currency, entries]) => {
       if (!Array.isArray(entries)) return;
       entries.forEach((entry) => {
@@ -274,11 +268,7 @@ function serializeRequisites(list) {
       const owner = toText(item.owner ?? item.holder);
       if (!currency && !bank && !card && !owner) return null;
 
-      const label = bank
-        ? currency
-          ? `${currency}:${bank}`
-          : bank
-        : currency || "CARD";
+      const label = bank ? (currency ? `${currency}:${bank}` : bank) : currency || "CARD";
 
       const payload = {};
       if (currency) payload.currency = currency;
@@ -295,27 +285,24 @@ function serializeRequisites(list) {
     .filter(Boolean);
 }
 
-/**
- * Основная нормализация сотрудника. Приводит БД-формат к удобному для UI.
- */
 export function normalizeEmployee(e = {}) {
-  // имя — поддерживаем и fullName и full_name
   const fullName =
     tidy(e.fullName) ||
     tidy(e.full_name) ||
     tidy([e.firstName, e.lastName].filter(Boolean).join(" "));
 
-  // аватар — поддерживаем несколько источников
   const rawAvatar =
     e.avatarUrl || e.photoLink || e.photo_link || e.settings?.avatarUrl || "";
+
   const { list: requisitesList, map: requisites } = normalizeRequisites(
     e.requisitesList ?? e.requisites ?? e.EmployeeRequisite ?? e.employeeRequisites ?? []
   );
+
   const normalizedRates = normalizeRates(e.rates ?? e.hourlyRates ?? {});
   const mainCurrency = normalizeCurrencyCode(e.mainCurrency ?? e.main_currency ?? "");
   const countryId = e.countryId ?? e.country?.id ?? null;
-  const countryValue =
-    (countryId ?? toText(e.country?.name ?? e.country ?? "")) || "";
+  const countryValue = (countryId ?? toText(e.country?.name ?? e.country ?? "")) || "";
+
   const telegram = {
     dateTime: toText(e.telegram?.dateTime ?? e.telegramDateTime ?? e.telegram_date_time),
     id: toText(e.telegram?.id ?? e.telegramId ?? e.telegram_id),
@@ -327,21 +314,23 @@ export function normalizeEmployee(e = {}) {
         e.telegramUsername ??
         e.telegramNick
     ),
-    bindingLink: toText(
-      e.telegram?.bindingLink ?? e.telegramBindingLink ?? e.telegram_binding_link
-    ),
+    bindingLink: toText(e.telegram?.bindingLink ?? e.telegramBindingLink ?? e.telegram_binding_link),
   };
 
   return {
     id: e.id ?? null,
     fullName,
     full_name: fullName,
+
     login: tidy(e.login),
     password: "",
+
     source: tidy(e.source),
     birthDate: normalizeDateOnly(e.birthDate ?? e.birth_date ?? ""),
+
     phone: tidy(e.phone),
     email: tidy(e.email),
+
     passport: tidy(e.passport),
     address: tidy(e.address),
     chatLink: tidy(e.chatLink ?? e.chat_link),
@@ -349,67 +338,64 @@ export function normalizeEmployee(e = {}) {
     balance: toNumberSafe(e.balance, 0),
     cashOnHand: toNumberSafe(e.cashOnHand ?? e.cash_on_hand, 0),
 
-    status:
-      e.status === "inactive" || e.status === "pending"
-        ? e.status
-        : "active",
+    status: e.status === "inactive" || e.status === "pending" ? e.status : "active",
 
     avatarUrl: rawAvatar ? fileUrl(rawAvatar) : "",
     photoLink: toText(e.photoLink ?? e.photo_link ?? rawAvatar),
+
     mainCurrency: mainCurrency ? mainCurrency.toLowerCase() : "",
     rates: normalizedRates,
     hourlyRates: normalizedRates,
+
     startDate: e.startDate ?? e.createdAt ?? e.created_at ?? "",
+
     telegram,
     telegramNick:
       telegram.nickname || tidy(e.telegramNickname ?? e.telegramUsername ?? e.telegramNick),
 
-    // связь/внешние ключи (если нужны в формах/фильтрах)
     managerId: e.managerId ?? e.manager_id ?? null,
     companyId: e.companyId ?? null,
-    countryId: countryId,
+
+    countryId,
     country: countryValue,
     countryName: toText(e.country?.name),
+
     currencyId: e.currencyId ?? null,
     roleId: e.roleId ?? null,
     publicId: e.publicId ?? null,
     userid: e.userid ?? null,
 
-    // справочники/составные
     tags: normalizeTags(e.tags || e.EmployeeTag || e.employeeTags || []),
+
     requisites,
     requisitesList,
 
-    // оригинальные вложения — на всякий случай
     settings: e.settings ?? null,
   };
 }
 
-/**
- * Сериализация формы/модели обратно в формат бэка/БД.
- * Важно: кладём full_name / photoLink, а не только fullName / avatarUrl.
- */
 export function serializeEmployee(e = {}) {
   const tags = normalizeTags(e.tags);
-  const { list: requisitesList } = normalizeRequisites(
-    e.requisitesList ?? e.requisites ?? []
-  );
+  const { list: requisitesList } = normalizeRequisites(e.requisitesList ?? e.requisites ?? []);
   const normalizedRates = normalizeRates(e.rates ?? e.hourlyRates ?? {});
   const mainCurrency = normalizeCurrencyCode(e.mainCurrency ?? e.main_currency ?? "");
   const telegram = e.telegram || {};
   const password = toText(e.password);
+
   const countryCandidate = toText(e.countryId ?? e.country);
   const countryId = countryCandidate && isUuid(countryCandidate) ? countryCandidate : undefined;
 
   const obj = {
-    // Поля БД / API:
     id: e.id,
+
     full_name: tidy(e.fullName ?? e.full_name),
     login: tidy(e.login),
     source: tidy(e.source),
+
     birthDate: normalizeDateOnly(e.birthDate ?? ""),
     phone: tidy(e.phone),
     email: tidy(e.email),
+
     passport: tidy(e.passport),
     address: tidy(e.address),
     chatLink: tidy(e.chatLink),
@@ -417,19 +403,14 @@ export function serializeEmployee(e = {}) {
     balance: toNumberSafe(e.balance, undefined),
     cashOnHand: toNumberSafe(e.cashOnHand, undefined),
 
-    status:
-      e.status === "inactive" || e.status === "pending"
-        ? e.status
-        : "active",
+    status: e.status === "inactive" || e.status === "pending" ? e.status : "active",
 
-    // Если на фронте хранится ссылка/ключ на файл — передадим как photoLink.
-    // (Если avatarUrl — уже абсолютный URL, бэк может проигнорировать или принять как есть)
     photoLink: tidy(e.photoLink ?? e.avatarStorageKey ?? e.avatarUrl),
 
     // FK — если редактируются
     managerId: toOptional(e.managerId),
     companyId: toOptional(e.companyId),
-    countryId: countryId,
+    countryId,
     currencyId: toOptional(e.currencyId),
     roleId: toOptional(e.roleId),
     publicId: toOptional(e.publicId),
@@ -461,9 +442,7 @@ export function serializeEmployee(e = {}) {
   if (password) obj.password = password;
 
   // Удалим ключи с undefined, чтобы не затирать
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== undefined)
-  );
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 }
 
 /* -------------------------- API ---------------------------- */
@@ -472,7 +451,6 @@ export async function fetchEmployees() {
   const r = await httpGet("/employees");
   const data = unwrap(r);
   const list = Array.isArray(data) ? data : data?.employees ?? [];
-  // Нормализуем каждый
   return list.map(normalizeEmployee);
 }
 

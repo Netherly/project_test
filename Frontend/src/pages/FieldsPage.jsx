@@ -630,6 +630,14 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
     event.target.value = "";
   };
 
+ 
+  const handleRemoveImage = (e, index) => {
+    e.stopPropagation();
+    const next = ensureDesign(cardDesigns, index);
+    next[index] = { ...next[index], url: "", size: null };
+    onAdd(next);
+  };
+
   const handleNameChange = (index, newName) => {
     const next = ensureDesign(cardDesigns, index);
     next[index] = { ...next[index], name: newName };
@@ -673,9 +681,22 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
                       className="card-design-preview"
                       title={design.isDeleted ? design.name : "Кликните, чтобы заменить"}
                       onClick={() => !design.isDeleted && triggerFile(i)}
+                      style={{ position: 'relative' }} 
                     >
                       <img src={safeFileUrl(design.url)} alt={design.name || "design"} className="card-design-image" />
+                      
+                      {!design.isDeleted && (
+                        <button 
+                          type="button"
+                          className="remove-image-overlay-btn"
+                          onClick={(e) => handleRemoveImage(e, i)}
+                          title="Удалить изображение"
+                        >
+                           <X size={14} color="white" />
+                        </button>
+                      )}
                     </div>
+
                     <div className="card-design-actions">
                       <button
                         type="button"

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import "../../styles/ViewEditTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal'; 
-import { Trash2, Copy} from 'lucide-react';
+import { Trash2, Copy, X } from 'lucide-react';
 
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
@@ -183,7 +183,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             let requisitesString = "";
 
             if (selectedCounterparty && selectedCounterparty.requisites) {
-               
+                
                 const requisitesForCurrency = selectedCounterparty.requisites[newFormData.accountCurrency];
 
                 if (requisitesForCurrency && requisitesForCurrency.length > 0) {
@@ -348,9 +348,9 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                  </div>
                              )}
                              <span className="icon" onClick={handleCloseModal}>
-                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" color="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                 <X size={24} color="white" />
                              </span>
-                         </div>
+                          </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
@@ -379,18 +379,22 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             className="form-input1"
                         >
                             <option value="" disabled>Выберите статью</option>
-                            {financeFields?.articles?.map((article, index) => (
-                                <option key={index} value={article.articleValue}>
-                                    {article.articleValue}
-                                </option>
-                            ))}
+                            
+                            {financeFields?.articles
+                                ?.filter(article => article.articleValue && article.articleValue.trim() !== "")
+                                .map((article) => (
+                                    <option key={article.id} value={article.articleValue}>
+                                        {article.articleValue}
+                                    </option>
+                                ))
+                            }
+
                             {!financeFields?.articles?.some(a => a.articleValue === "Смена счета") && (
                                 <option value="Смена счета">Смена счета</option>
                             )}
                         </select>
                     </div>
 
-                    
                     {availableSubcategories.length > 0 && (
                         <div className="form-row">
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
@@ -399,21 +403,26 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 name="subcategory"
                                 value={formData.subcategory}
                                 onChange={handleChange}
-                                required
                                 className="form-input1"
                             >
                                 <option value="">Выберите подстатью</option>
-                                {availableSubcategories.map((sub, index) => (
-                                    <option key={index} value={sub.subarticleValue}>
-                                        {sub.subarticleValue}
-                                    </option>
-                                ))}
+                                {availableSubcategories
+                                    .filter(sub => sub.subarticleValue && sub.subarticleValue.trim() !== "")
+                                    .map((sub, index) => (
+                                        <option key={sub.id || index} value={sub.subarticleValue}>
+                                            {sub.subarticleValue}
+                                        </option>
+                                    ))
+                                }
                             </select>
                         </div>
                     )}
 
+                    
                     <div className="form-row">
-                        <label htmlFor="description" className="form-label">Описание</label>
+                        <label htmlFor="description" className="form-label">
+                            Описание
+                        </label>
                         <input
                             type="text"
                             id="description"
@@ -424,29 +433,26 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             className="form-input1"
                         />
                     </div>
-
+                    
                     
                     <div className="form-row">
                         <label htmlFor="account" className="form-label">
-                            Счет {formData.accountCurrency && `(${formData.accountCurrency})`}
+                            {showSecondAccountBlock ? "Счет списания" : "Счет"} 
+                            {formData.account && formData.accountCurrency && ` (${formData.accountCurrency})`}
                         </label>
-                        <div className="currency-select-wrapper">
-                            <select
-                                id="account"
-                                name="account"
-                                value={formData.account}
-                                onChange={handleChange}
-                                required
-                                className="form-input1"
-                            >
-                                <option value="">Выберите счет</option>
-                                {assets?.map((asset) => (
-                                    <option key={asset.id} value={asset.id}>
-                                        {asset.accountName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <select
+                            id="account"
+                            name="account"
+                            value={formData.account}
+                            onChange={handleChange}
+                            required
+                            className="form-input1"
+                        >
+                            <option value="">Выберите счет</option>
+                            {assets?.map((acc) => (
+                                <option key={acc.id} value={acc.id}>{acc.accountName}</option>
+                            ))}
+                        </select>
                     </div>
 
 
@@ -592,12 +598,14 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             >
                                 <option value="">Выберите номер заказа</option>
                                 {orders.map(order => (
-                                    <option key={order.id} value={order.number}>
+                                    
+                                    <option key={order.id} value={order.id}>
                                         {order.id}
                                     </option>
                                 ))}
                             </select>
                         </div>
+
 
                         {showOrderBlock && (
                             <div className="order-details-block">

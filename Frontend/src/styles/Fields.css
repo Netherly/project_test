@@ -625,26 +625,26 @@
 }
 
 
-/* ---Теги (название + цвет)--- */
+
 .tag-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-width: 600px; /* вровень с остальными списками */
+  max-width: 600px; 
 }
 
 .tag-item {
   display: grid;
-  grid-template-columns: 1fr 46px 28px 32px; /* name | color | preview | remove */
+  grid-template-columns: 1fr 46px 28px 32px; 
   gap: 10px;
   align-items: center;
 }
 
 .tag-item .text-input {
-  min-width: 0; /* чтобы имя тега правильно ужималось */
+  min-width: 0; 
 }
 
-/* нативный color input, без рамок */
+
 .color-input {
   -webkit-appearance: none;
   appearance: none;
@@ -667,7 +667,7 @@
   border-radius: 4px;
 }
 
-/* мини-превью цвета рядом с color input */
+
 .tag-color-preview {
   width: 28px;
   height: 28px;
@@ -676,7 +676,7 @@
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
 }
 
-/* кнопка удаления уже есть (.remove-category-btn), слегка подровняем в сетке тегов */
+
 .tag-item .remove-category-btn {
   margin: 0;
   width: 32px;
@@ -685,26 +685,57 @@
   font-size: 20px;
 }
 
-/* Ховер/фокус для интерактивных элементов тегов */
+
 .tag-item .text-input:focus,
 .color-input:focus {
   outline: none;
   border-color: rgba(255,255,255,0.5);
 }
 
-/* ---Утилиты (необязательно, но полезно)--- */
+
 [aria-busy="true"] { cursor: progress; }
 .hidden { display: none !important; }
 
-/* Если хочешь, чтобы dropdown поверх всего накрывал контент (иногда нужно в длинных списках) */
+
 .dropdown-menu {
-  position: absolute;   /* было relative — так список лучше выпадает поверх */
+  position: absolute; 
   z-index: 20;
   left: 0;
   right: 0;
 }
 
-/* ---Адаптивность--- */
+
+
+.remove-image-overlay-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0; /* Скрыт по умолчанию */
+    transition: opacity 0.2s ease-in-out, background-color 0.2s;
+    z-index: 10;
+    padding: 0;
+}
+
+
+.card-design-preview:hover .remove-image-overlay-btn {
+    opacity: 1;
+}
+
+
+.remove-image-overlay-btn:hover {
+    background-color: rgba(220, 38, 38, 0.9); 
+}
+
+
 @media (max-width: 1200px) {
     .main-content-wrapper {
         flex-direction: column;

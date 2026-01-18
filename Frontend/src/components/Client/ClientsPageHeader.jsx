@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaSearch, FaFilter } from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import styles from "./ClientsPageHeader.module.css";
 
+// Вспомогательная функция, чтобы безопасно достать имя из строки или объекта
+const getName = (item) => {
+  if (!item) return "";
+  if (typeof item === 'object') return item.name || "";
+  return item;
+};
 
 function MultiTagSelect({
   options = [],
@@ -22,7 +28,10 @@ function MultiTagSelect({
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
-    return qq ? options.filter(o => o.toLowerCase().includes(qq)) : options;
+    // ИСПРАВЛЕНО: поддержка объектов в тегах
+    return qq 
+      ? options.filter(o => getName(o).toLowerCase().includes(qq)) 
+      : options;
   }, [options, q]);
 
   useEffect(() => {
@@ -88,12 +97,18 @@ function MultiTagSelect({
     };
   }, []);
 
-  const toggle = (tag) =>
-    value.includes(tag)
-      ? onChange(value.filter(v => v !== tag))
-      : onChange([...value, tag]);
+  const toggle = (tagItem) => {
+    // Сохраняем только имя тега в массив значений
+    const tagName = getName(tagItem);
+    value.includes(tagName)
+      ? onChange(value.filter(v => v !== tagName))
+      : onChange([...value, tagName]);
+  };
 
-  const selectAll = () => onChange(Array.from(new Set([...value, ...filtered])));
+  const selectAll = () => {
+      const allNames = filtered.map(getName);
+      onChange(Array.from(new Set([...value, ...allNames])));
+  };
   const clearAll  = () => onChange([]);
 
   const displayed = value.slice(0, maxVisibleChips);
@@ -122,12 +137,15 @@ function MultiTagSelect({
 
       <div className={styles.tagsOptions}>
         {filtered.length === 0 && <div className={styles.tagsEmpty}>Ничего не найдено</div>}
-        {filtered.map(tag => {
-          const checked = value.includes(tag);
+        {filtered.map((tagItem, idx) => {
+          const tagName = getName(tagItem);
+          const checked = value.includes(tagName);
+          // Используем tagName как ключ, либо idx если вдруг имя пустое
+          const key = tagName || idx; 
           return (
-            <label key={tag} className={`${styles.tagsOption} ${checked ? styles.isChecked : ""}`}>
-              <input type="checkbox" checked={checked} onChange={() => toggle(tag)} />
-              <span className={styles.tagsOptionText}>{tag}</span>
+            <label key={key} className={`${styles.tagsOption} ${checked ? styles.isChecked : ""}`}>
+              <input type="checkbox" checked={checked} onChange={() => toggle(tagItem)} />
+              <span className={styles.tagsOptionText}>{tagName}</span>
             </label>
           );
         })}
@@ -311,7 +329,11 @@ export default function ClientsPageHeader({
               <label>Валюта</label>
               <select value={filters.currency} onChange={handleChange("currency")}>
                 <option value="">Все валюты</option>
-                {currencyOptions.map(cur => <option key={cur} value={cur}>{cur}</option>)}
+                {/* ИСПРАВЛЕНО: Безопасный рендеринг объектов */}
+                {currencyOptions.map((cur, idx) => {
+                    const name = getName(cur);
+                    return <option key={name || idx} value={name}>{name}</option>
+                })}
               </select>
               {filters.currency && (
                 <span
@@ -326,7 +348,11 @@ export default function ClientsPageHeader({
               <label>Статус</label>
               <select value={filters.status} onChange={handleChange("status")}>
                 <option value="">Все статусы</option>
-                {statusOptions.map(st => <option key={st} value={st}>{st}</option>)}
+                {/* ИСПРАВЛЕНО */}
+                {statusOptions.map((st, idx) => {
+                    const name = getName(st);
+                    return <option key={name || idx} value={name}>{name}</option>
+                })}
               </select>
               {filters.status && (
                 <span
@@ -358,7 +384,11 @@ export default function ClientsPageHeader({
               <label>Источник</label>
               <select value={filters.source} onChange={handleChange("source")}>
                 <option value="">Все источники</option>
-                {sourceOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                {/* ИСПРАВЛЕНО */}
+                {sourceOptions.map((s, idx) => {
+                    const name = getName(s);
+                    return <option key={name || idx} value={name}>{name}</option>
+                })}
               </select>
               {filters.source && (
                 <span
@@ -373,7 +403,11 @@ export default function ClientsPageHeader({
               <label>Страна</label>
               <select value={filters.country} onChange={handleChange("country")}>
                 <option value="">Все страны</option>
-                {countryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {/* ИСПРАВЛЕНО */}
+                {countryOptions.map((c, idx) => {
+                    const name = getName(c);
+                    return <option key={name || idx} value={name}>{name}</option>
+                })}
               </select>
               {filters.country && (
                 <span
@@ -434,7 +468,7 @@ export default function ClientsPageHeader({
       </div>
 
       <button type="button" className={styles.addEntryButton} onClick={onAdd}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
       </button>
     </header>
   );

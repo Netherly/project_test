@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
     return '0.00';
@@ -11,9 +10,35 @@ const formatNumberWithSpaces = (num) => {
   return parts.join('.');
 };
 
-export default function FinancesTab({ isNew, employee }) {
-  const [transactions, setTransactions] = useState([]);
+// Тестовые данные (MOCK)
+const mockTransactions = [
+  {
+    id: 'mock1',
+    date: '15-11-2025',
+    category: 'Выплата исполнителю',
+    subcategory: 'Аванс по заказу',
+    operation: 'Зачисление',
+    amount: 250,
+    accountCurrency: 'USD',
+    orderNumber: 'Z-102'
+  },
+  {
+    id: 'mock2',
+    date: '14-11-2025',
+    category: 'Корректировка',
+    subcategory: 'Штраф',
+    operation: 'Списание',
+    amount: 150,
+    accountCurrency: 'USD',
+    orderNumber: 'N/A'
+  }
+];
 
+export default function FinancesTab({ isNew, employee }) {
+  // Инициализируем моковыми данными для теста
+  const [transactions, setTransactions] = useState(mockTransactions);
+
+  /* Временно отключена логика загрузки для проверки верстки
   useEffect(() => {
     if (isNew || !employee || !employee.fullName) {
       setTransactions([]);
@@ -38,6 +63,7 @@ export default function FinancesTab({ isNew, employee }) {
       }
     }
   }, [employee, isNew]); 
+  */
 
   if (isNew) {
     return (
@@ -47,7 +73,6 @@ export default function FinancesTab({ isNew, employee }) {
     );
   }
 
-  
   const getActiveStatusDisplay = () => {
     if (employee?.status !== 'active') {
       return 'Нет';
@@ -61,7 +86,6 @@ export default function FinancesTab({ isNew, employee }) {
 
   return (
     <div className="tab-section">
-      
       
       <div className="finance-summary-grid">
         <div className="form-field">
@@ -92,11 +116,8 @@ export default function FinancesTab({ isNew, employee }) {
         </div>
       </div>
 
-
-      
       <div className="tab-content-title">Журнал операций</div>
       <div className="finances-log-table">
-        
         
         <div className="finances-log-row header-row">
           <div className="finances-log-content-wrapper">
@@ -109,7 +130,6 @@ export default function FinancesTab({ isNew, employee }) {
           </div>
         </div>
 
-        
         {transactions.length > 0 ? (
           transactions.map((trx) => (
             <div key={trx.id} className="finances-log-row">
@@ -134,7 +154,7 @@ export default function FinancesTab({ isNew, employee }) {
                 <div className="finances-log-cell">
                   <input
                     type="text"
-                    value={`${trx.amount?.toFixed(2) || '0.00'} ${trx.accountCurrency || ''}`}
+                    value={`${formatNumberWithSpaces(trx.amount)} ${trx.accountCurrency || ''}`}
                     className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}
                     readOnly
                   />

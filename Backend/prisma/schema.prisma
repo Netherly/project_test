@@ -74,6 +74,20 @@ model ClientSourceDict {
   clients  Client[]
 }
 
+model OrderDiscountReasonDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(150)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
+model SundryTypeWorkDict {
+  id       String  @id @default(uuid())
+  name     String  @unique @db.VarChar(150)
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
 model ClientCategoryDict {
   id       String   @id @default(uuid())
   name     String   @unique @db.VarChar(100)
@@ -377,6 +391,10 @@ model EmployeeSettings {
 model EmployeeRequisite {
   id         String   @id @default(uuid())
   employeeId String
+  bank        String?
+  currency    String?
+  card        String?
+  owner       String?
   label      String   @db.VarChar(100)
   value      String   @db.VarChar(1000)
   createdAt  DateTime @default(now())

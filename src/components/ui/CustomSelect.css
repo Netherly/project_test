@@ -1,0 +1,11 @@
+.custom-content-input {
+    background: none;
+    border: none;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    color: var(--container-text-color);
+    background-color: var(--container-bg);
+    cursor: pointer;
+}

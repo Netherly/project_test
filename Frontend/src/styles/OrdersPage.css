@@ -39,7 +39,7 @@
   margin: 0;
   color: var(--text-color);
   text-transform: uppercase;
-  padding: 0 20px;
+  padding: 0 15px;
   display: flex;
   align-items: center;
   border-right: 1px solid var(--border--color);
@@ -248,21 +248,18 @@
 .create-order-btn {
   background-color: var(--container-bg);
   color: var(--text-color);
-  border: 1px solid var(--border--color);
-  border-radius: 6px;
+  border: none;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 15px;
   margin-left: auto;
-  padding: 0 20px;
+  padding: 0 15px;
   border-left: 1px solid var(--border--color);
   height: 100%;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
   white-space: nowrap;
   flex-shrink: 0;
   min-width: 0;

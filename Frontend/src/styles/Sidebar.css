@@ -38,7 +38,6 @@
     transition: all 0.3s ease;
 }
 .menu-item span {
-    margin-top: 5px;
     font-size: 12px;
     font-weight: 600;
 }

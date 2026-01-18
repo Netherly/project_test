@@ -1,19 +1,10 @@
 // src/api/clients.js
 import { httpGet, httpPost, httpPut, httpDelete } from "./http";
 
-/**
- * Эндпоинты по умолчанию:
- *   GET    /api/clients            -> список клиентов
- *   POST   /api/clients            -> создать клиента
- *   PUT    /api/clients/:id        -> обновить клиента
- *   DELETE /api/clients/:id        -> удалить клиента
- *
- * Если у вас другой путь — поправьте строки ниже.
- */
-
 const BASE = "/clients";
 
-// Универсальная распаковка { ok, data } или «голого» объекта
+/* -------------------------- UTILS -------------------------- */
+
 const unwrap = (resp) => {
   if (resp && typeof resp === "object" && "ok" in resp) {
     if (resp.ok) return resp.data;
@@ -24,15 +15,39 @@ const unwrap = (resp) => {
   return resp;
 };
 
+const tidy = (v) => String(v ?? "").trim();
+
+const toNumberSafe = (v) => {
+  if (v === "" || v === null || v === undefined) return null;
+  const n = parseFloat(v);
+  return Number.isNaN(n) ? null : n;
+};
+
 const isUuid = (value) =>
   typeof value === "string" &&
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
 
 const normalizeNullableId = (value) => {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
   return isUuid(value) ? value : null;
 };
+
+const normalizeNullableString = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return String(value);
+};
+
+const normalizeShareInfo = (value) => {
+  if (value === undefined || value === null || value === "") return false;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return Boolean(value);
+};
+
+/* ----------------------- NORMALIZERS ----------------------- */
 
 // Нормализация тегов (строки/relations -> {id,name,color})
 const normTags = (arr) =>
@@ -49,6 +64,17 @@ const normTags = (arr) =>
     })
     .filter((t) => t?.name);
 
+const normalizeAccesses = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((item) => ({
+    id: item?.id,
+    name: item?.name ?? item?.label ?? "",
+    login: item?.login ?? "",
+    password: item?.password ?? "",
+    description: item?.description ?? "",
+  }));
+};
+
 const normalizeGroup = (value) => {
   if (value === undefined || value === null || value === "") return 2;
   if (typeof value === "object") {
@@ -58,31 +84,11 @@ const normalizeGroup = (value) => {
   return value;
 };
 
-const normalizeNullableString = (value) => {
-  if (value === undefined) return undefined;
-  if (value === null || value === "") return null;
-  return String(value);
-};
-
-const normalizeShareInfo = (value) => {
-  if (value === undefined || value === null || value === "") return false;
-  if (typeof value === "string") return value.toLowerCase() === "true";
-  return Boolean(value);
-};
-
-const normalizeAccesses = (arr) => {
-  if (!Array.isArray(arr)) return [];
-  return arr.map((item) => ({
-    name: item?.name ?? item?.label ?? "",
-    login: item?.login ?? "",
-    password: item?.password ?? "",
-    description: item?.description ?? "",
-  }));
-};
-
 // Нормализация клиента (чтобы таблица не падала от неожиданных типов)
-const normalizeClient = (c = {}) => {
+export const normalizeClient = (c = {}) => {
   const shareInfoRaw = c.share_info ?? c.shareInfo;
+
+  // сервер может вернуть credentials или accesses
   const credentials = Array.isArray(c.credentials) ? c.credentials : [];
   const accesses = Array.isArray(c.accesses)
     ? normalizeAccesses(c.accesses)
@@ -90,62 +96,110 @@ const normalizeClient = (c = {}) => {
 
   return {
     id: c.id ?? null,
+
     group: normalizeGroup(c.group ?? c.group_order ?? c.groupOrder),
     group_id: c.group_id ?? c.groupId ?? c.group?.id ?? null,
     group_name: c.group_name ?? c.group?.name ?? "",
+
     name: c.name ?? "",
     messenger_name: c.messenger_name ?? c.messengerName ?? "",
     intro_description: c.intro_description ?? c.introDescription ?? "",
     note: c.note ?? "",
+
     category: c.category ?? "",
     source: c.source ?? "",
     full_name: c.full_name ?? c.fullName ?? "",
+
     country: c.country ?? "",
     currency: c.currency ?? "",
+
     phone: c.phone ?? "",
     email: c.email ?? "",
     city: c.city ?? "",
+
     payment_details: c.payment_details ?? c.paymentDetails ?? "",
     hourly_rate: c.hourly_rate ?? null,
     percent: c.percent ?? null,
+
     share_info: normalizeShareInfo(shareInfoRaw),
     status: c.status ?? "",
+
     referrer_id: c.referrer_id ?? c.referrerId ?? null,
     referrer_name: c.referrer_name ?? "",
     referrer_first_id: c.referrer_first_id ?? c.referrerFirstId ?? null,
     referrer_first_name: c.referrer_first_name ?? "",
+
     manager_id: c.manager_id ?? c.managerId ?? null,
     manager_name: c.manager_name ?? "",
     company_id: c.company_id ?? c.companyId ?? null,
     company_name: c.company_name ?? "",
+
     chat_link: c.chat_link ?? c.chatLink ?? "",
     photo_link: c.photo_link ?? c.photoLink ?? "",
     folder_link: c.folder_link ?? c.folderLink ?? "",
+
     tags: normTags(c.tags),
+
+    // UI может работать с accesses, а credentials оставим для совместимости
     accesses,
     credentials,
+
     last_order_date: c.last_order_date ?? "—",
   };
 };
 
-const serializeClient = (payload = {}) => {
+/* ----------------------- SERIALIZER ----------------------- */
+
+// Сериализуем под сервер: аккуратно приводим id-поля и share_info
+export const serializeClient = (payload = {}) => {
   const data = { ...payload };
+
   const companyId = normalizeNullableId(payload.company_id ?? payload.companyId);
   const managerId = normalizeNullableId(payload.manager_id ?? payload.managerId);
+
   const referrerId = normalizeNullableString(payload.referrer_id ?? payload.referrerId);
   const referrerFirstId = normalizeNullableString(payload.referrer_first_id ?? payload.referrerFirstId);
   const referrerName = normalizeNullableString(payload.referrer_name ?? payload.referrerName);
   const referrerFirstName = normalizeNullableString(payload.referrer_first_name ?? payload.referrerFirstName);
+
   const shareInfo = normalizeShareInfo(payload.share_info ?? payload.shareInfo);
 
   if (companyId !== undefined) data.company_id = companyId;
   if (managerId !== undefined) data.manager_id = managerId;
+
   if (referrerId !== undefined) data.referrer_id = referrerId;
   if (referrerFirstId !== undefined) data.referrer_first_id = referrerFirstId;
   if (referrerName !== undefined) data.referrer_name = referrerName;
   if (referrerFirstName !== undefined) data.referrer_first_name = referrerFirstName;
+
+  // сервер ожидает snake_case
   data.share_info = shareInfo;
 
+  // Нормализуем строки (чтобы не улетали объекты)
+  if ("name" in data) data.name = tidy(data.name);
+  if ("status" in data) data.status = tidy(data.status) || "active";
+  if ("intro_description" in data) data.intro_description = tidy(data.intro_description);
+  if ("messenger_name" in data) data.messenger_name = tidy(data.messenger_name);
+  if ("note" in data) data.note = tidy(data.note);
+  if ("full_name" in data) data.full_name = tidy(data.full_name);
+  if ("phone" in data) data.phone = tidy(data.phone);
+  if ("email" in data) data.email = tidy(data.email);
+  if ("city" in data) data.city = tidy(data.city);
+  if ("payment_details" in data) data.payment_details = tidy(data.payment_details);
+  if ("chat_link" in data) data.chat_link = tidy(data.chat_link);
+  if ("photo_link" in data) data.photo_link = tidy(data.photo_link);
+  if ("folder_link" in data) data.folder_link = tidy(data.folder_link);
+
+  // числа
+  if ("hourly_rate" in data) data.hourly_rate = toNumberSafe(data.hourly_rate);
+  if ("percent" in data) data.percent = toNumberSafe(data.percent);
+
+  // теги / доступы: оставляем как есть, т.к. серверная часть умеет извлекать:
+  // - tags
+  // - accesses или credentials
+  // (нормализация производится на бэке)
+
+  // удаляем camelCase дубликаты
   delete data.companyId;
   delete data.managerId;
   delete data.referrerId;
@@ -153,8 +207,11 @@ const serializeClient = (payload = {}) => {
   delete data.referrerName;
   delete data.referrerFirstName;
   delete data.shareInfo;
+
   return data;
 };
+
+/* -------------------------- API -------------------------- */
 
 export async function fetchClients(params = {}) {
   const r = await httpGet(BASE, params);
@@ -181,7 +238,6 @@ export async function deleteClient(id) {
   const r = await httpDelete(`${BASE}/${id}`);
   return unwrap(r) ?? true;
 }
-
 
 export const ClientsAPI = {
   fetch: fetchClients,

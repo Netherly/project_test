@@ -2,18 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import '../../styles/AssetDetailsModal.css';
 import { Save, Plus, X, Pencil, Trash2, Copy } from 'lucide-react';
 
-const designNameMap = {
-    'Монобанк': 'monobank-black',
-    'ПриватБанк': 'privatbank-green',
-    'Сбербанк': 'sberbank-light-green',
-    'Bybit': 'bybit-white',
-    'Рубин': 'ruby',
-    'Сапфир': 'saphire',
-    'Атлас': 'atlas',
-    '3Д': '3d',
-    'Красный': 'red',
-};
-
 const formatNumberWithSpaces = (num) => {
     if (num === null || num === undefined || isNaN(Number(num))) {
         return '0.00';
@@ -25,7 +13,6 @@ const formatNumberWithSpaces = (num) => {
 };
 
 const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fields, employees }) => {
-    const [showPaymentSystem, setShowPaymentSystem] = useState(false);
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [exchangeRates, setExchangeRates] = useState(null);
     const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
@@ -187,6 +174,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
         setShowOptionsMenu(false);
     };
 
+    // Drag & Drop
     const allowDrop = (e) => e.preventDefault();
 
     const handleDragStart = (e, index) => {
@@ -222,8 +210,6 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
 
     const currentBalance = asset.balance || 0;
     const freeBalance = asset.freeBalance ?? asset.balance;
-    const mainRequisite = editableAsset.requisites[0] || null;
-    const otherRequisites = editableAsset.requisites.slice(1);
 
     return (
         <div className="assets-modal-overlay" onClick={onClose}>
@@ -340,11 +326,10 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
-                                    {/* Изменено: fields.generalFields.currency */}
+                                    {/* FIX: Using item.value instead of object/name split */}
                                     {fields?.generalFields?.currency?.map((item, index) => {
-                                        const value = typeof item === 'object' ? item.code || item.name : item;
-                                        const display = typeof item === 'object' ? item.name : item;
-                                        return <option key={index} value={value}>{display}</option>;
+                                        const val = item.value || item;
+                                        return <option key={item.id || index} value={val}>{val}</option>;
                                     })}
                                 </select>
                             </div>
@@ -369,11 +354,9 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
-                                    {/* Изменено: fields.assetsFields.type */}
                                     {fields?.assetsFields?.type?.map((item, index) => {
-                                        const value = typeof item === 'object' ? item.code || item.name : item;
-                                        const display = typeof item === 'object' ? item.name : item;
-                                        return <option key={index} value={value}>{display}</option>;
+                                        const val = item.value || item;
+                                        return <option key={item.id || index} value={val}>{val}</option>;
                                     })}
                                 </select>
                             </div>
@@ -387,11 +370,9 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     className="form-input1"
                                 >
                                     <option value="">Не выбрано</option>
-                                    {/* Изменено: fields.assetsFields.paymentSystem */}
                                     {fields?.assetsFields?.paymentSystem?.map((item, index) => {
-                                        const value = typeof item === 'object' ? item.code || item.name : item;
-                                        const display = typeof item === 'object' ? item.name : item;
-                                        return <option key={index} value={value}>{display}</option>;
+                                        const val = item.value || item;
+                                        return <option key={item.id || index} value={val}>{val}</option>;
                                     })}
                                 </select>
                             </div>
@@ -405,9 +386,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     className="form-input1"
                                 >
                                     <option value="">Не выбрано</option>
-                                    {/* Изменено: fields.assetsFields.cardDesigns */}
                                     {fields?.assetsFields?.cardDesigns?.map((design, index) => (
-                                        <option key={index} value={design.id}>{design.name}</option>
+                                        <option key={design.id || index} value={design.id}>{design.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -426,6 +406,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     ))}
                                 </select>
                             </div>
+                            
                             <div className="form-row">
                                 <label htmlFor="status" className="form-label">Статус</label>
                                 <select

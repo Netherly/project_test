@@ -1,26 +1,32 @@
 // src/pages/ClientsPage.jsx
-import React, {
-  useState,
-  useMemo,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
 import "../styles/ClientsPage.css";
+
 import { fetchClients, saveClient as saveClientApi, deleteClient as deleteClientApi } from "../api/clients";
 import { fetchFields } from "../api/fields";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 
 const statusToEmojiMap = {
-  "Лид": "🎯", "Изучаем ТЗ": "📄", "Обсуждаем с клиентом": "💬",
-  "Клиент думает": "🤔", "Ожидаем предоплату": "💳", "Взяли в работу": "🚀",
-  "Ведется разработка": "💻", "На уточнении у клиента": "📝", "Тестируем": "🧪",
-  "Тестирует клиент": "👀", "На доработке": "🔧", "Ожидаем оплату": "💸",
-  "Успешно завершен": "🏆", "Закрыт": "🏁", "Неудачно завершён": "❌", "Удаленные": "🗑️"
+  "Лид": "🎯",
+  "Изучаем ТЗ": "📄",
+  "Обсуждаем с клиентом": "💬",
+  "Клиент думает": "🤔",
+  "Ожидаем предоплату": "💳",
+  "Взяли в работу": "🚀",
+  "Ведется разработка": "💻",
+  "На уточнении у клиента": "📝",
+  "Тестируем": "🧪",
+  "Тестирует клиент": "👀",
+  "На доработке": "🔧",
+  "Ожидаем оплату": "💸",
+  "Успешно завершен": "🏆",
+  "Закрыт": "🏁",
+  "Неудачно завершён": "❌",
+  "Удаленные": "🗑️",
 };
 
 const STORAGE_KEY = "clientsTableWidths";
@@ -33,18 +39,18 @@ function TagsCell({ tags = [] }) {
   const rest = tags.length - visible.length;
 
   return (
-    <div className="tags-cell" title={tags.map((t) => t.name).join(", ")}>
+    <div className="tags-cell" title={tags.map((t) => t?.name ?? t).join(", ")}>
       {visible.map((t) => (
         <span
-          key={`${t.name}-${t.color || "nc"}`}
+          key={`${t?.name ?? t}-${t?.color || "nc"}`}
           className="tag-chip"
           style={{
-            background: t.color || "var(--chips-bg)",
-            color: t.textColor || "var(--chips-text)",
+            background: t?.color || "var(--chips-bg)",
+            color: t?.textColor || "var(--chips-text)",
           }}
-          title={t.name}
+          title={t?.name ?? String(t)}
         >
-          {t.name}
+          {t?.name ?? String(t)}
         </span>
       ))}
       {rest > 0 && <span className="more-chip">+{rest}</span>}
@@ -60,27 +66,33 @@ const STATUS_MAP = {
   lead: { text: "Лид", cls: "status--lead" },
   blacklist: { text: "Блэклист", cls: "status--blacklist" },
 };
+
 function StatusPill({ value }) {
-  const safeValue = (typeof value === "object" && value !== null) ? value.name : value;
+  const safeValue = typeof value === "object" && value !== null ? value.name : value;
   if (!safeValue) return <span className="ellipsis">—</span>;
+
   const key = String(safeValue).toLowerCase();
   const m = STATUS_MAP[key] || { text: safeValue, cls: "status--neutral" };
+
   return (
-    <span className={`status-pill ${m.cls}`} title={safeValue}>
+    <span className={`status-pill ${m.cls}`} title={String(safeValue)}>
       {m.text}
     </span>
   );
 }
 
+// Умный Ellipsis: понимает строки/объекты/массивы
 const Ellipsis = ({ value }) => {
   let text;
+
   if (Array.isArray(value)) {
-    text = value.map((t) => t?.name ?? t).join(", ");
+    text = value.map((t) => (t && typeof t === "object" ? t.name ?? JSON.stringify(t) : String(t))).join(", ");
   } else if (value && typeof value === "object") {
     text = value.name || JSON.stringify(value);
   } else {
     text = String(value ?? "—");
   }
+
   return (
     <span className="ellipsis" title={text}>
       {text}
@@ -90,6 +102,7 @@ const Ellipsis = ({ value }) => {
 
 const normalizeStr = (value) => String(value ?? "").trim();
 const uniqueList = (arr) => Array.from(new Set(arr));
+
 const extractValues = (items, { preferCode = false } = {}) => {
   const list = Array.isArray(items) ? items : [];
   const values = list
@@ -100,6 +113,7 @@ const extractValues = (items, { preferCode = false } = {}) => {
       return normalizeStr(item.name ?? item.value ?? item.code);
     })
     .filter(Boolean);
+
   return uniqueList(values);
 };
 
@@ -114,7 +128,7 @@ export default function ClientsPage({
   const [search, setSearch] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [tagFilter, setTagFilter] = useState([]); 
+  const [tagFilter, setTagFilter] = useState([]);
   const [sourceFilter, setSourceFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -131,6 +145,7 @@ export default function ClientsPage({
   const referrerOptions = useMemo(() => {
     const items = [];
     const seen = new Set();
+
     const addItem = (id, name, label) => {
       if (!id || !name) return;
       const key = String(id);
@@ -164,14 +179,11 @@ export default function ClientsPage({
   const withReferrerNames = (client) => {
     if (!client || !referrerById.size) return client;
     const refId = client.referrer_id != null ? String(client.referrer_id) : "";
-    const refFirstId =
-      client.referrer_first_id != null ? String(client.referrer_first_id) : "";
+    const refFirstId = client.referrer_first_id != null ? String(client.referrer_first_id) : "";
     return {
       ...client,
-      referrer_name:
-        client.referrer_name || referrerById.get(refId) || "",
-      referrer_first_name:
-        client.referrer_first_name || referrerById.get(refFirstId) || "",
+      referrer_name: client.referrer_name || referrerById.get(refId) || "",
+      referrer_first_name: client.referrer_first_name || referrerById.get(refFirstId) || "",
     };
   };
 
@@ -258,8 +270,8 @@ export default function ClientsPage({
     return () => {
       mounted = false;
     };
-    
-  }, []); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!referrerById.size) return;
@@ -268,65 +280,56 @@ export default function ClientsPage({
 
   const latestOrderStatusMap = useMemo(() => {
     const statusMap = new Map();
-    const clientOrders = new Map(); 
-    
-   
-    const ordersJson = localStorage.getItem('ordersData'); 
-    let ordersData = []; 
+    const clientOrders = new Map();
+
+    const ordersJson = localStorage.getItem("ordersData");
+    let ordersData = [];
 
     if (ordersJson) {
       try {
-       
         ordersData = JSON.parse(ordersJson);
-      } catch (error) {
-        console.error("Ошибка парсинга заказов из localStorage:", error);
+      } catch (err) {
+        console.error("Ошибка парсинга заказов из localStorage:", err);
       }
     }
-    
-    
 
-
-    
     for (const order of ordersData) {
       const clientIdNum = parseInt(order.order_client, 10);
-      if (isNaN(clientIdNum)) continue;
+      if (Number.isNaN(clientIdNum)) continue;
 
-      if (!clientOrders.has(clientIdNum)) {
-        clientOrders.set(clientIdNum, []);
-      }
+      if (!clientOrders.has(clientIdNum)) clientOrders.set(clientIdNum, []);
       clientOrders.get(clientIdNum).push(order);
     }
 
-    
     for (const [clientId, orders] of clientOrders.entries()) {
-      if (orders.length === 0) continue;
+      if (!orders.length) continue;
 
       const sortedOrders = orders.sort((a, b) => {
         const dateA = new Date(a.orderDate);
         const dateB = new Date(b.orderDate);
-        
-        if (isNaN(dateA.getTime())) return 1;
-        if (isNaN(dateB.getTime())) return -1;
-        
+
+        if (Number.isNaN(dateA.getTime())) return 1;
+        if (Number.isNaN(dateB.getTime())) return -1;
+
         return dateB.getTime() - dateA.getTime();
       });
 
       const latestOrder = sortedOrders[0];
-      if (latestOrder && latestOrder.stage) {
-        statusMap.set(clientId, latestOrder.stage);
-      }
+      if (latestOrder?.stage) statusMap.set(clientId, latestOrder.stage);
     }
 
     return statusMap;
   }, []);
+
   /* === фильтрация === */
   const filteredRows = useMemo(() => {
     return (list || [])
       .filter((c) => {
         if (!search) return true;
+
         const parts = [
           c.name,
-          ...(c.tags || []).map((t) => t.name),
+          ...(c.tags || []).map((t) => t?.name ?? t),
           c.note,
           c.intro_description,
           c.source?.name || c.source,
@@ -339,8 +342,9 @@ export default function ClientsPage({
           c.referrer_first_name,
           c.status,
           c.last_order_date,
-          ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
+          ...(c.credentials || []).flatMap((cr) => [cr?.login, cr?.description]),
         ];
+
         const text = parts.join(" ").toLowerCase();
         return text.includes(search.toLowerCase());
       })
@@ -349,60 +353,33 @@ export default function ClientsPage({
         return !currencyFilter || curName === currencyFilter;
       })
       .filter((c) => !statusFilter || c.status === statusFilter)
-      .filter(
-        (c) =>
-          !tagFilter.length ||
-          (c.tags || []).some((t) => tagFilter.includes(t.name))
-      )
+      .filter((c) => !tagFilter.length || (c.tags || []).some((t) => tagFilter.includes(t.name)))
       .filter((c) => {
         const srcName = c.source?.name || c.source;
         return !sourceFilter || srcName === sourceFilter;
       })
       .filter((c) => {
-        if (
-          dateFrom &&
-          c.last_order_date !== "—" &&
-          new Date(c.last_order_date) < new Date(dateFrom)
-        )
-          return false;
-        if (
-          dateTo &&
-          c.last_order_date !== "—" &&
-          new Date(c.last_order_date) > new Date(dateTo)
-        )
-          return false;
+        if (dateFrom && c.last_order_date !== "—" && new Date(c.last_order_date) < new Date(dateFrom)) return false;
+        if (dateTo && c.last_order_date !== "—" && new Date(c.last_order_date) > new Date(dateTo)) return false;
         return true;
       });
-  }, [
-    list,
-    search,
-    currencyFilter,
-    statusFilter,
-    tagFilter,
-    sourceFilter,
-    dateFrom,
-    dateTo,
-  ]);
+  }, [list, search, currencyFilter, statusFilter, tagFilter, sourceFilter, dateFrom, dateTo]);
 
   /* === опции селектов === */
-  const currencyOptions = useMemo(
-    () =>
-      currenciesList.length
-        ? currenciesList
-        : Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean),
-    [currenciesList, list]
-  );
-  const statusOptions = useMemo(
-    () => Array.from(new Set(list.map((c) => c.status))).filter(Boolean),
-    [list]
-  );
+  const currencyOptions = useMemo(() => {
+    const fromFields = currenciesList?.length ? currenciesList : [];
+    if (fromFields.length) return fromFields;
+
+    return Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean);
+  }, [currenciesList, list]);
+
+  const statusOptions = useMemo(() => Array.from(new Set(list.map((c) => c.status))).filter(Boolean), [list]);
+
   const tagOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(list.flatMap((c) => (c.tags || []).map((t) => t.name)))
-      ).filter(Boolean),
+    () => Array.from(new Set(list.flatMap((c) => (c.tags || []).map((t) => t.name)))).filter(Boolean),
     [list]
   );
+
   const sourceOptions = useMemo(
     () => Array.from(new Set(list.map((c) => c.source?.name || c.source))).filter(Boolean),
     [list]
@@ -429,13 +406,12 @@ export default function ClientsPage({
   const load = () => {
     try {
       const arr = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return Array.isArray(arr) && arr.length === COLS
-        ? arr
-        : Array(COLS).fill(null);
+      return Array.isArray(arr) && arr.length === COLS ? arr : Array(COLS).fill(null);
     } catch {
       return Array(COLS).fill(null);
     }
   };
+
   const [colWidths, setColWidths] = useState(load);
   const wrapRef = useRef(null);
 
@@ -454,9 +430,7 @@ export default function ClientsPage({
 
   /* === лог по credential логинам у отфильтрованных (для отладки) === */
   useEffect(() => {
-    const logins = filteredRows.flatMap((c) =>
-      (c.credentials || []).map((cr) => cr.login)
-    );
+    const logins = filteredRows.flatMap((c) => (c.credentials || []).map((cr) => cr?.login));
     console.log("Filtered credentials logins:", logins);
   }, [filteredRows]);
 
@@ -471,10 +445,11 @@ export default function ClientsPage({
     setActive(c);
     setShow(true);
   };
+
   const openRef = (id, e) => {
     e.stopPropagation();
     const r = idMap.get(id);
-    r && openEdit(r);
+    if (r) openEdit(r);
   };
 
   const save = async (data) => {
@@ -523,7 +498,8 @@ export default function ClientsPage({
   const onDown = (i, e) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startW = colWidths[i];
+    const startW = colWidths[i] ?? 0;
+
     const move = (ev) => {
       const next = Math.max(startW + (ev.clientX - startX), MIN_W);
       setColWidths((prev) => {
@@ -532,38 +508,32 @@ export default function ClientsPage({
         return arr;
       });
     };
+
     const up = () => {
       document.removeEventListener("mousemove", move);
       document.removeEventListener("mouseup", up);
     };
+
     document.addEventListener("mousemove", move);
     document.addEventListener("mouseup", up);
   };
 
   const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
 
-   const formatDate = (dateString) => {
-    
-    if (!dateString) return null; 
-
+  const formatDate = (dateString) => {
+    if (!dateString) return null;
     const date = new Date(dateString);
-
-    
-    if (isNaN(date.getTime())) {
-      return null;
-    }
-
-    
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0'); 
+    if (Number.isNaN(date.getTime())) return null;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
     const year = date.getFullYear();
-    
     return `${day}.${month}.${year}`;
   };
 
   return (
     <div className="clients-layout">
       <Sidebar />
+
       <div className="clients-page">
         <ClientsPageHeader
           onAdd={() => {
@@ -576,16 +546,15 @@ export default function ClientsPage({
           statusOptions={statusOptions}
           tagOptions={tagOptions}
           sourceOptions={sourceOptions}
-          onFilterChange={({ currency, status, tags, source, dateFrom, dateTo }) => {
+          onFilterChange={({ currency, status, tags, source, dateFrom: df, dateTo: dt }) => {
             setCurrencyFilter(currency);
             setStatusFilter(status);
             setTagFilter(tags);
             setSourceFilter(source);
-            setDateFrom(dateFrom);
-            setDateTo(dateTo);
+            setDateFrom(df);
+            setDateTo(dt);
           }}
         />
-    
 
         <div ref={wrapRef} className="clients-table-wrapper">
           {loading ? (
@@ -595,14 +564,9 @@ export default function ClientsPage({
               <thead className="fixed-task-panel">
                 <tr>
                   {headers.map((h, i) => (
-                    <th
-                      key={h}
-                    >
+                    <th key={h}>
                       {h}
-                      <span
-                        className="resizer"
-                        onMouseDown={(e) => onDown(i, e)}
-                      />
+                      <span className="resizer" onMouseDown={(e) => onDown(i, e)} />
                     </th>
                   ))}
                 </tr>
@@ -611,20 +575,12 @@ export default function ClientsPage({
               <tbody>
                 {Object.entries(groups).map(([gid, gname]) => (
                   <React.Fragment key={gid}>
-                    <tr
-                      className="group-row"
-                      onClick={() =>
-                        setExp((p) => ({ ...p, [gid]: !p[gid] }))
-                      }
-                    >
+                    <tr className="group-header" onClick={() => setExp((p) => ({ ...p, [gid]: !p[gid] }))}>
                       <td colSpan={COLS}>
-                        {expanded[gid] ? "▼" : "▶"} {gname}{" "}
+                        <span className={`collapse-icon ${!expanded[gid] ? "collapsed" : ""}`}>▼</span>
+                        {gname.toUpperCase()}
                         <span className="group-count">
-                          {
-                            filteredRows.filter(
-                              (c) => String(c.group) === gid
-                            ).length
-                          }
+                          {filteredRows.filter((c) => String(c.group) === gid).length}
                         </span>
                       </td>
                     </tr>
@@ -655,38 +611,29 @@ export default function ClientsPage({
                             <td>
                               <Ellipsis value={c.currency} />
                             </td>
-                            <td className="num">
-                              {c.hourly_rate ?? "—"}
-                            </td>
-                            <td className="num">
-                              {c.percent ?? "—"}
-                            </td>
-                            <td
-                              className="ref-cell"
-                            
-                              onClick={(e) => openRef(c.referrer_id, e)}
-                            >
+                            <td className="num">{c.hourly_rate ?? "—"}</td>
+                            <td className="num">{c.percent ?? "—"}</td>
+                            <td className="ref-cell" onClick={(e) => openRef(c.referrer_id, e)}>
                               <Ellipsis value={c.referrer_name} />
                             </td>
-                            <td
-                              className="ref-cell"
-                              onClick={(e) => openRef(c.referrer_first_id, e)}
-                            >
+                            <td className="ref-cell" onClick={(e) => openRef(c.referrer_first_id, e)}>
                               <Ellipsis value={c.referrer_first_name} />
                             </td>
+
+                            {/* Статус по последнему заказу (эмодзи) */}
                             {(() => {
                               const latestStatus = latestOrderStatusMap.get(c.id);
-                              const emoji = statusToEmojiMap[latestStatus] || '—';
-                              
+                              const emoji = statusToEmojiMap[latestStatus] || "—";
                               return (
-                                <td 
-                                  title={latestStatus || 'Нет заказов'} 
-                                  style={{ textAlign: 'center', fontSize: '1.3em', cursor: 'default' }}
+                                <td
+                                  title={latestStatus || "Нет заказов"}
+                                  style={{ textAlign: "center", fontSize: "1.3em", cursor: "default" }}
                                 >
                                   {emoji}
                                 </td>
                               );
                             })()}
+
                             <td>
                               <Ellipsis value={formatDate(c.last_order_date || "")} />
                             </td>

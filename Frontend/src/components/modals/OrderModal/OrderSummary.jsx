@@ -76,7 +76,6 @@ const OrderSummary = () => {
                         <h3>Основная информация</h3>
                     </div>
                     <div className="summary-card-body">
-                        <h2>{orderDescription}</h2>
                         <p><strong>Заказ:</strong> #{id || 'Новый'}</p>
                         <p><strong>Клиент:</strong> {client_company}</p>
                         

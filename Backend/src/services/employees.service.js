@@ -221,17 +221,22 @@ const EmployeesService = {
     }
   },
 
-  async updateRequisites(employeeId, requisites) {
-    // Delete existing requisites
+ async updateRequisites(employeeId, requisites) {
+    
     await prisma.employeeRequisite.deleteMany({ where: { employeeId } });
 
-    // Add new requisites
+    
     if (requisites.length > 0) {
       const reqData = requisites.map(req => ({
         employeeId,
-        label: req.label,
-        value: req.value,
+        bank: req.bank || '',
+        currency: req.currency || 'UAH',
+        card: req.card || '',
+        owner: req.owner || '',
+        label: req.label || `${req.bank || ''} ${req.currency || ''}`.trim(),
+        value: req.value || req.card || '', 
       }));
+      
       await prisma.employeeRequisite.createMany({ data: reqData });
     }
   },
