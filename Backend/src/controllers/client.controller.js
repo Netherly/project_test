@@ -20,7 +20,7 @@ const getAllClients = async (req, res, next) => {
 
 const getClientById = async (req, res, next) => {
   try {
-    const client = await clientService.getClientById(+req.params.id);
+    const client = await clientService.getClientById(req.params.id);
     if (!client) return res.status(404).json({ message: 'Client not found' });
     res.json(client);
   } catch (err) {
@@ -30,7 +30,7 @@ const getClientById = async (req, res, next) => {
 
 const updateClient = async (req, res, next) => {
   try {
-    const client = await clientService.updateClient(+req.params.id, req.body);
+    const client = await clientService.updateClient(req.params.id, req.body);
     res.json(client);
   } catch (err) {
     next(err);
@@ -39,7 +39,7 @@ const updateClient = async (req, res, next) => {
 
 const deleteClient = async (req, res, next) => {
   try {
-    await clientService.deleteClient(+req.params.id);
+    await clientService.deleteClient(req.params.id);
     res.status(204).send();
   } catch (err) {
     next(err);

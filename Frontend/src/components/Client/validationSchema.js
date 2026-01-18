@@ -1,11 +1,19 @@
 import * as yup from 'yup';
 
+const tagSchema = yup.mixed().test('tag-shape', 'Неверный тег', (value) => {
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (value && typeof value === 'object') {
+    return typeof value.name === 'string' && value.name.trim().length > 0;
+  }
+  return false;
+});
+
 export const clientSchema = yup.object().shape({
   // === INFO ===
   name: yup.string().required('Клиент обязателен'),
   category: yup.string().required('Категория обязательна'),
   source: yup.string().required('Источник обязателен'),
-  tags: yup.array().of(yup.string()).min(1, 'Выберите хотя бы один тег'),
+  tags: yup.array().of(tagSchema).min(1, 'Выберите хотя бы один тег'),
   company_id: yup.string().required('Компания обязательна'),
   intro_description: yup.string().required('Вводное описание обязательно'),
   note: yup.string().required('Примечание обязательно'),

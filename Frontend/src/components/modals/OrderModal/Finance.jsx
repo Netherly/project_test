@@ -18,10 +18,13 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
     const balance = totalIncome - totalExpense;
    
     
-    const currencyOptions = (orderFields?.currency || []).map(curr => ({
-        value: curr,
-        label: curr,
-    }));
+    const currencyOptions = (orderFields?.currency || [])
+        .map((curr) => {
+            const value = curr?.code ?? curr?.value ?? curr?.name ?? "";
+            const label = curr?.name ?? curr?.code ?? curr?.value ?? "";
+            return value ? { value, label } : null;
+        })
+        .filter(Boolean);
 
     
     const maxData = {

@@ -8,7 +8,7 @@ const CURRENCIES = ['UAH', 'USD', 'EUR', 'USDT'];
 
 export default function RequisitesTab() {
     const { control } = useFormContext();
-    const fieldArrayName = 'requisites'; 
+    const fieldArrayName = 'requisitesList'; 
 
     const { fields, append, remove } = useFieldArray({
         control,

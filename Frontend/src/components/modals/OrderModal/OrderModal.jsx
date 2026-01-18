@@ -17,7 +17,7 @@ import AddTransactionModal from '../../Transaction/AddTransactionModal';
 import { useTransactions } from '../../../context/TransactionsContext';
 import { addLogEntry, getEmployees, getOrders } from '../../Journal/journalApi'
 import { stageColors, getStageColor } from '../../Orders/stageColors';
-import { sampleClients } from '../../../data/sampleClients'; 
+import { fetchClients } from '../../../api/clients';
 import '../../../styles/OrderModal.css';
 
 const stages = [
@@ -28,7 +28,7 @@ const stages = [
   "Неудачно завершён", "Удаленные"
 ];
 
-const defaultTags = ["Срочный", "В приоритете", "На паузе", "Клиент VIP"];
+const defaultTagsFallback = ["Срочный", "В приоритете", "На паузе", "Клиент VIP"];
 
 const tabs = ["Сводка","Основное", "Планы", "Участники", "Финансы", "Выполнение", "Завершение"];
 
@@ -87,6 +87,7 @@ const newOrderDefaults = {
     completingTime: "",
     completingLink: "",
     orderImpressions: "",
+    work_log: [],
 };
 
 
@@ -120,24 +121,24 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
       order_main_client: order?.order_main_client || "",
       client_company: order?.client_company || "",
       partner_name: order?.partner_name || "",
-      third_parties: order?.third_parties || "",
-      partner_disable_share: order?.partner_disable_share || false,
-      partner_payment: order?.partner_payment || "",
-      partner_plan: order?.partner_plan || "",
-      partner_percent_plan: order?.partner_percent_plan || "",
-      partner_sum_plan: order?.partner_sum_plan || "",
-      partner_underpayment: order?.partner_underpayment || "",
+      third_parties: order?.third_parties || [],
+      partner_disable_share: order?.partner_disable_share ?? false,
+      partner_payment: order?.partner_payment ?? "",
+      partner_plan: order?.partner_plan ?? "",
+      partner_percent_plan: order?.partner_percent_plan ?? "",
+      partner_sum_plan: order?.partner_sum_plan ?? "",
+      partner_underpayment: order?.partner_underpayment ?? "",
       performers: order?.performers || [],
-      share_percent: order?.share_percent || "",
-      budget: order?.budget || "",
+      share_percent: order?.share_percent ?? "",
+      budget: order?.budget ?? "",
       currency_type: order?.currency_type || "",
-      currency_rate: order?.currency_rate || "",
-      hourly_rate: order?.hourly_rate || "",
-      round_hour: order?.round_hour || false,
-      discount: order?.discount || "",
-      upsell: order?.upsell || "",
-      expenses: order?.expenses || "",
-      tips: order?.tips || "",
+      currency_rate: order?.currency_rate ?? "",
+      hourly_rate: order?.hourly_rate ?? "",
+      round_hour: order?.round_hour ?? false,
+      discount: order?.discount ?? "",
+      upsell: order?.upsell ?? "",
+      expenses: order?.expenses ?? "",
+      tips: order?.tips ?? "",
       payment_details: order?.payment_details || "",
       payment_log: order?.payment_log && order.payment_log.length > 0
         ? order.payment_log
@@ -145,11 +146,12 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
       executionTime: order?.executionTime || "",
       startDate: order?.startDate || "",
       endDate: order?.endDate || "",
-      countDays: order?.countDays || "",
+      countDays: order?.countDays ?? "",
       completedDate: order?.completedDate || "",
       completingTime: order?.completingTime || "",
       completingLink: order?.completingLink || "",
       orderImpressions: order?.orderImpressions || "",
+      work_log: order?.work_log || [],
     }
   });
 
@@ -182,7 +184,19 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [showStageDropdown, setShowStageDropdown] = useState(false);
-  const [orderFields, setOrderFields] = useState({ intervals: [], categories: [], currency: [] });
+  const [orderFields, setOrderFields] = useState({
+    intervals: [],
+    categories: [],
+    currency: [],
+    statuses: [],
+    closeReasons: [],
+    projects: [],
+    discountReason: [],
+    tags: [],
+    techTags: [],
+    taskTags: [],
+  });
+  const [clientsData, setClientsData] = useState([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isAddExecutorModalOpen, setIsAddExecutorModalOpen] = useState(false);
   const [executorFormFields, setExecutorFormFields] = useState({ employees: [], role: [], currency: [] });
@@ -316,7 +330,9 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
     return segments;
   };
 
-  const filteredTags = defaultTags.filter(tag =>
+  const availableOrderTags = (orderFields?.tags || []).map((t) => t.name).filter(Boolean);
+  const tagOptions = availableOrderTags.length ? availableOrderTags : defaultTagsFallback;
+  const filteredTags = tagOptions.filter(tag =>
     !watchedTags.includes(tag) &&
     tag.toLowerCase().includes(customTag.toLowerCase())
   );
@@ -435,24 +451,24 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
         order_main_client: order?.order_main_client || "",
         client_company: order?.client_company || "",
         partner_name: order?.partner_name || "",
-        third_parties: order?.third_parties || "",
-        partner_disable_share: order?.partner_disable_share || false,
-        partner_payment: order?.partner_payment || "",
-        partner_plan: order?.partner_plan || "",
-        partner_percent_plan: order?.partner_percent_plan || "",
-        partner_sum_plan: order?.partner_sum_plan || "",
-        partner_underpayment: order?.partner_underpayment || "",
+        third_parties: order?.third_parties || [],
+        partner_disable_share: order?.partner_disable_share ?? false,
+        partner_payment: order?.partner_payment ?? "",
+        partner_plan: order?.partner_plan ?? "",
+        partner_percent_plan: order?.partner_percent_plan ?? "",
+        partner_sum_plan: order?.partner_sum_plan ?? "",
+        partner_underpayment: order?.partner_underpayment ?? "",
         performers: order?.performers || [],
-        share_percent: order?.share_percent || "",
-        budget: order?.budget || "",
+        share_percent: order?.share_percent ?? "",
+        budget: order?.budget ?? "",
         currency_type: order?.currency_type || "",
-        currency_rate: order?.currency_rate || "",
-        hourly_rate: order?.hourly_rate || "",
-        round_hour: order?.round_hour || false,
-        discount: order?.discount || "",
-        upsell: order?.upsell || "",
-        expenses: order?.expenses || "",
-        tips: order?.tips || "",
+        currency_rate: order?.currency_rate ?? "",
+        hourly_rate: order?.hourly_rate ?? "",
+        round_hour: order?.round_hour ?? false,
+        discount: order?.discount ?? "",
+        upsell: order?.upsell ?? "",
+        expenses: order?.expenses ?? "",
+        tips: order?.tips ?? "",
         payment_details: order?.payment_details || "",
         payment_log: order?.payment_log && order.payment_log.length > 0
             ? order.payment_log
@@ -460,11 +476,12 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
         executionTime: order?.executionTime || "",
         startDate: order?.startDate || "",
         endDate: order?.endDate || "",
-        countDays: order?.countDays || "",
+        countDays: order?.countDays ?? "",
         completedDate: order?.completedDate || "",
         completingTime: order?.completingTime || "",
         completingLink: order?.completingLink || "",
         orderImpressions: order?.orderImpressions || "",
+        work_log: order?.work_log || [],
     });
   };
 
@@ -491,12 +508,39 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
           try {
               const parsedFields = JSON.parse(savedFields);
               if (parsedFields.orderFields) {
-                  setOrderFields(parsedFields.orderFields);
+                  const base = {
+                    intervals: [],
+                    categories: [],
+                    currency: [],
+                    statuses: [],
+                    closeReasons: [],
+                    projects: [],
+                    discountReason: [],
+                    tags: [],
+                    techTags: [],
+                    taskTags: [],
+                  };
+                  setOrderFields({ ...base, ...parsedFields.orderFields });
               }
           } catch (e) {
               console.error("Ошибка парсинга полей заказа из localStorage:", e);
           }
       }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const clients = await fetchClients();
+        if (mounted) setClientsData(clients);
+      } catch (e) {
+        console.error("Не удалось загрузить клиентов:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const [orderTransactions, setOrderTransactions] = useState([]);
@@ -584,7 +628,9 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
               <h2 className="modal-order-title">
                 {mode === 'create'
                   ? 'Создание нового заказа'
-                  : (order?.name || (order?.numberOrder ? `Заказ № ${order.numberOrder}` : `Заявка #${order?.id}`))
+                  : (order?.name || (order?.numberOrder
+                    ? `${order?.orderSequence !== undefined && order?.orderSequence !== null ? "Заказ №" : "Заявка №"} ${order.numberOrder}`
+                    : `Заявка #${order?.id}`))
                 }
               </h2>
               {isDirty && (
@@ -768,10 +814,11 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                     {activeTab === "Планы" && (
                       <WorkPlan
                         control={control}
+                        orderFields={orderFields}
                         mode={mode}
                       />
                     )}
-                    {activeTab === "Участники" && <Participants control={control} mode={mode} clientsData={sampleClients} employeesData={executorFormFields.employees} onOpenAddExecutorModal={() => setIsAddExecutorModalOpen(true)} />}
+                    {activeTab === "Участники" && <Participants control={control} mode={mode} clientsData={clientsData} employeesData={executorFormFields.employees} onOpenAddExecutorModal={() => setIsAddExecutorModalOpen(true)} />}
                     {activeTab === "Финансы" && <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions}  />}
                     {activeTab === "Выполнение" && <OrderExecution control={control} mode={mode} />}
                     {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} />}

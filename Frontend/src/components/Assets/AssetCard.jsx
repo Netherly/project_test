@@ -69,13 +69,25 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesi
         ? asset.accountName.replace("Binance", "CRYPTO")
         : asset.accountName;
 
-    const designObj = cardDesigns.find(d => d.id === asset.design || d.name === asset.design || designNameMap[d.name] === asset.design);
-    const designClass = asset.design ? `card-design-${asset.design}` : 'card-design-default';
+    const paymentSystemValue = asset.paymentSystemRaw ?? asset.paymentSystem;
+    const currencyValue = asset.currencyRaw ?? asset.currency;
+    const designValue = asset.designRaw?.id ?? asset.designRaw?.name ?? asset.design ?? '';
+    const designNameValue = asset.designRaw?.name ?? asset.design;
+
+    const designObj = cardDesigns.find(
+        d =>
+            d.id === designValue ||
+            d.name === designValue ||
+            designNameMap[d.name] === designValue ||
+            designNameMap[d.name] === designNameValue
+    );
+    const designClass = designValue ? `card-design-${designValue}` : 'card-design-default';
     const designUrl = asset.cardDesign?.url ? fileUrl(asset.cardDesign.url) : designObj?.viewUrl;
 
     const getCardTypeLogo = () => {
-        if (asset.paymentSystem) {
-            switch (asset.paymentSystem) {
+        const ps = typeof paymentSystemValue === 'object' ? paymentSystemValue.name || paymentSystemValue.code : paymentSystemValue;
+        if (ps) {
+            switch (ps) {
                 case 'Visa':
                     return <img src={visaLogo} alt="Visa" className="card-type-logo visa" />;
                 case 'Mastercard':
@@ -88,7 +100,7 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesi
                     return null;
             }
         }
-        
+
         if (cardNumber) {
             if (cardNumber.startsWith('4')) {
                 return <img src={visaLogo} alt="Visa" className="card-type-logo visa" />;
@@ -143,7 +155,7 @@ const AssetCard = ({ asset, onCardClick, onCopyValue, onCopyRequisites, cardDesi
                     )}
 
                     <div className="card-balance-left-center">
-                        <span className="card-balance-value">{getCurrencySymbol(asset.currency)} {asset.balance.toFixed(2)}</span>
+                        <span className="card-balance-value">{getCurrencySymbol(currencyValue)} {asset.balance.toFixed(2)}</span>
                     </div>
 
                     <div className="card-free-balance-bottom-center">

@@ -10,8 +10,10 @@ import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
 import "../styles/ClientsPage.css";
-import { sampleClients } from "../data/sampleClients";
-import { fetchClients, saveClient as saveClientApi } from "../api/clients";
+import { fetchClients, saveClient as saveClientApi, deleteClient as deleteClientApi } from "../api/clients";
+import { fetchFields } from "../api/fields";
+import { fetchEmployees } from "../api/employees";
+import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 
 const statusToEmojiMap = {
   "Лид": "🎯", "Изучаем ТЗ": "📄", "Обсуждаем с клиентом": "💬",
@@ -80,11 +82,22 @@ const Ellipsis = ({ value }) => {
   );
 };
 
+const normalizeStr = (value) => String(value ?? "").trim();
+const uniqueList = (arr) => Array.from(new Set(arr));
+const extractValues = (items, { preferCode = false } = {}) => {
+  const list = Array.isArray(items) ? items : [];
+  const values = list
+    .map((item) => {
+      if (typeof item === "string") return normalizeStr(item);
+      if (!item || typeof item !== "object") return "";
+      if (preferCode) return normalizeStr(item.code ?? item.value ?? item.name);
+      return normalizeStr(item.name ?? item.value ?? item.code);
+    })
+    .filter(Boolean);
+  return uniqueList(values);
+};
+
 export default function ClientsPage({
-  
-  clients = sampleClients,
-  onSaveClient, 
-  onAddCompany = () => {},
   companies = [],
   employees = [],
   referrers = [],
@@ -103,18 +116,135 @@ export default function ClientsPage({
   /* === загрузка данных === */
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState([]);
+  const [error, setError] = useState("");
+  const [countriesList, setCountriesList] = useState(countries);
+  const [currenciesList, setCurrenciesList] = useState(currencies);
+  const [companiesList, setCompaniesList] = useState(companies);
+  const [employeesList, setEmployeesList] = useState(employees);
+
+  const referrerOptions = useMemo(() => {
+    const items = [];
+    const seen = new Set();
+    const addItem = (id, name, label) => {
+      if (!id || !name) return;
+      const key = String(id);
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push({ id: key, name, label });
+    };
+
+    employeesList.forEach((e) => {
+      const name = e?.full_name || e?.fullName || "";
+      addItem(e?.id, name, name ? `${name} (сотрудник)` : "");
+    });
+
+    list.forEach((c) => {
+      const name = c?.name || c?.full_name || "";
+      addItem(c?.id, name, name ? `${name} (клиент)` : "");
+    });
+
+    if (!items.length && referrers.length) {
+      referrers.forEach((r) => addItem(r?.id, r?.name, r?.name));
+    }
+
+    return items.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  }, [employeesList, list, referrers]);
+
+  const referrerById = useMemo(
+    () => new Map(referrerOptions.map((r) => [String(r.id), r.name])),
+    [referrerOptions]
+  );
+
+  const withReferrerNames = (client) => {
+    if (!client || !referrerById.size) return client;
+    const refId = client.referrer_id != null ? String(client.referrer_id) : "";
+    const refFirstId =
+      client.referrer_first_id != null ? String(client.referrer_first_id) : "";
+    return {
+      ...client,
+      referrer_name:
+        client.referrer_name || referrerById.get(refId) || "",
+      referrer_first_name:
+        client.referrer_first_name || referrerById.get(refFirstId) || "",
+    };
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchFields();
+        if (!mounted) return;
+        const nextCountries = extractValues(data?.clientFields?.country);
+        const nextCurrencies = extractValues(
+          data?.generalFields?.currency ?? data?.clientFields?.currency,
+          { preferCode: true }
+        );
+        if (nextCountries.length) setCountriesList(nextCountries);
+        if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
+      } catch (e) {
+        console.error("fetchFields (clients) failed:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchEmployees();
+        if (!mounted) return;
+        const normalized = Array.isArray(data)
+          ? data.map((e) => ({
+              id: e.id,
+              full_name: e.fullName ?? e.full_name ?? "",
+            }))
+          : [];
+        setEmployeesList(normalized);
+      } catch (e) {
+        console.error("fetchEmployees failed:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchCompanies();
+        if (!mounted) return;
+        setCompaniesList(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error("fetchCompanies failed:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       setLoading(true);
+      setError("");
       try {
         const data = await fetchClients();
         if (!mounted) return;
-        setList(Array.isArray(data) && data.length ? data : clients);
+        const normalized = Array.isArray(data) ? data.map(withReferrerNames) : [];
+        setList(normalized);
       } catch (e) {
         console.error("fetchClients failed:", e);
-        if (mounted) setList(clients); 
+        if (mounted) {
+          setError(e?.message || "Не удалось загрузить клиентов");
+          setList([]);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -124,6 +254,11 @@ export default function ClientsPage({
     };
     
   }, []); 
+
+  useEffect(() => {
+    if (!referrerById.size) return;
+    setList((prev) => prev.map(withReferrerNames));
+  }, [referrerById]);
 
   const latestOrderStatusMap = useMemo(() => {
     const statusMap = new Map();
@@ -240,10 +375,10 @@ export default function ClientsPage({
   /* === опции селектов === */
   const currencyOptions = useMemo(
     () =>
-      currencies.length
-        ? currencies
+      currenciesList.length
+        ? currenciesList
         : Array.from(new Set(list.map((c) => c.currency))).filter(Boolean),
-    [currencies, list]
+    [currenciesList, list]
   );
   const statusOptions = useMemo(
     () => Array.from(new Set(list.map((c) => c.status))).filter(Boolean),
@@ -332,7 +467,8 @@ export default function ClientsPage({
 
   const save = async (data) => {
     try {
-      const saved = await saveClientApi(data);
+      setError("");
+      const saved = withReferrerNames(await saveClientApi(data));
       setList((prev) => {
         const idx = prev.findIndex((x) => x.id === saved.id);
         if (idx !== -1) {
@@ -342,10 +478,33 @@ export default function ClientsPage({
         }
         return [saved, ...prev];
       });
-      setShow(false);
+      return saved;
     } catch (e) {
       console.error("saveClient failed:", e);
-      // тут можно показать тост/модалку
+      setError(e?.message || "Не удалось сохранить клиента");
+      throw e;
+    }
+  };
+
+  const addCompany = async (payload) => {
+    const created = await createCompanyApi(payload);
+    setCompaniesList((prev) => {
+      const next = [...prev, created];
+      next.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+      return next;
+    });
+    return created;
+  };
+
+  const remove = async (id) => {
+    try {
+      setError("");
+      await deleteClientApi(id);
+      setList((prev) => prev.filter((c) => c.id !== id));
+    } catch (e) {
+      console.error("deleteClient failed:", e);
+      setError(e?.message || "Не удалось удалить клиента");
+      throw e;
     }
   };
 
@@ -529,20 +688,21 @@ export default function ClientsPage({
         </div>
 
         {!loading && filteredRows.length === 0 && (
-          <div className="empty-state">Клиенты не найдены</div>
+          <div className="empty-state">{error || "Клиенты не найдены"}</div>
         )}
 
         {showModal && (
           <ClientModal
             client={active}
-            companies={companies}
-            employees={employees}
-            referrers={referrers}
-            countries={countries}
-            currencies={currencies}
+            companies={companiesList}
+            employees={employeesList}
+            referrers={referrerOptions}
+            countries={countriesList}
+            currencies={currenciesList}
             onClose={() => setShow(false)}
             onSave={save}
-            onAddCompany={onAddCompany}
+            onDelete={active?.id ? remove : null}
+            onAddCompany={addCompany}
           />
         )}
       </div>

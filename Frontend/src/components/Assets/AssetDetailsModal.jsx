@@ -37,11 +37,43 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setEditableAsset((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+        setEditableAsset((prev) => {
+            if (name === 'employeeId') {
+                const selected = employees?.find((emp) => emp.id === value);
+                return {
+                    ...prev,
+                    employeeId: value,
+                    employee: selected?.fullName || selected?.full_name || prev.employee,
+                    employeeName: selected?.fullName || selected?.full_name || prev.employeeName,
+                };
+            }
+            return {
+                ...prev,
+                [name]: value,
+            };
+        });
     };
+
+    useEffect(() => {
+        if (!asset) return;
+        setEditableAsset((prev) => {
+            const current = { ...asset };
+            const existingEmployeeId =
+                current.employeeId || current.employee?.id || prev.employeeId;
+            if (!existingEmployeeId && current.employee && employees?.length) {
+                const match = employees.find(
+                    (emp) => emp.fullName === current.employee || emp.full_name === current.employee
+                );
+                if (match) current.employeeId = match.id;
+            } else if (existingEmployeeId) {
+                current.employeeId = existingEmployeeId;
+            }
+            if (!current.employee && current.employeeName) {
+                current.employee = current.employeeName;
+            }
+            return current;
+        });
+    }, [asset, employees]);
 
     const handleRequisiteChange = (index, e) => {
         const { name, value } = e.target;
@@ -381,15 +413,16 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             </div>
 
                             <div className="form-row">
-                                <label htmlFor="employee" className="form-label">Сотрудник</label>
+                                <label htmlFor="employeeId" className="form-label">Сотрудник</label>
                                 <select
-                                    name="employee"
-                                    value={editableAsset.employee}
+                                    name="employeeId"
+                                    value={editableAsset.employeeId || ''}
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
+                                    <option value="">Не выбрано</option>
                                     {employees?.map((emp) => (
-                                        <option key={emp.id} value={emp.fullName}>{emp.fullName}</option>
+                                        <option key={emp.id} value={emp.id}>{emp.fullName}</option>
                                     ))}
                                 </select>
                             </div>

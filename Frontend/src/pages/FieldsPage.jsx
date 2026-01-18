@@ -55,6 +55,9 @@ const initialValues = {
   orderFields: {
     intervals: [{ id: rid(), intervalValue: "", isDeleted: false }],
     categories: [{ id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }],
+    statuses: [],
+    closeReasons: [],
+    projects: [],
     tags: [],
     techTags: [],
     taskTags: [],
@@ -1266,6 +1269,42 @@ function FieldsPage() {
               availableIntervals={intervalsOptions}
               showHidden={showHidden}
             />
+            <div className="field-row">
+              <label className="field-label">Статусы заказа</label>
+              <EditableList
+                items={selectedValues.orderFields.statuses || []}
+                onChange={(index, val) => handleStringItemChange("orderFields", "statuses", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "statuses", index)}
+                onAdd={() => handleStringItemAdd("orderFields", "statuses")}
+                onCommit={(index) => handleStringItemBlur("orderFields", "statuses", index)}
+                placeholder="Введите статус заказа"
+                showHidden={showHidden}
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Причины закрытия</label>
+              <EditableList
+                items={selectedValues.orderFields.closeReasons || []}
+                onChange={(index, val) => handleStringItemChange("orderFields", "closeReasons", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "closeReasons", index)}
+                onAdd={() => handleStringItemAdd("orderFields", "closeReasons")}
+                onCommit={(index) => handleStringItemBlur("orderFields", "closeReasons", index)}
+                placeholder="Введите причину закрытия"
+                showHidden={showHidden}
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Проекты</label>
+              <EditableList
+                items={selectedValues.orderFields.projects || []}
+                onChange={(index, val) => handleStringItemChange("orderFields", "projects", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "projects", index)}
+                onAdd={() => handleStringItemAdd("orderFields", "projects")}
+                onCommit={(index) => handleStringItemBlur("orderFields", "projects", index)}
+                placeholder="Введите проект"
+                showHidden={showHidden}
+              />
+            </div>
             <div className="field-row">
               <label className="field-label">Причина скидки</label>
               <EditableList
