@@ -671,33 +671,54 @@
 }
 
 
-.workplan-tab-wrapper .header-content-wrapper > .work-list-cell:nth-child(1),
-.workplan-tab-wrapper .work-list-row:not(.header-row) > .work-list-cell:nth-child(1) {
+.workplan-tab-wrapper .main-work-table .header-content-wrapper > .work-list-cell:nth-child(1),
+.workplan-tab-wrapper .main-work-table .work-list-row:not(.header-row) > .work-list-cell:nth-child(1) {
     flex: 3;
     min-width: 150px;
     padding-left: 0;
 }
 
 
-.workplan-tab-wrapper .header-content-wrapper > .work-list-cell:nth-child(2),
-.workplan-tab-wrapper .work-list-row:not(.header-row) > .work-list-cell:nth-child(2) {
+.workplan-tab-wrapper .main-work-table .header-content-wrapper > .work-list-cell:nth-child(2),
+.workplan-tab-wrapper .main-work-table .work-list-row:not(.header-row) > .work-list-cell:nth-child(2) {
     flex: 1.2;
     min-width: 80px;
 }
 
 
-.workplan-tab-wrapper .header-content-wrapper > .work-list-cell:nth-child(3),
-.workplan-tab-wrapper .work-list-row:not(.header-row) > .work-list-cell:nth-child(3) {
+.workplan-tab-wrapper .main-work-table .header-content-wrapper > .work-list-cell:nth-child(3),
+.workplan-tab-wrapper .main-work-table .work-list-row:not(.header-row) > .work-list-cell:nth-child(3) {
     flex: 3;
     min-width: 150px;
 }
 
 
-.workplan-tab-wrapper .header-content-wrapper > .work-list-cell:nth-child(4),
-.workplan-tab-wrapper .work-list-row:not(.header-row) > .work-list-cell:nth-child(4) {
+.workplan-tab-wrapper .main-work-table .header-content-wrapper > .work-list-cell:nth-child(4),
+.workplan-tab-wrapper .main-work-table .work-list-row:not(.header-row) > .work-list-cell:nth-child(4) {
     flex: 0.8;
     min-width: 60px;
     justify-content: center;
+}
+
+
+.workplan-tab-wrapper .mini-options-table .header-content-wrapper > .work-list-cell,
+.workplan-tab-wrapper .mini-options-table .work-list-row:not(.header-row) > .work-list-cell {
+    flex: 1; 
+    padding-left: 10px; 
+}
+
+
+.workplan-tab-wrapper .mini-options-table .work-list-cell.action-cell {
+     width: 30px !important; 
+     min-width: 30px !important;
+     flex: 0 0 30px !important; 
+     padding: 0 !important;      
+}
+
+
+.workplan-tab-wrapper .mini-options-table .work-list-cell.action-cell .action-btn-icon {
+    width: 100%;
+    margin: 0;
 }
 
 
@@ -935,7 +956,6 @@
   box-sizing: border-box;
   padding: 0 5px; 
   flex: 1; 
-  border-right: 1px solid var(--border--color); 
 }
 
 .finances-log-cell:last-child {

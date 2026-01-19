@@ -1,4 +1,3 @@
-// src/pages/ClientsPage.jsx
 import React, {
   useState,
   useMemo,
@@ -6,6 +5,7 @@ import React, {
   useLayoutEffect,
   useRef,
 } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
@@ -24,7 +24,7 @@ const statusToEmojiMap = {
 const STORAGE_KEY = "clientsTableWidths";
 const MIN_W = 24;
 
-/* ====== UI helpers ====== */
+/* ====== UI helpers (без изменений) ====== */
 function TagsCell({ tags = [] }) {
   if (!tags.length) return <span className="ellipsis">—</span>;
   const visible = tags.slice(0, 2);
@@ -50,38 +50,12 @@ function TagsCell({ tags = [] }) {
   );
 }
 
-const STATUS_MAP = {
-  active: { text: "Активен", cls: "status--active" },
-  inactive: { text: "Неактивен", cls: "status--inactive" },
-  paused: { text: "Пауза", cls: "status--paused" },
-  prospect: { text: "Потенциальный", cls: "status--prospect" },
-  lead: { text: "Лид", cls: "status--lead" },
-  blacklist: { text: "Блэклист", cls: "status--blacklist" },
-};
 
-function StatusPill({ value }) {
-  // Если статус вдруг пришел объектом - вытаскиваем имя
-  const safeValue = (typeof value === 'object' && value !== null) ? value.name : value;
-
-  if (!safeValue) return <span className="ellipsis">—</span>;
-  const key = String(safeValue).toLowerCase();
-  const m = STATUS_MAP[key] || { text: safeValue, cls: "status--neutral" };
-  return (
-    <span className={`status-pill ${m.cls}`} title={safeValue}>
-      {m.text}
-    </span>
-  );
-}
-
-// !!! ИСПРАВЛЕНИЕ 1: Умный Ellipsis !!!
-// Теперь он понимает объекты и достает из них поле name
 const Ellipsis = ({ value }) => {
   let text;
-  
   if (Array.isArray(value)) {
     text = value.map((t) => t.name).join(", ");
   } else if (value && typeof value === 'object') {
-    // Если это объект (страна, валюта), берем name
     text = value.name || JSON.stringify(value);
   } else {
     text = String(value ?? "—");
@@ -94,6 +68,17 @@ const Ellipsis = ({ value }) => {
   );
 };
 
+
+const defaultFilters = {
+    search: "",
+    currency: "",
+    status: "",
+    tags: [],
+    source: "",
+    dateFrom: "",
+    dateTo: ""
+};
+
 export default function ClientsPage({
   clients = sampleClients,
   onSaveClient, 
@@ -104,16 +89,59 @@ export default function ClientsPage({
   countries = [],
   currencies = [],
 }) {
-  /* === фильтры === */
-  const [search, setSearch] = useState("");
-  const [currencyFilter, setCurrencyFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [tagFilter, setTagFilter] = useState([]); 
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  
+  const navigate = useNavigate();
+  const { clientId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  /* === загрузка данных === */
+  const parseFiltersFromURL = (params) => {
+      const filters = { ...defaultFilters };
+      filters.search = params.get('search') || "";
+      filters.currency = params.get('currency') || "";
+      filters.status = params.get('status') || "";
+      filters.source = params.get('source') || "";
+      filters.dateFrom = params.get('dateFrom') || "";
+      filters.dateTo = params.get('dateTo') || "";
+      
+      const tagsParam = params.get('tags');
+      filters.tags = tagsParam ? tagsParam.split(',') : [];
+      
+      return filters;
+  };
+
+  const [filterData, setFilterData] = useState(() => parseFiltersFromURL(searchParams));
+
+  
+  useEffect(() => {
+      const filtersFromUrl = parseFiltersFromURL(searchParams);
+      if (JSON.stringify(filtersFromUrl) !== JSON.stringify(filterData)) {
+          setFilterData(filtersFromUrl);
+      }
+  }, [searchParams]);
+
+  const updateURL = (newFilters) => {
+      const params = new URLSearchParams();
+      
+      Object.entries(newFilters).forEach(([key, value]) => {
+          if (Array.isArray(value) && value.length > 0) {
+              params.set(key, value.join(','));
+          } else if (!Array.isArray(value) && value) {
+              params.set(key, value);
+          }
+      });
+      setSearchParams(params);
+  };
+
+  
+  const handleSearchChange = (val) => {
+      updateURL({ ...filterData, search: val });
+  };
+
+  const handleFilterChange = (updates) => {
+      updateURL({ ...filterData, ...updates });
+  };
+
+ 
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState([]);
 
@@ -137,6 +165,16 @@ export default function ClientsPage({
     };
   }, []); 
 
+  
+  const activeClient = useMemo(() => {
+      if (!clientId || clientId === 'new') return null;
+      return list.find(c => String(c.id) === String(clientId)) || null;
+  }, [list, clientId]);
+
+  const showModal = Boolean(clientId);
+  
+
+  
   const latestOrderStatusMap = useMemo(() => {
     const statusMap = new Map();
     const clientOrders = new Map(); 
@@ -168,10 +206,8 @@ export default function ClientsPage({
       const sortedOrders = orders.sort((a, b) => {
         const dateA = new Date(a.orderDate);
         const dateB = new Date(b.orderDate);
-        
         if (isNaN(dateA.getTime())) return 1;
         if (isNaN(dateB.getTime())) return -1;
-        
         return dateB.getTime() - dateA.getTime();
       });
 
@@ -180,22 +216,19 @@ export default function ClientsPage({
         statusMap.set(clientId, latestOrder.stage);
       }
     }
-
     return statusMap;
   }, []);
 
-  /* === фильтрация === */
-  // !!! ИСПРАВЛЕНИЕ 2: Поиск теперь тоже понимает объекты !!!
+
   const filteredRows = useMemo(() => {
     return (list || [])
       .filter((c) => {
-        if (!search) return true;
+        if (!filterData.search) return true;
         const parts = [
           c.name,
           ...(c.tags || []).map((t) => t.name),
           c.note,
           c.intro_description,
-          // Безопасно получаем имя, если поле — объект
           c.source?.name || c.source,
           c.full_name,
           c.country?.name || c.country,
@@ -208,52 +241,40 @@ export default function ClientsPage({
           c.last_order_date,
           ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
         ];
-        // Собираем строку и ищем в нижнем регистре
         const text = parts.join(" ").toLowerCase();
-        return text.includes(search.toLowerCase());
+        return text.includes(filterData.search.toLowerCase());
       })
       .filter((c) => {
-        // Фильтры тоже должны сравнивать правильно
         const curName = c.currency?.name || c.currency;
-        return !currencyFilter || curName === currencyFilter;
+        return !filterData.currency || curName === filterData.currency;
       })
-      .filter((c) => !statusFilter || c.status === statusFilter)
+      .filter((c) => !filterData.status || c.status === filterData.status)
       .filter(
         (c) =>
-          !tagFilter.length ||
-          (c.tags || []).some((t) => tagFilter.includes(t.name))
+          !filterData.tags.length ||
+          (c.tags || []).some((t) => filterData.tags.includes(t.name))
       )
       .filter((c) => {
         const srcName = c.source?.name || c.source;
-        return !sourceFilter || srcName === sourceFilter;
+        return !filterData.source || srcName === filterData.source;
       })
       .filter((c) => {
         if (
-          dateFrom &&
+          filterData.dateFrom &&
           c.last_order_date !== "—" &&
-          new Date(c.last_order_date) < new Date(dateFrom)
+          new Date(c.last_order_date) < new Date(filterData.dateFrom)
         )
           return false;
         if (
-          dateTo &&
+          filterData.dateTo &&
           c.last_order_date !== "—" &&
-          new Date(c.last_order_date) > new Date(dateTo)
+          new Date(c.last_order_date) > new Date(filterData.dateTo)
         )
           return false;
         return true;
       });
-  }, [
-    list,
-    search,
-    currencyFilter,
-    statusFilter,
-    tagFilter,
-    sourceFilter,
-    dateFrom,
-    dateTo,
-  ]);
+  }, [list, filterData]);
 
-  /* === опции селектов === */
   const currencyOptions = useMemo(
     () =>
       currencies.length
@@ -277,30 +298,15 @@ export default function ClientsPage({
     [list]
   );
 
-  /* === заголовки и ширины === */
   const headers = [
-    "Клиент",
-    "Теги",
-    "Вводное описание",
-    "Источник",
-    "ФИО",
-    "Страна",
-    "Валюта",
-    "В час",
-    "Доля %",
-    "Реферер",
-    "Реферер первый",
-    "Статус",
-    "Дата посл. зак.",
+    "Клиент", "Теги", "Вводное описание", "Источник", "ФИО", "Страна", "Валюта", "В час", "Доля %", "Реферер", "Реферер первый", "Статус", "Дата посл. зак.",
   ];
   const COLS = headers.length;
 
   const load = () => {
     try {
       const arr = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return Array.isArray(arr) && arr.length === COLS
-        ? arr
-        : Array(COLS).fill(null);
+      return Array.isArray(arr) && arr.length === COLS ? arr : Array(COLS).fill(null);
     } catch {
       return Array(COLS).fill(null);
     }
@@ -314,36 +320,37 @@ export default function ClientsPage({
       const w = Math.floor(total / COLS);
       setColWidths(Array(COLS).fill(w));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapRef, COLS]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(colWidths));
   }, [colWidths]);
 
-  /* === лог по credential логинам у отфильтрованных (для отладки) === */
-  useEffect(() => {
-    const logins = filteredRows.flatMap((c) =>
-      (c.credentials || []).map((cr) => cr.login)
-    );
-    console.log("Filtered credentials logins:", logins);
-  }, [filteredRows]);
-
-  /* === модалка/редактирование === */
-  const [showModal, setShow] = useState(false);
-  const [active, setActive] = useState(null);
-  const [expanded, setExp] = useState({ 1: true, 2: true, 3: true });
-
-  const idMap = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
-
   const openEdit = (c) => {
-    setActive(c);
-    setShow(true);
+    navigate({
+        pathname: `/clients/${c.id}`,
+        search: searchParams.toString()
+    });
   };
+  
   const openRef = (id, e) => {
     e.stopPropagation();
-    const r = idMap.get(id);
-    r && openEdit(r);
+    const r = list.find(item => item.id === id);
+    if (r) openEdit(r);
+  };
+
+  const handleCloseModal = () => {
+      navigate({
+          pathname: '/clients',
+          search: searchParams.toString()
+      });
+  };
+
+  const handleAddClient = () => {
+      navigate({
+          pathname: '/clients/new',
+          search: searchParams.toString()
+      });
   };
 
   const save = async (data) => {
@@ -358,10 +365,9 @@ export default function ClientsPage({
         }
         return [saved, ...prev];
       });
-      setShow(false);
+      handleCloseModal();
     } catch (e) {
       console.error("saveClient failed:", e);
-      // тут можно показать тост/модалку
     }
   };
 
@@ -385,6 +391,7 @@ export default function ClientsPage({
     document.addEventListener("mouseup", up);
   };
 
+  const [expanded, setExp] = useState({ 1: true, 2: true, 3: true });
   const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
 
    const formatDate = (dateString) => {
@@ -404,24 +411,21 @@ export default function ClientsPage({
       <Sidebar />
       <div className="clients-page">
         <ClientsPageHeader
-          onAdd={() => {
-            setActive(null);
-            setShow(true);
-          }}
-          onSearch={setSearch}
+          onAdd={handleAddClient}
+          onSearch={handleSearchChange}
           total={filteredRows.length}
           currencyOptions={currencyOptions}
           statusOptions={statusOptions}
           tagOptions={tagOptions}
           sourceOptions={sourceOptions}
-          onFilterChange={({ currency, status, tags, source, dateFrom, dateTo }) => {
-            setCurrencyFilter(currency);
-            setStatusFilter(status);
-            setTagFilter(tags);
-            setSourceFilter(source);
-            setDateFrom(dateFrom);
-            setDateTo(dateTo);
-          }}
+          search={filterData.search}
+          currency={filterData.currency}
+          status={filterData.status}
+          tags={filterData.tags}
+          source={filterData.source}
+          dateFrom={filterData.dateFrom}
+          dateTo={filterData.dateTo}
+          onFilterChange={handleFilterChange}
         />
     
 
@@ -548,13 +552,13 @@ export default function ClientsPage({
 
         {showModal && (
           <ClientModal
-            client={active}
+            client={activeClient}
             companies={companies}
             employees={employees}
             referrers={referrers}
             countries={countries}
             currencies={currencies}
-            onClose={() => setShow(false)}
+            onClose={handleCloseModal}
             onSave={save}
             onAddCompany={onAddCompany}
           />

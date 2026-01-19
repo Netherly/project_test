@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import "../../styles/AssetsPage.css";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
@@ -8,7 +9,7 @@ import AssetCard from "./AssetCard";
 import { fetchFields, withDefaults } from '../../api/fields';
 import { fetchAssets, createAsset as apiCreateAsset, updateAsset as apiUpdateAsset, deleteAsset as apiDeleteAsset } from '../../api/assets';
 import { CreditCard } from 'lucide-react';
-
+import { useTransactions } from "../../context/TransactionsContext";
 
 const getPureDateTimestamp = (date) => {
     const d = new Date(date);
@@ -27,16 +28,25 @@ const formatNumberWithSpaces = (num) => {
 };
 
 const AssetsPage = () => {
+    const navigate = useNavigate();
+    const { assetId } = useParams();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    
+    const { transactions } = useTransactions();
+
     const defaultAssets = [];
 
     const [assets, setAssets] = useState([]);
-    const [transactions, setTransactions] = useState([]);
-    const [currencyRates, setCurrencyRates] = useState({});
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [showDetailsModal, setShowDetailsModal] = useState(false);
-    const [selectedAsset, setSelectedAsset] = useState(null);
-    const [viewMode, setViewMode] = useState('card');
     
+    const [currencyRates, setCurrencyRates] = useState({});
+    
+    const viewMode = searchParams.get('view') || 'card';
+
+    const setViewMode = (mode) => {
+        setSearchParams({ view: mode });
+    };
+
     const [fields, setFields] = useState({
         generalFields: { currency: [] },
         assetsFields: { type: [], paymentSystem: [], cardDesigns: [] }
@@ -44,6 +54,35 @@ const AssetsPage = () => {
     
     const [employees, setEmployees] = useState([]);
     const [cardSize, setCardSize] = useState('medium');
+
+    const selectedAsset = useMemo(() => {
+        if (!assetId || assetId === 'new') return null;
+        return assets.find(a => String(a.id) === String(assetId)) || null;
+    }, [assets, assetId]);
+
+    const showAddForm = assetId === 'new';
+    const showDetailsModal = !!selectedAsset;
+
+    const handleOpenAsset = (asset) => {
+        navigate({
+            pathname: `/assets/${asset.id}`,
+            search: searchParams.toString()
+        });
+    };
+
+    const handleCloseModal = () => {
+        navigate({
+            pathname: '/assets',
+            search: searchParams.toString()
+        });
+    };
+
+    const handleOpenAddForm = () => {
+        navigate({
+            pathname: '/assets/new',
+            search: searchParams.toString()
+        });
+    };
 
     useEffect(() => {
         const savedEmployees = localStorage.getItem('employees');
@@ -57,17 +96,11 @@ const AssetsPage = () => {
         }
     }, []);
 
-
-    // --- ИЗМЕНЕНИЕ 2: Загрузка полей через новый API ---
     useEffect(() => {
         const loadFields = async () => {
             try {
-                // Загружаем ВСЕ поля одним запросом
                 const rawFields = await fetchFields();
-                // Нормализуем их (превращаем в удобную структуру)
                 const allFields = withDefaults(rawFields);
-
-                // Записываем в стейт только то, что нужно этой странице
                 setFields({
                     generalFields: allFields.generalFields,
                     assetsFields: allFields.assetsFields
@@ -75,7 +108,6 @@ const AssetsPage = () => {
 
             } catch (err) {
                 console.error("Failed to load fields", err);
-                // Fallback (если нужно)
                 const savedFields = localStorage.getItem('fieldsData');
                 if (savedFields) {
                     try {
@@ -93,19 +125,8 @@ const AssetsPage = () => {
         loadFields();
     }, []);
 
-    useEffect(() => {
-        const savedTransactions = localStorage.getItem('transactionsData');
-        if (savedTransactions) {
-            try {
-                setTransactions(JSON.parse(savedTransactions));
-            } catch (e) {
-                console.error("Ошибка парсинга транзакций из localStorage:", e);
-                setTransactions([]);
-            }
-        }
-    }, []);
-
     
+
     useEffect(() => {
         const savedRates = localStorage.getItem('currencyRates_mock');
         if (savedRates) {
@@ -135,22 +156,28 @@ const AssetsPage = () => {
         }
     }, []);
 
-
+    
     const calculateRealBalance = (currentAssets, allTransactions, rates) => {
         const baseCurrency = "UAH";
 
         return currentAssets.map(asset => {
-            const assetTransactions = allTransactions.filter(t => t.account === asset.id);
+            
+            const assetTransactions = allTransactions.filter(t => {
+                const tAccountId = typeof t.account === 'object' ? t.account.id : t.account;
+                return String(tAccountId) === String(asset.id);
+            });
+
             const totalIncoming = assetTransactions
                 .filter(t => t.operation === 'Зачисление')
                 .reduce((sum, t) => sum + Number(t.amount), 0);
+                
             const totalOutgoing = assetTransactions
                 .filter(t => t.operation === 'Списание')
                 .reduce((sum, t) => sum + Number(t.amount), 0);
 
-
+            
             const newBalance = (Number(asset.turnoverStartBalance) + totalIncoming - totalOutgoing).toFixed(2);
-
+            
             let newBalanceUAH = 0;
 
             if (asset.currency === baseCurrency) {
@@ -161,8 +188,7 @@ const AssetsPage = () => {
                 if (rate) {
                     newBalanceUAH = parseFloat(newBalance) * rate;
                 } else {
-                    // console.warn(`Обменный курс для ${rateKey} не найден.`);
-                    newBalanceUAH = asset.balanceUAH;
+                    newBalanceUAH = asset.balanceUAH; 
                 }
             }
 
@@ -177,12 +203,15 @@ const AssetsPage = () => {
         });
     };
 
-
+    
     useEffect(() => {
-        const updatedAssets = calculateRealBalance(assets, transactions, currencyRates);
-        setAssets(updatedAssets);
-    }, [transactions, currencyRates]);
-
+        if (assets.length > 0) {
+            const updatedAssets = calculateRealBalance(assets, transactions, currencyRates);
+            if (JSON.stringify(updatedAssets) !== JSON.stringify(assets)) {
+                 setAssets(updatedAssets);
+            }
+        }
+    }, [transactions, currencyRates, assets.length]); 
 
     useEffect(() => {
         localStorage.setItem('assetsData', JSON.stringify(assets));
@@ -191,11 +220,15 @@ const AssetsPage = () => {
     const loadAssets = async () => {
         try {
             const fetchedAssets = await fetchAssets();
-            console.log('Loaded assets from API:', fetchedAssets);
-            setAssets(fetchedAssets);
+            
+            if (transactions.length > 0) {
+                 const calculated = calculateRealBalance(fetchedAssets, transactions, currencyRates);
+                 setAssets(calculated);
+            } else {
+                 setAssets(fetchedAssets);
+            }
         } catch (err) {
             console.error("Failed to load assets", err);
-            // Fallback to localStorage
             const savedAssets = localStorage.getItem('assetsData');
             if (savedAssets) {
                 try {
@@ -211,49 +244,45 @@ const AssetsPage = () => {
         }
     };
 
+    
     useEffect(() => {
         loadAssets();
-    }, []);
+    }, []); 
+    
 
     const handleAddAsset = async (newAsset) => {
         try {
-            const createdAsset = await apiCreateAsset(newAsset);
-            console.log('Asset created:', createdAsset);
-            await loadAssets(); // Reload from API to include the new asset
-            setShowAddForm(false);
+            await apiCreateAsset(newAsset);
+            await loadAssets(); 
+            handleCloseModal(); 
         } catch (err) {
             console.error("Failed to create asset", err);
-            // Fallback: add locally
             const assetWithDefaults = {
                 ...newAsset,
-                id: newAsset.accountName,
+                id: newAsset.accountName, 
                 design: newAsset.design || 'default-design',
-                paymentSystem: newAsset.paymentSystem || null
+                paymentSystem: newAsset.paymentSystem || null,
+                turnoverStartBalance: Number(newAsset.turnoverStartBalance) || 0 
             };
             setAssets(prevAssets => [...prevAssets, assetWithDefaults]);
-            setShowAddForm(false);
+            handleCloseModal();
         }
     };
 
     const handleDeleteAsset = async (idToDelete) => {
         try {
             await apiDeleteAsset(idToDelete);
-            console.log('Asset deleted:', idToDelete);
-            await loadAssets(); // Reload from API
+            await loadAssets();
+            handleCloseModal();
         } catch (err) {
             console.error("Failed to delete asset", err);
-            // Fallback: delete locally
             setAssets(prevAssets => prevAssets.filter(asset => asset.id !== idToDelete));
+            handleCloseModal();
         }
     };
 
     const handleDuplicateAsset = async (assetToDuplicate) => {
-        // Логика дублирования через API пока отсутствует, оставляем локально или можно дописать API
         try {
-             // Example if API exists: await apiDuplicateAsset(assetToDuplicate.id);
-             // await loadAssets();
-             
-             // Fallback local:
             const newId = `${assetToDuplicate.accountName} (Копия ${Date.now()})`;
             const duplicatedAsset = {
                 ...assetToDuplicate,
@@ -270,7 +299,6 @@ const AssetsPage = () => {
                 requisites: assetToDuplicate.requisites.map(req => ({ ...req }))
             };
             setAssets(prevAssets => [...prevAssets, duplicatedAsset]);
-
         } catch (err) {
             console.error("Failed to duplicate asset", err);
         }
@@ -300,30 +328,22 @@ const AssetsPage = () => {
     };
 
     const handleRowClick = (asset) => {
-        setSelectedAsset(asset);
-        setShowDetailsModal(true);
-    };
-
-    const handleCloseDetailsModal = () => {
-        setShowDetailsModal(false);
-        setSelectedAsset(null);
+        handleOpenAsset(asset);
     };
 
     const handleSaveAsset = async (updatedAsset) => {
         try {
-            const savedAsset = await apiUpdateAsset(updatedAsset.id, updatedAsset);
-            console.log('Asset updated:', savedAsset);
-            await loadAssets(); // Reload from API
-            handleCloseDetailsModal(); 
+            await apiUpdateAsset(updatedAsset.id, updatedAsset);
+            await loadAssets(); 
+            handleCloseModal();
         } catch (err) {
             console.error("Failed to update asset", err);
-            // Fallback: update locally
             setAssets(prevAssets => 
                 prevAssets.map(asset => 
                     asset.id === updatedAsset.id ? updatedAsset : asset
                 )
             );
-            handleCloseDetailsModal();
+            handleCloseModal();
         }
     };
 
@@ -349,7 +369,6 @@ const AssetsPage = () => {
         return acc;
     }, {});
     
-    
     const handleSetCardSize = (size) => {
         setCardSize(size);
     };
@@ -364,7 +383,6 @@ const AssetsPage = () => {
                         Активы
                         </h1>
                     
-                        
                         <div className="assets-view-mode-buttons">
                             <button
                                 className={`assets-view-mode-button ${viewMode === 'card' ? 'active' : ''}`}
@@ -403,7 +421,7 @@ const AssetsPage = () => {
                                 </button>
                             </div>
                         )}
-                        <button className="add-asset-button" onClick={() => setShowAddForm(true)}>
+                        <button className="add-asset-button" onClick={handleOpenAddForm}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
                         </button>
                 </header>
@@ -484,7 +502,7 @@ const AssetsPage = () => {
                                                         <td>{formatNumberWithSpaces(asset.turnoverEndBalance)}</td>
                                                     </tr>
                                                 ))}
-                                        </React.Fragment>
+                                            </React.Fragment>
                                     ))}
                                 </tbody>
                             </table>
@@ -505,7 +523,6 @@ const AssetsPage = () => {
                                             <AssetCard
                                                 key={asset.id}
                                                 asset={asset}
-                                                // ИЗМЕНЕНИЕ 3: Передаем дизайны в карточку, чтобы она их не грузила сама
                                                 cardDesigns={fields.assetsFields.cardDesigns}
                                                 onCardClick={() => handleRowClick(asset)}
                                                 onCopyValue={copyToClipboard}
@@ -521,7 +538,7 @@ const AssetsPage = () => {
 
                 {showAddForm && (
                     <AddAssetForm
-                        onClose={() => setShowAddForm(false)}
+                        onClose={handleCloseModal}
                         onAdd={handleAddAsset}
                         fields={fields}
                         employees={employees}
@@ -531,7 +548,7 @@ const AssetsPage = () => {
                 {showDetailsModal && selectedAsset && (
                     <AssetDetailsModal
                         asset={selectedAsset}
-                        onClose={handleCloseDetailsModal}
+                        onClose={handleCloseModal}
                         onDelete={handleDeleteAsset}
                         onDuplicate={handleDuplicateAsset}
                         onSave={handleSaveAsset}

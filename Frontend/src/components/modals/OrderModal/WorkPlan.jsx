@@ -3,13 +3,26 @@ import { Controller, useFieldArray, useWatch, useFormContext } from 'react-hook-
 import { X, Plus, Copy } from 'lucide-react';
 import AutoResizeTextarea from './AutoResizeTextarea'; 
 
-const WorkPlan = ({ control }) => {
+const WorkPlan = ({ control, orderFields }) => {
   
   const { getValues, setValue } = useFormContext();
+
+  const readySolutions = (orderFields?.orderFields?.readySolution || orderFields?.readySolution || []).filter(item => !item.isDeleted);
+  
   
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'workList',
+  });
+
+  
+  const { 
+    fields: additionalOptionFields, 
+    append: appendAdditionalOption, 
+    remove: removeAdditionalOption 
+  } = useFieldArray({
+    control,
+    name: 'additionalOptions', 
   });
 
   const techTags = useWatch({ control, name: 'techTags' }) || [];
@@ -75,6 +88,11 @@ const WorkPlan = ({ control }) => {
     append({ description: '', amount: '', specification: '', sale: false });
   };
 
+  
+  const handleAddAdditionalOption = () => {
+    appendAdditionalOption({ name: '', price: '' });
+  };
+
   const handleCopyWorkRow = (index) => {
     const row = fields[index];
     const currentDescription = getValues(`workList.${index}.description`);
@@ -122,6 +140,28 @@ const WorkPlan = ({ control }) => {
           control={control}
           render={({ field }) => (
             <AutoResizeTextarea {...field} />
+          )}
+        />
+      </div>
+
+      <div className="tab-content-row">
+        <div className="tab-content-title">Готовое решение</div>
+        <Controller
+          name="readySolution"
+          control={control}
+          render={({ field }) => (
+            <select {...field} className="custom-content-input">
+              <option value="">Не выбрано</option>
+              {readySolutions.length > 0 ? (
+                readySolutions.map((item) => (
+                  <option key={item.id} value={item.value}>
+                    {item.value}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>Список пуст (добавьте в настройках)</option>
+              )}
+            </select>
           )}
         />
       </div>
@@ -204,6 +244,7 @@ const WorkPlan = ({ control }) => {
           )}
         />
       </div>
+      
 
       {/* ТЕГИ (Тип задач) */}
       <div className="tab-content-row">
@@ -288,7 +329,7 @@ const WorkPlan = ({ control }) => {
       <div className="tab-content-table">
         <div className="tab-content-title">Список работ</div>
         
-        <div className="work-list-table">
+        <div className="work-list-table main-work-table">
             
             <div className="work-list-row header-row">
                 <div className="header-content-wrapper">
@@ -418,6 +459,77 @@ const WorkPlan = ({ control }) => {
           )}
         />
       </div>
+
+      
+      <div className="tab-content-table">
+        <div className="tab-content-title">Доп. опции</div>
+        
+        <div className="work-list-table mini-options-table">
+            
+            <div className="work-list-row header-row">
+                <div className="header-content-wrapper">
+                    <div className="work-list-cell">Значение</div>
+                    <div className="work-list-cell">Цена</div>
+                </div>
+                <div className="work-list-cell action-cell"></div>
+            </div>
+
+            
+            {additionalOptionFields.map((item, index) => (
+                <div key={item.id} className="work-list-row">
+                    
+                   
+                    <div className="work-list-cell">
+                        <Controller
+                            control={control}
+                            name={`additionalOptions.${index}.name`}
+                            render={({ field }) => (
+                                <AutoResizeTextarea
+                                    {...field}
+                                    placeholder="Название опции"
+                                />
+                            )}
+                        />
+                    </div>
+
+                    
+                    <div className="work-list-cell">
+                        <Controller
+                            control={control}
+                            name={`additionalOptions.${index}.price`}
+                            render={({ field }) => (
+                                <AutoResizeTextarea
+                                    {...field}
+                                    placeholder="0"
+                                />
+                            )}
+                        />
+                    </div>
+
+                   
+                    <div className="work-list-cell action-cell">
+                        <button 
+                            type="button" 
+                            className="action-btn-icon" 
+                            onClick={() => removeAdditionalOption(index)}
+                            title="Удалить опцию"
+                        >
+                            <X size={18} color="#ff4d4f" />
+                        </button>
+                    </div>
+                </div>
+            ))}
+        </div>
+
+        <button 
+            type="button" 
+            className="add-requisites-btn" 
+            onClick={handleAddAdditionalOption}
+        >
+            <Plus size={16} /> Добавить
+        </button>
+      </div>
+      
 
       
       <div className="tab-content-row">

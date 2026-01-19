@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import EmployeeModal from "./EmployeesModal/EmployeeModal";
 import "../../styles/EmployeesPage.css";
@@ -35,15 +36,11 @@ const formatNumberWithSpaces = (num) => {
 
 
 const getFirstRequisite = (requisites) => {
-    
     if (!requisites || typeof requisites !== 'object' || Array.isArray(requisites)) {
       return null;
     }
-    
     const allRequisiteArrays = Object.values(requisites);
-   
     const firstValidArray = allRequisiteArrays.find(arr => Array.isArray(arr) && arr.length > 0);
-    
     return firstValidArray ? firstValidArray[0] : null;
 };
 
@@ -89,7 +86,7 @@ const EmployeeCard = ({ employee, onClick }) => {
           <div className="card-balance-container">
             <span className="card-label">Баланс:</span>
             <span className="card-balance">
-              {formatNumberWithSpaces(employee.balance)} {/* <- единый формат */}
+              {formatNumberWithSpaces(employee.balance)}
             </span>
           </div>
         </div>
@@ -99,7 +96,10 @@ const EmployeeCard = ({ employee, onClick }) => {
 };
 
 const EmployeePage = () => {
-  
+  const navigate = useNavigate();
+  const { employeeId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const defaultEmployees = [
     {
       id: 1,
@@ -166,6 +166,20 @@ const EmployeePage = () => {
   const [error, setError] = useState("");
 
   
+  const selectedEmployee = useMemo(() => {
+      if (!employeeId || employeeId === 'new') return null;
+      return employees.find(e => String(e.id) === String(employeeId)) || null;
+  }, [employees, employeeId]);
+
+  const isModalOpen = Boolean(employeeId); 
+
+  
+  const viewMode = searchParams.get('view') || 'card';
+
+  const setViewMode = (mode) => {
+      setSearchParams({ view: mode });
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem("employees", JSON.stringify(employees));
@@ -198,18 +212,28 @@ const EmployeePage = () => {
     };
   }, []);
 
-  const [viewMode, setViewMode] = useState("card");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState({});
 
+  
   const handleOpenModal = (employee = null) => {
-    setSelectedEmployee(employee);
-    setIsModalOpen(true);
+    if (employee) {
+        navigate({
+            pathname: `/employees/${employee.id}`,
+            search: searchParams.toString()
+        });
+    } else {
+        navigate({
+            pathname: '/employees/new',
+            search: searchParams.toString()
+        });
+    }
   };
+
   const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedEmployee(null);
+    navigate({
+        pathname: '/employees',
+        search: searchParams.toString()
+    });
   };
 
   const upsertLocal = (data, existedId) => {
@@ -242,13 +266,13 @@ const EmployeePage = () => {
     }
   };
 
-  const handleDeleteEmployee = async (employeeId) => {
+  const handleDeleteEmployee = async (idToDelete) => {
     try {
-      await apiDeleteEmployee(employeeId);
-      setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+      await apiDeleteEmployee(idToDelete);
+      setEmployees((prev) => prev.filter((e) => e.id !== idToDelete));
     } catch (e) {
       console.warn("Удаление через API не удалось, удаляю локально:", e?.message || e);
-      setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+      setEmployees((prev) => prev.filter((e) => e.id !== idToDelete));
       setError("Сервер недоступен. Удалено локально.");
     } finally {
       handleCloseModal();
@@ -272,7 +296,6 @@ const EmployeePage = () => {
             key = "Работает";
         }
         
-      
         if (!acc[key]) {
           acc[key] = [];
         }
@@ -322,7 +345,7 @@ const EmployeePage = () => {
             </button>
           </div>
 
-          <button className="add-employee-button" onClick={() => handleOpenModal()}>
+          <button className="add-employee-button" onClick={() => handleOpenModal(null)}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -375,7 +398,6 @@ const EmployeePage = () => {
                   .map(([groupName, groupEmployees], idx) => (
                   <tbody key={groupName}>
                     <tr className="group-header" onClick={() => toggleGroup(groupName)}>
-                      
                       <td colSpan="16"> 
                         <span className={`collapse-icon ${collapsedGroups[groupName] ? "collapsed" : ""}`}>▼</span>
                         {`${groupName.toUpperCase()}`}
@@ -384,20 +406,13 @@ const EmployeePage = () => {
                     </tr>
                     {!collapsedGroups[groupName] &&
                       groupEmployees.map((employee) => {
-                        
                         const firstReq = getFirstRequisite(employee.requisites);
-
                         return (
                           <tr key={employee.id} onClick={() => handleOpenModal(employee)} style={{ cursor: "pointer" }}>
-                            
                             <td>{employee.fullName}</td>
-                            
                             <td>{employee.login}</td>
-                            
                             <td>{employee.telegramNick || '—'}</td> 
-                            
                             <td>{formatDate(employee.birthDate)}</td>
-                            
                             <td>
                               {(Array.isArray(employee.tags) ? employee.tags : []).map((tag) => (
                                 <span
@@ -416,25 +431,16 @@ const EmployeePage = () => {
                                 </span>
                               ))}
                             </td>
-                          
                             <td>{formatDate(employee.startDate) || '—'}</td>
-                            
-                            
                             <td>{employee.hourlyRates?.uah}</td>
                             <td>{employee.hourlyRates?.usd}</td>
                             <td>{employee.hourlyRates?.usdt}</td>
                             <td>{employee.hourlyRates?.eur}</td>
                             <td>{employee.hourlyRates?.rub}</td>
-
-                            
                             <td>{formatNumberWithSpaces(employee.balance)}</td>
-                            
-                            
                             <td>{firstReq?.bank || '—'}</td>
                             <td>{firstReq?.card || '—'}</td>
                             <td>{firstReq?.holder || '—'}</td> 
-
-                            
                             <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
                           </tr>
                         );
@@ -472,9 +478,10 @@ const EmployeePage = () => {
         </div>
       </div>
 
+      
       {isModalOpen && (
         <EmployeeModal
-          employee={selectedEmployee}
+          employee={selectedEmployee} 
           onClose={handleCloseModal}
           onSave={handleSaveEmployee}
           onDelete={selectedEmployee ? () => handleDeleteEmployee(selectedEmployee.id) : null}

@@ -91,6 +91,10 @@ const newOrderDefaults = {
     completingTime: "",
     completingLink: "",
     orderImpressions: "",
+    solutionLink: "",
+    additionalSolutionLinks: "",
+    solutionCopyLink: "",
+    readySolution: "",
 };
 
 
@@ -156,6 +160,10 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
       completingTime: order?.completingTime || "",
       completingLink: order?.completingLink || "",
       orderImpressions: order?.orderImpressions || "",
+      solutionLink: order?.solutionLink || "",
+      additionalSolutionLinks: order?.additionalSolutionLinks || "",
+      solutionCopyLink: order?.solutionCopyLink || "",
+      readySolution: order?.readySolution || "",
     }
   });
 
@@ -769,6 +777,7 @@ function OrderModal({ order = null, mode = 'edit', onClose, onUpdateOrder, onCre
                       <WorkPlan
                         control={control}
                         mode={mode}
+                        orderFields={orderFields}
                       />
                     )}
                     {activeTab === "Участники" && <Participants control={control} mode={mode} clientsData={sampleClients} employeesData={executorFormFields.employees} onOpenAddExecutorModal={() => setIsAddExecutorModalOpen(true)} />}

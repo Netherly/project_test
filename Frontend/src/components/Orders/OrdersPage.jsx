@@ -1,6 +1,8 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"; 
 import { DndProvider, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
+
 import Sidebar from "../Sidebar";
 import StageColumn from "./StageColumn";
 import OrderModal from "../modals/OrderModal/OrderModal";
@@ -10,10 +12,10 @@ import ColumnVisibilityToggle from "./ColumnVisibilityToggle/ColumnVisibilityTog
 import useHorizontalDragScroll from "./hooks/useHorizontalDragScroll";
 
 import { getLogEntries } from "../Journal/journalApi";
-import { useTransactions } from "../../context/TransactionsContext";
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
+
 
 const QuickDropZone = ({ stage, moveOrder, onDragEnd }) => {
     const [{ isOver }, drop] = useDrop({
@@ -30,8 +32,8 @@ const QuickDropZone = ({ stage, moveOrder, onDragEnd }) => {
     const getStageIcon = (stage) => {
         const icons = {
             "Успешно завершен": "✅",
-            "Закрыт": "🔒",
-            "Неудачно завершён": "❌",
+            "Завершен": "🔒",
+            "Неудачно завершен": "❌",
             "Удаленные": "🗑️"
         };
         return icons[stage] || "📋";
@@ -40,8 +42,8 @@ const QuickDropZone = ({ stage, moveOrder, onDragEnd }) => {
     const getStageColor = (stage) => {
         const colors = {
             "Успешно завершен": "#36a850",
-            "Закрыт": "#46bcc6",
-            "Неудачно завершён": "#e94335",
+            "Завершен": "#46bcc6",
+            "Неудачно завершен": "#e94335",
             "Удаленные": "#7f8c8d"
         };
         return colors[stage] || "#3498db";
@@ -70,23 +72,23 @@ const allStages = [
     "Лид", "Изучаем ТЗ", "Обсуждаем с клиентом", "Клиент думает",
     "Ожидаем предоплату", "Взяли в работу", "Ведется разработка",
     "На уточнении у клиента", "Тестируем", "Тестирует клиент",
-    "На доработке", "Ожидаем оплату", "Успешно завершен", "Закрыт",
-    "Неудачно завершён", "Удаленные"
+    "На доработке", "Ожидаем оплату", "Успешно завершен", "Завершен",
+    "Неудачно завершен", "Удаленные"
 ];
 
-const finalStages = ["Успешно завершен", "Закрыт", "Неудачно завершён", "Удаленные"];
-
+const finalStages = ["Успешно завершен", "Завершен", "Неудачно завершен", "Удаленные"];
 const ORDERS_STORAGE_KEY = 'ordersData';
 
 const OrdersPage = () => {
+    const navigate = useNavigate();
+    const { orderId } = useParams();
+   
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const [orders, setOrders] = useState(() => {
         const savedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
         if (savedOrders) {
-            try {
-                return JSON.parse(savedOrders);
-            } catch (e) {
-                console.error("Ошибка чтения заказов из localStorage", e);
-            }
+            try { return JSON.parse(savedOrders); } catch (e) { console.error(e); }
         }
         return [
             { id: 1, numberOrder: "2234", name: "Разработка СРМ", stage: "Лид", date: "21.03.2025", price: 50000, client: "Лев" },
@@ -94,18 +96,27 @@ const OrdersPage = () => {
         ];
     });
 
-    
     const [journalEntries, setJournalEntries] = useState([]);
 
-    // Теперь это фильтр для заказов, а не для столбцов
-    // По умолчанию показываем все заказы кроме финальных стадий
+    
     const [visibleOrderStages, setVisibleOrderStages] = useState(() => {
-        return allStages.filter(stage => !finalStages.includes(stage));
+        
+        const stagesParam = searchParams.get('stages');
+        
+        if (stagesParam) {
+           
+            return stagesParam.split(',');
+        }
+        
+        return allStages;
     });
 
-    const [selectedOrder, setSelectedOrder] = useState(null);
+    const selectedOrder = useMemo(() => {
+        if (!orderId) return null;
+        return orders.find((o) => String(o.id) === String(orderId)) || null;
+    }, [orders, orderId]);
+
     const [viewMode, setViewMode] = useState('kanban');
-    const [showCreateModal, setShowCreateModal] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const stagesContainerRef = useRef(null);
@@ -115,93 +126,114 @@ const OrdersPage = () => {
         localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
     }, [orders]);
 
-    
     useEffect(() => {
         const allEntries = getLogEntries();
         setJournalEntries(allEntries);
     }, []);
+
     
-
-
-    const moveOrder = useCallback((orderId, newStage, newIndex) => {
-       
+    const moveOrder = useCallback((orderIdToMove, newStage, newIndex) => {
         setOrders((prevOrders) => {
-            const order = prevOrders.find((o) => o.id === orderId);
+            const order = prevOrders.find((o) => o.id === orderIdToMove);
             if (!order) return prevOrders;
-
-            const filteredOrders = prevOrders.filter((o) => o.id !== orderId);
+            const filteredOrders = prevOrders.filter((o) => o.id !== orderIdToMove);
             const newOrders = [...filteredOrders];
-
             newOrders.splice(newIndex, 0, { ...order, stage: newStage });
-
             return newOrders;
         });
     }, []);
 
     const updateOrder = (updatedOrder) => {
-        
         setOrders((prev) =>
             prev.map((order) =>
                 order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order
             )
         );
-        setSelectedOrder(null);
+
+        
+        if (!visibleOrderStages.includes(updatedOrder.stage)) {
+            const newStages = [...visibleOrderStages, updatedOrder.stage];
+            
+            
+            setVisibleOrderStages(newStages);
+
+           
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('stages', newStages.join(','));
+            
+            navigate({ pathname: '/orders', search: newParams.toString() });
+        } else {
+            navigate({ pathname: '/orders', search: searchParams.toString() });
+        }
     };
 
-    const handleDragStart = () => {
-        setIsDragging(true);
-    };
-
-    const handleDragEnd = () => {
-        setIsDragging(false);
-    };
+    const handleDragStart = () => { setIsDragging(true); };
+    const handleDragEnd = () => { setIsDragging(false); };
 
     const handleToggleStage = (stage) => {
-        setVisibleOrderStages(prev => {
-            if (prev.includes(stage)) {
-                return prev.filter(s => s !== stage);
+        
+        let newStages;
+        if (visibleOrderStages.includes(stage)) {
+            newStages = visibleOrderStages.filter(s => s !== stage);
+        } else {
+            newStages = [...visibleOrderStages, stage];
+        }
+
+        
+        setVisibleOrderStages(newStages);
+
+       
+        setSearchParams(prev => {
+            const newParams = new URLSearchParams(prev);
+            
+            if (newStages.length > 0) {
+                newParams.set('stages', newStages.join(','));
             } else {
-                return [...prev, stage];
+                newParams.delete('stages');
             }
+            return newParams;
         });
     };
 
-    // Функция для получения отфильтрованных заказов для конкретной стадии
     const getFilteredOrdersForStage = (stage) => {
         const stageOrders = orders.filter((order) => order.stage === stage);
-
-        // Если стадия не включена в видимые, возвращаем пустой массив
         if (!visibleOrderStages.includes(stage)) {
             return [];
         }
-
         return stageOrders;
     };
 
-    // Функция для скролла миникарты
     const handleScrollToPosition = useCallback((scrollLeft) => {
         if (stagesContainerRef.current) {
             stagesContainerRef.current.scrollLeft = scrollLeft;
         }
     }, []);
 
-    const generateRandomId = () => {
-        return Math.floor(10000000 + Math.random() * 90000000);
-    };
+    const generateRandomId = () => { return Math.floor(10000000 + Math.random() * 90000000); };
 
     const handleCreateOrder = (newOrderData) => {
-        const newOrder = {
-            ...newOrderData,
-            id: generateRandomId(),
-        };
+        const newOrder = { ...newOrderData, id: generateRandomId() };
         setOrders((prevOrders) => [newOrder, ...prevOrders]);
         setIsCreateModalOpen(false);
     };
 
-    const handleDeleteOrder = (orderId) => {
+    const handleDeleteOrder = (orderIdToDelete) => {
+        setOrders(prevOrders => prevOrders.filter(order => order.id !== orderIdToDelete));
+        navigate({ pathname: '/orders', search: searchParams.toString() });
+    };
 
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
-        setSelectedOrder(null);
+    const handleOrderClick = (order) => {
+        navigate({
+            pathname: `/orders/${order.id}`,
+            search: searchParams.toString() 
+        });
+    };
+
+    const handleCloseModal = () => {
+        navigate({
+            pathname: '/orders',
+            search: searchParams.toString()
+        });
     };
 
     useHorizontalDragScroll(stagesContainerRef, isDraggingRef);
@@ -239,20 +271,19 @@ const OrdersPage = () => {
                     />
 
                     <button className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14" /><path d="M12 5v14" /></svg> Добавить
                     </button>
                 </header>
 
                 <DndProvider backend={HTML5Backend}>
                     <div className="stages-container" ref={stagesContainerRef}>
-                        {/* Показываем ВСЕ столбцы, но с отфильтрованными заказами */}
                         {allStages.map((stage) => (
                             <StageColumn
                                 key={stage}
                                 stage={stage}
                                 orders={getFilteredOrdersForStage(stage)}
                                 moveOrder={moveOrder}
-                                onOrderClick={setSelectedOrder}
+                                onOrderClick={handleOrderClick}
                                 isDraggingRef={isDraggingRef}
                                 onDragStart={handleDragStart}
                                 onDragEnd={handleDragEnd}
@@ -260,7 +291,6 @@ const OrdersPage = () => {
                         ))}
                     </div>
 
-                    {/* Миникарта столбцов - теперь показывает все столбцы */}
                     <ColumnMinimap
                         containerRef={stagesContainerRef}
                         stages={allStages}
@@ -289,7 +319,7 @@ const OrdersPage = () => {
                 <OrderModal
                     mode="edit"
                     order={selectedOrder}
-                    onClose={() => setSelectedOrder(null)}
+                    onClose={handleCloseModal}
                     onUpdateOrder={updateOrder}
                     onDeleteOrder={handleDeleteOrder}
                     journalEntries={journalEntries}

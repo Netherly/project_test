@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom'; // Для навигации в будущем
 import '../../styles/AssetDetailsModal.css';
-import { Save, Plus, X, Pencil, Trash2, Copy } from 'lucide-react';
+import { Save, X, Trash2, Copy } from 'lucide-react';
+import { useTransactions } from '../../context/TransactionsContext';
 
 const formatNumberWithSpaces = (num) => {
     if (num === null || num === undefined || isNaN(Number(num))) {
@@ -13,59 +15,63 @@ const formatNumberWithSpaces = (num) => {
 };
 
 const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fields, employees }) => {
+    const navigate = useNavigate();
+    const { transactions } = useTransactions();
+
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [exchangeRates, setExchangeRates] = useState(null);
     const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
-    const [isEditingRequisites, setIsEditingRequisites] = useState(false);
-    const [editableAsset, setEditableAsset] = useState({ ...asset });
+    
+    
+    const getInitialState = (data) => ({
+        ...data,
+        limitTurnover: (data.limitTurnover !== undefined && data.limitTurnover !== null) ? data.limitTurnover : '',
+        status: data.status || 'Активен',
+        employee: data.employee || '',
+        paymentSystem: data.paymentSystem || '',
+        design: data.design || '',
+        currency: data.currency || 'UAH',
+        type: data.type || ''
+    });
+
+    const [editableAsset, setEditableAsset] = useState(getInitialState(asset));
 
     const dragItem = useRef(null);
     const dragOverItem = useRef(null);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setEditableAsset((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+    
+    const recentTransactions = useMemo(() => {
+        if (!asset || !transactions) return [];
+
+        
+        const filtered = transactions.filter(t => {
+            const tAccountId = typeof t.account === 'object' ? t.account.id : t.account;
+            return String(tAccountId) === String(asset.id);
+        });
+
+        
+        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        
+        return filtered.slice(0, 5);
+    }, [transactions, asset]);
+
+    
+    const formatDateShort = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month} ${hours}:${minutes}`;
     };
 
-    const handleRequisiteChange = (index, e) => {
-        const { name, value } = e.target;
-        const newRequisites = [...editableAsset.requisites];
-        newRequisites[index] = { ...newRequisites[index], [name]: value };
-        setEditableAsset((prev) => ({
-            ...prev,
-            requisites: newRequisites,
-        }));
-    };
-
-    const handleAddRequisite = () => {
-        setEditableAsset((prev) => ({
-            ...prev,
-            requisites: [...prev.requisites, { label: '', value: '' }],
-        }));
-        if (!isEditingRequisites) setIsEditingRequisites(true);
-    };
-
-    const handleRequisitesSave = () => {
-        const filtered = editableAsset.requisites.filter(
-            (req) => req.label.trim() !== '' || req.value.trim() !== ''
-        );
-        setEditableAsset((prev) => ({
-            ...prev,
-            requisites: filtered,
-        }));
-        setIsEditingRequisites(false);
-    };
-
-    const handleRemoveRequisite = (index) => {
-        const newRequisites = editableAsset.requisites.filter((_, i) => i !== index);
-        setEditableAsset((prev) => ({
-            ...prev,
-            requisites: newRequisites,
-        }));
-    };
+    useEffect(() => {
+        if (asset && asset.id !== editableAsset.id) {
+            setEditableAsset(getInitialState(asset));
+        }
+    }, [asset.id]); 
 
     useEffect(() => {
         try {
@@ -74,21 +80,49 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                 setExchangeRates(JSON.parse(stored)[0]);
             } else {
                 setExchangeRates({
-                    UAH: 1,
-                    USD: 43,
-                    RUB: 0.5,
-                    UAH_RUB: 2,
-                    UAH_USD: 0.023255813953488372,
-                    USD_UAH: 43,
-                    USD_RUB: 16.0004,
-                    RUB_UAH: 0.5,
-                    RUB_USD: 0.06249843753906153,
+                    UAH: 1, USD: 43, RUB: 0.5, UAH_RUB: 2, UAH_USD: 0.023,
+                    USD_UAH: 43, USD_RUB: 16, RUB_UAH: 0.5, RUB_USD: 0.062,
                 });
             }
         } catch (err) {
             console.error('Error loading exchange rates:', err);
         }
     }, []);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setEditableAsset((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = () => {
+        const filteredRequisites = (editableAsset.requisites || []).filter(
+            (req) => req.label.trim() !== '' || req.value.trim() !== ''
+        );
+        const limitToSave = editableAsset.limitTurnover === '' 
+            ? null 
+            : parseFloat(editableAsset.limitTurnover);
+
+        const assetToSave = {
+            ...editableAsset,
+            limitTurnover: limitToSave,
+            requisites: filteredRequisites
+        };
+        onSave(assetToSave);
+    };
+
+    const handleDeleteClick = () => {
+        if (window.confirm(`Вы уверены, что хотите удалить актив "${asset.accountName}"?`)) {
+            onDelete(asset.id);
+            onClose();
+        }
+        setShowOptionsMenu(false);
+    };
+
+    const handleDuplicateClick = () => {
+        onDuplicate(asset);
+        onClose();
+        setShowOptionsMenu(false);
+    };
 
     if (!asset || !exchangeRates) return null;
 
@@ -119,61 +153,6 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
         return exchangeRates[key]
             ? (inUAH * exchangeRates[key]).toFixed(2)
             : amount.toFixed(2);
-    };
-
-    const handleSave = () => {
-        const filtered = editableAsset.requisites.filter(
-            (req) => req.label.trim() !== '' || req.value.trim() !== ''
-        );
-        onSave({ ...editableAsset, requisites: filtered });
-    };
-
-    const handleDeleteClick = () => {
-        if (window.confirm(`Вы уверены, что хотите удалить актив "${asset.accountName}"?`)) {
-            onDelete(asset.id);
-            onClose();
-        }
-        setShowOptionsMenu(false);
-    };
-
-    const handleDuplicateClick = () => {
-        onDuplicate(asset);
-        onClose();
-        setShowOptionsMenu(false);
-    };
-
-    // Drag & Drop
-    const allowDrop = (e) => e.preventDefault();
-
-    const handleDragStart = (e, index) => {
-        dragItem.current = index;
-        e.dataTransfer.effectAllowed = 'move';
-        e.currentTarget.classList.add('dragging');
-    };
-
-    const handleDragEnter = (e, index) => {
-        dragOverItem.current = index;
-        e.currentTarget.classList.add('drag-over');
-    };
-
-    const handleDragLeave = (e) => e.currentTarget.classList.remove('drag-over');
-
-    const handleDragEnd = (e) => {
-        e.currentTarget.classList.remove('dragging');
-        document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        const dragged = dragItem.current;
-        const dropped = dragOverItem.current;
-        if (dragged === null || dropped === null || dragged === dropped) return;
-        const newReq = [...editableAsset.requisites];
-        const [moved] = newReq.splice(dragged, 1);
-        newReq.splice(dropped, 0, moved);
-        setEditableAsset((prev) => ({ ...prev, requisites: newReq }));
-        dragItem.current = null;
-        dragOverItem.current = null;
     };
 
     const currentBalance = asset.balance || 0;
@@ -259,11 +238,6 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             {showTurnoverTooltip && (
                                 <div className="turnover-tooltip">
                                     Зачислено: {formatNumberWithSpaces(incoming)} / Списано: {formatNumberWithSpaces(outgoing)}
-                                    {turnoverPercentage > 100 && (
-                                        <div className="turnover-tooltip-overlimit">
-                                            Превышен на {formatNumberWithSpaces(turnoverPercentage - 100)}%
-                                        </div>
-                                    )}
                                 </div>
                             )}
                         </div>
@@ -279,7 +253,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     type="text"
                                     id="accountName"
                                     name="accountName"
-                                    value={editableAsset.accountName}
+                                    value={editableAsset.accountName || ''}
                                     onChange={handleChange}
                                     className="form-input1"
                                 />
@@ -294,7 +268,6 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
-                                    {/* FIX: Using item.value instead of object/name split */}
                                     {fields?.generalFields?.currency?.map((item, index) => {
                                         const val = item.value || item;
                                         return <option key={item.id || index} value={val}>{val}</option>;
@@ -311,6 +284,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     value={editableAsset.limitTurnover}
                                     onChange={handleChange}
                                     className="form-input1"
+                                    placeholder="0"
                                 />
                             </div>
 
@@ -333,7 +307,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
                                 <select
                                     name="paymentSystem"
-                                    value={editableAsset.paymentSystem || ''}
+                                    value={editableAsset.paymentSystem}
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
@@ -368,6 +342,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
+                                    <option value="">Не выбрано</option>
                                     {employees?.map((emp) => (
                                         <option key={emp.id} value={emp.fullName}>{emp.fullName}</option>
                                     ))}
@@ -379,7 +354,7 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 <select
                                     id="status"
                                     name="status"
-                                    value={editableAsset.status || 'Активен'}
+                                    value={editableAsset.status}
                                     onChange={handleChange}
                                     className="form-input1"
                                 >
@@ -389,6 +364,55 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                             </div>
                         </div>
                     </div>
+
+                    
+                    <div className="modal-section">
+                        <h3>Журнал операций</h3>
+                        <div className="finances-log-table">
+                            
+                            <div className="finances-log-row header-row">
+                                <div className="finances-log-content-wrapper">
+                                    <div className="finances-log-cell">Дата</div>
+                                    <div className="finances-log-cell">Статья</div>
+                                    <div className="finances-log-cell">Подстатья</div>
+                                    <div className="finances-log-cell">Контрагент</div>
+                                    <div className="finances-log-cell">Сумма</div>
+                                </div>
+                            </div>
+                            
+                            
+                            {recentTransactions.length > 0 ? (
+                                recentTransactions.map((trx) => (
+                                    <div key={trx.id} className="finances-log-row">
+                                        <div className="finances-log-content-wrapper">
+                                            <div className="finances-log-cell">
+                                                <span>{formatDateShort(trx.date)}</span>
+                                            </div>
+                                            <div className="finances-log-cell">
+                                                <span>{trx.category}</span>
+                                            </div>
+                                            <div className="finances-log-cell">
+                                                <span>{trx.subcategory}</span>
+                                            </div>
+                                            <div className="finances-log-cell">
+                                                <span>{trx.counterparty}</span>
+                                            </div>
+                                            <div className="finances-log-cell">
+                                                <span className={trx.operation === 'Зачисление' ? 'text-success' : 'text-danger'}>
+                                                    {formatNumberWithSpaces(trx.amount)} {trx.accountCurrency}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="no-transactions-message">
+                                    Нет транзакций
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
 
                 <div className="modal-footer">

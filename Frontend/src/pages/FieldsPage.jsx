@@ -13,15 +13,12 @@ import {
   isHex,
   clone               
 } from "../api/fields.js"; 
-// =========================
 import { fileUrl } from "../api/http";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X } from 'lucide-react'; 
 
-/* =========================
-   Константы
-   ========================= */
+
 const MAX_IMAGE_BYTES = 500 * 1024;
 
 const safeFileUrl = (u) => {
@@ -31,6 +28,7 @@ const safeFileUrl = (u) => {
   if (/^https?:\/\//i.test(s)) return s;
   try { return fileUrl(s); } catch { return s; }
 };
+
 
 const tabsConfig = [
   { key: "generalFields", label: "Общие"},
@@ -43,14 +41,14 @@ const tabsConfig = [
   { key: "employeeFields", label: "Сотрудники" },
   { key: "assetsFields", label: "Активы" },
   { key: "financeFields", label: "Транзакции" },
+  { key: "miscFields", label: "Разное" },
 ];
 
-/* =========================
-   Стартовые значения
-   ========================= */
+
 const initialValues = {
   generalFields: {
     currency: [],
+    country: [],
   },
   orderFields: {
     intervals: [{ id: rid(), intervalValue: "", isDeleted: false }],
@@ -59,6 +57,8 @@ const initialValues = {
     techTags: [],
     taskTags: [],
     discountReason: [],
+    minOrderAmount: [],
+    readySolution: [],
   },
   executorFields: { role: [] },
   clientFields: { source: [], category: [], country: [], tags: [] },
@@ -75,6 +75,9 @@ const initialValues = {
   },
   taskFields: {
     tags: [],
+  },
+  miscFields: {
+    businessLine: [], 
   }
 };
 
@@ -103,8 +106,6 @@ const EditableList = ({
                .filter(item => !item.isDeleted || showHidden),
     [items, showHidden]
   );
-
-  console.log("EditableList RENDER:", { items: items.length, visible: visibleItems.length, showHidden });
 
   return (
     <div className="category-fields-container">
@@ -289,7 +290,7 @@ const TagList = ({ title, tags = [], onChange, showHidden }) => {
 const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAddInterval, onToggleDelete, showHidden }) => {
   const visibleItems = useMemo(
     () => intervals.map((item, index) => ({ ...item, originalIndex: index }))
-                      .filter(item => !item.isDeleted || showHidden),
+               .filter(item => !item.isDeleted || showHidden),
     [intervals, showHidden]
   );
  
@@ -350,7 +351,7 @@ const CategoryFields = ({
 }) => {
   const visibleItems = useMemo(
     () => categories.map((item, index) => ({ ...item, originalIndex: index }))
-                      .filter(item => !item.isDeleted || showHidden),
+               .filter(item => !item.isDeleted || showHidden),
     [categories, showHidden]
   );
 
@@ -430,7 +431,7 @@ const CategoryFields = ({
 const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArticle, onToggleDelete, showHidden }) => {
   const visibleItems = useMemo(
     () => articles.map((item, index) => ({ ...item, originalIndex: index }))
-                   .filter(item => !item.isDeleted || showHidden),
+               .filter(item => !item.isDeleted || showHidden),
     [articles, showHidden]
   );
  
@@ -582,7 +583,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
 
   const visibleItems = useMemo(
     () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index }))
-                           .filter(item => !item.isDeleted || showHidden),
+                            .filter(item => !item.isDeleted || showHidden),
     [cardDesigns, showHidden]
   );
 
@@ -916,7 +917,7 @@ function FieldsPage() {
        
         const normalizedInactive = withDefaults(rawInactive);
         
-       
+        
 
         if (!mounted) return;
 
@@ -1262,6 +1263,18 @@ function FieldsPage() {
                 showHidden={showHidden}
               />
             </div>
+            <div className="field-row">
+              <label className="field-label">Страна</label>
+              <EditableList
+                items={selectedValues.generalFields?.country || []}
+                onChange={(index, val) => handleStringItemChange("generalFields", "country", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "country", index)}
+                onAdd={() => handleStringItemAdd("generalFields", "country")}
+                onCommit={(index) => handleStringItemBlur("generalFields", "country", index)}
+                placeholder="Введите страну"
+                showHidden={showHidden}
+              />
+            </div>
           </div>
         );
 
@@ -1296,6 +1309,30 @@ function FieldsPage() {
                 onAdd={() => handleStringItemAdd("orderFields", "discountReason")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "discountReason", index)}
                 placeholder="Введите причину скидки"
+                showHidden={showHidden}
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Минимальная сумма</label>
+              <EditableList
+                items={selectedValues.orderFields.minOrderAmount || []}
+                onChange={(index, val) => handleStringItemChange("orderFields", "minOrderAmount", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "minOrderAmount", index)}
+                onAdd={() => handleStringItemAdd("orderFields", "minOrderAmount")}
+                onCommit={(index) => handleStringItemBlur("orderFields", "minOrderAmount", index)}
+                placeholder="Введите сумму"
+                showHidden={showHidden}
+              />
+            </div>
+            <div className="field-row">
+              <label className="field-label">Готовое решение</label>
+              <EditableList
+                items={selectedValues.orderFields.readySolution || []}
+                onChange={(index, val) => handleStringItemChange("orderFields", "readySolution", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "readySolution", index)}
+                onAdd={() => handleStringItemAdd("orderFields", "readySolution")}
+                onCommit={(index) => handleStringItemBlur("orderFields", "readySolution", index)}
+                placeholder="Введите готовое решение"
                 showHidden={showHidden}
               />
             </div>
@@ -1365,18 +1402,6 @@ function FieldsPage() {
                 showHidden={showHidden}
               />
             </div>
-            <div className="field-row">
-              <label className="field-label">Страна</label>
-              <EditableList
-                items={selectedValues.clientFields.country || []}
-                onChange={(index, val) => handleStringItemChange("clientFields", "country", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "country", index)}
-                onAdd={() => handleStringItemAdd("clientFields", "country")}
-                onCommit={(index) => handleStringItemBlur("clientFields", "country", index)}
-                placeholder="Введите страну"
-                showHidden={showHidden}
-              />
-            </div>
             <TagList
               title="Теги клиента"
               tags={selectedValues.clientFields.tags || []}
@@ -1403,18 +1428,6 @@ function FieldsPage() {
       case "employeeFields":
         return (
           <div className="fields-vertical-grid">
-            <div className="field-row">
-              <label className="field-label">Страна</label>
-              <EditableList
-                items={selectedValues.employeeFields.country || []}
-                onChange={(index, val) => handleStringItemChange("employeeFields", "country", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("employeeFields", "country", index)}
-                onAdd={() => handleStringItemAdd("employeeFields", "country")}
-                onCommit={(index) => handleStringItemBlur("employeeFields", "country", index)}
-                placeholder="Введите страну"
-                showHidden={showHidden}
-              />
-            </div>
             <TagList
               title="Теги сотрудника"
               tags={selectedValues.employeeFields.tags || []}
@@ -1527,6 +1540,25 @@ function FieldsPage() {
               onChange={(v) => handleInputChange("taskFields", "tags", v)}
               showHidden={showHidden}
             />
+          </div>
+        );
+
+      // !!! 4. ОБНОВЛЕНИЕ: Рендер новой вкладки "Разное"
+      case "miscFields":
+        return (
+          <div className="fields-vertical-grid">
+            <div className="field-row">
+              <label className="field-label">Направление бизнеса</label>
+              <EditableList
+                items={selectedValues.miscFields?.businessLine || []}
+                onChange={(index, val) => handleStringItemChange("miscFields", "businessLine", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("miscFields", "businessLine", index)}
+                onAdd={() => handleStringItemAdd("miscFields", "businessLine")}
+                onCommit={(index) => handleStringItemBlur("miscFields", "businessLine", index)}
+                placeholder="Введите направление"
+                showHidden={showHidden}
+              />
+            </div>
           </div>
         );
 

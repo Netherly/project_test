@@ -211,7 +211,6 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
                 render={({ field }) => (
                     <div className="tab-content-row">
                         <div className="tab-content-title">Причина скидки</div>
-                        {/* Используем обычный input или AutoResizeTextarea, если текст длинный */}
                         <input 
                             {...field} 
                             type="text" 
