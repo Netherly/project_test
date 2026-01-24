@@ -1,8 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
 const dayjs = require('dayjs');
 require('dotenv').config();
 
-const prisma = new PrismaClient();
+const prisma = require('../../prisma/client');
 
 const DEFAULT_TZ = 'Europe/Kyiv';
 const DEFAULT_MODE = 'today';

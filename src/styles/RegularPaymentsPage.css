@@ -1,0 +1,242 @@
+.regular-payments-page {
+    display: flex;
+    min-height: 100vh;
+    color: var(--text-color);
+}
+
+.regular-payments-page-main-container {
+    flex-grow: 1;
+    transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-x: hidden; 
+}
+
+.regular-payments-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background-color: var(--container-bg);
+    height: 60px;
+    border-bottom: 1px solid var(--border--color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.add-payment-wrapper {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    border-left: 1px solid var(--border--color);
+    box-sizing: border-box;
+}
+
+.add-payment-button {
+    background-color: var(--container-bg);
+    color: #fff;
+    padding: 10px 15px;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.regular-payments-title {
+    font-size: var(--font-size-page-title);
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    text-transform: uppercase;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border--color);
+    height: 100%;
+}
+
+.regular-payments-table-container {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow: auto;
+}
+
+.regular-payments-table {
+    width: 100%;
+    border-spacing: 0;
+    text-align: left;
+    color: var(--container-text-color);
+    table-layout: fixed;
+}
+
+.regular-payments-table thead {
+    font-size: var(--font-size-table-header);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.regular-payments-table th {
+    padding: 5px 5px;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+    font-weight: 600;
+    border-right: 1px solid var(--bg-color);
+    text-align: center;
+    background-color: var(--container-bg);
+}
+
+.regular-payments-table th:nth-child(1),
+.regular-payments-table td:nth-child(1) {
+    width: 100px;
+}
+
+/* Статья, Подстатья */
+.regular-payments-table th:nth-child(2), .regular-payments-table td:nth-child(2),
+.regular-payments-table th:nth-child(3), .regular-payments-table td:nth-child(3) {
+    width: 130px; 
+}
+
+.regular-payments-table td:nth-child(2),
+.regular-payments-table td:nth-child(3) {
+    text-align: left;
+}
+/* Описание */
+.regular-payments-table th:nth-child(4),
+.regular-payments-table td:nth-child(4) {
+    width: 250px;
+}
+
+.regular-payments-table td:nth-child(4){
+    text-align: left;
+}
+
+/* Счет */
+.regular-payments-table th:nth-child(5),
+.regular-payments-table td:nth-child(5) {
+    width: 170px;
+}
+
+.regular-payments-table td:nth-child(5){
+    text-align: left;
+}
+
+/* Валюта */
+.regular-payments-table th:nth-child(6),
+.regular-payments-table td:nth-child(6) {
+    width: 50px;
+}
+
+/* Операция */
+.regular-payments-table th:nth-child(7),
+.regular-payments-table td:nth-child(7) {
+    width: 110px;
+}
+
+/* Сумма */
+.regular-payments-table th:nth-child(8),
+.regular-payments-table td:nth-child(8) {
+    width: 70px;
+}
+
+/* Период */
+.regular-payments-table th:nth-child(9),
+.regular-payments-table td:nth-child(9) {
+    width: 90px;
+}
+
+/* Цикл */
+.regular-payments-table th:nth-child(10),
+.regular-payments-table td:nth-child(10) {
+    width: 50px;
+}
+
+/* Время */
+.regular-payments-table th:nth-child(11),
+.regular-payments-table td:nth-child(11) {
+    width: 50px; 
+}
+
+/* Статус */
+.regular-payments-table th:nth-child(12),
+.regular-payments-table td:nth-child(12) {
+    width: 100px;
+}
+
+
+.regular-payments-table th:nth-child(13),
+.regular-payments-table td:nth-child(13) {
+    width: 140px; 
+}
+
+
+.regular-payments-table tbody tr.regular-payment-row {
+    transition: background-color 0.2s ease;
+}
+
+.regular-payments-table tbody tr.regular-payment-row:hover {
+    background-color: var(--input-border-focus);
+}
+
+.regular-payments-table .table-spacer-row td {
+  background-color: transparent;
+  height: 5px;
+  border: none;
+  padding: 0;
+}
+
+.regular-payments-table .table-spacer-row:hover,
+.regular-payments-table .table-spacer-row:hover td {
+  background-color: transparent !important;
+}
+
+.regular-payments-table td {
+    padding: 5px 5px;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-all;
+    color: var(--text-color);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--bg-color);
+    border-top: 1px solid var(--bg-color);
+    border-right: 1px solid var(--bg-color);
+    text-align: center;
+    font-size: var(--font-size-table-text);
+    background-color: var(--container-bg);
+}
+
+.amount-positive {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.amount-negative {
+    color: #f44336;
+    font-weight: bold;
+}
+
+/* Стили для статуса */
+.status-chip {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #fff;
+    display: inline-block;
+}
+
+.status-active {
+    background-color: #4CAF50;
+}
+
+.status-paused {
+    background-color: #f4b400;
+}

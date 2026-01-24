@@ -78,7 +78,7 @@ export default function FinancesTab({ isNew, employee }) {
       return 'Нет';
     }
     
-    const firstCardNumber = employee?.requisites?.[0]?.number;
+    const firstCardNumber = employee?.requisitesList?.[0]?.card;
     return firstCardNumber || 'Нет'; 
   };
 

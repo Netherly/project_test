@@ -133,28 +133,28 @@
 
 .clients-table thead th:nth-child(4),
 .clients-table td:nth-child(4){
-  width: 100px;
+  width: 120px;
 }
 
 .clients-table thead th:nth-child(5),
 .clients-table td:nth-child(5){
-  width: 160px;
+  width: 100px;
 }
 
 .clients-table thead th:nth-child(6),
 .clients-table td:nth-child(6){
-  width: 80px;
+  width: 160px;
 }
 
 .clients-table thead th:nth-child(7),
 .clients-table td:nth-child(7){
-  width: 50px;
-  text-align: center;
+  width: 80px;
 }
 
 .clients-table thead th:nth-child(8),
 .clients-table td:nth-child(8){
-  width: 60px;
+  width: 50px;
+  text-align: center;
 }
 
 .clients-table td:nth-child(8){
@@ -163,15 +163,16 @@
 
 .clients-table thead th:nth-child(9),
 .clients-table td:nth-child(9){
+  width: 60px;
   text-align: center;
-  width: 50px;
 }
 .clients-table thead th:nth-child(10),
 .clients-table td:nth-child(10){
-  width: 160px;
+  text-align: center;
+  width: 50px;
 }
 .clients-table td:nth-child(10){
-  text-align: left;
+  text-align: center;
 }
 .clients-table thead th:nth-child(11),
 .clients-table td:nth-child(11){
@@ -180,11 +181,17 @@
 
 .clients-table thead th:nth-child(12),
 .clients-table td:nth-child(12){
-  width: 50px;
+  width: 160px;
 }
 
 .clients-table thead th:nth-child(13),
 .clients-table td:nth-child(13){
+  text-align: center;
+  width: 50px;
+}
+
+.clients-table thead th:nth-child(14),
+.clients-table td:nth-child(14){
   width: 100px;
   text-align: center;
 }

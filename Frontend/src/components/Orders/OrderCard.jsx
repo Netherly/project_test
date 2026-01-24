@@ -178,13 +178,17 @@ const OrderCard = ({
 
       <div className="order-card-header">
         <div className="order-left-content">
-          <div>{order.numberOrder ? `Заказ № ${order.numberOrder}` : `Заявка #${order.id}`}</div>
+          <div>
+            {order.numberOrder
+              ? `${order.orderSequence !== undefined && order.orderSequence !== null ? "Заказ №" : "Заявка №"} ${order.numberOrder}`
+              : `Заявка #${order.id}`}
+          </div>
           {order.client && <div>{order.client}</div>}
           {order.urgency && <div className="order-urgency">{getUrgencyText(order.urgency)}</div>}
         </div>
 
         <div className="order-right-content">
-          {order.price && <div className="planned-date">{order.price} ₴</div>}
+          {showAmount && <div className="planned-date">{amountText} ₴</div>}
           {order.date && <div className="planned-date">{order.date}</div>}
           {order.plannedFinishDate && (
             <div className="planned-date">{formatDate(order.plannedFinishDate)}</div>

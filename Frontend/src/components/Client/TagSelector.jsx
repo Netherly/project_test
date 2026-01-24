@@ -15,6 +15,10 @@ export default function TagSelector({ options = [], tags = [], onChange }) {
   const wrapperRef = useRef(null);
 
   useEffect(() => {
+    setAvailable(Array.isArray(options) ? options : []);
+  }, [options]);
+
+  useEffect(() => {
     const handleClickOutside = e => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setShowSuggestions(false);

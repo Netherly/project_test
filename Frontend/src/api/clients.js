@@ -16,125 +16,165 @@ const unwrap = (resp) => {
 };
 
 const tidy = (v) => String(v ?? "").trim();
+
 const toNumberSafe = (v) => {
   if (v === "" || v === null || v === undefined) return null;
   const n = parseFloat(v);
-  return isNaN(n) ? null : n;
+  return Number.isNaN(n) ? null : n;
+};
+
+const isUuid = (value) =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+const normalizeNullableId = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return isUuid(value) ? value : null;
+};
+
+const normalizeNullableString = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return String(value);
+};
+
+const normalizeShareInfo = (value) => {
+  if (value === undefined || value === null || value === "") return false;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return Boolean(value);
 };
 
 /* ----------------------- NORMALIZERS ----------------------- */
 
-
 const normTags = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((t) =>
-    typeof t === "string" 
-      ? { name: t, color: "#777777" } 
-      : { name: t?.name, color: t?.color || "#777777" }
-  );
+  (Array.isArray(arr) ? arr : [])
+    .map((t) => {
+      if (typeof t === "string") return { name: t, color: null };
+      const raw = t?.tag || t;
+      return {
+        id: raw?.id ?? t?.tagId ?? t?.id,
+        name: raw?.name,
+        color: raw?.color || t?.color || null,
+        textColor: raw?.textColor || t?.textColor || null,
+      };
+    })
+    .filter((t) => t?.name);
 
-
-const normAccesses = (arr) => 
-  (Array.isArray(arr) ? arr : []).map(a => ({
-    id: a.id,
-    name: a.name || "",
-    login: a.login || "",
-    password: a.password || "",
-    description: a.description || ""
+const normalizeAccesses = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((item) => ({
+    id: item?.id,
+    name: item?.name ?? item?.label ?? "",
+    login: item?.login ?? "",
+    password: item?.password ?? "",
+    description: item?.description ?? "",
   }));
+};
 
-export const normalizeClient = (c = {}) => ({
-  id: c.id,
-  group: c.group ?? 2,
-  name: c.name ?? "",
-  
- 
-  company_id: c.companyId ?? c.company_id ?? "", 
-  manager_id: c.managerId ?? c.manager_id ?? "",
-  referrer_id: c.referrerId ?? c.referrer_id ?? "",
-  referrer_first_id: c.referrerFirstId ?? c.referrer_first_id ?? "",
-  
+const normalizeGroup = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "object") {
+    const order = value.order ?? value.value ?? value.code;
+    return order ?? null;
+  }
+  return value;
+};
 
-  intro_description: c.intro_description ?? "",
-  source: c.source ?? "",
-  full_name: c.full_name ?? "",
-  phone: c.phone ?? "",
-  email: c.email ?? "",
-  country: c.country ?? "",
-  city: c.city ?? "",
-  address: c.address ?? "",
-  
-  currency: c.currency ?? "",
-  hourly_rate: c.hourly_rate ?? c.hourlyRate ?? "",
-  percent: c.percent ?? "",
-  
-  share_info: !!c.share_info, 
-  
-  status: c.status ?? "active",
-  last_order_date: c.last_order_date ?? "—",
-  photo_link: c.photoLink ?? c.photo_link ?? "",
-  chat_link: c.chatLink ?? c.chat_link ?? "",
-  folder_link: c.folderLink ?? c.folder_link ?? "",
-  
-  note: c.note ?? "",
-  
-  
-  tags: normTags(c.tags),
-  accesses: normAccesses(c.credentials || c.accesses), 
-});
+export const normalizeClient = (c = {}) => {
+  const shareInfoRaw = c.share_info ?? c.shareInfo;
+  const credentials = Array.isArray(c.credentials) ? c.credentials : [];
+  const accesses = Array.isArray(c.accesses)
+    ? normalizeAccesses(c.accesses)
+    : normalizeAccesses(credentials);
+
+  return {
+    id: c.id ?? null,
+    group: normalizeGroup(c.group ?? c.group_order ?? c.groupOrder),
+    group_id: c.group_id ?? c.groupId ?? c.group?.id ?? null,
+    group_name: c.group_name ?? c.group?.name ?? "",
+    name: c.name ?? "",
+    messenger_name: c.messenger_name ?? c.messengerName ?? "",
+    intro_description: c.intro_description ?? c.introDescription ?? "",
+    note: c.note ?? "",
+    category: c.category ?? "",
+    source: c.source ?? "",
+    full_name: c.full_name ?? c.fullName ?? "",
+    country: c.country ?? "",
+    currency: c.currency ?? "",
+    phone: c.phone ?? "",
+    email: c.email ?? "",
+    city: c.city ?? "",
+    payment_details: c.payment_details ?? c.paymentDetails ?? "",
+    hourly_rate: c.hourly_rate ?? null,
+    percent: c.percent ?? null,
+    share_info: normalizeShareInfo(shareInfoRaw),
+    status: c.status ?? "",
+    referrer_id: c.referrer_id ?? c.referrerId ?? null,
+    referrer_name: c.referrer_name ?? "",
+    referrer_first_id: c.referrer_first_id ?? c.referrerFirstId ?? null,
+    referrer_first_name: c.referrer_first_name ?? "",
+    manager_id: c.manager_id ?? c.managerId ?? null,
+    manager_name: c.manager_name ?? "",
+    company_id: c.company_id ?? c.companyId ?? null,
+    company_name: c.company_name ?? "",
+    chat_link: c.chat_link ?? c.chatLink ?? "",
+    photo_link: c.photo_link ?? c.photoLink ?? "",
+    folder_link: c.folder_link ?? c.folderLink ?? "",
+    tags: normTags(c.tags),
+    accesses,
+    credentials,
+    last_order_date: c.last_order_date ?? "—",
+  };
+};
 
 /* ----------------------- SERIALIZER ----------------------- */
 
+export const serializeClient = (payload = {}) => {
+  const data = { ...payload };
 
-export const serializeClient = (c = {}) => {
-  const payload = {
-    id: c.id,
-    name: tidy(c.name),
-    status: c.status || "active",
-    
-    
-    companyId: tidy(c.company_id) || null,
-    managerId: tidy(c.manager_id) || null,
-    referrerId: tidy(c.referrer_id) || null,
-    referrerFirstId: tidy(c.referrer_first_id) || null,
+  const companyId = normalizeNullableId(payload.company_id ?? payload.companyId);
+  const managerId = normalizeNullableId(payload.manager_id ?? payload.managerId);
+  const referrerId = normalizeNullableString(payload.referrer_id ?? payload.referrerId);
+  const referrerFirstId = normalizeNullableString(payload.referrer_first_id ?? payload.referrerFirstId);
+  const referrerName = normalizeNullableString(payload.referrer_name ?? payload.referrerName);
+  const referrerFirstName = normalizeNullableString(payload.referrer_first_name ?? payload.referrerFirstName);
+  const shareInfo = normalizeShareInfo(payload.share_info ?? payload.shareInfo);
 
-    intro_description: tidy(c.intro_description),
-    source: tidy(c.source),
-    
-   
-    full_name: tidy(c.full_name),
-    phone: tidy(c.phone),
-    email: tidy(c.email),
-    country: tidy(c.country),
-    city: tidy(c.city),
-    address: tidy(c.address), 
-    
-    
-    currency: tidy(c.currency),
-    hourly_rate: toNumberSafe(c.hourly_rate),
-    percent: toNumberSafe(c.percent),
-    share_info: !!c.share_info,
+  if (companyId !== undefined) data.company_id = companyId;
+  if (managerId !== undefined) data.manager_id = managerId;
+  if (referrerId !== undefined) data.referrer_id = referrerId;
+  if (referrerFirstId !== undefined) data.referrer_first_id = referrerFirstId;
+  if (referrerName !== undefined) data.referrer_name = referrerName;
+  if (referrerFirstName !== undefined) data.referrer_first_name = referrerFirstName;
+  data.share_info = shareInfo;
 
-    
-    photoLink: tidy(c.photo_link),
-    chatLink: tidy(c.chat_link),
-    folderLink: tidy(c.folder_link),
-    
-    note: tidy(c.note),
+  if ("name" in data) data.name = tidy(data.name);
+  if ("status" in data) data.status = tidy(data.status) || "active";
+  if ("intro_description" in data) data.intro_description = tidy(data.intro_description);
+  if ("messenger_name" in data) data.messenger_name = tidy(data.messenger_name);
+  if ("note" in data) data.note = tidy(data.note);
+  if ("full_name" in data) data.full_name = tidy(data.full_name);
+  if ("phone" in data) data.phone = tidy(data.phone);
+  if ("email" in data) data.email = tidy(data.email);
+  if ("city" in data) data.city = tidy(data.city);
+  if ("payment_details" in data) data.payment_details = tidy(data.payment_details);
+  if ("chat_link" in data) data.chat_link = tidy(data.chat_link);
+  if ("photo_link" in data) data.photo_link = tidy(data.photo_link);
+  if ("folder_link" in data) data.folder_link = tidy(data.folder_link);
 
-   
-    tags: normTags(c.tags),
+  if ("hourly_rate" in data) data.hourly_rate = toNumberSafe(data.hourly_rate);
+  if ("percent" in data) data.percent = toNumberSafe(data.percent);
 
-    
-    credentials: Array.isArray(c.accesses) ? c.accesses.map(a => ({
-      id: a.id, 
-      name: tidy(a.name),
-      login: tidy(a.login),
-      password: tidy(a.password),
-      description: tidy(a.description)
-    })) : []
-  };
+  delete data.companyId;
+  delete data.managerId;
+  delete data.referrerId;
+  delete data.referrerFirstId;
+  delete data.referrerName;
+  delete data.referrerFirstName;
+  delete data.shareInfo;
 
-  return payload;
+  return data;
 };
 
 /* -------------------------- API -------------------------- */

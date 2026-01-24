@@ -1,0 +1,730 @@
+/* ---Основные стили--- */
+.fields-main-container {
+    display: flex;
+    flex-direction: row;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.fields-main-container-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    width: 100%;
+    padding: 0;
+    background-color: var(--container-bg);
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    min-height: 60px;
+    flex-shrink: 0;
+}
+
+.header-content {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    justify-content: flex-start;
+    position: relative;
+}
+
+.header-action-btn{
+    background-color: transparent;
+    border: none;
+    color: white;
+    padding: 0 15px;
+    border-right: 1px solid var(--border--color);
+}
+
+
+.header-title{
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 0px 15px 0px 15px;
+}
+
+.header-left::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background-color: var(--border--color);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-left: auto;
+    position: relative;
+    padding: 0 15px;
+    min-width: 243px;
+    box-sizing: border-box;
+}
+
+.header-actions::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background-color: var(--border--color);
+}
+
+.lists-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    text-transform: uppercase;
+    padding: 0 35px 0 35px;
+    display: flex;
+    align-items: center;
+}
+
+.fields-container {
+    color: #ffffff;
+    font-family: sans-serif;
+    width: 100%;
+    height: calc(100vh - 74px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ---Главная обертка--- */
+.main-content-wrapper {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ---Контейнер с вкладками--- */
+.tabs-content-wrapper {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.fields-box {
+    background-color: var(--container-bg);
+    padding: 24px 24px 50px 24px;
+    opacity: 0.95;
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+/* ---Вкладки--- */
+.tabs-container {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 0;
+    position: relative;
+    overflow-x: auto;
+    scrollbar-width: none;
+    width: auto;
+    flex-shrink: 0;
+    background-color: var(--bg-color);
+    opacity: 0.9;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    outline: none;
+    border-bottom: 2px solid transparent;
+    color: var(--container-text-color);
+    padding: 12px 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    border-radius: 4px 4px 0 0;
+}
+
+.tab-button:hover {
+    background-color: rgba(128, 128, 128, 0.1);
+    opacity: 1;
+}
+
+.tab-button.active {
+    border-bottom-color: var(--container-text-color);
+    opacity: 1;
+    color: var(--container-text-color);
+    background-color: rgba(128, 128, 128, 0.15);
+}
+
+/* ---Контент полей--- */
+.fields-content {
+    margin-bottom: 0;
+    width: 100%;
+    min-width: 70%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.fields-vertical-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+}
+
+/* ---Структура для полей--- */
+.field-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    position: relative;
+}
+
+.field-row.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.field-label {
+    display: block;
+    font-size: 14px;
+    color: #b0bec5;
+    min-width: 150px;
+    width: 150px;
+    flex-shrink: 0;
+    margin-top: 8px;
+    text-align: left;
+}
+
+/* ---Базовые стили для dropdown--- */
+.dropdown-container {
+    position: relative;
+    overflow: visible;
+}
+
+/* ---Обычные поля--- */
+.field-row.simple-field .dropdown-container {
+    flex: 0 0 600px;
+    max-width: 600px;
+    width: 600px;
+}
+
+.dropdown-trigger-simple {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 20px;
+    box-sizing: border-box;
+    user-select: none;
+    overflow: hidden;
+    border-bottom: 1px solid transparent;
+    width: 100%;
+}
+
+.dropdown-trigger-simple:hover {
+    border-bottom: 1px solid #4a90e2;
+}
+
+.dropdown-trigger-simple.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.dropdown-trigger-simple.has-value {
+    border-bottom: 1px solid #37474f;
+}
+
+/* ---Поля категорий--- */
+.field-row.category-field .dropdown-container {
+    flex: 1;
+    max-width: none;
+}
+
+.dropdown-trigger-category {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 20px;
+    box-sizing: border-box;
+    user-select: none;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    width: 100%;
+    backdrop-filter: blur(10px);
+}
+
+.dropdown-trigger-category:hover {
+    border-bottom: 1px solid #6777b6;
+}
+
+/* ---Поля статей--- */
+.field-row.article-field .dropdown-container {
+    flex: 1;
+    max-width: none;
+}
+
+.dropdown-trigger-article {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 20px;
+    box-sizing: border-box;
+    user-select: none;
+    overflow: hidden;
+    border-bottom: 1px solid transparent;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.dropdown-trigger-article:hover {
+    border-bottom: 1px solid #6777b6
+}
+
+.dropdown-trigger-article.has-value {
+    border-bottom: 1px solid #37474f;
+}
+
+/* ---Общие стили для всех dropdown--- */
+.dropdown-value {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 8px;
+}
+
+.dropdown-arrow {
+    color: #b0bec5;
+    transition: transform 0.2s ease;
+    font-size: 12px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.dropdown-arrow.open {
+    transform: rotate(180deg);
+}
+
+/* ---Dropdown меню--- */
+.dropdown-menu {
+    position: relative;
+    top: 0;
+    left: 0;
+    background-color: #0f1a24;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+    overflow: hidden;
+    margin-top: 2px;
+    width: 100%;
+    box-sizing: border-box;
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    border-radius: 4px;
+}
+
+.dropdown-menu.open {
+    max-height: 400px;
+    opacity: 1;
+    transform: translateY(0);
+    overflow-y: auto;
+}
+
+.dropdown-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: #ffffff;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(55, 71, 79, 0.3);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dropdown-option:hover {
+    background-color: #1a2836;
+}
+
+.dropdown-option:last-child {
+    border-bottom: none;
+}
+
+.dropdown-option.disabled-option {
+    color: #666;
+    cursor: not-allowed;
+    background-color: transparent;
+}
+
+.dropdown-option.disabled-option:hover {
+    background-color: transparent;
+}
+
+/* ---Текстовые поля--- */
+.text-input {
+    background: transparent;
+    backdrop-filter: blur(10px);
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px;
+    font-size: 14px;
+    color: white;
+    transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
+    flex: 1;
+
+}
+
+.text-input:focus {
+    outline: none;
+}
+
+.text-input:disabled {
+    background-color: transparent;
+    color: #666;
+    cursor: not-allowed;
+    border-color: #2a2a2a;
+}
+
+.text-input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ---Поля категорий и статей--- */
+.category-fields-container {
+    position: relative;
+    flex: 0 0 600px;
+    max-width: 600px;
+    width: 600px;
+}
+
+.category-field-group {
+    margin-bottom: 5px;
+}
+
+.category-container {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    position: relative;
+    width: 100%;
+}
+
+.category-left,
+.category-right {
+    flex: 1;
+    min-width: 0;
+}
+
+.category-full {
+    flex: 1;
+    min-width: 0;
+}
+
+.remove-category-btn {
+    background-color: transparent;
+    color: red;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+    font-size: 22px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    margin-top: 4px;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.restore{
+    color: #478cff;
+}
+
+.restore:hover{
+    color: #478cff;
+}
+
+
+.add-category-btn {
+    background-color: transparent;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.add-category-btn:hover {
+    background-color: var(--accent-color);
+
+}
+
+/* ---Дизайн карт--- */
+.card-design-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    position: relative;
+    width: 100%;
+}
+
+.card-design-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-design-upload {
+    flex: 0 0 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-design-btn {
+    background-color: #37474f;
+    color: #b0bec5;
+    border: 2px dashed #666;
+    padding: 40px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    width: 100px;
+    height: 50px;
+    ;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 5px;
+}
+
+.upload-design-btn:hover {
+    background-color: #455a64;
+    border-color: #4a90e2;
+    color: #ffffff;
+}
+
+.card-design-item {
+    position: relative;
+    background-color: #0f1a24;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    width: 100px;
+    height: 60px;
+}
+
+.card-design-item:hover {
+    transform: scale(5.0);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+}
+
+.card-design-preview {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.card-design-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: all 0.3s ease;
+}
+
+/* ---Кнопки сохранения--- */
+.save-btn,
+.cancel-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.save-btn {
+    background-color: #1e69be;
+    color: white;
+}
+
+.save-btn:hover {
+    background-color: #1557a0;
+}
+
+.cancel-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.cancel-btn:hover {
+    background-color: #d32f2f;
+}
+
+
+/* ---Теги (название + цвет)--- */
+.tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 600px; /* вровень с остальными списками */
+}
+
+.tag-item {
+  display: grid;
+  grid-template-columns: 1fr 46px 28px 32px; /* name | color | preview | remove */
+  gap: 10px;
+  align-items: center;
+}
+
+.tag-item .text-input {
+  min-width: 0; /* чтобы имя тега правильно ужималось */
+}
+
+/* нативный color input, без рамок */
+.color-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 46px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+.color-input::-moz-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
+/* мини-превью цвета рядом с color input */
+.tag-color-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+}
+
+/* кнопка удаления уже есть (.remove-category-btn), слегка подровняем в сетке тегов */
+.tag-item .remove-category-btn {
+  margin: 0;
+  width: 32px;
+  height: 32px;
+  line-height: 1;
+  font-size: 20px;
+}
+
+/* Ховер/фокус для интерактивных элементов тегов */
+.tag-item .text-input:focus,
+.color-input:focus {
+  outline: none;
+  border-color: rgba(255,255,255,0.5);
+}
+
+/* ---Утилиты (необязательно, но полезно)--- */
+[aria-busy="true"] { cursor: progress; }
+.hidden { display: none !important; }
+
+/* Если хочешь, чтобы dropdown поверх всего накрывал контент (иногда нужно в длинных списках) */
+.dropdown-menu {
+  position: absolute;   /* было relative — так список лучше выпадает поверх */
+  z-index: 20;
+  left: 0;
+  right: 0;
+}
+
+/* ---Адаптивность--- */
+@media (max-width: 1200px) {
+    .main-content-wrapper {
+        flex-direction: column;
+    }
+
+    .card-design-upload {
+        flex: 0 0 250px;
+    }
+
+    .upload-design-btn,
+    .card-design-item {
+        width: 120px;
+        height: 80px;
+    }
+
+    .card-design-item:hover {
+        transform: scale(3.5);
+    }
+
+    .upload-design-btn {
+        padding: 30px 15px;
+    }
+}
