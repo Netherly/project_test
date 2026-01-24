@@ -44,7 +44,21 @@ function urlToAbsPath(url) {
 ================================ */
 const pickStr = (v) => {
   if (typeof v === 'string') return v.trim();
-  if (v && typeof v === 'object') return String(v.value ?? v.name ?? v.code ?? '').trim();
+  if (v && typeof v === 'object') {
+    const candidate =
+      v.value ??
+      v.name ??
+      v.code ??
+      v.articleValue ??
+      v.categoryValue ??
+      v.subarticleValue ??
+      v.intervalValue ??
+      v.categoryInterval ??
+      v.subarticleInterval ??
+      v.label ??
+      '';
+    return String(candidate).trim();
+  }
   return '';
 };
 
@@ -64,7 +78,18 @@ const normalizeSimpleValues = (list) => {
   (Array.isArray(list) ? list : []).forEach((value) => {
     let v = value;
     if (v && typeof v === 'object') {
-      v = v.value ?? v.name ?? v.code ?? v.label ?? '';
+      v =
+        v.value ??
+        v.name ??
+        v.code ??
+        v.articleValue ??
+        v.categoryValue ??
+        v.subarticleValue ??
+        v.intervalValue ??
+        v.categoryInterval ??
+        v.subarticleInterval ??
+        v.label ??
+        '';
     }
     if (v !== undefined && v !== null) {
       const s = String(v).trim();
@@ -168,6 +193,7 @@ async function getAll(db) {
     roles,
     sources,
     clientCategories,
+    clientGroups,
     orderStatuses,
     orderCloseReasons,
     orderProjects,
@@ -182,6 +208,7 @@ async function getAll(db) {
     _db.executorRoleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.clientGroup.findMany({ orderBy: { order: 'asc' } }),
     _db.orderStatusDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }),
     _db.orderCloseReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }),
     _db.orderProjectDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }),
@@ -272,6 +299,7 @@ async function getAll(db) {
       country: countries.map((c) => ({ id: c.id, name: c.name })),
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: clientTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      groups: clientGroups.map((g) => ({ id: g.id, name: g.name, order: g.order })),
     },
 
     companyFields: {
@@ -379,6 +407,7 @@ async function getInactive(db) {
       country: countries.map((c) => ({ id: c.id, name: c.name })),
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: emptyArr,
+      groups: emptyArr,
     },
     companyFields: {
       tags: emptyArr,

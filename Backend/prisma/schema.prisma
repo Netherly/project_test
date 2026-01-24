@@ -74,13 +74,6 @@ model ClientSourceDict {
   clients  Client[]
 }
 
-model OrderDiscountReasonDict {
-  id       String  @id @default(uuid())
-  name     String  @unique @db.VarChar(150)
-  isActive Boolean @default(true)
-  order    Int     @default(0)
-}
-
 model SundryTypeWorkDict {
   id       String  @id @default(uuid())
   name     String  @unique @db.VarChar(150)
@@ -199,6 +192,7 @@ model FinanceArticleDict {
   // обратки
   subarticles  FinanceSubarticleDict[]
   transactions Transaction[]
+  regularPayments RegularPayment[]
 }
 
 model FinanceSubcategoryDict {
@@ -224,6 +218,7 @@ model FinanceSubarticleDict {
 
   // обратка
   transactions  Transaction[]
+  regularPayments RegularPayment[]
 
   @@index([articleId])
   @@index([subcategoryId])
@@ -600,6 +595,7 @@ model Order {
 
   tags              OrderTag[]
   transactions      Transaction[]
+  regularPayments   RegularPayment[]
 
   changes           OrderChange[]
 
@@ -747,6 +743,42 @@ model Transaction {
   @@index([employeeId])
 }
 
+model RegularPayment {
+  id                     String                 @id @default(uuid())
+  status                 String                 @default("Активен") @db.VarChar(50)
+  period                 String                 @db.VarChar(50)
+  cycleDay               String?                @db.VarChar(20)
+  time                   String                 @db.VarChar(10)
+  nextPaymentDate        DateTime?
+  lastPaymentDate        DateTime?
+  category               String?                @db.VarChar(100)
+  subcategory            String?                @db.VarChar(100)
+  categoryId             String?
+  subcategoryId          String?
+  description            String?
+  accountId              String
+  accountCurrency        String                 @db.VarChar(10)
+  operation              OperationType
+  amount                 Decimal                @db.Decimal(14, 2)
+  commission             Decimal?               @db.Decimal(14, 2)
+  counterparty           String?
+  counterpartyRequisites String?
+  orderId                String?
+  orderNumber            String?
+  orderCurrency          String?                @db.VarChar(10)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  account                Asset                  @relation(fields: [accountId], references: [id])
+  categoryDict           FinanceArticleDict?    @relation(fields: [categoryId], references: [id])
+  subcategoryDict        FinanceSubarticleDict? @relation(fields: [subcategoryId], references: [id])
+  order                  Order?                 @relation(fields: [orderId], references: [id])
+
+  @@index([nextPaymentDate])
+  @@index([status])
+  @@index([accountId])
+}
+
 /* =========================
    M2M стыковочные таблицы
    ========================= */
@@ -818,6 +850,7 @@ model Asset {
 
   requisites           AssetRequisite[]
   transactions         Transaction[]
+  regularPayments      RegularPayment[]
 
   @@index([currencyId])
   @@index([employeeId])

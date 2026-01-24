@@ -310,8 +310,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 >
                                     {/* Изменено: fields.generalFields.currency */}
                                     {fields?.generalFields?.currency?.map((item, index) => {
-                                        const value = typeof item === 'object' ? item.code || item.name : item;
-                                        const display = typeof item === 'object' ? item.name : item;
+                                        const value = typeof item === 'object' ? item.value || item.code || item.name : item;
+                                        const display = typeof item === 'object' ? (item.name || item.value || item.code) : item;
                                         return <option key={index} value={value}>{display}</option>;
                                     })}
                                 </select>
@@ -339,8 +339,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                 >
                                     {/* Изменено: fields.assetsFields.type */}
                                     {fields?.assetsFields?.type?.map((item, index) => {
-                                        const value = typeof item === 'object' ? item.code || item.name : item;
-                                        const display = typeof item === 'object' ? item.name : item;
+                                        const value = typeof item === 'object' ? item.value || item.code || item.name : item;
+                                        const display = typeof item === 'object' ? (item.name || item.value || item.code) : item;
                                         return <option key={index} value={value}>{display}</option>;
                                     })}
                                 </select>
@@ -357,8 +357,8 @@ const AssetDetailsModal = ({ asset, onClose, onDelete, onDuplicate, onSave, fiel
                                     <option value="">Не выбрано</option>
                                     {/* Изменено: fields.assetsFields.paymentSystem */}
                                     {fields?.assetsFields?.paymentSystem?.map((item, index) => {
-                                        const value = typeof item === 'object' ? item.code || item.name : item;
-                                        const display = typeof item === 'object' ? item.name : item;
+                                        const value = typeof item === 'object' ? item.value || item.code || item.name : item;
+                                        const display = typeof item === 'object' ? (item.name || item.value || item.code) : item;
                                         return <option key={index} value={value}>{display}</option>;
                                     })}
                                 </select>

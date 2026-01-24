@@ -9,6 +9,7 @@ import FormattedDate from "../FormattedDate";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 import { useTransactions } from '../../context/TransactionsContext'; 
 import { calculateNextPaymentDate } from './regularPayments';
+import { fetchFields, withDefaults } from '../../api/fields';
 
 const RegularPaymentsPage = () => {
     const [regularPayments, setRegularPayments] = useState([]);
@@ -26,11 +27,26 @@ const RegularPaymentsPage = () => {
         const savedAssets = localStorage.getItem('assetsData');
         if (savedAssets) setAssets(JSON.parse(savedAssets));
 
-        const savedFields = localStorage.getItem('fieldsData');
-        if (savedFields) {
-            const parsed = JSON.parse(savedFields);
-            if (parsed.financeFields) setFinanceFields(parsed.financeFields);
-        }
+        const loadFields = async () => {
+            try {
+                const fields = await fetchFields();
+                const normalized = withDefaults(fields);
+                setFinanceFields(normalized.financeFields || {});
+            } catch (error) {
+                console.error("Ошибка при загрузке полей финансов:", error);
+                const savedFields = localStorage.getItem('fieldsData');
+                if (savedFields) {
+                    try {
+                        const parsed = JSON.parse(savedFields);
+                        if (parsed.financeFields) setFinanceFields(parsed.financeFields);
+                    } catch (e) {
+                        console.error("Ошибка парсинга fieldsData:", e);
+                    }
+                }
+            }
+        };
+
+        loadFields();
     }, []);
 
     

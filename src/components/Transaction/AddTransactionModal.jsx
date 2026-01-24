@@ -4,6 +4,20 @@ import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Plus } from 'lucide-react';
 import { createTransaction } from '../../api/transactions';
 
+const getArticleValue = (article) =>
+    String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
+const getSubarticleInterval = (sub) =>
+    String(
+        sub?.subarticleInterval ??
+        sub?.parentArticleName ??
+        sub?.articleName ??
+        sub?.interval ??
+        sub?.group ??
+        ''
+    ).trim();
+const getSubarticleValue = (sub) =>
+    String(sub?.subarticleValue ?? sub?.name ?? sub?.value ?? '').trim();
+
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
@@ -23,7 +37,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
 
     const initialFormData = useMemo(() => ({
         date: getCurrentDateTime(),
-        category: financeFields?.articles?.[0]?.articleValue || "",
+        category: financeFields?.articles?.[0] ? getArticleValue(financeFields.articles[0]) : "",
         subcategory: "",
         description: "",
         account: "",
@@ -78,7 +92,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
             return [];
         }
         return financeFields.subarticles.filter(
-            (sub) => sub.subarticleInterval === formData.category
+            (sub) => getSubarticleInterval(sub) === formData.category
         );
     }, [formData.category, financeFields]);
 
@@ -460,15 +474,18 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             <option value="" disabled>Выберите статью</option>
                             
                             {financeFields?.articles
-                                .filter(article => article.articleValue && article.articleValue.trim() !== "")
+                                ?.map((article) => ({
+                                    id: article?.id,
+                                    value: getArticleValue(article),
+                                }))
+                                .filter((article) => article.value)
                                 .map((article) => (
-                                    <option key={article.id} value={article.articleValue}>
-                                        {article.articleValue}
+                                    <option key={article.id || article.value} value={article.value}>
+                                        {article.value}
                                     </option>
-                                ))
-                            }
+                                ))}
 
-                            {!financeFields?.articles?.some(a => a.articleValue === "Смена счета") && (
+                            {!financeFields?.articles?.some((a) => getArticleValue(a) === "Смена счета") && (
                                 <option value="Смена счета">Смена счета</option>
                             )}
                         </select>
@@ -486,13 +503,16 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             >
                                 <option value="">Выберите подстатью</option>
                                 {availableSubcategories
-                                    .filter(sub => sub.subarticleValue && sub.subarticleValue.trim() !== "")
+                                    .map((sub) => ({
+                                        id: sub?.id,
+                                        value: getSubarticleValue(sub),
+                                    }))
+                                    .filter((sub) => sub.value)
                                     .map((sub, index) => (
-                                        <option key={sub.id || index} value={sub.subarticleValue}>
-                                            {sub.subarticleValue}
+                                        <option key={sub.id || index} value={sub.value}>
+                                            {sub.value}
                                         </option>
-                                    ))
-                                }
+                                    ))}
                             </select>
                         </div>
                     )}

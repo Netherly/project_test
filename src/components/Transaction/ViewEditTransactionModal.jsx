@@ -3,6 +3,20 @@ import "../../styles/ViewEditTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal'; 
 import { Trash2, Copy} from 'lucide-react';
 
+const getArticleValue = (article) =>
+    String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
+const getSubarticleInterval = (sub) =>
+    String(
+        sub?.subarticleInterval ??
+        sub?.parentArticleName ??
+        sub?.articleName ??
+        sub?.interval ??
+        sub?.group ??
+        ''
+    ).trim();
+const getSubarticleValue = (sub) =>
+    String(sub?.subarticleValue ?? sub?.name ?? sub?.value ?? '').trim();
+
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
@@ -55,7 +69,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             return [];
         }
         return financeFields.subarticles.filter(
-            (sub) => sub.subarticleInterval === formData.category
+            (sub) => getSubarticleInterval(sub) === formData.category
         );
     }, [formData.category, financeFields]);
 
@@ -379,12 +393,18 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             className="form-input1"
                         >
                             <option value="" disabled>Выберите статью</option>
-                            {financeFields?.articles?.map((article, index) => (
-                                <option key={index} value={article.articleValue}>
-                                    {article.articleValue}
-                                </option>
-                            ))}
-                            {!financeFields?.articles?.some(a => a.articleValue === "Смена счета") && (
+                            {financeFields?.articles
+                                ?.map((article, index) => ({
+                                    key: article?.id || index,
+                                    value: getArticleValue(article),
+                                }))
+                                .filter((article) => article.value)
+                                .map((article) => (
+                                    <option key={article.key} value={article.value}>
+                                        {article.value}
+                                    </option>
+                                ))}
+                            {!financeFields?.articles?.some((a) => getArticleValue(a) === "Смена счета") && (
                                 <option value="Смена счета">Смена счета</option>
                             )}
                         </select>
@@ -403,11 +423,17 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 className="form-input1"
                             >
                                 <option value="">Выберите подстатью</option>
-                                {availableSubcategories.map((sub, index) => (
-                                    <option key={index} value={sub.subarticleValue}>
-                                        {sub.subarticleValue}
-                                    </option>
-                                ))}
+                                {availableSubcategories
+                                    .map((sub, index) => ({
+                                        key: sub?.id || index,
+                                        value: getSubarticleValue(sub),
+                                    }))
+                                    .filter((sub) => sub.value)
+                                    .map((sub) => (
+                                        <option key={sub.key} value={sub.value}>
+                                            {sub.value}
+                                        </option>
+                                    ))}
                             </select>
                         </div>
                     )}

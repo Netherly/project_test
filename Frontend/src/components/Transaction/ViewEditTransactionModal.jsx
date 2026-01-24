@@ -3,6 +3,20 @@ import "../../styles/ViewEditTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal'; 
 import { Trash2, Copy, X } from 'lucide-react';
 
+const getArticleValue = (article) =>
+    String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
+const getSubarticleInterval = (sub) =>
+    String(
+        sub?.subarticleInterval ??
+        sub?.parentArticleName ??
+        sub?.articleName ??
+        sub?.interval ??
+        sub?.group ??
+        ''
+    ).trim();
+const getSubarticleValue = (sub) =>
+    String(sub?.subarticleValue ?? sub?.name ?? sub?.value ?? '').trim();
+
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
@@ -55,7 +69,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             return [];
         }
         return financeFields.subarticles.filter(
-            (sub) => sub.subarticleInterval === formData.category
+            (sub) => getSubarticleInterval(sub) === formData.category
         );
     }, [formData.category, financeFields]);
 
@@ -75,6 +89,19 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         console.error("Ошибка загрузки курсов из localStorage:", error);
       }
     }, []);
+
+    const formatRequisite = (req) => {
+        const text = String(req?.text ?? req?.value ?? "").trim();
+        if (text) return text;
+        const bank = String(req?.bank ?? "").trim();
+        const card = String(req?.card ?? "").trim();
+        const owner = String(req?.owner ?? req?.holder ?? "").trim();
+        if (bank && card) return `${bank}: ${card}`;
+        if (bank) return bank;
+        if (card) return card;
+        if (owner) return owner;
+        return "";
+    };
 
     const convertCurrency = (amount, fromCurrency, toCurrency) => {
         if (!currentRates || !amount || isNaN(amount) || amount === 0) {
@@ -126,9 +153,9 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
 
     useEffect(() => {
         setShowCommissionField(formData.category === "Смена счета" && parseFloat(formData.amount) > 0);
-        setShowOrderBlock(!!formData.orderNumber);
+        setShowOrderBlock(!!formData.orderId);
         setShowSecondAccountBlock(formData.category === "Смена счета");
-    }, [formData.category, formData.amount, formData.orderNumber]);
+    }, [formData.category, formData.amount, formData.orderId]);
     
     
     const hasUnsavedChanges = () => {
@@ -176,6 +203,29 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             if (selectedAccount) {
                 newFormData.accountCurrency = selectedAccount.currency;
             }
+            if (newFormData.counterparty) {
+                const selectedCounterparty = counterparties.find(cp => cp.name === newFormData.counterparty);
+                if (selectedCounterparty && selectedCounterparty.requisites) {
+                    const requisitesForCurrency = selectedCounterparty.requisites[newFormData.accountCurrency];
+                    if (requisitesForCurrency && requisitesForCurrency.length > 0) {
+                        newFormData.counterpartyRequisites = requisitesForCurrency
+                            .map(formatRequisite)
+                            .filter(Boolean)
+                            .join(', ');
+                    } else {
+                        const firstAvailableCurrency = Object.keys(selectedCounterparty.requisites)[0];
+                        if (firstAvailableCurrency) {
+                            const firstRequisites = selectedCounterparty.requisites[firstAvailableCurrency];
+                            if (firstRequisites && firstRequisites.length > 0) {
+                                newFormData.counterpartyRequisites = firstRequisites
+                                    .map(formatRequisite)
+                                    .filter(Boolean)
+                                    .join(', ');
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         if (name === "counterparty") {
@@ -183,22 +233,21 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             let requisitesString = "";
 
             if (selectedCounterparty && selectedCounterparty.requisites) {
-                
                 const requisitesForCurrency = selectedCounterparty.requisites[newFormData.accountCurrency];
 
                 if (requisitesForCurrency && requisitesForCurrency.length > 0) {
-                    
                     requisitesString = requisitesForCurrency
-                        .map(req => `${req.bank}: ${req.card}`)
+                        .map(formatRequisite)
+                        .filter(Boolean)
                         .join(', ');
                 } else {
-                    
                     const firstAvailableCurrency = Object.keys(selectedCounterparty.requisites)[0];
                     if (firstAvailableCurrency) {
                         const firstRequisites = selectedCounterparty.requisites[firstAvailableCurrency];
                         if (firstRequisites && firstRequisites.length > 0) {
                            requisitesString = firstRequisites
-                             .map(req => `${req.bank}: ${req.card}`)
+                             .map(formatRequisite)
+                             .filter(Boolean)
                              .join(', ');
                         }
                     }
@@ -213,17 +262,27 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             setShowCommissionField(currentCategory === "Смена счета" && currentAmount > 0);
         }
 
-        if (name === "orderNumber") {
+        if (name === "orderId" || name === "orderNumber") {
             if (newValue) { 
-                const selectedOrder = orders.find(order => String(order.id) === newValue);
+                const selectedOrder = orders.find(order => String(order.id) === String(newValue));
+                const orderCurrency =
+                    selectedOrder?.currency?.code ||
+                    selectedOrder?.currency?.name ||
+                    selectedOrder?.currency ||
+                    "";
+                const orderAmount =
+                    selectedOrder?.amount ??
+                    selectedOrder?.price ??
+                    0;
+
                 if (selectedOrder) {
-                    
                     newFormData.orderId = selectedOrder.id;
-                    newFormData.orderCurrency = selectedOrder.currency; 
-                    newFormData.sumByRatesOrderAmountCurrency = selectedOrder.amount; 
-                    newFormData.sumByRatesUAH = convertCurrency(selectedOrder.amount, selectedOrder.currency, "UAH");
-                    newFormData.sumByRatesUSD = convertCurrency(selectedOrder.amount, selectedOrder.currency, "USD");
-                    newFormData.sumByRatesRUB = convertCurrency(selectedOrder.amount, selectedOrder.currency, "RUB");
+                    newFormData.orderNumber = selectedOrder.numberOrder ?? String(selectedOrder.orderSequence ?? selectedOrder.id);
+                    newFormData.orderCurrency = orderCurrency; 
+                    newFormData.sumByRatesOrderAmountCurrency = orderAmount; 
+                    newFormData.sumByRatesUAH = convertCurrency(orderAmount, orderCurrency, "UAH");
+                    newFormData.sumByRatesUSD = convertCurrency(orderAmount, orderCurrency, "USD");
+                    newFormData.sumByRatesRUB = convertCurrency(orderAmount, orderCurrency, "RUB");
                 }
             } else {
                 newFormData.orderId = "";
@@ -381,15 +440,18 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             <option value="" disabled>Выберите статью</option>
                             
                             {financeFields?.articles
-                                ?.filter(article => article.articleValue && article.articleValue.trim() !== "")
+                                ?.map((article) => ({
+                                    id: article?.id,
+                                    value: getArticleValue(article),
+                                }))
+                                .filter((article) => article.value)
                                 .map((article) => (
-                                    <option key={article.id} value={article.articleValue}>
-                                        {article.articleValue}
+                                    <option key={article.id || article.value} value={article.value}>
+                                        {article.value}
                                     </option>
-                                ))
-                            }
+                                ))}
 
-                            {!financeFields?.articles?.some(a => a.articleValue === "Смена счета") && (
+                            {!financeFields?.articles?.some((a) => getArticleValue(a) === "Смена счета") && (
                                 <option value="Смена счета">Смена счета</option>
                             )}
                         </select>
@@ -407,13 +469,16 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             >
                                 <option value="">Выберите подстатью</option>
                                 {availableSubcategories
-                                    .filter(sub => sub.subarticleValue && sub.subarticleValue.trim() !== "")
+                                    .map((sub) => ({
+                                        id: sub?.id,
+                                        value: getSubarticleValue(sub),
+                                    }))
+                                    .filter((sub) => sub.value)
                                     .map((sub, index) => (
-                                        <option key={sub.id || index} value={sub.subarticleValue}>
-                                            {sub.subarticleValue}
+                                        <option key={sub.id || index} value={sub.value}>
+                                            {sub.value}
                                         </option>
-                                    ))
-                                }
+                                    ))}
                             </select>
                         </div>
                     )}
@@ -563,11 +628,14 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 className="form-input1"
                             >
                                 <option value="">Выберите контрагента</option>
-                                {counterparties.map((cp) => (
-                                    <option key={`${cp.type}-${cp.id}`} value={cp.name}>
-                                        {cp.name}
-                                    </option>
-                                ))}
+                                {counterparties.map((cp) => {
+                                    const typeLabel = cp.type === "employee" ? "сотрудник" : "клиент";
+                                    return (
+                                        <option key={`${cp.type}-${cp.id}`} value={cp.name}>
+                                            {cp.name} ({typeLabel})
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
 
@@ -586,23 +654,26 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                         </div>
 
                         <div className="form-row">
-                            <label htmlFor="orderNumber" className="form-label">
+                            <label htmlFor="orderId" className="form-label">
                                 № заказа
                             </label>
                             <select
-                                id="orderNumber"
-                                name="orderNumber"
-                                value={formData.orderNumber}
+                                id="orderId"
+                                name="orderId"
+                                value={formData.orderId || ""}
                                 onChange={handleChange}
                                 className="form-input1"
                             >
                                 <option value="">Выберите номер заказа</option>
-                                {orders.map(order => (
-                                    
-                                    <option key={order.id} value={order.id}>
-                                        {order.id}
-                                    </option>
-                                ))}
+                                {orders.map(order => {
+                                    const orderLabel = order.numberOrder ?? order.orderSequence ?? order.id;
+                                    const clientLabel = order.clientName || order.name;
+                                    return (
+                                        <option key={order.id} value={order.id}>
+                                            {clientLabel ? `${orderLabel} — ${clientLabel}` : orderLabel}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
 
