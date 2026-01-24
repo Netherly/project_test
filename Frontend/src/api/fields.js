@@ -157,6 +157,7 @@ export function withDefaults(fields) {
       category: normStrs(f?.clientFields?.category),
       country: normStrs(f?.clientFields?.country),
       tags: normTags(f?.clientFields?.tags ?? f?.clientFields?.tag),
+      groups: Array.isArray(f?.clientFields?.groups) ? f.clientFields.groups : [],
     },
     companyFields: {
       tags: normTags(f?.companyFields?.tags),
@@ -338,10 +339,55 @@ export async function getGroup(groupKey) {
 export async function setGroup(groupKey, groupData) {
   const all = withDefaults(await fetchFields());
   const next = { ...all, [groupKey]: groupData || {} };
-  return saveFields(next);
+  return saveFields(serializeForSave(next));
 }
 
-export const FieldsAPI = {};
+const loadAll = async () => withDefaults(await fetchFields());
+
+const updateBundle = async (mutator) => {
+  const all = await loadAll();
+  const next = mutator ? mutator(all) || all : all;
+  return saveFields(serializeForSave(next));
+};
+
+export const FieldsAPI = {
+  async getClient() {
+    const all = await loadAll();
+    return all.clientFields || {};
+  },
+  async getEmployee() {
+    const all = await loadAll();
+    return all.employeeFields || {};
+  },
+  async getExecutor() {
+    const all = await loadAll();
+    return all.executorFields || {};
+  },
+  async setClientCategories(list) {
+    return updateBundle((all) => {
+      all.clientFields.category = normStrs(list);
+      return all;
+    });
+  },
+  async setClientSources(list) {
+    return updateBundle((all) => {
+      all.clientFields.source = normStrs(list);
+      return all;
+    });
+  },
+  async setClientCountries(list) {
+    return updateBundle((all) => {
+      all.clientFields.country = normStrs(list);
+      return all;
+    });
+  },
+  async setClientTags(list) {
+    return updateBundle((all) => {
+      all.clientFields.tags = normTags(list);
+      return all;
+    });
+  },
+};
 
 export default {
   fetchFields,

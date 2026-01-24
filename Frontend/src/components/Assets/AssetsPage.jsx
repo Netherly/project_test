@@ -143,10 +143,16 @@ const AssetsPage = () => {
             const assetTransactions = allTransactions.filter(t => t.account === asset.id);
             const totalIncoming = assetTransactions
                 .filter(t => t.operation === 'Зачисление')
-                .reduce((sum, t) => sum + Number(t.amount), 0);
+                .reduce((sum, t) => {
+                    const commission = Number(t.commission) || 0;
+                    return sum + (Number(t.amount) - commission);
+                }, 0);
             const totalOutgoing = assetTransactions
                 .filter(t => t.operation === 'Списание')
-                .reduce((sum, t) => sum + Number(t.amount), 0);
+                .reduce((sum, t) => {
+                    const commission = Number(t.commission) || 0;
+                    return sum + (Number(t.amount) + commission);
+                }, 0);
 
 
             const newBalance = (Number(asset.turnoverStartBalance) + totalIncoming - totalOutgoing).toFixed(2);

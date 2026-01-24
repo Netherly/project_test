@@ -45,3 +45,8 @@ export async function deleteTransaction(id) {
   const resp = await httpDelete(`/transactions/${id}`);
   return unwrap(resp);
 }
+
+export async function duplicateTransaction(id) {
+  const resp = await httpPost(`/transactions/${id}/duplicate`);
+  return unwrap(resp);
+}

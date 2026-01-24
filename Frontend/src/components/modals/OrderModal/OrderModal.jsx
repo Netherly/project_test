@@ -1,5 +1,5 @@
 // src/components/modals/OrderModal/OrderModal.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useForm, Controller, FormProvider } from "react-hook-form";
 
 import OrderSummary from "./OrderSummary";
@@ -188,6 +188,7 @@ function OrderModal({
   const { isDirty } = formState;
 
   const {
+    transactions,
     isAddModalOpen,
     openAddTransactionModal,
     closeAddTransactionModal,
@@ -275,22 +276,30 @@ function OrderModal({
     });
   }, [order, journalEntries, reset, getValues]);
 
-  // ---- операции/транзакции заказа из localStorage ----
-  const [orderTransactions, setOrderTransactions] = useState([]);
-  useEffect(() => {
-    if (!order?.id) return;
-    const raw = localStorage.getItem("transactionsData");
-    if (!raw) return setOrderTransactions([]);
+  // ---- операции/транзакции заказа из контекста ----
+  const orderTransactions = useMemo(() => {
+    if (!order?.id && !order?.numberOrder && order?.orderSequence == null) return [];
+    const orderId = order?.id ? String(order.id) : null;
+    const orderNumber = order?.numberOrder ? String(order.numberOrder) : null;
+    const orderSequence =
+      order?.orderSequence !== undefined && order?.orderSequence !== null
+        ? String(order.orderSequence)
+        : null;
 
-    try {
-      const all = JSON.parse(raw);
-      const filtered = (Array.isArray(all) ? all : []).filter((trx) => trx.orderId === order.id);
-      setOrderTransactions(filtered);
-    } catch (e) {
-      console.error("Ошибка парсинга транзакций из localStorage:", e);
-      setOrderTransactions([]);
-    }
-  }, [order?.id]);
+    const list = Array.isArray(transactions) ? transactions : [];
+    return list.filter((trx) => {
+      const trxOrderId = trx?.orderId ?? trx?.order_id ?? trx?.order?.id ?? null;
+      const trxOrderNumber =
+        trx?.orderNumber ?? trx?.order_number ?? trx?.order?.numberOrder ?? null;
+
+      if (orderId && trxOrderId != null && String(trxOrderId) === orderId) return true;
+      if (orderNumber && trxOrderNumber != null && String(trxOrderNumber) === orderNumber)
+        return true;
+      if (orderSequence && trxOrderNumber != null && String(trxOrderNumber) === orderSequence)
+        return true;
+      return false;
+    });
+  }, [transactions, order?.id, order?.numberOrder, order?.orderSequence]);
 
   // ---- клиенты ----
   useEffect(() => {

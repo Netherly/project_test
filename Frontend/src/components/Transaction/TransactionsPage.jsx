@@ -61,8 +61,11 @@ const TransactionsPage = () => {
             return transactions.map(t => ({ ...t, balanceBefore: null, balanceAfter: null }));
         }
 
-        const finalBalances = new Map(assets.map(asset => [asset.accountName, asset.balance]));
-        const runningBalances = new Map(finalBalances);
+        const runningBalances = new Map();
+        assets.forEach((asset) => {
+            if (asset.id) runningBalances.set(asset.id, asset.balance);
+            if (asset.accountName) runningBalances.set(asset.accountName, asset.balance);
+        });
 
         const sortedTransactions = [...transactions];
 
@@ -84,24 +87,38 @@ const TransactionsPage = () => {
 
         return sortedTransactions.map(transaction => {
             // --- ИСПРАВЛЕНИЕ 1: Получаем имя счета корректно, даже если это объект ---
-            const accountRaw = transaction.account;
-            // Если account это объект — берем accountName, иначе (если старая запись) — саму строку
-            const accountName = accountRaw?.accountName || accountRaw; 
+            const accountId =
+                transaction.accountId ||
+                transaction.account?.id ||
+                (typeof transaction.account === 'string' ? transaction.account : null);
+            const accountName =
+                transaction.accountName ||
+                transaction.account?.accountName ||
+                (typeof transaction.account === 'string' ? transaction.account : '');
             
             const amount = Number(transaction.amount) || 0;
+            const commission = Number(transaction.commission) || 0;
+            const netDelta =
+                transaction.operation === 'Зачисление'
+                    ? amount - commission
+                    : amount + commission;
 
             // Используем имя счета для поиска баланса
-            const balanceAfter = runningBalances.get(accountName) ?? 0;
+            const balanceKey = accountId || accountName;
+            const balanceAfter = runningBalances.get(balanceKey) ?? runningBalances.get(accountName) ?? 0;
 
             let balanceBefore;
             if (transaction.operation === 'Зачисление') {
-                balanceBefore = balanceAfter - amount;
+                balanceBefore = balanceAfter - netDelta;
             } else { 
-                balanceBefore = balanceAfter + amount;
+                balanceBefore = balanceAfter + netDelta;
             }
             
             // Обновляем текущий баланс для следующей итерации (идем от новых к старым)
-            runningBalances.set(accountName, balanceBefore);
+            if (balanceKey) runningBalances.set(balanceKey, balanceBefore);
+            if (accountName && !runningBalances.has(accountName)) {
+                runningBalances.set(accountName, balanceBefore);
+            }
 
             return {
                 ...transaction,
@@ -165,7 +182,7 @@ const TransactionsPage = () => {
                                     <div className="transaction-account-info">
                                         <span className="transaction-account-main-name">
                                             {/* --- ИСПРАВЛЕНИЕ 2: Корректный вывод имени счета --- */}
-                                            {transaction.account?.accountName || transaction.account}
+                                            {transaction.accountName || transaction.account?.accountName || transaction.account}
                                         </span>
                                     </div>
                                 </td>

@@ -55,14 +55,9 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
         next.design = first?.id || "";
       }
 
-      // Сотрудник по умолчанию
-      if ((!prev.employeeId || prev.employeeId === "") && employees?.[0]?.id) {
-        next.employeeId = employees[0].id;
-      }
-
       return next;
     });
-  }, [assetsFields, generalFields, employees]);
+  }, [assetsFields, generalFields]);
 
   const handleFormChange = () => {
     if (!hasUnsavedChanges) setHasUnsavedChanges(true);
@@ -305,12 +300,11 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 name="employeeId"
                 value={formData.employeeId}
                 onChange={handleChange}
-                required
                 className="form-input1"
                 disabled={isLoading}
               >
-                <option value="" disabled>
-                  Выберите сотрудника
+                <option value="">
+                  Не выбрано
                 </option>
                 {employees?.map((emp) => (
                   <option key={emp.id} value={emp.id}>

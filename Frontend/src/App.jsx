@@ -20,7 +20,6 @@ import TasksPage from "./components/TasksPage/TasksPage";
 import ExecutorsPage from './components/Executors/ExecutorsPage';
 import EmployeePage from './components/Employees/EmployeePage';
 import RegularPaymentsPage from './components/RegularPayments/RegularPaymentsPage';
-import { PaymentChecker } from './components/RegularPayments/PaymentChecker';
 import CompaniesPage from './components/Companies/CompaniesPage.jsx';
 
 const ProtectedRoute = ({ element }) => {
@@ -32,7 +31,6 @@ export default function App() {
   return (
     <ThemeProvider>
       <TransactionsProvider>
-        <PaymentChecker />
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/home" element={<ProtectedRoute element={<HomePage />} />} />

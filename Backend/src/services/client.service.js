@@ -212,6 +212,11 @@ async function resolveGroupId(value) {
   return created.id;
 }
 
+async function resolveDefaultGroupId() {
+  const byOrder = await prisma.clientGroup.findFirst({ where: { order: 2 } });
+  return byOrder?.id ?? null;
+}
+
 /** ===== TAGS ===== */
 
 async function ensureClientTagCategory() {
@@ -350,6 +355,10 @@ async function buildClientData(payload = {}) {
 const ClientService = {
   async createClient(payload) {
     const data = await buildClientData(payload);
+    if (!data.groupId) {
+      const defaultGroupId = await resolveDefaultGroupId();
+      if (defaultGroupId) data.groupId = defaultGroupId;
+    }
 
     const client = await prisma.client.create({
       data,

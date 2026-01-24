@@ -4,11 +4,15 @@ import Sidebar from "../Sidebar";
 import AddRegularPaymentModal from "./AddRegularPaymentModal";
 import ViewEditRegularPaymentModal from "./ViewEditRegularPaymentModal"; 
 import "../../styles/RegularPaymentsPage.css";
-import * as paymentApi from './regularPayments';
-import FormattedDate from "../FormattedDate";
-import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
-import { useTransactions } from '../../context/TransactionsContext'; 
-import { calculateNextPaymentDate } from './regularPayments';
+import { fetchAssets } from "../../api/assets";
+import { fetchFields, withDefaults } from "../../api/fields";
+import {
+    fetchRegularPayments,
+    createRegularPayment,
+    updateRegularPayment,
+    deleteRegularPayment,
+    duplicateRegularPayment,
+} from "../../api/regular-payments";
 
 const RegularPaymentsPage = () => {
     const [regularPayments, setRegularPayments] = useState([]);
@@ -20,75 +24,62 @@ const RegularPaymentsPage = () => {
     const [selectedPayment, setSelectedPayment] = useState(null);
 
     useEffect(() => {
-        const payments = paymentApi.getRegularPayments();
-        setRegularPayments(payments);
-
-        const savedAssets = localStorage.getItem('assetsData');
-        if (savedAssets) setAssets(JSON.parse(savedAssets));
-
-        const savedFields = localStorage.getItem('fieldsData');
-        if (savedFields) {
-            const parsed = JSON.parse(savedFields);
-            if (parsed.financeFields) setFinanceFields(parsed.financeFields);
-        }
+        let mounted = true;
+        (async () => {
+            try {
+                const [payments, assetsData, fieldsData] = await Promise.all([
+                    fetchRegularPayments(),
+                    fetchAssets(),
+                    fetchFields(),
+                ]);
+                if (!mounted) return;
+                setRegularPayments(Array.isArray(payments) ? payments : []);
+                setAssets(Array.isArray(assetsData) ? assetsData : []);
+                const normalized = withDefaults(fieldsData);
+                setFinanceFields(normalized.financeFields || {});
+            } catch (e) {
+                console.error("Failed to load regular payments data:", e);
+                if (mounted) {
+                    setRegularPayments([]);
+                    setAssets([]);
+                    setFinanceFields({});
+                }
+            }
+        })();
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     
-    const handleUpdatePayment = (updatedPaymentData) => {
-        const updatedPayments = paymentApi.updateRegularPayment(updatedPaymentData);
-        setRegularPayments(updatedPayments);
-        closeViewEditModal(); 
+    const handleUpdatePayment = async (updatedPaymentData) => {
+        const updated = await updateRegularPayment(updatedPaymentData.id, updatedPaymentData);
+        setRegularPayments((prev) =>
+            prev.map((p) => (p.id === updated.id ? updated : p))
+        );
+        closeViewEditModal();
     };
 
-    const handleDeletePayment = (paymentId) => {
-        const updatedPayments = paymentApi.deleteRegularPayment(paymentId);
-        setRegularPayments(updatedPayments);
-        closeViewEditModal(); 
+    const handleDeletePayment = async (paymentId) => {
+        await deleteRegularPayment(paymentId);
+        setRegularPayments((prev) => prev.filter((p) => p.id !== paymentId));
+        closeViewEditModal();
     };
     
     
-    const handleDuplicatePayment = (paymentToDuplicate) => {
-        const updatedPayments = paymentApi.duplicateRegularPayment(paymentToDuplicate);
-        setRegularPayments(updatedPayments);
-        closeViewEditModal(); 
+    const handleDuplicatePayment = async (paymentToDuplicate) => {
+        const created = await duplicateRegularPayment(paymentToDuplicate.id);
+        setRegularPayments((prev) => [created, ...prev]);
+        closeViewEditModal();
     };
 
     
     const openAddModal = () => setIsAddModalOpen(true);
     const closeAddModal = () => setIsAddModalOpen(false);
 
-    const { addTransaction } = useTransactions();
-
-    const handleAddPayment = (newPaymentData) => {
-        const now = new Date();
-        
-       
-        const newTransaction = {
-            id: `TRX_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            date: now.toISOString(),
-            category: newPaymentData.category,
-            subcategory: newPaymentData.subcategory,
-            description: `Регулярный платеж: ${newPaymentData.description || newPaymentData.category}`,
-            account: newPaymentData.account,
-            accountCurrency: newPaymentData.accountCurrency,
-            operation: newPaymentData.operation,
-            amount: parseFloat(newPaymentData.amount),
-        };
-        
-        addTransaction(newTransaction); 
-
-       
-        const nextPaymentDateISO = calculateNextPaymentDate(newPaymentData, now);
-
-      
-        const paymentToAdd = {
-            ...newPaymentData,
-            nextPaymentDate: nextPaymentDateISO, 
-        };
-
-        
-        const updatedPayments = paymentApi.addRegularPayment(paymentToAdd);
-        setRegularPayments(updatedPayments);
+    const handleAddPayment = async (newPaymentData) => {
+        const created = await createRegularPayment(newPaymentData);
+        setRegularPayments((prev) => [created, ...prev]);
     };
 
     const openViewEditModal = (payment) => {
@@ -100,9 +91,9 @@ const RegularPaymentsPage = () => {
         setIsViewEditModalOpen(false);
     };
 
-    const getAccountNameById = (accountId) => {
-        const account = assets.find(a => a.id === accountId);
-        return account ? account.accountName : accountId;
+    const getAccountNameById = (accountId, fallbackName) => {
+        const account = assets.find((a) => a.id === accountId);
+        return account?.accountName || fallbackName || accountId;
     };
 
     const formatDate = (dateString, timeString) => {
@@ -170,7 +161,7 @@ const RegularPaymentsPage = () => {
                                     <td>{payment.category}</td>
                                     <td>{payment.subcategory}</td>
                                     <td>{payment.description}</td>
-                                    <td>{getAccountNameById(payment.account)}</td>
+                                    <td>{getAccountNameById(payment.account, payment.accountName)}</td>
                                     <td>{payment.accountCurrency}</td>
                                     <td>{payment.operation}</td>
                                     <td>

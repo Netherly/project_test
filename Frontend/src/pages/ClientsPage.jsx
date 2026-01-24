@@ -130,6 +130,9 @@ export default function ClientsPage({
   const [statusFilter, setStatusFilter] = useState("");
   const [tagFilter, setTagFilter] = useState([]);
   const [sourceFilter, setSourceFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [shareFilter, setShareFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -139,6 +142,7 @@ export default function ClientsPage({
   const [error, setError] = useState("");
   const [countriesList, setCountriesList] = useState(countries);
   const [currenciesList, setCurrenciesList] = useState(currencies);
+  const [categoriesList, setCategoriesList] = useState([]);
   const [companiesList, setCompaniesList] = useState(companies);
   const [employeesList, setEmployeesList] = useState(employees);
 
@@ -194,11 +198,13 @@ export default function ClientsPage({
         const data = await fetchFields();
         if (!mounted) return;
         const nextCountries = extractValues(data?.clientFields?.country);
+        const nextCategories = extractValues(data?.clientFields?.category);
         const nextCurrencies = extractValues(
           data?.generalFields?.currency ?? data?.clientFields?.currency,
           { preferCode: true }
         );
         if (nextCountries.length) setCountriesList(nextCountries);
+        if (nextCategories.length) setCategoriesList(nextCategories);
         if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
       } catch (e) {
         console.error("fetchFields (clients) failed:", e);
@@ -332,6 +338,7 @@ export default function ClientsPage({
           ...(c.tags || []).map((t) => t?.name ?? t),
           c.note,
           c.intro_description,
+          c.category?.name || c.category,
           c.source?.name || c.source,
           c.full_name,
           c.country?.name || c.country,
@@ -359,11 +366,36 @@ export default function ClientsPage({
         return !sourceFilter || srcName === sourceFilter;
       })
       .filter((c) => {
+        const catName = c.category?.name || c.category;
+        return !categoryFilter || catName === categoryFilter;
+      })
+      .filter((c) => {
+        const countryName = c.country?.name || c.country;
+        return !countryFilter || countryName === countryFilter;
+      })
+      .filter((c) => {
+        if (!shareFilter) return true;
+        const hasShare = Boolean(c.share_info);
+        return shareFilter === "yes" ? hasShare : !hasShare;
+      })
+      .filter((c) => {
         if (dateFrom && c.last_order_date !== "—" && new Date(c.last_order_date) < new Date(dateFrom)) return false;
         if (dateTo && c.last_order_date !== "—" && new Date(c.last_order_date) > new Date(dateTo)) return false;
         return true;
       });
-  }, [list, search, currencyFilter, statusFilter, tagFilter, sourceFilter, dateFrom, dateTo]);
+  }, [
+    list,
+    search,
+    currencyFilter,
+    statusFilter,
+    tagFilter,
+    sourceFilter,
+    categoryFilter,
+    countryFilter,
+    shareFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   /* === опции селектов === */
   const currencyOptions = useMemo(() => {
@@ -385,11 +417,24 @@ export default function ClientsPage({
     [list]
   );
 
+  const categoryOptions = useMemo(() => {
+    const fromFields = categoriesList?.length ? categoriesList : [];
+    if (fromFields.length) return fromFields;
+    return Array.from(new Set(list.map((c) => c.category?.name || c.category))).filter(Boolean);
+  }, [categoriesList, list]);
+
+  const countryOptions = useMemo(() => {
+    const fromFields = countriesList?.length ? countriesList : [];
+    if (fromFields.length) return fromFields;
+    return Array.from(new Set(list.map((c) => c.country?.name || c.country))).filter(Boolean);
+  }, [countriesList, list]);
+
   /* === заголовки и ширины === */
   const headers = [
     "Клиент",
     "Теги",
     "Вводное описание",
+    "Категория",
     "Источник",
     "ФИО",
     "Страна",
@@ -437,7 +482,7 @@ export default function ClientsPage({
   /* === модалка/редактирование === */
   const [showModal, setShow] = useState(false);
   const [active, setActive] = useState(null);
-  const [expanded, setExp] = useState({ 1: true, 2: true, 3: true });
+  const [expanded, setExp] = useState({});
 
   const idMap = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
 
@@ -456,6 +501,13 @@ export default function ClientsPage({
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
+      const savedCategory = saved?.category?.name || saved?.category;
+      if (savedCategory) {
+        setCategoriesList((prev) => {
+          const listSafe = Array.isArray(prev) ? prev : [];
+          return Array.from(new Set([...listSafe, savedCategory]));
+        });
+      }
       setList((prev) => {
         const idx = prev.findIndex((x) => x.id === saved.id);
         if (idx !== -1) {
@@ -518,7 +570,59 @@ export default function ClientsPage({
     document.addEventListener("mouseup", up);
   };
 
-  const groups = { 1: "Партнёры", 2: "Наши клиенты", 3: "По ситуации" };
+  const normalizeCategoryName = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value.trim();
+    return String(value?.name ?? value?.value ?? "").trim();
+  };
+
+  const groupedClients = useMemo(() => {
+    const buckets = new Map();
+
+    const ensureBucket = (key, name) => {
+      const existing = buckets.get(key);
+      if (existing) return existing;
+      const created = { key, name, clients: [] };
+      buckets.set(key, created);
+      return created;
+    };
+
+    (categoriesList || [])
+      .map(normalizeCategoryName)
+      .filter(Boolean)
+      .forEach((name) => {
+        ensureBucket(`cat:${name.toLowerCase()}`, name);
+      });
+
+    (filteredRows || []).forEach((client) => {
+      const rawName = normalizeCategoryName(client?.category?.name || client?.category);
+      const name = rawName || "Без категории";
+      const key = rawName ? `cat:${rawName.toLowerCase()}` : "cat:uncategorized";
+      ensureBucket(key, name).clients.push(client);
+    });
+
+    const items = Array.from(buckets.values()).map((item) => ({
+      ...item,
+      count: item.clients.length,
+    }));
+    items.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ru"));
+    return items;
+  }, [filteredRows, categoriesList]);
+
+  useEffect(() => {
+    if (!groupedClients.length) return;
+    setExp((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      groupedClients.forEach((g) => {
+        if (!(g.key in next)) {
+          next[g.key] = true;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [groupedClients]);
 
   const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -546,11 +650,16 @@ export default function ClientsPage({
           statusOptions={statusOptions}
           tagOptions={tagOptions}
           sourceOptions={sourceOptions}
-          onFilterChange={({ currency, status, tags, source, dateFrom: df, dateTo: dt }) => {
+          categoryOptions={categoryOptions}
+          countryOptions={countryOptions}
+          onFilterChange={({ currency, status, tags, source, category, country, share, dateFrom: df, dateTo: dt }) => {
             setCurrencyFilter(currency);
             setStatusFilter(status);
             setTagFilter(tags);
             setSourceFilter(source);
+            setCategoryFilter(category);
+            setCountryFilter(country);
+            setShareFilter(share);
             setDateFrom(df);
             setDateTo(dt);
           }}
@@ -573,22 +682,23 @@ export default function ClientsPage({
               </thead>
 
               <tbody>
-                {Object.entries(groups).map(([gid, gname]) => (
-                  <React.Fragment key={gid}>
-                    <tr className="group-header" onClick={() => setExp((p) => ({ ...p, [gid]: !p[gid] }))}>
-                      <td colSpan={COLS}>
-                        <span className={`collapse-icon ${!expanded[gid] ? "collapsed" : ""}`}>▼</span>
-                        {gname.toUpperCase()}
-                        <span className="group-count">
-                          {filteredRows.filter((c) => String(c.group) === gid).length}
-                        </span>
-                      </td>
-                    </tr>
+                {groupedClients.map((group) => {
+                  const isOpen = expanded[group.key] !== false;
+                  return (
+                    <React.Fragment key={group.key}>
+                      <tr
+                        className="group-header"
+                        onClick={() => setExp((p) => ({ ...p, [group.key]: !isOpen }))}
+                      >
+                        <td colSpan={COLS}>
+                          <span className={`collapse-icon ${!isOpen ? "collapsed" : ""}`}>▼</span>
+                          {String(group.name || "Без категории").toUpperCase()}
+                          <span className="group-count">{group.count}</span>
+                        </td>
+                      </tr>
 
-                    {expanded[gid] &&
-                      filteredRows
-                        .filter((c) => String(c.group) === gid)
-                        .map((c) => (
+                      {isOpen &&
+                        group.clients.map((c) => (
                           <tr key={c.id} onClick={() => openEdit(c)}>
                             <td>
                               <Ellipsis value={c.name} />
@@ -598,6 +708,9 @@ export default function ClientsPage({
                             </td>
                             <td>
                               <Ellipsis value={c.intro_description} />
+                            </td>
+                            <td>
+                              <Ellipsis value={c.category} />
                             </td>
                             <td>
                               <Ellipsis value={c.source} />
@@ -639,8 +752,9 @@ export default function ClientsPage({
                             </td>
                           </tr>
                         ))}
-                  </React.Fragment>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           )}

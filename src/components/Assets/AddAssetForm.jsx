@@ -41,7 +41,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
         type: '',
         paymentSystem: '',
         design: '',
-        employee: '',
+        employeeId: '',
         requisites: [{ label: '', value: '' }],
     });
 
@@ -52,16 +52,16 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
             // Используем generalFields.currency из пропсов
             if ((!prev.currency || prev.currency === '') && generalFields.currency?.[0]) {
                 const first = generalFields.currency[0];
-                next.currency = typeof first === 'object' ? first.code || first.name : first;
+                next.currency = typeof first === 'object' ? first.value || first.code || first.name : first;
             }
             // Используем assetsFields из пропсов
             if ((!prev.type || prev.type === '') && assetsFields.type?.[0]) {
                 const first = assetsFields.type[0];
-                next.type = typeof first === 'object' ? first.code || first.name : first;
+                next.type = typeof first === 'object' ? first.value || first.code || first.name : first;
             }
             if ((!prev.paymentSystem || prev.paymentSystem === '') && assetsFields.paymentSystem?.[0]) {
                 const first = assetsFields.paymentSystem[0];
-                next.paymentSystem = typeof first === 'object' ? first.code || first.name : first;
+                next.paymentSystem = typeof first === 'object' ? first.value || first.code || first.name : first;
             }
             if ((!prev.design || prev.design === '') && assetsFields.cardDesigns?.[0]) {
                 const first = assetsFields.cardDesigns[0];
@@ -118,10 +118,14 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
             (req) => req.label.trim() !== '' || req.value.trim() !== ''
         );
 
+        const selectedEmployee = employees?.find((emp) => emp.id === formData.employeeId);
+
         const newAssetPayload = {
             ...formData,
             limitTurnover: parseFloat(formData.limitTurnover) || 0,
             requisites: filteredRequisites,
+            employeeName: selectedEmployee?.fullName || selectedEmployee?.full_name || '',
+            employee: selectedEmployee?.fullName || selectedEmployee?.full_name || formData.employeeId,
         };
 
         try {
@@ -208,8 +212,8 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                 </option>
                                 {/* Используем generalFields.currency из пропсов */}
                                 {(generalFields.currency || []).map((item, index) => {
-                                    const value = typeof item === 'object' ? item.code || item.name : item;
-                                    const display = typeof item === 'object' ? item.name : item;
+                                    const value = typeof item === 'object' ? item.value || item.code || item.name : item;
+                                    const display = typeof item === 'object' ? (item.name || item.value || item.code) : item;
                                     return (
                                         <option key={index} value={value}>
                                             {display}
@@ -253,8 +257,8 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                 </option>
                                 {/* Используем assetsFields.type из пропсов */}
                                 {(assetsFields.type || []).map((item, index) => {
-                                    const value = typeof item === 'object' ? item.code || item.name : item;
-                                    const display = typeof item === 'object' ? item.name : item;
+                                    const value = typeof item === 'object' ? item.value || item.code || item.name : item;
+                                    const display = typeof item === 'object' ? (item.name || item.value || item.code) : item;
                                     return (
                                         <option key={index} value={value}>
                                             {display}
@@ -279,8 +283,8 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                                 <option value="">Не выбрано</option>
                                 {/* Используем assetsFields.paymentSystem из пропсов */}
                                 {(assetsFields.paymentSystem || []).map((item, index) => {
-                                    const value = typeof item === 'object' ? item.code || item.name : item;
-                                    const display = typeof item === 'object' ? item.name : item;
+                                    const value = typeof item === 'object' ? item.value || item.code || item.name : item;
+                                    const display = typeof item === 'object' ? (item.name || item.value || item.code) : item;
                                     return (
                                         <option key={index} value={value}>
                                             {display}
@@ -313,25 +317,22 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                         </div>
 
                         <div className="form-row">
-                            <label htmlFor="employee" className="form-label">
+                            <label htmlFor="employeeId" className="form-label">
                                 Сотрудник
                             </label>
                             <select
-                                id="employee"
-                                name="employee"
-                                value={formData.employee}
+                                id="employeeId"
+                                name="employeeId"
+                                value={formData.employeeId}
                                 onChange={handleChange}
-                                required
                                 className="form-input1"
                                 disabled={isLoading}
                             >
-                                <option value="" disabled>
-                                    Выберите сотрудника
-                                </option>
+                                <option value="">Не выбрано</option>
                                 {employees &&
                                     employees.map((emp) => (
-                                        <option key={emp.id} value={emp.fullName}>
-                                            {emp.fullName}
+                                        <option key={emp.id} value={emp.id}>
+                                            {emp.fullName || emp.full_name || emp.name || emp.id}
                                         </option>
                                     ))}
                             </select>

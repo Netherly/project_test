@@ -36,6 +36,58 @@ const safeNum = (v) => {
   return Number.isNaN(n) ? 0 : n;
 };
 
+const normalizeOperation = (value) => {
+  if (!value) return undefined;
+  if (Object.values(OperationType).includes(value)) return value;
+  return uiToEnumOperation(value);
+};
+
+const buildAssetEffect = (trx) => {
+  const op = normalizeOperation(trx?.operation);
+  const amount = safeNum(trx?.amount);
+  const commission = safeNum(trx?.commission);
+  if (!op || (!amount && !commission)) {
+    return { balanceDelta: 0, incomingDelta: 0, outgoingDelta: 0 };
+  }
+  if (op === OperationType.DEPOSIT) {
+    const net = amount - commission;
+    return { balanceDelta: net, incomingDelta: net, outgoingDelta: 0 };
+  }
+  if (op === OperationType.WITHDRAW) {
+    const net = amount + commission;
+    return { balanceDelta: -net, incomingDelta: 0, outgoingDelta: net };
+  }
+  return { balanceDelta: 0, incomingDelta: 0, outgoingDelta: 0 };
+};
+
+const invertEffect = (effect) => ({
+  balanceDelta: -safeNum(effect?.balanceDelta),
+  incomingDelta: -safeNum(effect?.incomingDelta),
+  outgoingDelta: -safeNum(effect?.outgoingDelta),
+});
+
+const diffEffects = (next, prev) => ({
+  balanceDelta: safeNum(next?.balanceDelta) - safeNum(prev?.balanceDelta),
+  incomingDelta: safeNum(next?.incomingDelta) - safeNum(prev?.incomingDelta),
+  outgoingDelta: safeNum(next?.outgoingDelta) - safeNum(prev?.outgoingDelta),
+});
+
+const isZeroEffect = (effect) =>
+  !effect ||
+  (!effect.balanceDelta && !effect.incomingDelta && !effect.outgoingDelta);
+
+const applyAssetEffect = async (db, accountId, effect) => {
+  if (!accountId || isZeroEffect(effect)) return;
+  const data = {};
+  if (effect.balanceDelta) {
+    data.balance = { increment: effect.balanceDelta };
+    data.turnoverEndBalance = { increment: effect.balanceDelta };
+  }
+  if (effect.incomingDelta) data.turnoverIncoming = { increment: effect.incomingDelta };
+  if (effect.outgoingDelta) data.turnoverOutgoing = { increment: effect.outgoingDelta };
+  await db.asset.update({ where: { id: accountId }, data });
+};
+
 const trxInclude = {
   account: {
     select: {
@@ -52,9 +104,13 @@ function viewModel(trx) {
   if (!trx) return trx;
   const accountName = trx.account?.accountName || trx.accountName || null;
   const accountCurrency = trx.account?.currency?.code || trx.accountCurrency || null;
+  const category = trx.category ?? trx.categoryDict?.name ?? null;
+  const subcategory = trx.subcategory ?? trx.subcategoryDict?.name ?? null;
 
   return {
     ...trx,
+    category,
+    subcategory,
     operation: enumToUiOperation(trx.operation),
     accountName,
     accountCurrency,
@@ -65,7 +121,7 @@ function viewModel(trx) {
  * ПОДГОТОВКА ДАННЫХ
  * Ищем ID справочников и возвращаем плоский объект для Prisma
  */
-async function prepareTransactionData(input) {
+async function prepareTransactionData(input, db = prisma) {
   const {
     date,
     amount,
@@ -113,7 +169,8 @@ async function prepareTransactionData(input) {
   if (subcategory !== undefined) data.subcategory = subcategory;
   if (counterparty !== undefined) data.counterparty = counterparty;
   if (counterpartyRequisites !== undefined) data.counterpartyRequisites = counterpartyRequisites;
-  if (accountCurrency !== undefined) data.accountCurrency = accountCurrency;
+  const hasAccountCurrency = accountCurrency !== undefined;
+  if (hasAccountCurrency) data.accountCurrency = accountCurrency;
   if (orderNumber !== undefined) data.orderNumber = String(orderNumber);
   if (orderCurrency !== undefined) data.orderCurrency = orderCurrency;
 
@@ -139,21 +196,29 @@ async function prepareTransactionData(input) {
     data.accountId = accountId;
   }
 
+  if (data.accountId && !hasAccountCurrency) {
+    const account = await db.asset.findUnique({
+      where: { id: data.accountId },
+      select: { currency: { select: { code: true } } },
+    });
+    if (account?.currency?.code) data.accountCurrency = account.currency.code;
+  }
+
   // B. КАТЕГОРИЯ (Ищем ID по имени)
   if (category) {
-    const catObj = await prisma.financeArticleDict.findFirst({ where: { name: category } });
+    const catObj = await db.financeArticleDict.findFirst({ where: { name: category } });
     data.categoryId = catObj ? catObj.id : null;
   }
 
   // C. ПОДКАТЕГОРИЯ
   if (subcategory) {
-    const subCatObj = await prisma.financeSubarticleDict.findFirst({ where: { name: subcategory } });
+    const subCatObj = await db.financeSubarticleDict.findFirst({ where: { name: subcategory } });
     data.subcategoryId = subCatObj ? subCatObj.id : null;
   }
 
   // D. ЗАКАЗ
   if (orderId && typeof orderId === 'string' && orderId.trim() !== '') {
-    const orderExists = await prisma.order.findUnique({ where: { id: orderId } });
+    const orderExists = await db.order.findUnique({ where: { id: orderId } });
     if (orderExists) {
       data.orderId = orderId;
     } else {
@@ -227,16 +292,21 @@ exports.create = async (req, res, next) => {
     const body = req.body;
 
     const createOne = async (rawItem) => {
-      const data = await prepareTransactionData(rawItem);
+      return prisma.$transaction(async (tx) => {
+        const data = await prepareTransactionData(rawItem, tx);
 
-      if (!data.accountId) throw new Error('accountId is required');
+        if (!data.accountId) throw new Error('accountId is required');
 
-      // Если ID пришел с фронта (TRX_...), не передаем его в Prisma (если в БД UUID по умолчанию)
-      if (rawItem?.id && String(rawItem.id).startsWith('TRX_')) {
-        delete data.id;
-      }
+        // Если ID пришел с фронта (TRX_...), не передаем его в Prisma (если в БД UUID по умолчанию)
+        if (rawItem?.id && String(rawItem.id).startsWith('TRX_')) {
+          delete data.id;
+        }
 
-      return prisma.transaction.create({ data, include: trxInclude });
+        const created = await tx.transaction.create({ data, include: trxInclude });
+        const effect = buildAssetEffect(created);
+        await applyAssetEffect(tx, created.accountId, effect);
+        return created;
+      });
     };
 
     if (Array.isArray(body)) {
@@ -261,15 +331,39 @@ exports.create = async (req, res, next) => {
 /** PUT /api/transactions/:id */
 exports.update = async (req, res, next) => {
   try {
-    const data = await prepareTransactionData(req.body);
-    const updated = await prisma.transaction.update({
-      where: { id: req.params.id },
-      data,
-      include: trxInclude,
+    const updated = await prisma.$transaction(async (tx) => {
+      const before = await tx.transaction.findUnique({ where: { id: req.params.id } });
+      if (!before) {
+        const err = new Error('Transaction not found');
+        err.status = 404;
+        throw err;
+      }
+
+      const data = await prepareTransactionData(req.body, tx);
+      const after = await tx.transaction.update({
+        where: { id: req.params.id },
+        data,
+        include: trxInclude,
+      });
+
+      const beforeEffect = buildAssetEffect(before);
+      const afterEffect = buildAssetEffect(after);
+      if (before.accountId && after.accountId && before.accountId === after.accountId) {
+        const diff = diffEffects(afterEffect, beforeEffect);
+        await applyAssetEffect(tx, after.accountId, diff);
+      } else {
+        await applyAssetEffect(tx, before.accountId, invertEffect(beforeEffect));
+        await applyAssetEffect(tx, after.accountId, afterEffect);
+      }
+
+      return after;
     });
+
     res.json(viewModel(updated));
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ message: 'Transaction not found' });
+    if (err.status === 404 || err.code === 'P2025') {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
     next(err);
   }
 };
@@ -277,10 +371,22 @@ exports.update = async (req, res, next) => {
 /** DELETE /api/transactions/:id */
 exports.removeOne = async (req, res, next) => {
   try {
-    await prisma.transaction.delete({ where: { id: req.params.id } });
+    await prisma.$transaction(async (tx) => {
+      const trx = await tx.transaction.findUnique({ where: { id: req.params.id } });
+      if (!trx) {
+        const err = new Error('Transaction not found');
+        err.status = 404;
+        throw err;
+      }
+      await tx.transaction.delete({ where: { id: req.params.id } });
+      const effect = buildAssetEffect(trx);
+      await applyAssetEffect(tx, trx.accountId, invertEffect(effect));
+    });
     res.json({ ok: true });
   } catch (err) {
-    if (err.code === 'P2025') return res.status(404).json({ message: 'Transaction not found' });
+    if (err.status === 404 || err.code === 'P2025') {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
     next(err);
   }
 };
@@ -288,22 +394,32 @@ exports.removeOne = async (req, res, next) => {
 /** POST /api/transactions/:id/duplicate */
 exports.duplicate = async (req, res, next) => {
   try {
-    const trx = await prisma.transaction.findUnique({ where: { id: req.params.id } });
-    if (!trx) return res.status(404).json({ message: 'Transaction not found' });
+    const copy = await prisma.$transaction(async (tx) => {
+      const trx = await tx.transaction.findUnique({ where: { id: req.params.id } });
+      if (!trx) {
+        const err = new Error('Transaction not found');
+        err.status = 404;
+        throw err;
+      }
 
-    const { id, createdAt, updatedAt, ...rest } = trx;
+      const { id, createdAt, updatedAt, ...rest } = trx;
 
-    const copy = await prisma.transaction.create({
-      data: {
-        ...rest,
-        description: `(Копия) ${rest.description || ''}`.trim(),
-        date: new Date(),
-      },
-      include: trxInclude,
+      const created = await tx.transaction.create({
+        data: {
+          ...rest,
+          description: `(Копия) ${rest.description || ''}`.trim(),
+          date: new Date(),
+        },
+        include: trxInclude,
+      });
+      const effect = buildAssetEffect(created);
+      await applyAssetEffect(tx, created.accountId, effect);
+      return created;
     });
 
     res.status(201).json(viewModel(copy));
   } catch (err) {
+    if (err.status === 404) return res.status(404).json({ message: 'Transaction not found' });
     next(err);
   }
 };

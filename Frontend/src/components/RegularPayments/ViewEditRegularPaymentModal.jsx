@@ -3,6 +3,20 @@ import "../../styles/ViewEditTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Trash2, Copy} from 'lucide-react';
 
+const getArticleValue = (article) =>
+    String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
+const getSubarticleInterval = (sub) =>
+    String(
+        sub?.subarticleInterval ??
+        sub?.parentArticleName ??
+        sub?.articleName ??
+        sub?.interval ??
+        sub?.group ??
+        ''
+    ).trim();
+const getSubarticleValue = (sub) =>
+    String(sub?.subarticleValue ?? sub?.name ?? sub?.value ?? '').trim();
+
 const ViewEditRegularPaymentModal = ({
     payment,
     onUpdate,
@@ -13,9 +27,14 @@ const ViewEditRegularPaymentModal = ({
     financeFields = {}
 }) => {
     
-    const originalPaymentRef = useRef(payment);
+    const normalizePayment = (p) => ({
+        ...p,
+        account: p?.account ?? p?.accountId ?? "",
+        accountCurrency: p?.accountCurrency ?? p?.account?.currency?.code ?? "UAH",
+    });
+    const originalPaymentRef = useRef(normalizePayment(payment));
     
-    const [formData, setFormData] = useState({ ...payment });
+    const [formData, setFormData] = useState(normalizePayment(payment));
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
     const [showUnsavedChangesConfirmation, setShowUnsavedChangesConfirmation] = useState(false);
@@ -25,7 +44,7 @@ const ViewEditRegularPaymentModal = ({
             return [];
         }
         return financeFields.subarticles.filter(
-            (sub) => sub.subarticleInterval === formData.category
+            (sub) => getSubarticleInterval(sub) === formData.category
         );
     }, [formData.category, financeFields]);
 
@@ -174,9 +193,17 @@ const ViewEditRegularPaymentModal = ({
                     <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
                         <select id="category" name="category" value={formData.category} onChange={handleChange} required className="form-input1">
-                            {financeFields?.articles?.map((article, index) => (
-                                <option key={index} value={article.articleValue}>{article.articleValue}</option>
-                            ))}
+                            {financeFields?.articles
+                                ?.map((article, index) => ({
+                                    key: article?.id || index,
+                                    value: getArticleValue(article),
+                                }))
+                                .filter((article) => article.value)
+                                .map((article) => (
+                                    <option key={article.key} value={article.value}>
+                                        {article.value}
+                                    </option>
+                                ))}
                         </select>
                     </div>
 
@@ -186,11 +213,19 @@ const ViewEditRegularPaymentModal = ({
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
                             <select id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleChange} className="form-input1">
                                 <option value="">Выберите подстатью</option>
-                                {availableSubcategories.map((sub, index) => (
-                                    <option key={index} value={sub.subarticleValue}>{sub.subarticleValue}</option>
+                            {availableSubcategories
+                                .map((sub, index) => ({
+                                    key: sub?.id || index,
+                                    value: getSubarticleValue(sub),
+                                }))
+                                .filter((sub) => sub.value)
+                                .map((sub) => (
+                                    <option key={sub.key} value={sub.value}>
+                                        {sub.value}
+                                    </option>
                                 ))}
-                            </select>
-                        </div>
+                        </select>
+                    </div>
                     )}
                     
                     {/* Описание */}

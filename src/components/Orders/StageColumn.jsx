@@ -15,7 +15,14 @@ const StageColumn = ({
   onDragEnd
 }) => {
   const ref = useRef(null);
-  const totalAmount = orders.reduce((sum, o) => sum + (o.price || 0), 0);
+  const toNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+  const totalAmount = orders.reduce(
+    (sum, o) => sum + toNumber(o?.budget ?? o?.price ?? o?.amount),
+    0
+  );
   const stageColor = getStageColor(stage);
 
   const [{ isOver }, drop] = useDrop({

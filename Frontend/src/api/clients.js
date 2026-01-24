@@ -76,10 +76,10 @@ const normalizeAccesses = (arr) => {
 };
 
 const normalizeGroup = (value) => {
-  if (value === undefined || value === null || value === "") return 2;
+  if (value === undefined || value === null || value === "") return null;
   if (typeof value === "object") {
     const order = value.order ?? value.value ?? value.code;
-    return order ?? 2;
+    return order ?? null;
   }
   return value;
 };

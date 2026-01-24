@@ -29,9 +29,21 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
     label: client.name,
   }));
   
+  const isPartnerClient = (client) => {
+    const groupName = String(
+      client?.category?.name ||
+        client?.category ||
+        client?.group_name ||
+        client?.group?.name ||
+        ""
+    ).toLowerCase();
+    if (groupName.includes("партн")) return true;
+    return String(client?.group) === "1";
+  };
+
   const partnerOptions = safeClients
-    .filter(client => client.group === 1) 
-    .map(partner => ({
+    .filter((client) => isPartnerClient(client))
+    .map((partner) => ({
       value: partner.id,
       label: partner.name,
     }));
