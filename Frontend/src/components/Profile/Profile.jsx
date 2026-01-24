@@ -17,6 +17,12 @@ import "../../styles/Profile.css";
 function Profile() {
   const { theme, toggleTheme, setBackgroundImage } = useContext(ThemeContext);
 
+  useEffect(() => {
+    if (theme === "light") {
+      toggleTheme();
+    }
+  }, [theme, toggleTheme]);
+
   const emptySettings = useMemo(
     () => ({
       nickname: "",
@@ -30,7 +36,7 @@ function Profile() {
       workSchedule: Array(7).fill(["09:00", "18:00"]),
       botReminders: Array(7).fill(false),
       crmLanguage: "ua",
-      crmTheme: "light",
+      crmTheme: "dark",
       crmBackground: null,
       notifySound: true,
       notifyCounter: true,
@@ -44,8 +50,6 @@ function Profile() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Смена пароля
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -61,13 +65,22 @@ function Profile() {
     JSON.stringify(originalSettings);
 
   const reloadProfile = async () => {
-    const data = await fetchProfile();
-    const serverSettings = withDefaults({ ...emptySettings, ...data });
-    setSettings(serverSettings);
-    setOriginalSettings(serverSettings);
-    methods.reset({ requisites: serverSettings.requisites || emptySettings.requisites });
-    if (serverSettings.crmBackground) setBackgroundImage(serverSettings.crmBackground);
-    if (serverSettings.crmTheme !== theme) toggleTheme();
+    try {
+      const data = await fetchProfile();
+      const serverSettings = withDefaults({ ...emptySettings, ...data });
+      setSettings(serverSettings);
+      setOriginalSettings(serverSettings);
+      methods.reset({ requisites: serverSettings.requisites || emptySettings.requisites });
+      
+      
+      if (serverSettings.crmBackground && serverSettings.crmBackground !== "null") {
+        setBackgroundImage(serverSettings.crmBackground);
+      } else {
+        setBackgroundImage(null);
+      }
+    } catch (e) {
+      console.error("Failed to reload profile:", e);
+    }
   };
 
   useEffect(() => {
@@ -81,8 +94,13 @@ function Profile() {
         setSettings(serverSettings);
         setOriginalSettings(serverSettings);
         methods.reset({ requisites: serverSettings.requisites || emptySettings.requisites });
-        if (serverSettings.crmBackground) setBackgroundImage(serverSettings.crmBackground);
-        if (serverSettings.crmTheme !== theme) toggleTheme();
+        
+       
+        if (serverSettings.crmBackground && serverSettings.crmBackground !== "null") {
+            setBackgroundImage(serverSettings.crmBackground);
+        } else {
+            setBackgroundImage(null);
+        }
       } catch (e) {
         console.error("Не удалось загрузить профиль:", e?.message || e);
       } finally {
@@ -180,7 +198,6 @@ function Profile() {
 
   const handleCancel = () => {
     setSettings(originalSettings);
-    if (originalSettings.crmTheme !== theme) toggleTheme();
     setBackgroundImage(originalSettings.crmBackground);
     methods.reset({ requisites: originalSettings.requisites });
     setErrors({});
@@ -192,17 +209,25 @@ function Profile() {
   const handleBackgroundChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
     try {
-      const { url } = await uploadProfileBackground(file);
+      const result = await uploadProfileBackground(file);
+      
+      const url = result?.url; 
+
       if (!url) {
         console.error("Сервер не вернул url");
         return;
       }
+      
       setBackgroundImage(url);
       handleChange("crmBackground", url);
       console.log("Фон обновлён");
     } catch (e) {
       console.error("Не удалось загрузить фон:", e?.message || e);
+      if (e?.response?.status === 401) {
+          alert("Ошибка авторизации. Пожалуйста, войдите в систему заново.");
+      }
     } finally {
       event.target.value = "";
     }
@@ -210,17 +235,16 @@ function Profile() {
 
   const handleLinkTelegram = async () => {
     try {
-      const { code, tgLink, httpsLink } = await createTelegramLink(); // { link, code, ttlMinutes, tgLink, httpsLink }
+      const { code, tgLink, httpsLink } = await createTelegramLink(); 
       await openTelegramDeepLink({ tg: tgLink, https: httpsLink, code });
       console.log("Открыл Telegram для привязки:", code);
-      setTimeout(() => reloadProfile(), 2000); // легкий авто-рефреш
+      setTimeout(() => reloadProfile(), 2000); 
     } catch (e) {
       console.error("Не удалось получить ссылку для привязки:", e?.message || e);
     }
   };
 
   const handleUnlinkTelegram = async () => {
-    // при необходимости сделай вызов /profile/telegram/unlink, сейчас — локально
     console.log("Отвязка Telegram...");
     handleChange("telegramUsername", null);
     handleChange("photoLink", null);
@@ -515,12 +539,10 @@ function Profile() {
                 <label className="title-label">Тема CRM</label>
                 <button
                   className="theme-toggle"
-                  onClick={() => {
-                    toggleTheme();
-                    handleChange("crmTheme", settings.crmTheme === "light" ? "dark" : "light");
-                  }}
+                  disabled
+                  style={{ opacity: 0.5, cursor: "not-allowed" }}
                 >
-                  {settings.crmTheme === "light" ? "🌙 Темная тема" : "☀️ Светлая тема"}
+                  🌙 Темная тема (Закреплено)
                 </button>
               </div>
 

@@ -32,7 +32,6 @@ export default function ExecutorModal({
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-
   useEffect(() => {
     const timer = setTimeout(() => setIsOpen(true), 10);
     return () => clearTimeout(timer);
@@ -43,7 +42,7 @@ export default function ExecutorModal({
         mode: 'onChange',
         defaultValues: {
             orderNumber: '',
-            performer: fields?.employees?.[0]?.fullName || '',
+            performer: '', 
             dateForPerformer: new Date().toISOString().split('T')[0], 
             hideClient: false,
             roundHours: false,
@@ -61,7 +60,6 @@ export default function ExecutorModal({
   const submitHandler = (data) => {
         console.log("Данные из формы:", data);
         
-        
         const dataToSave = {
             ...safeExecutor, 
             ...data,        
@@ -74,7 +72,6 @@ export default function ExecutorModal({
         };
         
         onSave(dataToSave);
-        
     };
 
   const onInvalid = (err) => {
@@ -122,8 +119,6 @@ export default function ExecutorModal({
         setShowDeleteConfirm(false);
     };
 
-  
-  
   const TABS = [
       { id: 'dashboard', label: 'Дашборд' },
       { id: 'general', label: 'Общее' },

@@ -26,11 +26,19 @@ const OrderCard = ({
   onClick,
   isDraggingRef,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  isMassEditMode,
+  isSelected,
+  showAmount = true // <--- 1. Добавили проп по умолчанию
 }) => {
   const ref = useRef(null);
   const [expandedRegular, setExpandedRegular] = useState(false);
   const [expandedTech, setExpandedTech] = useState(false);
+
+  // <--- 2. Восстановили логику вычисления суммы
+  const rawAmount = order.budget ?? order.price ?? order.amount ?? 0;
+  const amountText = Number(rawAmount).toLocaleString(); 
+  // ---------------------------------------------------
 
   const [{ isDragging }, drag] = useDrag({
     type: ItemTypes.ORDER,
@@ -39,12 +47,12 @@ const OrderCard = ({
       if (onDragStart) onDragStart();
       return { id: order.id, index, stage };
     },
+    canDrag: !isMassEditMode, 
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
     end: () => {
       isDraggingRef.current = false;
-
       if (onDragEnd) onDragEnd();
     },
   });
@@ -78,7 +86,12 @@ const OrderCard = ({
     },
   });
 
-  drag(drop(ref));
+  if (!isMassEditMode) {
+      drag(drop(ref));
+  } else {
+      // Если режим массового редактирования, DnD отключаем, но ref нужен для отрисовки
+      drop(ref); 
+  }
 
   const TagGroup = ({ tags, expanded, setExpanded, className }) => {
     if (!tags?.length) return null;
@@ -124,19 +137,49 @@ const OrderCard = ({
     );
   };
 
-  const displayAmount = order?.budget ?? order?.price ?? order?.amount;
-  const amountValue = Number(displayAmount);
-  const showAmount =
-    displayAmount !== undefined && displayAmount !== null && displayAmount !== "";
-  const amountText = Number.isFinite(amountValue) ? amountValue : displayAmount;
+  const handleClick = (e) => {
+      if (isMassEditMode) {
+          e.preventDefault(); 
+      }
+      onClick(order);
+  };
+
+  const getOpacity = () => {
+      if (isDragging) return 0.5;
+      if (isMassEditMode && !isSelected) return 0.6; 
+      return 1;
+  };
 
   return (
     <div
-      ref={ref}
-      className={`order-container ${isDragging ? "dragging" : ""}`}
-      onClick={() => onClick(order)}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
+      ref={ref} // Исправил ref, чтобы он всегда был привязан
+      className={`order-container ${isDragging ? "dragging" : ""} ${isSelected ? "selected-card" : ""}`}
+      onClick={handleClick}
+      style={{ 
+          opacity: getOpacity(),
+          border: isSelected ? '2px solid #478cff' : '1px solid transparent',
+          cursor: isMassEditMode ? 'pointer' : 'grab',
+          position: 'relative'
+      }}
     >
+      
+      {isMassEditMode && (
+        <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            zIndex: 10,
+            pointerEvents: 'none' 
+        }}>
+            <input 
+                type="checkbox" 
+                checked={isSelected || false} 
+                readOnly 
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+            />
+        </div>
+      )}
+
       <div className="order-card-header">
         <div className="order-left-content">
           <div>
@@ -149,6 +192,7 @@ const OrderCard = ({
         </div>
 
         <div className="order-right-content">
+          {/* Теперь showAmount и amountText существуют */}
           {showAmount && <div className="planned-date">{amountText} ₴</div>}
           {order.date && <div className="planned-date">{order.date}</div>}
           {order.plannedFinishDate && (
@@ -171,7 +215,6 @@ const OrderCard = ({
           setExpanded={setExpandedRegular}
           className="regular-tags"
         />
-
       </div>
     </div>
   );

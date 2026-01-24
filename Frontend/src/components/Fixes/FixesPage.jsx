@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from "react";
 import "./FixesPage.css";
-import Sidebar from "../Sidebar.jsx";
-import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
+import Sidebar from "../../../../src/components/Sidebar.jsx";
+import PageHeaderIcon from '../../../../src/components/HeaderIcon/PageHeaderIcon.jsx';
 import { Plus, Download, ChevronUp, ChevronDown } from 'lucide-react';
-import FixesModal from './FixesModal/FixesModal';
+import FixesModal from './FixesModal/FixesModal.jsx';
 
 function Fixes() {
     const [fixes, setFixes] = useState([]);

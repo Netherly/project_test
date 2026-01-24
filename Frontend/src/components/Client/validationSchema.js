@@ -23,13 +23,19 @@ const tagSchema = yup
 
 export const clientSchema = yup.object().shape({
   // === INFO ===
-  name: yup.string().required("Клиент обязателен"),
-  category: yup.string().required("Категория обязательна"),
-  source: yup.string().required("Источник обязателен"),
-  tags: yup.array().of(tagSchema).min(1, "Выберите хотя бы один тег"),
-  company_id: yup.string().required("Компания обязательна"),
-  intro_description: yup.string().required("Вводное описание обязательно"),
-  note: yup.string().required("Примечание обязательно"),
+  name: yup.string().required('Клиент обязателен'),
+  category: yup.string().required('Категория обязательна'),
+  source: yup.string().required('Источник обязателен'),
+  tags: yup.array()
+    .of(
+      yup.object().shape({
+        name: yup.string().required(), 
+        color: yup.string()            
+      })
+    )
+    .min(1, 'Выберите хотя бы один тег'),
+  intro_description: yup.string().required('Вводное описание обязательно'),
+  note: yup.string().required('Примечание обязательно'),
 
   // === CONTACTS ===
   full_name: yup.string().required("ФИО обязательно"),

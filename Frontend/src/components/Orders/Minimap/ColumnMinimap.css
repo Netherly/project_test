@@ -41,7 +41,9 @@
 
 .minimap-column-fill {
     background: var(--accent-color);
-    transition: width 0.2s ease;
+    /* Убираем transition: width */
+    /* Добавляем transition для opacity, чтобы цвет менялся плавно */
+    transition: opacity 0.1s linear; 
     border-radius: 1px;
 }
 

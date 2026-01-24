@@ -115,7 +115,6 @@ const Sidebar = () => {
       { name: "Клиенты", path: "/clients", icon: ClientsWebm },
       { name: "Сотрудники", path: "/employees", icon: EmployesWebm },
       { name: "Отчёты", path: "/reports", icon: ReportWebm },
-      { name: "Компании", path: "/company" },
     ],
     transactions: [
       { name: "Активы", path: "/assets", icon: AssetsWebm },
@@ -126,6 +125,7 @@ const Sidebar = () => {
       { name: "Доступы", path: "/access", icon: RolesWebm },
       { name: "Поля", path: "/fields", icon: FieldSettingsWebm },
       { name: "Курсы валют", path: "/currency-rates", icon: CurrencyRatesWebm },
+      { name: "Фикс", path: "/fixes", icon: SettingsWebm },
     ],
   };
 

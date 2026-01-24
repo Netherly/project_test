@@ -191,7 +191,7 @@ const AssetsPage = () => {
       return {
         ...asset,
         balance: parseFloat(newBalance),
-        balanceUAH: parseFloat(newBalanceUAH.toFixed(2)),
+        balanceUAH: parseFloat(newBalanceUAH),
         turnoverIncoming: totalIncoming,
         turnoverOutgoing: totalOutgoing,
         turnoverEndBalance: parseFloat(newBalance),

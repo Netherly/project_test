@@ -10,6 +10,7 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import ColumnMinimap from "./Minimap/ColumnMinimap";
 import ColumnVisibilityToggle from "./ColumnVisibilityToggle/ColumnVisibilityToggle";
 import useHorizontalDragScroll from "./hooks/useHorizontalDragScroll";
+import OrderMassActionBar from "./OrderMassActionBar";
 
 import { getLogEntries } from "../Journal/journalApi";
 import {
@@ -22,6 +23,8 @@ import {
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
+
+// --- Вспомогательные компоненты и константы ---
 
 const QuickDropZone = ({ stage, moveOrder, onDragEnd }) => {
   const [{ isOver }, drop] = useDrop({
@@ -118,6 +121,8 @@ const urgencyToApi = { "1": "one", "2": "two", "3": "three", "4": "four" };
 const apiToUrgency = { one: "1", two: "2", three: "3", four: "4" };
 
 const finalStages = ["Успешно завершен", "Закрыт", "Неудачно завершён", "Удаленные"];
+
+// --- Функции нормализации данных ---
 
 const parseDateInput = (value) => {
   if (!value) return undefined;
@@ -219,88 +224,19 @@ const isUuid = (value) =>
 
 const buildOrderMeta = (order = {}) => {
   const {
-    id,
-    stage,
-    stageIndex,
-    numberOrder,
-    orderSequence,
-    name,
-    clientName,
-    client,
-    client_company,
-    order_main_client,
-    order_client,
-    orderDate,
-    appealDate,
-    proposalDate,
-    date,
-    interval,
-    orderType,
-    orderStatus,
-    closeReason,
-    plannedStartDate,
-    plannedFinishDate,
-    project,
-    orderDescription,
-    techTags,
-    taskTags,
-    workList,
-    techSpecifications,
-    additionalConditions,
-    notes,
-    orderMainClient,
-    clientCompany,
-    partnerName,
-    thirdParties,
-    partnerDisableShare,
-    partnerPayment,
-    partnerPlan,
-    partnerPlanPercent,
-    partnerPlanSum,
-    partnerUnderpayment,
-    performers,
-    sharePercent,
-    price,
-    amount,
-    budget,
-    currencyType,
-    currencyRate,
-    hourlyRate,
-    roundHour,
-    discount,
-    upsell,
-    expenses,
-    tips,
-    paymentDetails,
-    paymentLog,
-    executionTime,
-    startDate,
-    endDate,
-    countDays,
-    completedDate,
-    completingTime,
-    completingLink,
-    orderImpressions,
-    workLog,
-    partner_name,
-    third_parties,
-    partner_disable_share,
-    partner_payment,
-    partner_plan,
-    partner_percent_plan,
-    partner_sum_plan,
-    partner_underpayment,
-    share_percent,
-    currency_type,
-    currency_rate,
-    hourly_rate,
-    round_hour,
-    payment_details,
-    payment_log,
-    work_log,
-    tags,
-    meta,
-    ...rest
+    id, stage, stageIndex, numberOrder, orderSequence, name, clientName, client, client_company,
+    order_main_client, order_client, orderDate, appealDate, proposalDate, date, interval,
+    orderType, orderStatus, closeReason, plannedStartDate, plannedFinishDate, project,
+    orderDescription, techTags, taskTags, workList, techSpecifications, additionalConditions,
+    notes, orderMainClient, clientCompany, partnerName, thirdParties, partnerDisableShare,
+    partnerPayment, partnerPlan, partnerPlanPercent, partnerPlanSum, partnerUnderpayment,
+    performers, sharePercent, price, amount, budget, currencyType, currencyRate, hourlyRate,
+    roundHour, discount, upsell, expenses, tips, paymentDetails, paymentLog, executionTime,
+    startDate, endDate, countDays, completedDate, completingTime, completingLink, orderImpressions,
+    workLog, partner_name, third_parties, partner_disable_share, partner_payment, partner_plan,
+    partner_percent_plan, partner_sum_plan, partner_underpayment, share_percent, currency_type,
+    currency_rate, hourly_rate, round_hour, round_hour_val, payment_details, payment_log,
+    work_log, tags, meta, ...rest
   } = order;
 
   return {
@@ -309,37 +245,226 @@ const buildOrderMeta = (order = {}) => {
   };
 };
 
+const mapOrderFromApi = (o = {}) => {
+  const meta = o.meta && typeof o.meta === "object" ? o.meta : {};
+  const stage = apiToStage[o.stage] || o.stage || "Лид";
+  const clientName = pickValue(o.clientName, o.client?.name, meta.clientName, meta.client) || "";
+  const orderDateRaw = pickDefined(o.orderDate, o.date, meta.orderDate, meta.date);
+  const plannedFinishRaw = pickDefined(o.plannedFinishDate, meta.plannedFinishDate);
+  const priceRaw = pickDefined(o.price, o.amount, o.budget, meta.price, meta.amount, meta.budget);
+  const price = priceRaw !== undefined && priceRaw !== null && priceRaw !== "" ? Number(priceRaw) : 0;
+  const tagsFromRelation = (o.tags || []).map((t) => t.tag?.name).filter(Boolean);
+  const tags = tagsFromRelation.length ? tagsFromRelation : normalizeTagList(meta.tags);
+
+  return {
+    ...meta,
+    id: o.id,
+    numberOrder: o.numberOrder ?? meta.numberOrder,
+    orderSequence: pickDefined(o.orderSequence, meta.orderSequence),
+    name: pickValue(o.name, o.title, meta.name, meta.title, meta.orderDescription, meta.project) || "",
+    clientName,
+    client: clientName,
+    stage,
+    stageIndex: o.stageIndex ?? 0,
+    price,
+    date: orderDateRaw ? new Date(orderDateRaw).toLocaleDateString("uk-UA") : "",
+    plannedFinishDate: toDateInput(plannedFinishRaw),
+    urgency: o.urgency ? apiToUrgency[o.urgency] || "" : meta.urgency || "",
+    isOldOrder: pickDefined(o.isOldOrder, meta.isOldOrder) ?? false,
+    appealDate: toDateInput(pickDefined(o.appealDate, meta.appealDate)),
+    proposalDate: toDateInput(pickDefined(o.proposalDate, meta.proposalDate)),
+    orderDate: toDateInput(orderDateRaw),
+    interval: pickDefined(o.interval, meta.interval) ?? "",
+    orderType: pickDefined(o.orderType, meta.orderType) ?? "",
+    orderStatus: pickDefined(o.orderStatus, meta.orderStatus) ?? "",
+    closeReason: pickDefined(o.closeReason, meta.closeReason) ?? "",
+    plannedStartDate: toDateInput(pickDefined(o.plannedStartDate, meta.plannedStartDate)),
+    project: pickDefined(o.project, meta.project) ?? "",
+    orderDescription: pickDefined(o.orderDescription, meta.orderDescription) ?? "",
+    techTags: normalizeTagList(pickDefined(o.techTags, meta.techTags)),
+    taskTags: normalizeTagList(pickDefined(o.taskTags, meta.taskTags)),
+    workList: normalizeArray(pickDefined(o.workList, meta.workList, meta.work_list)),
+    additionalOptions: normalizeArray(pickDefined(o.additionalOptions, meta.additionalOptions)),
+    techSpecifications: pickDefined(o.techSpecifications, meta.techSpecifications) ?? "",
+    additionalConditions: pickDefined(o.additionalConditions, meta.additionalConditions) ?? "",
+    notes: pickDefined(o.notes, meta.notes) ?? "",
+    order_client: pickDefined(o.clientId, meta.order_client) ?? "",
+    order_main_client: pickDefined(o.orderMainClient, meta.order_main_client) ?? "",
+    client_company: pickDefined(o.clientCompany, meta.client_company, clientName) ?? "",
+    partner_name: pickDefined(o.partnerName, meta.partner_name) ?? "",
+    third_parties: normalizeThirdParties(pickDefined(o.thirdParties, meta.third_parties)),
+    partner_disable_share: pickDefined(o.partnerDisableShare, meta.partner_disable_share) ?? false,
+    partner_payment: pickDefined(o.partnerPayment, meta.partner_payment) ?? "",
+    partner_plan: pickDefined(o.partnerPlan, meta.partner_plan) ?? "",
+    partner_percent_plan: pickDefined(o.partnerPlanPercent, meta.partner_percent_plan) ?? "",
+    partner_sum_plan: pickDefined(o.partnerPlanSum, meta.partner_sum_plan) ?? "",
+    partner_underpayment: pickDefined(o.partnerUnderpayment, meta.partner_underpayment) ?? "",
+    performers: normalizeArray(pickDefined(o.performers, meta.performers)),
+    share_percent: pickDefined(o.sharePercent, meta.share_percent) ?? "",
+    budget: pickDefined(o.budget, meta.budget, priceRaw) ?? "",
+    currency_type: pickDefined(o.currencyType, meta.currency_type) ?? "",
+    currency_rate: pickDefined(o.currencyRate, meta.currency_rate) ?? "",
+    hourly_rate: pickDefined(o.hourlyRate, meta.hourly_rate) ?? "",
+    round_hour: pickDefined(o.roundHour, meta.round_hour) ?? false,
+    discount: pickDefined(o.discount, meta.discount) ?? "",
+    discountReason: pickDefined(o.discountReason, meta.discountReason) ?? "",
+    upsell: pickDefined(o.upsell, meta.upsell) ?? "",
+    expenses: pickDefined(o.expenses, meta.expenses) ?? "",
+    tips: pickDefined(o.tips, meta.tips) ?? "",
+    payment_details: pickDefined(o.paymentDetails, meta.payment_details) ?? "",
+    payment_log: normalizeArray(pickDefined(o.paymentLog, meta.payment_log)),
+    executionTime: pickDefined(o.executionTime, meta.executionTime) ?? "",
+    startDate: toDateInput(pickDefined(o.startDate, meta.startDate)),
+    endDate: toDateInput(pickDefined(o.endDate, meta.endDate)),
+    countDays: normalizeInt(o.countDays), // <--- ИСПРАВЛЕНО ЗДЕСЬ (было order.countDays)
+    completedDate: toDateInput(pickDefined(o.completedDate, meta.completedDate)),
+    completingTime: pickDefined(o.completingTime, meta.completingTime) ?? "",
+    completingLink: pickDefined(o.completingLink, meta.completingLink) ?? "",
+    orderImpressions: pickDefined(o.orderImpressions, meta.orderImpressions) ?? "",
+    work_log: normalizeArray(pickDefined(o.workLog, meta.work_log)),
+    tags,
+  };
+};
+
+const toApiOrderPayload = (order = {}) => {
+  const stageEnum = stageToApi[order.stage] || "LEAD";
+  const stageIndex = Number.isInteger(order.stageIndex)
+    ? order.stageIndex
+    : Math.max(0, allStages.indexOf(order.stage));
+  const urgency = order.urgency ? urgencyToApi[String(order.urgency)] : undefined;
+  const tagIds = resolveOrderTagIds(order.tags);
+  const dateValue = order.orderDate || order.appealDate || order.date;
+  const plannedFinishValue = order.plannedFinishDate;
+  const priceValue = normalizeNumber(order.price ?? order.amount ?? order.budget);
+  const budgetValue = normalizeNumber(order.budget);
+  const clientName =
+    order.clientName || order.client || order.client_company || order.order_main_client || undefined;
+  const nameValue = order.name || order.orderDescription || order.project || undefined;
+  const thirdPartiesValue = normalizeArray(order.third_parties)
+    .map((party) => {
+      if (typeof party === "string") {
+        const text = party.trim();
+        return text ? { id: text, name: text } : null;
+      }
+      const id = party?.value ?? party?.id ?? "";
+      const name = party?.label ?? party?.name ?? "";
+      if (!id && !name) return null;
+      return { id: id || name, name: name || id };
+    })
+    .filter(Boolean);
+  const meta = buildOrderMeta(order);
+
+  const payload = {
+    name: nameValue,
+    ...(order.numberOrder !== undefined && order.numberOrder !== null
+      ? { numberOrder: order.numberOrder }
+      : {}),
+    clientName,
+    clientId: isUuid(order.order_client) ? order.order_client : undefined,
+    stage: stageEnum,
+    stageIndex,
+    price: priceValue,
+    amount: normalizeNumber(order.amount),
+    budget: budgetValue,
+    date: parseDateInput(dateValue),
+    plannedFinishDate: parseDateInput(plannedFinishValue),
+    urgency,
+    isOldOrder: order.isOldOrder ?? undefined,
+    appealDate: parseDateInput(order.appealDate),
+    proposalDate: parseDateInput(order.proposalDate),
+    orderDate: parseDateInput(order.orderDate),
+    interval: order.interval,
+    orderType: order.orderType,
+    orderStatus: order.orderStatus,
+    closeReason: order.closeReason,
+    plannedStartDate: parseDateInput(order.plannedStartDate),
+    project: order.project,
+    orderDescription: order.orderDescription,
+    techTags: normalizeTagList(order.techTags),
+    taskTags: normalizeTagList(order.taskTags),
+    workList: normalizeArray(order.workList),
+    additionalOptions: normalizeArray(order.additionalOptions),
+    techSpecifications: order.techSpecifications,
+    additionalConditions: order.additionalConditions,
+    notes: order.notes,
+    orderMainClient: order.order_main_client,
+    clientCompany: order.client_company,
+    partnerName: order.partner_name,
+    thirdParties: thirdPartiesValue,
+    partnerDisableShare: order.partner_disable_share ?? undefined,
+    partnerPayment: normalizeNumber(order.partner_payment),
+    partnerPlan: normalizeInt(order.partner_plan),
+    partnerPlanPercent: normalizeInt(order.partner_percent_plan),
+    partnerPlanSum: normalizeNumber(order.partner_sum_plan),
+    partnerUnderpayment: normalizeNumber(order.partner_underpayment),
+    performers: normalizeArray(order.performers),
+    sharePercent: normalizeNumber(order.share_percent),
+    currencyType: order.currency_type,
+    currencyRate: normalizeNumber(order.currency_rate),
+    hourlyRate: normalizeNumber(order.hourly_rate),
+    roundHour: order.round_hour ?? undefined,
+    discount: normalizeNumber(order.discount),
+    upsell: normalizeNumber(order.upsell),
+    expenses: normalizeNumber(order.expenses),
+    tips: normalizeNumber(order.tips),
+    paymentDetails: order.payment_details,
+    paymentLog: normalizeArray(order.payment_log),
+    executionTime: order.executionTime,
+    startDate: parseDateInput(order.startDate),
+    endDate: parseDateInput(order.endDate),
+    countDays: normalizeInt(order.countDays),
+    completedDate: parseDateInput(order.completedDate),
+    completingTime: order.completingTime,
+    completingLink: order.completingLink,
+    orderImpressions: order.orderImpressions,
+    workLog: normalizeArray(order.work_log),
+    ...(tagIds.length ? { tagIds } : {}),
+  };
+
+  return {
+    ...payload,
+    ...(Object.keys(meta || {}).length ? { meta } : {}),
+  };
+};
+
+// --- ОСНОВНОЙ КОМПОНЕНТ ---
+
 const OrdersPage = () => {
   const navigate = useNavigate();
   const { orderId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Состояние
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [journalEntries, setJournalEntries] = useState([]);
-
+  
+  // Видимость стадий
   const [visibleOrderStages, setVisibleOrderStages] = useState(() => {
     const stagesParam = searchParams.get("stages");
     if (stagesParam) return stagesParam.split(",");
     return allStages;
   });
 
-  const selectedOrder = useMemo(() => {
-    if (!orderId) return null;
-    return orders.find((o) => String(o.id) === String(orderId)) || null;
-  }, [orders, orderId]);
-
+  // UI стейт
   const [viewMode, setViewMode] = useState("kanban");
   const [isDragging, setIsDragging] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const stagesContainerRef = useRef(null);
   const isDraggingRef = useRef(false);
 
-  const handleCloseModal = () => {
-    navigate({ pathname: "/orders", search: searchParams.toString() });
-  };
+  // --- Mass Edit State (из твоих изменений) ---
+  const [isMassEditMode, setIsMassEditMode] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState([]);
 
+  // Вычисляемое значение выбранного заказа
+  const selectedOrder = useMemo(() => {
+    if (!orderId) return null;
+    return orders.find((o) => String(o.id) === String(orderId)) || null;
+  }, [orders, orderId]);
+
+  // Загрузка данных
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -361,6 +486,13 @@ const OrdersPage = () => {
     setJournalEntries(allEntries);
   }, []);
 
+  // --- Handlers ---
+
+  const handleCloseModal = () => {
+    navigate({ pathname: "/orders", search: searchParams.toString() });
+  };
+
+  // Перемещение заказа (Drag & Drop) - API версия
   const moveOrder = useCallback(async (orderIdValue, newStage, newIndex) => {
     setOrders((prevOrders) => {
       const order = prevOrders.find((o) => o.id === orderIdValue);
@@ -412,230 +544,6 @@ const OrdersPage = () => {
     }
   };
 
-  const handleDragStart = () => {
-    setIsDragging(true);
-  };
-  const handleDragEnd = () => {
-    setIsDragging(false);
-  };
-
-  const handleToggleStage = (stage) => {
-    let newStages;
-    if (visibleOrderStages.includes(stage)) {
-      newStages = visibleOrderStages.filter((s) => s !== stage);
-    } else {
-      newStages = [...visibleOrderStages, stage];
-    }
-
-    setVisibleOrderStages(newStages);
-
-    setSearchParams((prev) => {
-      const newParams = new URLSearchParams(prev);
-      if (newStages.length > 0) {
-        newParams.set("stages", newStages.join(","));
-      } else {
-        newParams.delete("stages");
-      }
-      return newParams;
-    });
-  };
-
-  const getFilteredOrdersForStage = (stage) => {
-    const stageOrders = orders.filter((order) => order.stage === stage);
-    if (!visibleOrderStages.includes(stage)) {
-      return [];
-    }
-    return stageOrders;
-  };
-
-  const handleScrollToPosition = useCallback((scrollLeft) => {
-    if (stagesContainerRef.current) {
-      stagesContainerRef.current.scrollLeft = scrollLeft;
-    }
-  }, []);
-
-  const mapOrderFromApi = (o = {}) => {
-    const meta = o.meta && typeof o.meta === "object" ? o.meta : {};
-    const stage = apiToStage[o.stage] || o.stage || "Лид";
-    const clientName = pickValue(o.clientName, o.client?.name, meta.clientName, meta.client) || "";
-    const orderDateRaw = pickDefined(o.orderDate, o.date, meta.orderDate, meta.date);
-    const plannedFinishRaw = pickDefined(o.plannedFinishDate, meta.plannedFinishDate);
-    const priceRaw = pickDefined(o.price, o.amount, o.budget, meta.price, meta.amount, meta.budget);
-    const price = priceRaw !== undefined && priceRaw !== null && priceRaw !== "" ? Number(priceRaw) : 0;
-    const tagsFromRelation = (o.tags || []).map((t) => t.tag?.name).filter(Boolean);
-    const tags = tagsFromRelation.length ? tagsFromRelation : normalizeTagList(meta.tags);
-
-    return {
-      ...meta,
-      id: o.id,
-      numberOrder: o.numberOrder ?? meta.numberOrder,
-      orderSequence: pickDefined(o.orderSequence, meta.orderSequence),
-      name: pickValue(o.name, o.title, meta.name, meta.title, meta.orderDescription, meta.project) || "",
-      clientName,
-      client: clientName,
-      stage,
-      stageIndex: o.stageIndex ?? 0,
-      price,
-      date: orderDateRaw ? new Date(orderDateRaw).toLocaleDateString("uk-UA") : "",
-      plannedFinishDate: toDateInput(plannedFinishRaw),
-      urgency: o.urgency ? apiToUrgency[o.urgency] || "" : meta.urgency || "",
-      isOldOrder: pickDefined(o.isOldOrder, meta.isOldOrder) ?? false,
-      appealDate: toDateInput(pickDefined(o.appealDate, meta.appealDate)),
-      proposalDate: toDateInput(pickDefined(o.proposalDate, meta.proposalDate)),
-      orderDate: toDateInput(orderDateRaw),
-      interval: pickDefined(o.interval, meta.interval) ?? "",
-      orderType: pickDefined(o.orderType, meta.orderType) ?? "",
-      orderStatus: pickDefined(o.orderStatus, meta.orderStatus) ?? "",
-      closeReason: pickDefined(o.closeReason, meta.closeReason) ?? "",
-      plannedStartDate: toDateInput(pickDefined(o.plannedStartDate, meta.plannedStartDate)),
-      project: pickDefined(o.project, meta.project) ?? "",
-      orderDescription: pickDefined(o.orderDescription, meta.orderDescription) ?? "",
-      techTags: normalizeTagList(pickDefined(o.techTags, meta.techTags)),
-      taskTags: normalizeTagList(pickDefined(o.taskTags, meta.taskTags)),
-      workList: normalizeArray(pickDefined(o.workList, meta.workList, meta.work_list)),
-      additionalOptions: normalizeArray(pickDefined(o.additionalOptions, meta.additionalOptions)),
-      techSpecifications: pickDefined(o.techSpecifications, meta.techSpecifications) ?? "",
-      additionalConditions: pickDefined(o.additionalConditions, meta.additionalConditions) ?? "",
-      notes: pickDefined(o.notes, meta.notes) ?? "",
-      order_client: pickDefined(o.clientId, meta.order_client) ?? "",
-      order_main_client: pickDefined(o.orderMainClient, meta.order_main_client) ?? "",
-      client_company: pickDefined(o.clientCompany, meta.client_company, clientName) ?? "",
-      partner_name: pickDefined(o.partnerName, meta.partner_name) ?? "",
-      third_parties: normalizeThirdParties(pickDefined(o.thirdParties, meta.third_parties)),
-      partner_disable_share: pickDefined(o.partnerDisableShare, meta.partner_disable_share) ?? false,
-      partner_payment: pickDefined(o.partnerPayment, meta.partner_payment) ?? "",
-      partner_plan: pickDefined(o.partnerPlan, meta.partner_plan) ?? "",
-      partner_percent_plan: pickDefined(o.partnerPlanPercent, meta.partner_percent_plan) ?? "",
-      partner_sum_plan: pickDefined(o.partnerPlanSum, meta.partner_sum_plan) ?? "",
-      partner_underpayment: pickDefined(o.partnerUnderpayment, meta.partner_underpayment) ?? "",
-      performers: normalizeArray(pickDefined(o.performers, meta.performers)),
-      share_percent: pickDefined(o.sharePercent, meta.share_percent) ?? "",
-      budget: pickDefined(o.budget, meta.budget, priceRaw) ?? "",
-      currency_type: pickDefined(o.currencyType, meta.currency_type) ?? "",
-      currency_rate: pickDefined(o.currencyRate, meta.currency_rate) ?? "",
-      hourly_rate: pickDefined(o.hourlyRate, meta.hourly_rate) ?? "",
-      round_hour: pickDefined(o.roundHour, meta.round_hour) ?? false,
-      discount: pickDefined(o.discount, meta.discount) ?? "",
-      discountReason: pickDefined(o.discountReason, meta.discountReason) ?? "",
-      upsell: pickDefined(o.upsell, meta.upsell) ?? "",
-      expenses: pickDefined(o.expenses, meta.expenses) ?? "",
-      tips: pickDefined(o.tips, meta.tips) ?? "",
-      payment_details: pickDefined(o.paymentDetails, meta.payment_details) ?? "",
-      payment_log: normalizeArray(pickDefined(o.paymentLog, meta.payment_log)),
-      executionTime: pickDefined(o.executionTime, meta.executionTime) ?? "",
-      startDate: toDateInput(pickDefined(o.startDate, meta.startDate)),
-      endDate: toDateInput(pickDefined(o.endDate, meta.endDate)),
-      countDays: pickDefined(o.countDays, meta.countDays) ?? "",
-      completedDate: toDateInput(pickDefined(o.completedDate, meta.completedDate)),
-      completingTime: pickDefined(o.completingTime, meta.completingTime) ?? "",
-      completingLink: pickDefined(o.completingLink, meta.completingLink) ?? "",
-      orderImpressions: pickDefined(o.orderImpressions, meta.orderImpressions) ?? "",
-      work_log: normalizeArray(pickDefined(o.workLog, meta.work_log)),
-      tags,
-    };
-  };
-
-  const toApiOrderPayload = (order = {}) => {
-    const stageEnum = stageToApi[order.stage] || "LEAD";
-    const stageIndex = Number.isInteger(order.stageIndex)
-      ? order.stageIndex
-      : Math.max(0, allStages.indexOf(order.stage));
-    const urgency = order.urgency ? urgencyToApi[String(order.urgency)] : undefined;
-    const tagIds = resolveOrderTagIds(order.tags);
-    const dateValue = order.orderDate || order.appealDate || order.date;
-    const plannedFinishValue = order.plannedFinishDate;
-    const priceValue = normalizeNumber(order.price ?? order.amount ?? order.budget);
-    const budgetValue = normalizeNumber(order.budget);
-    const clientName =
-      order.clientName || order.client || order.client_company || order.order_main_client || undefined;
-    const nameValue = order.name || order.orderDescription || order.project || undefined;
-    const thirdPartiesValue = normalizeArray(order.third_parties)
-      .map((party) => {
-        if (typeof party === "string") {
-          const text = party.trim();
-          return text ? { id: text, name: text } : null;
-        }
-        const id = party?.value ?? party?.id ?? "";
-        const name = party?.label ?? party?.name ?? "";
-        if (!id && !name) return null;
-        return { id: id || name, name: name || id };
-      })
-      .filter(Boolean);
-    const meta = buildOrderMeta(order);
-
-    const payload = {
-      name: nameValue,
-      ...(order.numberOrder !== undefined && order.numberOrder !== null
-        ? { numberOrder: order.numberOrder }
-        : {}),
-      clientName,
-      clientId: isUuid(order.order_client) ? order.order_client : undefined,
-      stage: stageEnum,
-      stageIndex,
-      price: priceValue,
-      amount: normalizeNumber(order.amount),
-      budget: budgetValue,
-      date: parseDateInput(dateValue),
-      plannedFinishDate: parseDateInput(plannedFinishValue),
-      urgency,
-      isOldOrder: order.isOldOrder ?? undefined,
-      appealDate: parseDateInput(order.appealDate),
-      proposalDate: parseDateInput(order.proposalDate),
-      orderDate: parseDateInput(order.orderDate),
-      interval: order.interval,
-      orderType: order.orderType,
-      orderStatus: order.orderStatus,
-      closeReason: order.closeReason,
-      plannedStartDate: parseDateInput(order.plannedStartDate),
-      project: order.project,
-      orderDescription: order.orderDescription,
-      techTags: normalizeTagList(order.techTags),
-      taskTags: normalizeTagList(order.taskTags),
-      workList: normalizeArray(order.workList),
-      additionalOptions: normalizeArray(order.additionalOptions),
-      techSpecifications: order.techSpecifications,
-      additionalConditions: order.additionalConditions,
-      notes: order.notes,
-      orderMainClient: order.order_main_client,
-      clientCompany: order.client_company,
-      partnerName: order.partner_name,
-      thirdParties: thirdPartiesValue,
-      partnerDisableShare: order.partner_disable_share ?? undefined,
-      partnerPayment: normalizeNumber(order.partner_payment),
-      partnerPlan: normalizeInt(order.partner_plan),
-      partnerPlanPercent: normalizeInt(order.partner_percent_plan),
-      partnerPlanSum: normalizeNumber(order.partner_sum_plan),
-      partnerUnderpayment: normalizeNumber(order.partner_underpayment),
-      performers: normalizeArray(order.performers),
-      sharePercent: normalizeNumber(order.share_percent),
-      currencyType: order.currency_type,
-      currencyRate: normalizeNumber(order.currency_rate),
-      hourlyRate: normalizeNumber(order.hourly_rate),
-      roundHour: order.round_hour ?? undefined,
-      discount: normalizeNumber(order.discount),
-      upsell: normalizeNumber(order.upsell),
-      expenses: normalizeNumber(order.expenses),
-      tips: normalizeNumber(order.tips),
-      paymentDetails: order.payment_details,
-      paymentLog: normalizeArray(order.payment_log),
-      executionTime: order.executionTime,
-      startDate: parseDateInput(order.startDate),
-      endDate: parseDateInput(order.endDate),
-      countDays: normalizeInt(order.countDays),
-      completedDate: parseDateInput(order.completedDate),
-      completingTime: order.completingTime,
-      completingLink: order.completingLink,
-      orderImpressions: order.orderImpressions,
-      workLog: normalizeArray(order.work_log),
-      ...(tagIds.length ? { tagIds } : {}),
-    };
-
-    return {
-      ...payload,
-      ...(Object.keys(meta || {}).length ? { meta } : {}),
-    };
-  };
-
   const handleCreateOrder = async (newOrderData) => {
     try {
       const payload = toApiOrderPayload(newOrderData);
@@ -673,11 +581,93 @@ const OrdersPage = () => {
     }
   };
 
+  // Mass Edit Logic + Navigation
   const handleOrderClick = (order) => {
-    navigate({ pathname: `/orders/${order.id}`, search: searchParams.toString() });
+    if (isMassEditMode) {
+      setSelectedOrders((prev) =>
+        prev.includes(order.id)
+          ? prev.filter((id) => id !== order.id)
+          : [...prev, order.id]
+      );
+    } else {
+      navigate({ pathname: `/orders/${order.id}`, search: searchParams.toString() });
+    }
   };
 
+  const toggleMassEditMode = () => {
+    setIsMassEditMode((prev) => !prev);
+    setSelectedOrders([]);
+  };
+
+  const handleMassUpdate = (field, value) => {
+    if (field === "stage") {
+      // Здесь пока локальное обновление, нужно будет добавить API вызов если требуется
+      setOrders((prevOrders) =>
+        prevOrders.map((order) => {
+          if (selectedOrders.includes(order.id)) {
+            return { ...order, stage: value };
+          }
+          return order;
+        })
+      );
+      setIsMassEditMode(false);
+      setSelectedOrders([]);
+    }
+  };
+
+  const handleSelectAllInStage = (stageName, shouldSelect) => {
+    const ordersInStage = orders.filter((o) => o.stage === stageName);
+    const idsInStage = ordersInStage.map((o) => o.id);
+
+    if (shouldSelect) {
+      setSelectedOrders((prev) => {
+        const newSelection = new Set([...prev, ...idsInStage]);
+        return Array.from(newSelection);
+      });
+    } else {
+      setSelectedOrders((prev) => prev.filter((id) => !idsInStage.includes(id)));
+    }
+  };
+
+  const handleToggleStage = (stage) => {
+    let newStages;
+    if (visibleOrderStages.includes(stage)) {
+      newStages = visibleOrderStages.filter((s) => s !== stage);
+    } else {
+      newStages = [...visibleOrderStages, stage];
+    }
+    setVisibleOrderStages(newStages);
+    setSearchParams((prev) => {
+      const newParams = new URLSearchParams(prev);
+      if (newStages.length > 0) {
+        newParams.set("stages", newStages.join(","));
+      } else {
+        newParams.delete("stages");
+      }
+      return newParams;
+    });
+  };
+
+  const getFilteredOrdersForStage = (stage) => {
+    const stageOrders = orders.filter((order) => order.stage === stage);
+    if (!visibleOrderStages.includes(stage)) {
+      return [];
+    }
+    return stageOrders;
+  };
+
+  const handleScrollToPosition = useCallback((scrollLeft) => {
+    if (stagesContainerRef.current) {
+      stagesContainerRef.current.scrollLeft = scrollLeft;
+    }
+  }, []);
+
+  const handleDragStart = () => setIsDragging(true);
+  const handleDragEnd = () => setIsDragging(false);
+
   useHorizontalDragScroll(stagesContainerRef, isDraggingRef);
+
+  // --- RENDER ---
 
   return (
     <div className="orders-page">
@@ -710,6 +700,24 @@ const OrdersPage = () => {
             visibleStages={visibleOrderStages}
             onToggleStage={handleToggleStage}
           />
+
+          <button
+            className={`journal-mass-action-button ${isMassEditMode ? "active" : ""}`}
+            onClick={toggleMassEditMode}
+            title="Массовое выделение"
+            style={{ marginLeft: "10px" }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </button>
 
           <button className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>
             <svg
@@ -746,6 +754,9 @@ const OrdersPage = () => {
                 isDraggingRef={isDraggingRef}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                isMassEditMode={isMassEditMode}
+                selectedOrders={selectedOrders}
+                onSelectAllInStage={handleSelectAllInStage}
               />
             ))}
           </div>
@@ -772,6 +783,18 @@ const OrdersPage = () => {
             </div>
           )}
         </DndProvider>
+
+        {isMassEditMode && selectedOrders.length > 0 && (
+          <OrderMassActionBar
+            selectedCount={selectedOrders.length}
+            onClose={() => {
+              setIsMassEditMode(false);
+              setSelectedOrders([]);
+            }}
+            stages={allStages}
+            onMassUpdate={handleMassUpdate}
+          />
+        )}
       </div>
 
       {selectedOrder && (

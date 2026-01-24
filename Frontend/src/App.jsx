@@ -14,6 +14,7 @@ import AssetsPage from "./components/Assets/AssetsPage";
 import TransactionsPage from "./components/Transaction/TransactionsPage";
 import Profile from "./components/Profile/Profile";
 import FieldsPage from "./pages/FieldsPage";
+import FixesPage from "./components/Fixes/FixesPage";
 import AccessSettings from "./components/AccessSettings/AccessSettingsPage";
 import TasksPage from "./components/TasksPage/TasksPage";
 
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/fields" element={<ProtectedRoute element={<FieldsPage />} />} />
           <Route path="/access/:subPage?" element={<ProtectedRoute element={<AccessSettings />} />} />
           <Route path="/tasks" element={<ProtectedRoute element={<TasksPage />} />} />
+          <Route path="/fixes" element={<ProtectedRoute element={<FixesPage />} />} />
           <Route path="/company" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
           <Route
             path="/clients/:clientId?"
