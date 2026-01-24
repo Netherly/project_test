@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-crm
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -13,82 +17,145 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect frontend/backend dirs
+        run: |
+          set -e
+          if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> "$GITHUB_ENV"; else echo "FE_DIR=frontend" >> "$GITHUB_ENV"; fi
+          if [ -d Backend  ]; then echo "BE_DIR=Backend"  >> "$GITHUB_ENV"; else echo "BE_DIR=backend"  >> "$GITHUB_ENV"; fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ secrets.NODE_VERSION || '20' }}
 
-      - name: Detect frontend/backend dirs
+      # 1) Пишем prod-env (без CRLF) + страховочный .env
+      - name: Write frontend env files (normalize)
+        working-directory: ./${{ env.FE_DIR }}
+        env:
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
         run: |
-          if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> $GITHUB_ENV; else echo "FE_DIR=frontend" >> $GITHUB_ENV; fi
-          if [ -d Backend ]; then echo "BE_DIR=Backend"  >> $GITHUB_ENV; else echo "BE_DIR=backend"  >> $GITHUB_ENV; fi
+          set -e
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
 
-      # 1) Пишем prod-env
-      - name: Write frontend .env.production
-        run: |
-          cd "${{ env.FE_DIR }}"
-          printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env.production || true
+          data = os.environ.get("FRONTEND_ENV", "")
+          data = data.replace("\r\n", "\n").replace("\r", "\n")
+
+          if not data.strip():
+              raise SystemExit("FRONTEND_ENV is empty")
+
+          env_prod = Path(".env.production")
+          env_prod.write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+
+          # страховка: если build пойдет не в production-mode, Vite всё равно подхватит .env
+          Path(".env").write_text(env_prod.read_text(encoding="utf-8"), encoding="utf-8")
+          PY
 
       # 2) Удаляем любые другие .env*, которые могут перебить
       - name: Remove other env files
         working-directory: ./${{ env.FE_DIR }}
         run: |
-          rm -f .env .env.local .env.development .env.development.local .env.production.local || true
+          set -e
+          rm -f .env.local .env.development .env.development.local .env.production.local || true
 
-      # 3) Валидируем и экспортируем VITE_API_URL из .env.production
+      # 3) Валидируем и экспортируем VITE_API_URL из .env.production (нормализуем \r, снимаем кавычки, убираем / на конце)
       - name: Validate & export VITE_API_URL
         working-directory: ./${{ env.FE_DIR }}
         run: |
-          echo "----- .env.production (first 50 lines) -----"
-          sed -n '1,50p' .env.production || true
-          echo "--------------------------------------------"
-          URL=$(grep -E '^VITE_API_URL=' .env.production | sed 's/^VITE_API_URL=//')
-          if [ -z "$URL" ]; then
-            echo "VITE_API_URL is missing in FRONTEND_ENV" >&2
-            exit 1
-          fi
-          echo "VITE_API_URL=$URL" >> $GITHUB_ENV
+          set -e
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import re
+          from pathlib import Path
+
+          text = Path(".env.production").read_text(encoding="utf-8")
+
+          m = re.search(r"^VITE_API_URL=(.*)$", text, flags=re.MULTILINE)
+          if not m:
+              raise SystemExit("VITE_API_URL is missing in FRONTEND_ENV")
+
+          url = m.group(1).strip().replace("\r", "")
+
+          # снять обрамляющие кавычки
+          if (url.startswith('"') and url.endswith('"')) or (url.startswith("'") and url.endswith("'")):
+              url = url[1:-1].strip()
+
+          url = url.rstrip("/")  # нормализуем
+
+          if not url:
+              raise SystemExit("VITE_API_URL is empty after normalization")
+
+          print(f"VITE_API_URL={url}")
+          PY
+
+          echo "Exported VITE_API_URL=$VITE_API_URL"
 
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
         env:
           VITE_API_URL: ${{ env.VITE_API_URL }}
         run: |
-          npm ci || npm install
-          npm run build || npm run build:prod || echo "no build script"
+          set -e
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          # сначала пробуем явно production-mode (для Vite это важно)
+          npm run build -- --mode production || npm run build || npm run build:prod
 
       - name: Detect FE_OUT
         run: |
-          if [ -d "${{ env.FE_DIR }}/dist" ]; then echo "FE_OUT=dist" >> $GITHUB_ENV; else echo "FE_OUT=build" >> $GITHUB_ENV; fi
-          echo "FE_DIR=${{ env.FE_DIR }} FE_OUT=${{ env.FE_OUT }}"
-          test -d "${{ env.FE_DIR }}/${{ env.FE_OUT }}" || (echo "Build dir not found" && exit 1)
-          find "${{ env.FE_DIR }}/${{ env.FE_OUT }}" -maxdepth 1 -type f | head -n 10
+          set -e
+          FE_DIR="${{ env.FE_DIR }}"
+          if [ -d "$FE_DIR/dist" ]; then
+            FE_OUT="dist"
+          elif [ -d "$FE_DIR/build" ]; then
+            FE_OUT="build"
+          else
+            echo "Build dir not found (expected dist/ or build/)" >&2
+            exit 1
+          fi
+
+          echo "FE_OUT=$FE_OUT" >> "$GITHUB_ENV"
+          echo "FE_DIR=$FE_DIR FE_OUT=$FE_OUT"
+
+          test -d "$FE_DIR/$FE_OUT"
+          find "$FE_DIR/$FE_OUT" -maxdepth 1 -type f | head -n 10 || true
 
       - name: Fail if bundle contains bad base url
+        env:
+          VITE_API_URL: ${{ env.VITE_API_URL }}
         run: |
           set -e
+          OUT="${{ env.FE_DIR }}/${{ env.FE_OUT }}"
+          URL="${VITE_API_URL//$'\r'/}"
+          URL="${URL%/}"
+
           echo "Searching for '/undefined/' in bundle..."
-          if grep -RIn --no-messages "/undefined/" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" >/dev/null ; then
+          if grep -RIn --no-messages "/undefined/" "$OUT" >/dev/null ; then
             echo "Bundle contains '/undefined/'. Check VITE_API_URL!" >&2
             exit 1
           fi
-          echo "Validating VITE_API_URL..."
-          if [ -z "${{ env.VITE_API_URL }}" ]; then
+
+          if [ -z "$URL" ]; then
             echo "VITE_API_URL is missing." >&2
             exit 1
           fi
-          if echo "${{ env.VITE_API_URL }}" | grep -Eqi '(localhost|127\.0\.0\.1)'; then
+
+          if echo "$URL" | grep -Eqi '(localhost|127\.0\.0\.1)'; then
             echo "VITE_API_URL points to localhost. Fix FRONTEND_ENV." >&2
             exit 1
           fi
-          if ! grep -RInF --no-messages "${{ env.VITE_API_URL }}" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" >/dev/null ; then
-            echo "Bundle does not contain VITE_API_URL. Check env injection/build." >&2
+
+          # ищем URL и в форме без / и с /
+          if ! grep -RInF --no-messages "$URL" "$OUT" >/dev/null && \
+             ! grep -RInF --no-messages "${URL}/" "$OUT" >/dev/null; then
+            echo "Bundle does not contain VITE_API_URL ($URL). Check env injection/build or frontend code." >&2
             exit 1
           fi
+
           echo "OK: bundle URLs look clean"
 
       - name: Pack frontend build
         run: |
+          set -e
           tar -C "${{ env.FE_DIR }}" -czf frontend.tgz "${{ env.FE_OUT }}"
 
       - name: Upload frontend archive
@@ -156,7 +223,6 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
-        # Распаковываем и кладем исходники в crm-backend
           script: |
             set -e
             cd /var/www
@@ -173,7 +239,38 @@ jobs:
             fi
             rm -f backend.tgz
 
-      - name: Write backend .env on server
+      # Делаем backend.env локально БЕЗ проблем кавычек/CRLF и грузим на сервер (без heredoc-индента)
+      - name: Prepare backend .env file
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+        run: |
+          set -e
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          data = os.environ.get("BACKEND_ENV", "")
+          data = data.replace("\r\n", "\n").replace("\r", "\n")
+
+          if not data.strip():
+              raise SystemExit("BACKEND_ENV is empty")
+
+          Path("backend.env").write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload backend env file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "backend.env"
+          target: "/var/www"
+          overwrite: true
+
+      - name: Move backend .env into place (chmod 640)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -182,10 +279,14 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
-            cat > /var/www/crm-backend/.env << 'EOF'
-            ${{ secrets.BACKEND_ENV }}
-            EOF
-            chmod 640 /var/www/crm-backend/.env
+            set -e
+            cd /var/www
+            test -f backend.env
+            mkdir -p crm-backend
+            # более безопасные права по умолчанию
+            umask 027
+            mv -f backend.env crm-backend/.env
+            chmod 640 crm-backend/.env
 
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
@@ -196,6 +297,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
+            set -e
             if ! command -v node >/dev/null 2>&1; then
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
@@ -218,7 +320,7 @@ jobs:
             cd /var/www/crm-backend
 
             export HUSKY=0
-            npm ci --omit=dev || npm install --omit=dev
+            npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
 
             # вычисляем текущий хэш схемы
             CURR_HASH=""
@@ -253,12 +355,11 @@ jobs:
                 if [ "${PRISMA_ACCEPT_DATA_LOSS}" = "yes" ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = "true" ]; then
                   npx prisma db push --accept-data-loss
                 else
-                  # попытаемся без accept-data-loss (упадет при разрушительных изменениях)
                   npx prisma db push
                 fi
               fi
 
-              # записываем новый хэш, только если все прошло успешно
+              # записываем новый хэш только если все прошло успешно
               echo -n "$CURR_HASH" > .schema.sha256
             fi
 
