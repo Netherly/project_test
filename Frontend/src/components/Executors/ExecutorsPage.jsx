@@ -10,39 +10,44 @@ import FormattedDate from "../FormattedDate.jsx";
 
 // ИМПОРТ API ДЛЯ ПОЛЕЙ
 import { fetchFields, withDefaults } from '../../api/fields'; 
+import { fetchOrders, updateOrder } from '../../api/orders';
+import { fetchTransactions } from '../../api/transactions';
+import { fetchEmployees } from '../../api/employees';
 
 // ... (функции getOrders, getJournalEntries и т.д. пока оставляем как есть, если нет API для заказов) ...
-const getOrders = () => {
-    try {
-        const savedOrders = localStorage.getItem('ordersData');
-        return savedOrders ? JSON.parse(savedOrders) : [];
-    } catch (error) {
-        console.error("Ошибка при чтении заказов из localStorage:", error);
-        return [];
-    }
+const buildJournalEntriesFromOrders = (orders = []) => {
+    const entries = [];
+    orders.forEach((order) => {
+        const workLog =
+            order?.workLog ??
+            order?.work_log ??
+            order?.meta?.workLog ??
+            order?.meta?.work_log ??
+            order?.meta?.worklog ??
+            [];
+        if (!Array.isArray(workLog)) return;
+        const orderNumber = order.orderSequence ?? order.numberOrder ?? order.id;
+        workLog.forEach((entry, idx) => {
+            entries.push({
+                id: entry?.id ?? entry?.original_id ?? `${order.id}-${idx}`,
+                orderId: order.id,
+                orderNumber,
+                executorRole: entry?.executorRole ?? entry?.role ?? entry?.performer ?? '',
+                role: entry?.role ?? entry?.executorRole ?? '',
+                workDate: entry?.workDate ?? entry?.work_date ?? entry?.date ?? '',
+                hours: entry?.hours ?? entry?.time ?? entry?.spentHours ?? '',
+                workDone: entry?.workDone ?? entry?.description ?? '',
+                description: entry?.description ?? order.orderDescription ?? '',
+                startTime: entry?.startTime ?? entry?.start_time ?? '',
+                endTime: entry?.endTime ?? entry?.end_time ?? '',
+                email: entry?.email ?? '',
+            });
+        });
+    });
+    return entries;
 };
 
-const getJournalEntries = () => {
-    try {
-        const savedEntries = localStorage.getItem('journalEntries');
-        return savedEntries ? JSON.parse(savedEntries) : [];
-    } catch (error) {
-        console.error("Ошибка при чтении журнала из localStorage:", error);
-        return [];
-    }
-};
-
-const getTransactions = () => {
-    try {
-        const saved = localStorage.getItem('transactionsData');
-        return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-        console.error("Ошибка при чтении транзакций из localStorage:", error);
-        return [];
-    }
-};
-
-const getAssets = () => {
+    const getAssets = () => {
     try {
         const saved = localStorage.getItem('assetsData');
         return saved ? JSON.parse(saved) : [];
@@ -112,14 +117,71 @@ const ExecutorsPage = () => {
 
     // --- ИСПРАВЛЕННЫЙ EFFECT: ЗАГРУЗКА ПОЛЕЙ ЧЕРЕЗ API ---
     useEffect(() => {
-        // 1. Загружаем локальные данные (Заказы, журнал и т.д.)
-        setOrders(getOrders());
-        setJournalEntries(getJournalEntries());
-        setTransactions(getTransactions());
+        // 1. Загружаем локальные данные (активы и т.д.)
         setAssets(getAssets());
-        
-        const employeesFromStorage = JSON.parse(localStorage.getItem('employees')) || [];
-        setActiveEmployees(employeesFromStorage.filter(emp => emp.status === 'active'));
+
+        const loadOrders = async () => {
+            try {
+                const response = await fetchOrders({ page: 1, limit: 1000 });
+                const list = Array.isArray(response?.orders) ? response.orders : [];
+                const filtered = list.filter((order) => String(order.stage) !== 'LEAD');
+                const sorted = filtered.slice().sort((a, b) => {
+                    const aSeq = a?.orderSequence ?? Number.POSITIVE_INFINITY;
+                    const bSeq = b?.orderSequence ?? Number.POSITIVE_INFINITY;
+                    if (aSeq !== bSeq) return aSeq - bSeq;
+                    return String(a?.numberOrder ?? a?.id ?? '').localeCompare(
+                        String(b?.numberOrder ?? b?.id ?? '')
+                    );
+                });
+                setOrders(sorted);
+                setJournalEntries(buildJournalEntriesFromOrders(sorted));
+                localStorage.setItem('ordersData', JSON.stringify(sorted));
+            } catch (error) {
+                console.error("Ошибка при загрузке заказов с сервера:", error);
+                try {
+                    const savedOrders = localStorage.getItem('ordersData');
+                    const fallbackOrders = savedOrders ? JSON.parse(savedOrders) : [];
+                    setOrders(fallbackOrders);
+                    setJournalEntries(buildJournalEntriesFromOrders(fallbackOrders));
+                } catch {
+                    setOrders([]);
+                    setJournalEntries([]);
+                }
+            }
+        };
+
+        const loadTransactions = async () => {
+            try {
+                const response = await fetchTransactions({ page: 1, pageSize: 1000 });
+                const items = Array.isArray(response?.items) ? response.items : Array.isArray(response) ? response : [];
+                setTransactions(items);
+                localStorage.setItem('transactionsData', JSON.stringify(items));
+            } catch (error) {
+                console.error("Ошибка при загрузке транзакций:", error);
+                try {
+                    const saved = localStorage.getItem('transactionsData');
+                    setTransactions(saved ? JSON.parse(saved) : []);
+                } catch {
+                    setTransactions([]);
+                }
+            }
+        };
+
+        const loadEmployees = async () => {
+            try {
+                const list = await fetchEmployees();
+                setActiveEmployees(list.filter(emp => emp.status === 'active'));
+                localStorage.setItem('employees', JSON.stringify(list));
+            } catch (error) {
+                console.error("Ошибка при загрузке сотрудников:", error);
+                try {
+                    const employeesFromStorage = JSON.parse(localStorage.getItem('employees')) || [];
+                    setActiveEmployees(employeesFromStorage.filter(emp => emp.status === 'active'));
+                } catch {
+                    setActiveEmployees([]);
+                }
+            }
+        };
 
         // 2. Загружаем поля (Валюту и Роли) с сервера
         const loadFields = async () => {
@@ -155,6 +217,9 @@ const ExecutorsPage = () => {
         };
 
         loadFields();
+        loadOrders();
+        loadTransactions();
+        loadEmployees();
     }, []);
     // -----------------------------------------------------
 
@@ -162,16 +227,23 @@ const ExecutorsPage = () => {
 
     const generateId = () => 'perf_' + Date.now() + Math.random().toString(36).substring(2, 9);
     
-    const handleSaveExecutor = (executorData) => {
+    const handleSaveExecutor = async (executorData) => {
         const isNew = !executorData.id;
         
+        const orderId = executorData.orderId || executorData.orderNumber;
+        const performerEmployee = activeEmployees.find(
+            (emp) => String(emp.fullName) === String(executorData.performer)
+        );
         const updatedOrders = orders.map(order => {
-            if (String(order.id) === String(executorData.orderNumber)) {
+            if (String(order.id) === String(orderId)) {
                 let updatedPerformers;
                 if (isNew) {
                     const newExecutor = {
                         ...executorData,
                         id: generateId(),
+                        orderId: order.id,
+                        orderNumber: order.orderSequence ?? order.numberOrder ?? order.id,
+                        employeeId: performerEmployee?.id || null,
                         orderStatus: "В работе",
                         orderStatusEmoji: "⏳",
                         orderDate: formatDate(executorData.dateForPerformer || new Date()),
@@ -179,10 +251,26 @@ const ExecutorsPage = () => {
                     updatedPerformers = [...(order.performers || []), newExecutor];
                 } else {
                     updatedPerformers = (order.performers || []).map(p =>
-                        String(p.id) === String(executorData.id) ? { ...p, ...executorData } : p
+                        String(p.id) === String(executorData.id)
+                            ? {
+                                  ...p,
+                                  ...executorData,
+                                  orderId: order.id,
+                                  orderNumber: order.orderSequence ?? order.numberOrder ?? order.id,
+                                  employeeId: performerEmployee?.id || p.employeeId || null,
+                              }
+                            : p
                     );
                 }
-                return { ...order, performers: updatedPerformers };
+                const nextOrder = { ...order, performers: updatedPerformers };
+                try {
+                    updateOrder(order.id, { performers: updatedPerformers }).catch((error) => {
+                        console.error("Ошибка сохранения исполнителя в заказе:", error);
+                    });
+                } catch (error) {
+                    console.error("Ошибка сохранения исполнителя в заказе:", error);
+                }
+                return nextOrder;
             }
             return order;
         });
@@ -192,13 +280,22 @@ const ExecutorsPage = () => {
         closeModal();
     };
     
-    const handleDeleteExecutor = (executorToDelete) => {
+    const handleDeleteExecutor = async (executorToDelete) => {
+        const orderId = executorToDelete.orderId || executorToDelete.orderNumber;
         const updatedOrders = orders.map(order => {
-            if (String(order.id) === String(executorToDelete.orderNumber)) {
+            if (String(order.id) === String(orderId)) {
                 const updatedPerformers = (order.performers || []).filter(
                     p => String(p.id) !== String(executorToDelete.id)
                 );
-                return { ...order, performers: updatedPerformers };
+                const nextOrder = { ...order, performers: updatedPerformers };
+                try {
+                    updateOrder(order.id, { performers: updatedPerformers }).catch((error) => {
+                        console.error("Ошибка удаления исполнителя из заказа:", error);
+                    });
+                } catch (error) {
+                    console.error("Ошибка удаления исполнителя из заказа:", error);
+                }
+                return nextOrder;
             }
             return order;
         });
@@ -214,9 +311,9 @@ const ExecutorsPage = () => {
                 ? order.performers.map(performer => ({
                     ...performer,
                     orderId: order.id,
-                    orderNumber: order.id,
-                    orderName: order.name || 'Название заказа отсутствует',
-                    order_main_client: order.order_main_client,
+                    orderNumber: order.orderSequence ?? order.numberOrder ?? order.id,
+                    orderName: order.name || order.title || 'Название заказа отсутствует',
+                    order_main_client: order.clientName || order.orderMainClient || order.name || 'Не заполнено',
                     orderDescription: order.orderDescription,
                 }))
                 : []
@@ -372,6 +469,7 @@ const ExecutorsPage = () => {
                             onDelete={handleDeleteExecutor}
                             onClose={closeModal}
                             journalEntries={journalEntries}
+                            transactions={transactions}
                             orders={orders}
                             fields={formFields}
                         />

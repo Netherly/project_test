@@ -118,11 +118,14 @@ const AddLogEntryForm = ({ onAdd, onClose, employees = [], orders = [] }) => {
                                 required
                             >
                                 <option value="">Выберите заказ</option>
-                                {orders.map((order) => (
-                                    <option key={order.id} value={order.id}>
-                                        Заказ №{order.id}
-                                    </option>
-                                ))}
+                                {orders.map((order) => {
+                                    const label = order.orderSequence ?? order.numberOrder ?? order.id;
+                                    return (
+                                        <option key={order.id} value={order.id}>
+                                            Заказ №{label}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                         <div className="form-group">

@@ -148,6 +148,9 @@ async function prepareTransactionData(input, db = prisma) {
     orderCurrency,
     balanceBefore,
     balanceAfter,
+    employeeId,
+    clientId,
+    companyId,
   } = input;
 
   const data = {};
@@ -190,6 +193,9 @@ async function prepareTransactionData(input, db = prisma) {
   if (sendLion !== undefined) data.sendLion = Boolean(sendLion);
 
   // --- СВЯЗИ (SCALARS) ---
+  if (employeeId !== undefined) data.employeeId = employeeId || null;
+  if (clientId !== undefined) data.clientId = clientId || null;
+  if (companyId !== undefined) data.companyId = companyId || null;
 
   // A. СЧЕТ (Обязательно)
   if (accountId) {
@@ -235,20 +241,40 @@ async function prepareTransactionData(input, db = prisma) {
 /** GET /api/transactions */
 exports.list = async (req, res, next) => {
   try {
-    const { page = 1, pageSize = 50, search = '', accountId } = req.query;
+    const {
+      page = 1,
+      pageSize = 50,
+      search = '',
+      accountId,
+      employeeId,
+      counterparty,
+    } = req.query;
     const take = Math.min(Number(pageSize) || 50, 200);
     const skip = Math.max(0, (Number(page) - 1) * take);
 
     const where = {};
+    const and = [];
     if (search) {
-      where.OR = [
-        { category: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { counterparty: { contains: search, mode: 'insensitive' } },
-        { orderNumber: { contains: search, mode: 'insensitive' } },
-      ];
+      and.push({
+        OR: [
+          { category: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { counterparty: { contains: search, mode: 'insensitive' } },
+          { orderNumber: { contains: search, mode: 'insensitive' } },
+        ],
+      });
     }
-    if (accountId) where.accountId = accountId;
+    if (accountId) and.push({ accountId });
+    if (employeeId || counterparty) {
+      const or = [];
+      if (employeeId) or.push({ employeeId });
+      if (counterparty) {
+        or.push({ counterparty: { equals: counterparty, mode: 'insensitive' } });
+      }
+      if (or.length === 1) and.push(or[0]);
+      if (or.length > 1) and.push({ OR: or });
+    }
+    if (and.length) where.AND = and;
 
     const [items, total] = await Promise.all([
       prisma.transaction.findMany({

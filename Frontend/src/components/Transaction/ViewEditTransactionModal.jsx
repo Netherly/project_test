@@ -21,9 +21,35 @@ const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
 
+const toLowerText = (value) => String(value ?? '').trim().toLowerCase();
+
+const resolveCounterpartyIds = (name, list) => {
+    const needle = toLowerText(name);
+    if (!needle) return { employeeId: null, clientId: null };
+    const match = (Array.isArray(list) ? list : []).find(
+        (cp) => toLowerText(cp?.name) === needle
+    );
+    if (!match) return {};
+    if (match.type === "employee") return { employeeId: match.id };
+    if (match.type === "client") return { clientId: match.id };
+    return {};
+};
+
+const toDateTimeLocalValue = (value) => {
+    if (!value) return "";
+    const raw = value instanceof Date ? value : new Date(String(value).replace(" ", "T"));
+    if (Number.isNaN(raw.getTime())) return "";
+    const pad = (num) => String(num).padStart(2, "0");
+    const year = raw.getFullYear();
+    const month = pad(raw.getMonth() + 1);
+    const day = pad(raw.getDate());
+    const hours = pad(raw.getHours());
+    const minutes = pad(raw.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, onDuplicate, assets, financeFields, orders = [], counterparties = [] }) => {
-    const formattedDate = transaction.date ? transaction.date.replace(" ", "T") : "";
+    const formattedDate = toDateTimeLocalValue(transaction.date);
     const originalTransactionRef = useRef(transaction);
 
     const [formData, setFormData] = useState({
@@ -330,6 +356,14 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             balanceAfter: transaction.balanceAfter,
         };
 
+        const counterpartyIds = resolveCounterpartyIds(formData.counterparty, counterparties);
+        if ("employeeId" in counterpartyIds) {
+            updatedTransaction.employeeId = counterpartyIds.employeeId;
+        }
+        if ("clientId" in counterpartyIds) {
+            updatedTransaction.clientId = counterpartyIds.clientId;
+        }
+
         onUpdate(updatedTransaction);
     };
 
@@ -412,7 +446,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                           </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
+                <form id="view-edit-transaction-form" onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
                     <div className="form-row">
                         <label htmlFor="date" className="form-label">Дата и время</label>
                         <input
@@ -765,12 +799,12 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                         </div>
                 </form>
                 <div className="view-transaction-form-actions">
-                        <button type="button" className="cancel-order-btn" onClick={handleCloseModal}>
-                            Отменить
-                        </button>
-                        <button type="submit" className="save-order-btn">
-                            Сохранить
-                        </button>
+                    <button type="button" className="cancel-order-btn" onClick={handleCloseModal}>
+                        Отменить
+                    </button>
+                    <button type="submit" form="view-edit-transaction-form" className="save-order-btn">
+                        Сохранить
+                    </button>
                 </div>
             </div>
             

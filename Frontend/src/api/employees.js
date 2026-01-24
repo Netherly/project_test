@@ -384,6 +384,8 @@ export function serializeEmployee(e = {}) {
 
   const countryCandidate = toText(e.countryId ?? e.country);
   const countryId = countryCandidate && isUuid(countryCandidate) ? countryCandidate : undefined;
+  const countryName =
+    !countryId && countryCandidate ? countryCandidate : toText(e.country);
 
   const obj = {
     id: e.id,
@@ -411,6 +413,7 @@ export function serializeEmployee(e = {}) {
     managerId: toOptional(e.managerId),
     companyId: toOptional(e.companyId),
     countryId,
+    country: countryName,
     currencyId: toOptional(e.currencyId),
     roleId: toOptional(e.roleId),
     publicId: toOptional(e.publicId),
@@ -436,7 +439,7 @@ export function serializeEmployee(e = {}) {
 
     tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
 
-    requisites: serializeRequisites(requisitesList),
+    requisites: Array.isArray(requisitesList) ? requisitesList : serializeRequisites(requisitesList),
   };
 
   if (password) obj.password = password;
@@ -452,6 +455,11 @@ export async function fetchEmployees() {
   const data = unwrap(r);
   const list = Array.isArray(data) ? data : data?.employees ?? [];
   return list.map(normalizeEmployee);
+}
+
+export async function fetchEmployeeById(id) {
+  const r = await httpGet(`/employees/${id}`);
+  return normalizeEmployee(unwrap(r));
 }
 
 export async function createEmployee(payload) {
@@ -471,6 +479,7 @@ export async function deleteEmployee(id) {
 
 export default {
   fetchEmployees,
+  fetchEmployeeById,
   createEmployee,
   updateEmployee,
   deleteEmployee,

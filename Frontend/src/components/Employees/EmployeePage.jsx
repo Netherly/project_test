@@ -5,6 +5,7 @@ import "../../styles/EmployeesPage.css";
 import avatarPlaceholder from "../../assets/avatar-placeholder.svg";
 import {
   fetchEmployees as apiFetchEmployees,
+  fetchEmployeeById as apiFetchEmployeeById,
   createEmployee as apiCreateEmployee,
   updateEmployee as apiUpdateEmployee,
   deleteEmployee as apiDeleteEmployee,
@@ -206,6 +207,16 @@ const EmployeePage = () => {
   const handleOpenModal = (employee = null) => {
     setSelectedEmployee(employee);
     setIsModalOpen(true);
+    if (employee?.id) {
+      apiFetchEmployeeById(employee.id)
+        .then((fresh) => {
+          setSelectedEmployee(fresh);
+          setEmployees((prev) => prev.map((e) => (e.id === fresh.id ? fresh : e)));
+        })
+        .catch((e) => {
+          console.warn("Не удалось обновить данные сотрудника:", e?.message || e);
+        });
+    }
   };
   const handleCloseModal = () => {
     setIsModalOpen(false);

@@ -1,10 +1,10 @@
 // Frontend/src/pages/EmployeesModal/tabs/GeneralInfoTab.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { FieldsAPI, withDefaults } from "../../../api/fields";
 
 export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { country: [] } }) {
-  const { control, watch, formState: { errors } } = useFormContext();
+  const { control, setValue, formState: { errors } } = useFormContext();
 
   const [countries, setCountries] = useState(
     Array.isArray(propEmployeeFields?.country) ? propEmployeeFields.country : []
@@ -13,7 +13,9 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
   const [loadingFields, setLoadingFields] = useState(false);
   const [fieldsError, setFieldsError] = useState("");
 
-  const selectedMainCurrency = watch("mainCurrency");
+  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
+  const currentCountryId = useWatch({ control, name: "countryId" });
+  const currentCountry = useWatch({ control, name: "country" });
 
   useEffect(() => {
     let mounted = true;
@@ -72,6 +74,15 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
       .filter(Boolean);
   }, [countries]);
 
+  useEffect(() => {
+    if (!countryOptions.length) return;
+    const hasCurrent = countryOptions.some((opt) => opt.value === currentCountryId);
+    if (!hasCurrent && currentCountry) {
+      const match = countryOptions.find((opt) => opt.label === currentCountry);
+      if (match) setValue("countryId", match.value, { shouldDirty: false });
+    }
+  }, [countryOptions, currentCountry, currentCountryId, setValue]);
+
   return (
     <div className="tab-section">
       {loadingFields && (
@@ -103,10 +114,10 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
       <div className="form-field">
         <label>Страна</label>
         <Controller
-          name="country"
+          name="countryId"
           control={control}
           render={({ field }) => (
-            <select {...field} className={errors.country ? "input-error" : ""}>
+            <select {...field} className={errors.countryId ? "input-error" : ""}>
               <option value="">Выберите страну</option>
               {countryOptions.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -116,7 +127,7 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
             </select>
           )}
         />
-        {errors.country && <p className="error">{errors.country.message}</p>}
+        {errors.countryId && <p className="error">{errors.countryId.message}</p>}
       </div>
 
       <Controller

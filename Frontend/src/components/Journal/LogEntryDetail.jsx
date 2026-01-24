@@ -121,16 +121,19 @@ const LogEntryDetail = ({ entry, onClose, onDelete, onDuplicate, onUpdate, emplo
                             <select
                                 id="orderNumber"
                                 name="orderNumber"
-                                value={editedEntry.orderNumber}
+                                value={editedEntry.orderId || editedEntry.orderNumber || ''}
                                 onChange={handleChange}
                                 required
                             >
                                 <option value="">Выберите заказ</option>
-                                {orders.map((order) => (
-                                    <option key={order.id} value={order.id}>
-                                        Заказ №{order.id}
-                                    </option>
-                                ))}
+                                {orders.map((order) => {
+                                    const label = order.orderSequence ?? order.numberOrder ?? order.id;
+                                    return (
+                                        <option key={order.id} value={order.id}>
+                                            Заказ №{label}
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                         <div className="form-group">

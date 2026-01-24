@@ -1,7 +1,7 @@
 import * as yup from "yup";
 
 export const executorSchema = yup.object().shape({
-  orderNumber: yup.string().required("Необходимо выбрать номер заказа"),
+  orderId: yup.string().required("Необходимо выбрать заказ"),
   performer: yup.string().required("Необходимо выбрать исполнителя"),
   role: yup.string().required("Необходимо выбрать роль"),
   dateForPerformer: yup.date().nullable().transform(v => (v instanceof Date && !isNaN(v) ? v : null)),

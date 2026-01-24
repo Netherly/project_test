@@ -35,7 +35,7 @@ const ExecutorCard = ({ order, onCardClick, onOpenOrderModal, formatDate }) => {
                         {order.orderStatusEmoji || '🔘'}
                     </span>
                     <span className="order-number-link" onClick={handleOpenModalClick}>
-                        Заказ № {order.orderId}
+                        Заказ № {order.orderNumber || order.orderId}
                     </span>
                 </div>
                 <div className="date-and-arrow">

@@ -7,15 +7,8 @@ import AddLogEntryForm from "./AddLogEntryForm";
 import FormattedDate from "../FormattedDate.jsx";
 
 
-import {
-    getLogEntries,
-    addLogEntry,
-    updateLogEntry,
-    deleteLogEntry,
-    getEmployees,
-    getOrders,
-    getAvailableRoles,
-} from "./journalApi";
+import { fetchOrders, updateOrder } from "../../api/orders";
+import { fetchEmployees } from "../../api/employees";
 
 const MultiSelectDropdown = ({ label, name, options, selectedValues, onChange }) => {
     const [inputValue, setInputValue] = useState("");
@@ -148,15 +141,86 @@ const JournalPage = () => {
         searchSource: "Все", 
     });
 
+    const toText = (value) => String(value ?? "").trim();
+
+    const buildJournalEntriesFromOrders = (ordersList = []) => {
+        const entries = [];
+        ordersList.forEach((order) => {
+            const workLog =
+                order?.workLog ??
+                order?.work_log ??
+                order?.meta?.workLog ??
+                order?.meta?.work_log ??
+                order?.meta?.worklog ??
+                [];
+            if (!Array.isArray(workLog)) return;
+            const orderNumber = order.orderSequence ?? order.numberOrder ?? order.id;
+            workLog.forEach((entry, idx) => {
+                entries.push({
+                    id: entry?.id ?? entry?.original_id ?? `${order.id}-${idx}`,
+                    orderId: order.id,
+                    orderNumber,
+                    status: toText(order.orderStatus ?? order.stage ?? ""),
+                    adminApproved: toText(entry?.adminApproved ?? "Ожидает"),
+                    source: toText(entry?.source ?? "СРМ"),
+                    description: toText(entry?.description ?? order.orderDescription ?? ""),
+                    executorRole: toText(entry?.executorRole ?? entry?.role ?? entry?.performer ?? ""),
+                    role: toText(entry?.role ?? entry?.executorRole ?? ""),
+                    workDate: toText(entry?.workDate ?? entry?.work_date ?? entry?.date ?? ""),
+                    workDone: toText(entry?.workDone ?? entry?.description ?? ""),
+                    startTime: toText(entry?.startTime ?? entry?.start_time ?? ""),
+                    endTime: toText(entry?.endTime ?? entry?.end_time ?? ""),
+                    hours: toText(entry?.hours ?? entry?.time ?? entry?.spentHours ?? ""),
+                    email: toText(entry?.email ?? ""),
+                });
+            });
+        });
+        return entries;
+    };
+
+    const computeRoles = (entries) => {
+        const roles = new Set();
+        entries.forEach((entry) => {
+            if (entry.executorRole) roles.add(entry.executorRole);
+            if (entry.role) roles.add(entry.role);
+        });
+        return Array.from(roles).sort();
+    };
 
     // --- Загрузка данных ---
     useEffect(() => {
-        const entries = getLogEntries();
-        setAllLogEntries(entries);
-        setDisplayedLogEntries(entries); 
-        setEmployees(getEmployees());
-        setOrders(getOrders());
-        setAvailableRoles(getAvailableRoles()); 
+        let mounted = true;
+
+        const loadData = async () => {
+            try {
+                const [ordersRes, employeesRes] = await Promise.all([
+                    fetchOrders({ page: 1, limit: 1000 }),
+                    fetchEmployees(),
+                ]);
+                const list = Array.isArray(ordersRes?.orders) ? ordersRes.orders : [];
+                const entries = buildJournalEntriesFromOrders(list);
+                if (!mounted) return;
+                setOrders(list);
+                setEmployees(employeesRes || []);
+                setAllLogEntries(entries);
+                setDisplayedLogEntries(entries);
+                setAvailableRoles(computeRoles(entries));
+            } catch (error) {
+                console.error("Ошибка загрузки журнала из БД:", error);
+                if (!mounted) return;
+                setOrders([]);
+                setEmployees([]);
+                setAllLogEntries([]);
+                setDisplayedLogEntries([]);
+                setAvailableRoles([]);
+            }
+        };
+
+        loadData();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const handleFilterChange = (e) => {
@@ -235,37 +299,133 @@ const JournalPage = () => {
     const handleRowClick = (entry) => setSelectedEntry(entry);
     const handleCloseDetails = () => setSelectedEntry(null);
 
-    const handleAddLogEntry = (newEntry) => {
-        const updatedEntries = addLogEntry(newEntry);
-        setAllLogEntries(updatedEntries);
-        setDisplayedLogEntries(updatedEntries);
-        setShowAddForm(false);
-    };
+    const handleAddLogEntry = async (newEntry) => {
+        const orderId = String(newEntry.orderNumber || "");
+        const targetOrder = orders.find((order) => String(order.id) === orderId);
+        if (!targetOrder) return;
 
-    const handleUpdateLogEntry = (updatedEntry) => {
-        const updatedEntries = updateLogEntry(updatedEntry);
-        setAllLogEntries(updatedEntries);
-        setSelectedEntry(null);
-        applyFilters(); 
-    };
-
-    const handleDeleteLogEntry = (idToDelete) => {
-        const updatedEntries = deleteLogEntry(idToDelete);
-        setAllLogEntries(updatedEntries);
-        setSelectedEntry(null);
-        applyFilters(); 
-    };
-
-    const handleDuplicateLogEntry = (entryToDuplicate) => {
-        const duplicatedData = {
-            ...entryToDuplicate,
-            description: `${entryToDuplicate.description} (Копия)`,
+        const workLog = Array.isArray(targetOrder.workLog) ? targetOrder.workLog.slice() : [];
+        const nextEntry = {
+            id: Date.now(),
+            description: newEntry.description || "",
+            executorRole: newEntry.executorRole || "",
+            role: newEntry.executorRole || "",
+            workDate: newEntry.workDate || "",
+            startTime: newEntry.startTime || "",
+            endTime: newEntry.endTime || "",
+            hours: newEntry.hours || "",
+            workDone: newEntry.workDone || "",
+            email: newEntry.email || "",
         };
-        delete duplicatedData.id;
+        const updatedWorkLog = [nextEntry, ...workLog];
+        try {
+            await updateOrder(targetOrder.id, { workLog: updatedWorkLog });
+            const nextOrders = orders.map((order) =>
+                String(order.id) === String(targetOrder.id)
+                    ? { ...order, workLog: updatedWorkLog }
+                    : order
+            );
+            const entries = buildJournalEntriesFromOrders(nextOrders);
+            setOrders(nextOrders);
+            setAllLogEntries(entries);
+            setDisplayedLogEntries(entries);
+            setAvailableRoles(computeRoles(entries));
+            setShowAddForm(false);
+        } catch (error) {
+            console.error("Ошибка сохранения записи журнала:", error);
+        }
+    };
 
-        const updatedEntries = addLogEntry(duplicatedData);
-        setAllLogEntries(updatedEntries);
-        applyFilters(); 
+    const handleUpdateLogEntry = async (updatedEntry) => {
+        const orderId = String(updatedEntry.orderNumber || updatedEntry.orderId || "");
+        const targetOrder = orders.find((order) => String(order.id) === orderId);
+        if (!targetOrder) return;
+
+        const workLog = Array.isArray(targetOrder.workLog) ? targetOrder.workLog.slice() : [];
+        const updatedWorkLog = workLog.map((entry) =>
+            String(entry.id ?? entry.original_id) === String(updatedEntry.id)
+                ? {
+                      ...entry,
+                      description: updatedEntry.description || entry.description,
+                      executorRole: updatedEntry.executorRole || entry.executorRole,
+                      role: updatedEntry.role || entry.role,
+                      workDate: updatedEntry.workDate || entry.workDate,
+                      startTime: updatedEntry.startTime || entry.startTime,
+                      endTime: updatedEntry.endTime || entry.endTime,
+                      hours: updatedEntry.hours || entry.hours,
+                      workDone: updatedEntry.workDone || entry.workDone,
+                      email: updatedEntry.email || entry.email,
+                  }
+                : entry
+        );
+
+        try {
+            await updateOrder(targetOrder.id, { workLog: updatedWorkLog });
+            const nextOrders = orders.map((order) =>
+                String(order.id) === String(targetOrder.id)
+                    ? { ...order, workLog: updatedWorkLog }
+                    : order
+            );
+            const entries = buildJournalEntriesFromOrders(nextOrders);
+            setOrders(nextOrders);
+            setAllLogEntries(entries);
+            setDisplayedLogEntries(entries);
+            setAvailableRoles(computeRoles(entries));
+            setSelectedEntry(null);
+        } catch (error) {
+            console.error("Ошибка обновления записи журнала:", error);
+        }
+    };
+
+    const handleDeleteLogEntry = async (idToDelete) => {
+        const ownerOrder = orders.find((order) => {
+            const workLog = Array.isArray(order.workLog) ? order.workLog : [];
+            return workLog.some((entry) => String(entry.id ?? entry.original_id) === String(idToDelete));
+        });
+        if (!ownerOrder) return;
+        const updatedWorkLog = (ownerOrder.workLog || []).filter(
+            (entry) => String(entry.id ?? entry.original_id) !== String(idToDelete)
+        );
+        try {
+            await updateOrder(ownerOrder.id, { workLog: updatedWorkLog });
+            const nextOrders = orders.map((order) =>
+                String(order.id) === String(ownerOrder.id)
+                    ? { ...order, workLog: updatedWorkLog }
+                    : order
+            );
+            const entries = buildJournalEntriesFromOrders(nextOrders);
+            setOrders(nextOrders);
+            setAllLogEntries(entries);
+            setDisplayedLogEntries(entries);
+            setAvailableRoles(computeRoles(entries));
+            setSelectedEntry(null);
+        } catch (error) {
+            console.error("Ошибка удаления записи журнала:", error);
+        }
+    };
+
+    const handleDuplicateLogEntry = async (entryToDuplicate) => {
+        const orderId = String(entryToDuplicate.orderNumber || entryToDuplicate.orderId || "");
+        const targetOrder = orders.find((order) => String(order.id) === orderId);
+        if (!targetOrder) return;
+        const workLog = Array.isArray(targetOrder.workLog) ? targetOrder.workLog.slice() : [];
+        const clone = { ...entryToDuplicate, id: Date.now() };
+        const updatedWorkLog = [clone, ...workLog];
+        try {
+            await updateOrder(targetOrder.id, { workLog: updatedWorkLog });
+            const nextOrders = orders.map((order) =>
+                String(order.id) === String(targetOrder.id)
+                    ? { ...order, workLog: updatedWorkLog }
+                    : order
+            );
+            const entries = buildJournalEntriesFromOrders(nextOrders);
+            setOrders(nextOrders);
+            setAllLogEntries(entries);
+            setDisplayedLogEntries(entries);
+            setAvailableRoles(computeRoles(entries));
+        } catch (error) {
+            console.error("Ошибка дублирования записи журнала:", error);
+        }
     };
 
     return (

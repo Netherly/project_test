@@ -18,6 +18,20 @@ const getSubarticleInterval = (sub) =>
 const getSubarticleValue = (sub) =>
     String(sub?.subarticleValue ?? sub?.name ?? sub?.value ?? '').trim();
 
+const toLowerText = (value) => String(value ?? '').trim().toLowerCase();
+
+const resolveCounterpartyIds = (name, list) => {
+    const needle = toLowerText(name);
+    if (!needle) return { employeeId: null, clientId: null };
+    const match = (Array.isArray(list) ? list : []).find(
+        (cp) => toLowerText(cp?.name) === needle
+    );
+    if (!match) return {};
+    if (match.type === "employee") return { employeeId: match.id };
+    if (match.type === "client") return { clientId: match.id };
+    return {};
+};
+
 const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
@@ -329,6 +343,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         
         const orderIdStr = formData.orderId ? String(formData.orderId) : null;
         const orderNumberStr = formData.orderNumber ? String(formData.orderNumber) : null;
+        const counterpartyIds = resolveCounterpartyIds(formData.counterparty, counterparties);
 
         if (formData.category === "Смена счета") {
             const totalAmountFromDestinations = destinationAccounts.reduce((sum, acc) => sum + parseFloat(acc.amount || 0), 0);
@@ -360,6 +375,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 sumByRatesRUB: parseFloat(formData.sumByRatesRUB) || 0,
                 sentToCounterparty: formData.sentToCounterparty,
                 sendLion: formData.sendLion,
+                ...counterpartyIds,
             };
             newTransactions.push(sourceTransaction);
             
@@ -387,6 +403,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                     sumByRatesRUB: 0,
                     sentToCounterparty: formData.sentToCounterparty,
                     sendLion: formData.sendLion,
+                    ...counterpartyIds,
                 };
                 newTransactions.push(destinationTransaction);
             });
@@ -418,6 +435,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 
                 sentToCounterparty: formData.sentToCounterparty,
                 sendLion: formData.sendLion,
+                ...counterpartyIds,
             };
             newTransactions.push(newTransactionBase);
         }

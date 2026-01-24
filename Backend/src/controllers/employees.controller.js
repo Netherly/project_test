@@ -1,11 +1,15 @@
 const EmployeesService = require('../services/employees.service');
 
-const serializeEmployee = (e) => ({
-  ...e,
-  telegramUserId: e.telegramUserId?.toString(),
-  telegramChatId: e.telegramChatId?.toString(),
-  telegramId: e.telegramId?.toString(),
-});
+const serializeEmployee = (e) => {
+  if (!e) return e;
+  const { password: _password, ...rest } = e;
+  return {
+    ...rest,
+    telegramUserId: rest.telegramUserId?.toString(),
+    telegramChatId: rest.telegramChatId?.toString(),
+    telegramId: rest.telegramId?.toString(),
+  };
+};
 
 const EmployeesController = {
   async list(req, res) {
@@ -34,7 +38,7 @@ const EmployeesController = {
     try {
       const payload = req.body;
       const employee = await EmployeesService.create(payload);
-      res.status(201).json({ ok: true, data: employee });
+      res.status(201).json({ ok: true, data: serializeEmployee(employee) });
     } catch (err) {
       console.error('Employee create error:', err);
       res.status(err.status || 500).json({ ok: false, error: err.message });
@@ -46,7 +50,7 @@ const EmployeesController = {
       const { id } = req.params;
       const payload = req.body;
       const employee = await EmployeesService.update(id, payload);
-      res.json({ ok: true, data: employee });
+      res.json({ ok: true, data: serializeEmployee(employee) });
     } catch (err) {
       console.error('Employee update error:', err);
       res.status(err.status || 500).json({ ok: false, error: err.message });
