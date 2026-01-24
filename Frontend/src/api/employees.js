@@ -359,6 +359,28 @@ export function serializeEmployee(e = {}) {
   const password = toText(e.password);
   const countryCandidate = toText(e.countryId ?? e.country);
   const countryId = countryCandidate && isUuid(countryCandidate) ? countryCandidate : undefined;
+  const countryName =
+    !countryId && countryCandidate ? countryCandidate : toText(e.country);
+
+  /**
+   * ✅ FIX MERGE CONFLICT (обе версии логики)
+   * Поддерживаем два формата ввода реквизитов:
+   * 1) Уже "готовые" элементы для API: [{id,label,value}]  -> отправляем как есть
+   * 2) UI-список: [{id,currency,bank,card,owner}] -> сериализуем через serializeRequisites
+   */
+  const serializeRequisitesCompat = (input) => {
+    const arr = Array.isArray(input) ? input : [];
+    if (!arr.length) return [];
+    const first = arr[0];
+    const looksLikeApiShape =
+      first &&
+      typeof first === "object" &&
+      ("label" in first || "value" in first) &&
+      !("currency" in first || "bank" in first || "card" in first || "owner" in first);
+
+    if (looksLikeApiShape) return arr;
+    return serializeRequisites(arr);
+  };
 
   const obj = {
     id: e.id,
@@ -378,6 +400,7 @@ export function serializeEmployee(e = {}) {
     managerId: toOptional(e.managerId),
     companyId: toOptional(e.companyId),
     countryId,
+    country: countryName,
     currencyId: toOptional(e.currencyId),
     roleId: toOptional(e.roleId),
     publicId: toOptional(e.publicId),
@@ -399,7 +422,9 @@ export function serializeEmployee(e = {}) {
           }
         : undefined,
     tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-    requisites: serializeRequisites(requisitesList),
+
+    // ✅ итог: совместимо с обеими версиями
+    requisites: serializeRequisitesCompat(requisitesList),
   };
 
   if (password) obj.password = password;
@@ -414,6 +439,11 @@ export async function fetchEmployees() {
   const data = unwrap(r);
   const list = Array.isArray(data) ? data : data?.employees ?? [];
   return list.map(normalizeEmployee);
+}
+
+export async function fetchEmployeeById(id) {
+  const r = await httpGet(`/employees/${id}`);
+  return normalizeEmployee(unwrap(r));
 }
 
 export async function createEmployee(payload) {
@@ -433,6 +463,7 @@ export async function deleteEmployee(id) {
 
 export default {
   fetchEmployees,
+  fetchEmployeeById,
   createEmployee,
   updateEmployee,
   deleteEmployee,

@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import { httpPost } from '../../../api/http';
 
 export default function ContactsTab({ isNew }) {
-  const { control, formState: { errors } } = useFormContext();
+  const { control, setValue, formState: { errors } } = useFormContext();
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [linkError, setLinkError] = useState('');
+
+  const handleGenerateLink = async () => {
+    setIsGeneratingLink(true);
+    setLinkError('');
+    try {
+      const data = await httpPost('/telegram/link/create');
+      if (!data?.link) {
+        throw new Error('Ссылка не получена');
+      }
+      setValue('telegramBindingLink', data.link, { shouldDirty: true });
+    } catch (err) {
+      console.error('Ошибка генерации Telegram-ссылки:', err);
+      setLinkError(err?.message || 'Не удалось создать ссылку для Telegram');
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
 
   return (
     <div className="tab-section">
@@ -129,7 +149,18 @@ export default function ContactsTab({ isNew }) {
             render={({ field }) => (
               <div className="form-field">
                 <label>Ссылка на привязку</label>
-                <input {...field} placeholder="Ссылка..." readOnly={!isNew} />
+                <div className="input-with-action">
+                  <input {...field} placeholder="Ссылка..." readOnly />
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleGenerateLink}
+                    disabled={isGeneratingLink}
+                  >
+                    {isGeneratingLink ? 'Генерация...' : 'Сгенерировать'}
+                  </button>
+                </div>
+                {linkError && <p className="error">{linkError}</p>}
               </div>
             )}
           />

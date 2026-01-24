@@ -20,23 +20,29 @@ const OrderDetailField = ({ label, value }) => (
 );
 
 export default function GeneralInfoTab({ orders, fields }) {
-  const { control, formState: { errors } } = useFormContext();
+  const { control, setValue, formState: { errors } } = useFormContext();
 
   const watchedOrderId = useWatch({
     control,
-    name: 'orderNumber',
+    name: 'orderId',
   });
 
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
     if (watchedOrderId) {
-      const foundOrder = orders.find(order => order.id === Number(watchedOrderId));
+      const foundOrder = orders.find(order => String(order.id) === String(watchedOrderId));
       setSelectedOrder(foundOrder || null);
     } else {
-      setSelectedOrder(null); 
+      setSelectedOrder(null);
     }
-  }, [watchedOrderId, orders]); 
+  }, [watchedOrderId, orders]);
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const label = selectedOrder.orderSequence ?? selectedOrder.numberOrder ?? selectedOrder.id;
+    setValue('orderNumber', String(label), { shouldDirty: false });
+  }, [selectedOrder, setValue]);
 
   return (
     <div className="general-tab-section">
@@ -44,7 +50,7 @@ export default function GeneralInfoTab({ orders, fields }) {
       {selectedOrder && (
         <div className="executor-order-details-block">
           <OrderDetailField label="Статус заказа" value={selectedOrder.stage} />
-          <OrderDetailField label="Клиент" value={selectedOrder.order_main_client} />
+          <OrderDetailField label="Клиент" value={selectedOrder.clientName || selectedOrder.orderMainClient || selectedOrder.name} />
           <OrderDetailField label="Описание заказа" value={selectedOrder.orderDescription} />
           <OrderDetailField label="ТЗ заказа" value={selectedOrder.techSpecifications} />
         </div>
@@ -52,18 +58,23 @@ export default function GeneralInfoTab({ orders, fields }) {
 
       {/* Остальная часть формы */}
       <Controller
-        name="orderNumber"
+        name="orderId"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Номер заказа</label>
-            <select {...field} className={errors.orderNumber ? 'input-error' : ''}>
+            <select {...field} className={errors.orderId ? 'input-error' : ''}>
               <option value="">Выберите заказ</option>
-              {orders.map((order) => (
-                <option key={order.id} value={order.id}>Заказ №{order.id}</option>
-              ))}
+              {orders.map((order) => {
+                const label = order.orderSequence ?? order.numberOrder ?? order.id;
+                return (
+                  <option key={order.id} value={order.id}>
+                    Заказ №{label}
+                  </option>
+                );
+              })}
             </select>
-            {errors.orderNumber && <p className="error-message">{errors.orderNumber.message}</p>}
+            {errors.orderId && <p className="error-message">{errors.orderId.message}</p>}
           </div>
         )}
       />

@@ -1,4 +1,41 @@
+const bcrypt = require('bcrypt');
 const prisma = require('../../prisma/client');
+
+const SALT_ROUNDS = 10;
+
+const hashPassword = async (raw) => {
+  const text = String(raw ?? '').trim();
+  if (!text) return undefined;
+  return bcrypt.hash(text, SALT_ROUNDS);
+};
+
+const isUuid = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '')
+  );
+
+const resolveCountryId = async (payload) => {
+  const candidate = payload?.countryId ?? payload?.country;
+  if (!candidate) return undefined;
+  if (isUuid(candidate)) return candidate;
+
+  const byName = await prisma.country.findFirst({
+    where: { name: String(candidate).trim() },
+    select: { id: true },
+  });
+  if (byName?.id) return byName.id;
+
+  const byIso = await prisma.country.findFirst({
+    where: {
+      OR: [
+        { iso2: String(candidate).trim().toUpperCase() },
+        { iso3: String(candidate).trim().toUpperCase() },
+      ],
+    },
+    select: { id: true },
+  });
+  return byIso?.id ?? null;
+};
 
 const EmployeesService = {
   async list(params = {}) {
@@ -68,13 +105,12 @@ const EmployeesService = {
       phone: payload.phone,
       email: payload.email,
       login: payload.login,
-      password: payload.password,
       folder: payload.folder,
       userid: payload.userid,
       companyId: payload.companyId,
       publicId: payload.publicId,
       roleId: payload.roleId,
-      countryId: payload.countryId,
+      countryId: await resolveCountryId(payload),
       telegramUserId: payload.telegramUserId,
       telegramChatId: payload.telegramChatId,
       telegramUsername: payload.telegramUsername,
@@ -95,6 +131,8 @@ const EmployeesService = {
       rates: payload.rates,
       mainCurrency: payload.mainCurrency,
     };
+    const hashedPassword = await hashPassword(payload.password);
+    if (hashedPassword) data.password = hashedPassword;
 
     const employee = await prisma.employee.create({
       data,
@@ -129,13 +167,18 @@ const EmployeesService = {
     if (payload.phone !== undefined) data.phone = payload.phone;
     if (payload.email !== undefined) data.email = payload.email;
     if (payload.login !== undefined) data.login = payload.login;
-    if (payload.password !== undefined) data.password = payload.password;
+    if (payload.password !== undefined) {
+      const hashedPassword = await hashPassword(payload.password);
+      if (hashedPassword) data.password = hashedPassword;
+    }
     if (payload.folder !== undefined) data.folder = payload.folder;
     if (payload.userid !== undefined) data.userid = payload.userid;
     if (payload.companyId !== undefined) data.companyId = payload.companyId;
     if (payload.publicId !== undefined) data.publicId = payload.publicId;
     if (payload.roleId !== undefined) data.roleId = payload.roleId;
-    if (payload.countryId !== undefined) data.countryId = payload.countryId;
+    if (payload.countryId !== undefined || payload.country !== undefined) {
+      data.countryId = await resolveCountryId(payload);
+    }
     if (payload.telegramUserId !== undefined) data.telegramUserId = payload.telegramUserId;
     if (payload.telegramChatId !== undefined) data.telegramChatId = payload.telegramChatId;
     if (payload.telegramUsername !== undefined) data.telegramUsername = payload.telegramUsername;

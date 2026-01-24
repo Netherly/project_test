@@ -18,6 +18,7 @@ export default function ExecutorModal({
   executor, 
   orders,
   journalEntries,   
+  transactions,
   fields,  
   onClose,
   onSave,
@@ -41,6 +42,7 @@ export default function ExecutorModal({
         resolver: yupResolver(executorSchema),
         mode: 'onChange',
         defaultValues: {
+            orderId: '',
             orderNumber: '',
             performer: '', 
             dateForPerformer: new Date().toISOString().split('T')[0], 
@@ -77,7 +79,7 @@ export default function ExecutorModal({
   const onInvalid = (err) => {
     console.log("Ошибки валидации:", err);
     const firstErrorField = Object.keys(err)[0];
-    if (['orderNumber', 'performer', 'role', 'dateForPerformer'].includes(firstErrorField)) {
+    if (['orderId', 'performer', 'role', 'dateForPerformer'].includes(firstErrorField)) {
         setActiveTab('general');
     } else if (['currency', 'hourlyRate', 'amountInput', 'maxAmount'].includes(firstErrorField)) {
         setActiveTab('finances');
@@ -133,6 +135,7 @@ export default function ExecutorModal({
         <div className="left-panel">
           <FormProvider {...methods}>
             <form
+              id="executor-form"
               className="employee-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
@@ -155,7 +158,7 @@ export default function ExecutorModal({
                 {activeTab === 'dashboard' && <DashboardTab />}
                 {activeTab === 'general'   && <GeneralInfoTab orders={orders} fields={fields} />}
                 {activeTab === 'journal'   && <JournalTab isNew={isNew} executor={safeExecutor} journalEntries={journalEntries} />}
-                {activeTab === 'finances'  && <FinancesTab isNew={isNew} executor={safeExecutor} />}
+                {activeTab === 'finances'  && <FinancesTab isNew={isNew} executor={safeExecutor} transactions={transactions} />}
               </div>
 
             </form>
@@ -164,7 +167,7 @@ export default function ExecutorModal({
                               <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
                                   Сбросить
                               </button>
-                              <button className='save-order-btn' type="submit" disabled={!isDirty}>
+                              <button className='save-order-btn' type="submit" form="executor-form" disabled={!isDirty}>
                                   Сохранить
                               </button>
                           </div>

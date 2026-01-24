@@ -44,17 +44,21 @@ const buildAssetEffect = (trx) => {
   const op = normalizeOperation(trx?.operation);
   const amount = safeNum(trx?.amount);
   const commission = safeNum(trx?.commission);
+
   if (!op || (!amount && !commission)) {
     return { balanceDelta: 0, incomingDelta: 0, outgoingDelta: 0 };
   }
+
   if (op === OperationType.DEPOSIT) {
     const net = amount - commission;
     return { balanceDelta: net, incomingDelta: net, outgoingDelta: 0 };
   }
+
   if (op === OperationType.WITHDRAW) {
     const net = amount + commission;
     return { balanceDelta: -net, incomingDelta: 0, outgoingDelta: net };
   }
+
   return { balanceDelta: 0, incomingDelta: 0, outgoingDelta: 0 };
 };
 
@@ -75,6 +79,7 @@ const isZeroEffect = (effect) =>
 
 const applyAssetEffect = async (db, accountId, effect) => {
   if (!accountId || isZeroEffect(effect)) return;
+
   const data = {};
   if (effect.balanceDelta) {
     data.balance = { increment: effect.balanceDelta };
@@ -82,6 +87,7 @@ const applyAssetEffect = async (db, accountId, effect) => {
   }
   if (effect.incomingDelta) data.turnoverIncoming = { increment: effect.incomingDelta };
   if (effect.outgoingDelta) data.turnoverOutgoing = { increment: effect.outgoingDelta };
+
   await db.asset.update({ where: { id: accountId }, data });
 };
 
@@ -99,6 +105,7 @@ const trxInclude = {
 
 function viewModel(trx) {
   if (!trx) return trx;
+
   const accountName = trx.account?.accountName || trx.accountName || null;
   const accountCurrency = trx.account?.currency?.code || trx.accountCurrency || null;
   const category = trx.category ?? trx.categoryDict?.name ?? null;
@@ -145,6 +152,9 @@ async function prepareTransactionData(input, db = prisma) {
     orderCurrency,
     balanceBefore,
     balanceAfter,
+    employeeId,
+    clientId,
+    companyId,
   } = input;
 
   const data = {};
@@ -155,7 +165,8 @@ async function prepareTransactionData(input, db = prisma) {
   if (amount !== undefined) data.amount = safeNum(amount);
   if (description !== undefined) data.description = description;
 
-  const opEnum = uiToEnumOperation(operation);
+  // ✅ поддержка и enum (DEPOSIT/WITHDRAW), и UI-строк (Зачисление/Списание)
+  const opEnum = normalizeOperation(operation);
   if (opEnum) data.operation = opEnum;
 
   if (commission !== undefined) data.commission = safeNum(commission);
@@ -164,8 +175,10 @@ async function prepareTransactionData(input, db = prisma) {
   if (subcategory !== undefined) data.subcategory = subcategory;
   if (counterparty !== undefined) data.counterparty = counterparty;
   if (counterpartyRequisites !== undefined) data.counterpartyRequisites = counterpartyRequisites;
+
   const hasAccountCurrency = accountCurrency !== undefined;
   if (hasAccountCurrency) data.accountCurrency = accountCurrency;
+
   if (orderNumber !== undefined) data.orderNumber = String(orderNumber);
   if (orderCurrency !== undefined) data.orderCurrency = orderCurrency;
 
@@ -176,16 +189,24 @@ async function prepareTransactionData(input, db = prisma) {
   data.sumByRatesUAH = safeNum(sumByRatesUAH);
   data.sumByRatesUSD = safeNum(sumByRatesUSD);
   data.sumByRatesRUB = safeNum(sumByRatesRUB);
+
   if (balanceBefore !== undefined) data.balanceBefore = safeNum(balanceBefore);
   if (balanceAfter !== undefined) data.balanceAfter = safeNum(balanceAfter);
 
   if (sentToCounterparty !== undefined) data.sentToCounterparty = Boolean(sentToCounterparty);
   if (sendLion !== undefined) data.sendLion = Boolean(sendLion);
 
+  // --- СВЯЗИ (SCALARS) --- ✅ (версия из main)
+  if (employeeId !== undefined) data.employeeId = employeeId || null;
+  if (clientId !== undefined) data.clientId = clientId || null;
+  if (companyId !== undefined) data.companyId = companyId || null;
+
+  // A. СЧЕТ (Обязательно) ✅ (вторая версия логики)
   if (accountId) {
     data.accountId = accountId;
   }
 
+  // Автоподстановка валюты счета, если не пришла с фронта
   if (data.accountId && !hasAccountCurrency) {
     const account = await db.asset.findUnique({
       where: { id: data.accountId },
@@ -194,6 +215,7 @@ async function prepareTransactionData(input, db = prisma) {
     if (account?.currency?.code) data.accountCurrency = account.currency.code;
   }
 
+  // Привязка справочников по названию (если используете dict)
   if (category) {
     const catObj = await db.financeArticleDict.findFirst({ where: { name: category } });
     data.categoryId = catObj ? catObj.id : null;
@@ -204,6 +226,7 @@ async function prepareTransactionData(input, db = prisma) {
     data.subcategoryId = subCatObj ? subCatObj.id : null;
   }
 
+  // Связь с заказом (проверяем существование)
   if (orderId && typeof orderId === 'string' && orderId.trim() !== '') {
     const orderExists = await db.order.findUnique({ where: { id: orderId } });
     if (orderExists) {
@@ -222,27 +245,63 @@ async function prepareTransactionData(input, db = prisma) {
 /** GET /api/transactions */
 exports.list = async (req, res, next) => {
   try {
-    const { page = 1, pageSize = 50, search = '', accountId } = req.query;
+    const {
+      page = 1,
+      pageSize = 50,
+      search = '',
+      accountId,
+      employeeId,
+      counterparty,
+    } = req.query;
+
     const take = Math.min(Number(pageSize) || 50, 200);
     const skip = Math.max(0, (Number(page) - 1) * take);
 
     const where = {};
+    const and = [];
+
     if (search) {
-      where.OR = [
-        { category: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { counterparty: { contains: search, mode: 'insensitive' } },
-        { orderNumber: { contains: search, mode: 'insensitive' } },
-      ];
+      and.push({
+        OR: [
+          { category: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { counterparty: { contains: search, mode: 'insensitive' } },
+          { orderNumber: { contains: search, mode: 'insensitive' } },
+        ],
+      });
     }
-    if (accountId) where.accountId = accountId;
+
+    if (accountId) and.push({ accountId });
+
+    if (employeeId || counterparty) {
+      const or = [];
+      if (employeeId) or.push({ employeeId });
+      if (counterparty) {
+        or.push({ counterparty: { equals: counterparty, mode: 'insensitive' } });
+      }
+      if (or.length === 1) and.push(or[0]);
+      if (or.length > 1) and.push({ OR: or });
+    }
+
+    if (and.length) where.AND = and;
 
     const [items, total] = await Promise.all([
-      prisma.transaction.findMany({ where, include: trxInclude, orderBy: { date: 'desc' }, skip, take }),
+      prisma.transaction.findMany({
+        where,
+        include: trxInclude,
+        orderBy: { date: 'desc' },
+        skip,
+        take,
+      }),
       prisma.transaction.count({ where }),
     ]);
 
-    res.json({ page: Number(page), pageSize: take, total, items: items.map(viewModel) });
+    res.json({
+      page: Number(page),
+      pageSize: take,
+      total,
+      items: items.map(viewModel),
+    });
   } catch (err) {
     next(err);
   }
@@ -251,7 +310,10 @@ exports.list = async (req, res, next) => {
 /** GET /api/transactions/:id */
 exports.getById = async (req, res, next) => {
   try {
-    const trx = await prisma.transaction.findUnique({ where: { id: req.params.id }, include: trxInclude });
+    const trx = await prisma.transaction.findUnique({
+      where: { id: req.params.id },
+      include: trxInclude,
+    });
     if (!trx) return res.status(404).json({ message: 'Transaction not found' });
     res.json(viewModel(trx));
   } catch (err) {
@@ -275,8 +337,10 @@ exports.create = async (req, res) => {
         }
 
         const created = await tx.transaction.create({ data, include: trxInclude });
+
         const effect = buildAssetEffect(created);
         await applyAssetEffect(tx, created.accountId, effect);
+
         return created;
       });
     };
@@ -320,6 +384,7 @@ exports.update = async (req, res, next) => {
 
       const beforeEffect = buildAssetEffect(before);
       const afterEffect = buildAssetEffect(after);
+
       if (before.accountId && after.accountId && before.accountId === after.accountId) {
         const diff = diffEffects(afterEffect, beforeEffect);
         await applyAssetEffect(tx, after.accountId, diff);
@@ -350,10 +415,13 @@ exports.removeOne = async (req, res, next) => {
         err.status = 404;
         throw err;
       }
+
       await tx.transaction.delete({ where: { id: req.params.id } });
+
       const effect = buildAssetEffect(trx);
       await applyAssetEffect(tx, trx.accountId, invertEffect(effect));
     });
+
     res.json({ ok: true });
   } catch (err) {
     if (err.status === 404 || err.code === 'P2025') {
@@ -384,10 +452,13 @@ exports.duplicate = async (req, res, next) => {
         },
         include: trxInclude,
       });
+
       const effect = buildAssetEffect(created);
       await applyAssetEffect(tx, created.accountId, effect);
+
       return created;
     });
+
     res.status(201).json(viewModel(copy));
   } catch (err) {
     if (err.status === 404) return res.status(404).json({ message: 'Transaction not found' });

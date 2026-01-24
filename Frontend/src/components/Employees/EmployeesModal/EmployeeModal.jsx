@@ -75,8 +75,12 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     formState: { isDirty, errors },
   } = methods;
 
+  useEffect(() => {
+    reset({ status: "active", ...safeEmployee });
+  }, [reset, safeEmployee]);
+
   const errorMap = {
-    general: ["fullName", "login", "password", "country", "countryId"],
+    general: ["fullName", "login", "password", "countryId"],
     contacts: ["phone", "email"],
   };
 
