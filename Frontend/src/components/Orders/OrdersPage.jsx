@@ -316,7 +316,7 @@ const mapOrderFromApi = (o = {}) => {
     executionTime: pickDefined(o.executionTime, meta.executionTime) ?? "",
     startDate: toDateInput(pickDefined(o.startDate, meta.startDate)),
     endDate: toDateInput(pickDefined(o.endDate, meta.endDate)),
-    countDays: normalizeInt(order.countDays),
+    countDays: normalizeInt(o.countDays), // <--- ИСПРАВЛЕНО ЗДЕСЬ (было order.countDays)
     completedDate: toDateInput(pickDefined(o.completedDate, meta.completedDate)),
     completingTime: pickDefined(o.completingTime, meta.completingTime) ?? "",
     completingLink: pickDefined(o.completingLink, meta.completingLink) ?? "",

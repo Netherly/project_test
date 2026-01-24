@@ -28,11 +28,17 @@ const OrderCard = ({
   onDragStart,
   onDragEnd,
   isMassEditMode,
-  isSelected
+  isSelected,
+  showAmount = true // <--- 1. Добавили проп по умолчанию
 }) => {
   const ref = useRef(null);
   const [expandedRegular, setExpandedRegular] = useState(false);
   const [expandedTech, setExpandedTech] = useState(false);
+
+  // <--- 2. Восстановили логику вычисления суммы
+  const rawAmount = order.budget ?? order.price ?? order.amount ?? 0;
+  const amountText = Number(rawAmount).toLocaleString(); 
+  // ---------------------------------------------------
 
   const [{ isDragging }, drag] = useDrag({
     type: ItemTypes.ORDER,
@@ -80,10 +86,11 @@ const OrderCard = ({
     },
   });
 
-  
   if (!isMassEditMode) {
       drag(drop(ref));
   } else {
+      // Если режим массового редактирования, DnD отключаем, но ref нужен для отрисовки
+      drop(ref); 
   }
 
   const TagGroup = ({ tags, expanded, setExpanded, className }) => {
@@ -130,16 +137,13 @@ const OrderCard = ({
     );
   };
 
-  
   const handleClick = (e) => {
       if (isMassEditMode) {
           e.preventDefault(); 
-         
       }
       onClick(order);
   };
 
-  
   const getOpacity = () => {
       if (isDragging) return 0.5;
       if (isMassEditMode && !isSelected) return 0.6; 
@@ -148,7 +152,7 @@ const OrderCard = ({
 
   return (
     <div
-      ref={isMassEditMode ? null : (node) => drag(drop(node))} 
+      ref={ref} // Исправил ref, чтобы он всегда был привязан
       className={`order-container ${isDragging ? "dragging" : ""} ${isSelected ? "selected-card" : ""}`}
       onClick={handleClick}
       style={{ 
@@ -188,6 +192,7 @@ const OrderCard = ({
         </div>
 
         <div className="order-right-content">
+          {/* Теперь showAmount и amountText существуют */}
           {showAmount && <div className="planned-date">{amountText} ₴</div>}
           {order.date && <div className="planned-date">{order.date}</div>}
           {order.plannedFinishDate && (
@@ -210,7 +215,6 @@ const OrderCard = ({
           setExpanded={setExpandedRegular}
           className="regular-tags"
         />
-
       </div>
     </div>
   );
