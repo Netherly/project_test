@@ -1,4 +1,3 @@
-// src/services/client.service.js (пример пути; оставь свой)
 const prisma = require('../../prisma/client');
 
 const isUuid = (value) =>
@@ -326,7 +325,6 @@ async function buildClientData(payload = {}) {
   setIfProvided(data, payload, ['referrer_first_id', 'referrerFirstId'], 'referrer_first_id', (v) => v ?? null);
   setIfProvided(data, payload, ['referrer_first_name', 'referrerFirstName'], 'referrer_first_name', (v) => v ?? null);
 
-  // Важно: в твоей схеме поля названы managerId/companyId (camelCase)
   setIfProvided(data, payload, ['manager_id', 'managerId'], 'managerId', (v) => v ?? null);
   setIfProvided(data, payload, ['company_id', 'companyId'], 'companyId', (v) => v ?? null);
 
@@ -334,7 +332,6 @@ async function buildClientData(payload = {}) {
   setIfProvided(data, payload, ['photo_link', 'photoLink'], 'photo_link', (v) => v ?? null);
   setIfProvided(data, payload, ['folder_link', 'folderLink'], 'folder_link', (v) => v ?? null);
 
-  // Автоподстановка имени реферера, если пришел id, но имя не пришло
   const referrerId = getProvided(payload, ['referrer_id', 'referrerId']);
   const referrerName = getProvided(payload, ['referrer_name', 'referrerName']);
   if (referrerId !== undefined && referrerName === undefined) {

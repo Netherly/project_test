@@ -1,4 +1,3 @@
-// src/components/modals/OrderModal/WorkPlan.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { Controller, useFieldArray, useWatch, useFormContext } from "react-hook-form";
 import { X, Plus, Copy } from "lucide-react";
@@ -7,9 +6,26 @@ import AutoResizeTextarea from "./AutoResizeTextarea";
 const WorkPlan = ({ control, orderFields }) => {
   const { getValues, setValue } = useFormContext();
 
+  const rawReadySolutions = Array.isArray(orderFields?.readySolution)
+    ? orderFields.readySolution
+    : Array.isArray(orderFields?.orderFields?.readySolution)
+    ? orderFields.orderFields.readySolution
+    : [];
+
+  const readySolutions = rawReadySolutions.filter((item) => !item?.isDeleted);
+
   const { fields, append, remove } = useFieldArray({
     control,
     name: "workList",
+  });
+
+  const {
+    fields: additionalOptionFields,
+    append: appendAdditionalOption,
+    remove: removeAdditionalOption,
+  } = useFieldArray({
+    control,
+    name: "additionalOptions",
   });
 
   const techTags = useWatch({ control, name: "techTags" }) || [];
@@ -33,8 +49,25 @@ const WorkPlan = ({ control, orderFields }) => {
     .map((t) => (typeof t === "string" ? t : t?.name))
     .filter(Boolean);
 
-  const fallbackTechTags = ["React", "Node.js", "JavaScript", "Python", "Vue", "TypeScript", "MongoDB", "PostgreSQL"];
-  const fallbackTaskTags = ["Разработка", "Тестирование", "Дизайн", "Реализация", "Аналитика", "Документация"];
+  const fallbackTechTags = [
+    "React",
+    "Node.js",
+    "JavaScript",
+    "Python",
+    "Vue",
+    "TypeScript",
+    "MongoDB",
+    "PostgreSQL",
+  ];
+
+  const fallbackTaskTags = [
+    "Разработка",
+    "Тестирование",
+    "Дизайн",
+    "Реализация",
+    "Аналитика",
+    "Документация",
+  ];
 
   const techOptions = defaultTechTags.length ? defaultTechTags : fallbackTechTags;
   const taskOptions = defaultTaskTags.length ? defaultTaskTags : fallbackTaskTags;
@@ -76,10 +109,6 @@ const WorkPlan = ({ control, orderFields }) => {
     (tag) => !taskTags.includes(tag) && tag.toLowerCase().includes(customTaskTag.toLowerCase())
   );
 
-  /**
-   * Enter без Shift: вставляем в "ТЗ" (techSpecifications) все ТЗ из workList.specification
-   * Shift+Enter: просто перевод строки в "ТЗ"
-   */
   const handleAddTechSpecToTextarea = (e, field) => {
     if (e.key !== "Enter") return;
 
@@ -94,9 +123,14 @@ const WorkPlan = ({ control, orderFields }) => {
 
     e.preventDefault();
     const workListValues = getValues("workList") || [];
-    const techSpecs = workListValues.map((row) => row?.specification || "").filter(Boolean).join("\n");
+    const techSpecs = workListValues
+      .map((row) => row?.specification || "")
+      .filter(Boolean)
+      .join("\n");
     const currentValue = getValues("techSpecifications") || "";
-    const newValue = techSpecs ? `${currentValue}${currentValue ? "\n" : ""}${techSpecs}` : currentValue;
+    const newValue = techSpecs
+      ? `${currentValue}${currentValue ? "\n" : ""}${techSpecs}`
+      : currentValue;
 
     setValue("techSpecifications", newValue, { shouldDirty: true });
     field.onChange(newValue);
@@ -104,6 +138,10 @@ const WorkPlan = ({ control, orderFields }) => {
 
   const handleAddWorkRow = () => {
     append({ description: "", amount: "", specification: "", sale: false });
+  };
+
+  const handleAddAdditionalOption = () => {
+    appendAdditionalOption({ name: "", price: "" });
   };
 
   const handleCopyWorkRow = async (index) => {
@@ -129,11 +167,15 @@ const WorkPlan = ({ control, orderFields }) => {
     .map((p) => p?.value ?? p?.name ?? (typeof p === "string" ? p : ""))
     .filter(Boolean);
 
-  const fallbackProjects = ["Проект Альфа", "Разработка CRM", "Интернет-магазин 'Космос'", "Лендинг для конференции"];
+  const fallbackProjects = [
+    "Проект Альфа",
+    "Разработка CRM",
+    "Интернет-магазин 'Космос'",
+    "Лендинг для конференции",
+  ];
 
   return (
     <div className="tab-content-container workplan-tab-wrapper">
-      {/* ПРОЕКТ */}
       <div className="tab-content-row">
         <div className="tab-content-title">Проект</div>
         <Controller
@@ -154,19 +196,45 @@ const WorkPlan = ({ control, orderFields }) => {
         />
       </div>
 
-      {/* ОПИСАНИЕ ЗАКАЗА */}
       <div className="tab-content-row">
         <div className="tab-content-title">Описание заказа</div>
         <Controller
           name="orderDescription"
           control={control}
           render={({ field }) => (
-            <AutoResizeTextarea {...field} className="workplan-textarea" placeholder="Введите описание заказа" />
+            <AutoResizeTextarea
+              {...field}
+              className="workplan-textarea"
+              placeholder="Введите описание заказа"
+            />
           )}
         />
       </div>
 
-      {/* ТЕГИ (Технологии) */}
+      <div className="tab-content-row">
+        <div className="tab-content-title">Готовое решение</div>
+        <Controller
+          name="readySolution"
+          control={control}
+          render={({ field }) => (
+            <select {...field} className="custom-content-input">
+              <option value="">Не выбрано</option>
+              {readySolutions.length > 0 ? (
+                readySolutions.map((item) => (
+                  <option key={item.id || item.value} value={item.value ?? item.name ?? item}>
+                    {item.value ?? item.name ?? item}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>
+                  Список пуст (добавьте в настройках)
+                </option>
+              )}
+            </select>
+          )}
+        />
+      </div>
+
       <div className="tab-content-row">
         <div className="tab-content-title">Технологии</div>
         <Controller
@@ -213,26 +281,32 @@ const WorkPlan = ({ control, orderFields }) => {
                       </div>
                     ))}
 
-                    {customTechTag.trim() && !techOptions.includes(customTechTag.trim()) && !value.includes(customTechTag.trim()) && (
-                      <div
-                        className="tag-dropdown-item tag-dropdown-custom"
-                        onClick={() => {
-                          const next = customTechTag.trim();
-                          onChange([...value, next]);
-                          setCustomTechTag("");
-                          setShowTechTagDropdown(false);
-                        }}
-                      >
-                        Добавить: "{customTechTag}"
-                      </div>
-                    )}
+                    {customTechTag.trim() &&
+                      !techOptions.includes(customTechTag.trim()) &&
+                      !value.includes(customTechTag.trim()) && (
+                        <div
+                          className="tag-dropdown-item tag-dropdown-custom"
+                          onClick={() => {
+                            const next = customTechTag.trim();
+                            onChange([...value, next]);
+                            setCustomTechTag("");
+                            setShowTechTagDropdown(false);
+                          }}
+                        >
+                          Добавить: "{customTechTag}"
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
 
               <div className="tag-chips-container">
                 {value.map((tag, idx) => (
-                  <span key={`${tag}_${idx}`} className="tag-chips tag-order-chips" onClick={() => onChange(value.filter((t) => t !== tag))}>
+                  <span
+                    key={`${tag}_${idx}`}
+                    className="tag-chips tag-order-chips"
+                    onClick={() => onChange(value.filter((t) => t !== tag))}
+                  >
                     {tag}
                   </span>
                 ))}
@@ -242,7 +316,6 @@ const WorkPlan = ({ control, orderFields }) => {
         />
       </div>
 
-      {/* ТЕГИ (Тип задач) */}
       <div className="tab-content-row">
         <div className="tab-content-title">Тип задач</div>
         <Controller
@@ -289,26 +362,32 @@ const WorkPlan = ({ control, orderFields }) => {
                       </div>
                     ))}
 
-                    {customTaskTag.trim() && !taskOptions.includes(customTaskTag.trim()) && !value.includes(customTaskTag.trim()) && (
-                      <div
-                        className="tag-dropdown-item tag-dropdown-custom"
-                        onClick={() => {
-                          const next = customTaskTag.trim();
-                          onChange([...value, next]);
-                          setCustomTaskTag("");
-                          setShowTaskTagDropdown(false);
-                        }}
-                      >
-                        Добавить: "{customTaskTag}"
-                      </div>
-                    )}
+                    {customTaskTag.trim() &&
+                      !taskOptions.includes(customTaskTag.trim()) &&
+                      !value.includes(customTaskTag.trim()) && (
+                        <div
+                          className="tag-dropdown-item tag-dropdown-custom"
+                          onClick={() => {
+                            const next = customTaskTag.trim();
+                            onChange([...value, next]);
+                            setCustomTaskTag("");
+                            setShowTaskTagDropdown(false);
+                          }}
+                        >
+                          Добавить: "{customTaskTag}"
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
 
               <div className="tag-chips-container">
                 {value.map((tag, idx) => (
-                  <span key={`${tag}_${idx}`} className="tag-chips tag-order-chips" onClick={() => onChange(value.filter((t) => t !== tag))}>
+                  <span
+                    key={`${tag}_${idx}`}
+                    className="tag-chips tag-order-chips"
+                    onClick={() => onChange(value.filter((t) => t !== tag))}
+                  >
                     {tag}
                   </span>
                 ))}
@@ -318,11 +397,10 @@ const WorkPlan = ({ control, orderFields }) => {
         />
       </div>
 
-      {/* --- ТАБЛИЦА СПИСКА РАБОТ --- */}
       <div className="tab-content-table">
         <div className="tab-content-title">Список работ</div>
 
-        <div className="work-list-table">
+        <div className="work-list-table main-work-table">
           <div className="work-list-row header-row">
             <div className="header-content-wrapper">
               <div className="work-list-cell">Описание</div>
@@ -335,14 +413,17 @@ const WorkPlan = ({ control, orderFields }) => {
 
           {fields.map((row, index) => (
             <div key={row.id} className="work-list-row">
-              {/* description */}
               <div className="work-list-cell">
                 <Controller
                   control={control}
                   name={`workList.${index}.description`}
                   render={({ field }) => (
                     <>
-                      <AutoResizeTextarea {...field} placeholder="Описание" list={`description-options-${index}`} />
+                      <AutoResizeTextarea
+                        {...field}
+                        placeholder="Описание"
+                        list={`description-options-${index}`}
+                      />
                       <datalist id={`description-options-${index}`}>
                         {descriptionOptions.map((opt, idx) => (
                           <option key={idx} value={opt} />
@@ -353,7 +434,6 @@ const WorkPlan = ({ control, orderFields }) => {
                 />
               </div>
 
-              {/* amount */}
               <div className="work-list-cell">
                 <Controller
                   control={control}
@@ -362,7 +442,6 @@ const WorkPlan = ({ control, orderFields }) => {
                 />
               </div>
 
-              {/* specification */}
               <div className="work-list-cell">
                 <Controller
                   control={control}
@@ -371,7 +450,6 @@ const WorkPlan = ({ control, orderFields }) => {
                 />
               </div>
 
-              {/* sale */}
               <div className="work-list-cell">
                 <Controller
                   control={control}
@@ -388,7 +466,6 @@ const WorkPlan = ({ control, orderFields }) => {
                 />
               </div>
 
-              {/* actions */}
               <div className="work-list-cell action-cell">
                 <button
                   type="button"
@@ -399,7 +476,12 @@ const WorkPlan = ({ control, orderFields }) => {
                   <Copy size={16} color="white" />
                 </button>
 
-                <button type="button" className="action-btn-icon" onClick={() => remove(index)} title="Удалить строку">
+                <button
+                  type="button"
+                  className="action-btn-icon"
+                  onClick={() => remove(index)}
+                  title="Удалить строку"
+                >
                   <X size={18} color="#ff4d4f" />
                 </button>
               </div>
@@ -412,7 +494,6 @@ const WorkPlan = ({ control, orderFields }) => {
         </button>
       </div>
 
-      {/* ТЗ */}
       <div className="tab-content-row">
         <div className="tab-content-title">ТЗ</div>
         <Controller
@@ -429,25 +510,84 @@ const WorkPlan = ({ control, orderFields }) => {
         />
       </div>
 
-      {/* ДОП. УСЛОВИЯ */}
+      <div className="tab-content-table">
+        <div className="tab-content-title">Доп. опции</div>
+
+        <div className="work-list-table mini-options-table">
+          <div className="work-list-row header-row">
+            <div className="header-content-wrapper">
+              <div className="work-list-cell">Значение</div>
+              <div className="work-list-cell">Цена</div>
+            </div>
+            <div className="work-list-cell action-cell" />
+          </div>
+
+          {additionalOptionFields.map((item, index) => (
+            <div key={item.id} className="work-list-row">
+              <div className="work-list-cell">
+                <Controller
+                  control={control}
+                  name={`additionalOptions.${index}.name`}
+                  render={({ field }) => (
+                    <AutoResizeTextarea {...field} placeholder="Название опции" />
+                  )}
+                />
+              </div>
+
+              <div className="work-list-cell">
+                <Controller
+                  control={control}
+                  name={`additionalOptions.${index}.price`}
+                  render={({ field }) => <AutoResizeTextarea {...field} placeholder="0" />}
+                />
+              </div>
+
+              <div className="work-list-cell action-cell">
+                <button
+                  type="button"
+                  className="action-btn-icon"
+                  onClick={() => removeAdditionalOption(index)}
+                  title="Удалить опцию"
+                >
+                  <X size={18} color="#ff4d4f" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button type="button" className="add-requisites-btn" onClick={handleAddAdditionalOption}>
+          <Plus size={16} /> Добавить
+        </button>
+      </div>
+
       <div className="tab-content-row">
         <div className="tab-content-title">Доп. условия</div>
         <Controller
           name="additionalConditions"
           control={control}
           render={({ field }) => (
-            <AutoResizeTextarea {...field} className="workplan-textarea" placeholder="Введите дополнительные условия..." />
+            <AutoResizeTextarea
+              {...field}
+              className="workplan-textarea"
+              placeholder="Введите дополнительные условия..."
+            />
           )}
         />
       </div>
 
-      {/* ПРИМЕЧАНИЕ */}
       <div className="tab-content-row">
         <div className="tab-content-title">Примечание</div>
         <Controller
           name="notes"
           control={control}
-          render={({ field }) => <AutoResizeTextarea {...field} className="workplan-textarea" placeholder="Введите примечание..." />}
+          render={({ field }) => (
+            <AutoResizeTextarea
+              {...field}
+              className="workplan-textarea"
+              placeholder="Введите примечание..."
+            />
+          )}
         />
       </div>
     </div>

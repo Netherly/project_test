@@ -1,4 +1,3 @@
-// src/components/modals/OrderModal/OrderModal.jsx
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useForm, Controller, FormProvider } from "react-hook-form";
 
@@ -64,6 +63,7 @@ const newOrderDefaults = {
   techTags: [],
   taskTags: [],
   workList: [{ description: "", amount: "", specification: "", sale: false }],
+  additionalOptions: [],
   techSpecifications: "",
   additionalConditions: "",
   notes: "",
@@ -101,6 +101,10 @@ const newOrderDefaults = {
   completingTime: "",
   completingLink: "",
   orderImpressions: "",
+  solutionLink: "",
+  additionalSolutionLinks: "",
+  solutionCopyLink: "",
+  readySolution: "",
   work_log: [],
 };
 
@@ -113,79 +117,89 @@ function OrderModal({
   onDeleteOrder,
   journalEntries,
 }) {
+  const formDefaults = useMemo(() => {
+    if (mode === "create") return newOrderDefaults;
+    return {
+      stage: order?.stage || "",
+      tags: order?.tags || [],
+      isOldOrder: order?.isOldOrder || false,
+      urgency: order?.urgency || "",
+      appealDate: order?.appealDate || "",
+      proposalDate: order?.proposalDate || "",
+      orderDate: order?.orderDate || "",
+      interval: order?.interval || "",
+      orderType: order?.orderType || "",
+      orderStatus: order?.orderStatus || "",
+      closeReason: order?.closeReason || "",
+      plannedStartDate: order?.plannedStartDate || "",
+      plannedFinishDate: order?.plannedFinishDate || "",
+      project: order?.project || "",
+      orderDescription: order?.orderDescription || "",
+      techTags: order?.techTags || [],
+      taskTags: order?.taskTags || [],
+      workList:
+        order?.workList && order.workList.length > 0
+          ? order.workList
+          : [{ description: "", amount: "", specification: "", sale: false }],
+      additionalOptions: Array.isArray(order?.additionalOptions) ? order.additionalOptions : [],
+      techSpecifications: order?.techSpecifications || "",
+      additionalConditions: order?.additionalConditions || "",
+      notes: order?.notes || "",
+      order_client: order?.order_client || "",
+      order_main_client: order?.order_main_client || "",
+      client_company: order?.client_company || "",
+      partner_name: order?.partner_name || "",
+      third_parties: order?.third_parties || [],
+      partner_disable_share: order?.partner_disable_share ?? false,
+      partner_payment: order?.partner_payment ?? "",
+      partner_plan: order?.partner_plan ?? "",
+      partner_percent_plan: order?.partner_percent_plan ?? "",
+      partner_sum_plan: order?.partner_sum_plan ?? "",
+      partner_underpayment: order?.partner_underpayment ?? "",
+      performers: order?.performers || [],
+      share_percent: order?.share_percent ?? "",
+      budget: order?.budget ?? "",
+      minOrderAmount: order?.minOrderAmount ?? "",
+      currency_type: order?.currency_type ?? "",
+      currency_rate: order?.currency_rate ?? "",
+      hourly_rate: order?.hourly_rate ?? "",
+      round_hour: order?.round_hour ?? false,
+      discount: order?.discount ?? "",
+      discountReason: order?.discountReason ?? "",
+      upsell: order?.upsell ?? "",
+      expenses: order?.expenses ?? "",
+      tips: order?.tips ?? "",
+      payment_details: order?.payment_details ?? "",
+      payment_log:
+        order?.payment_log && order.payment_log.length > 0
+          ? order.payment_log
+          : [{ date: "", item: "", sub_item: "", account: "", amount: "" }],
+      executionTime: order?.executionTime || "",
+      startDate: order?.startDate || "",
+      endDate: order?.endDate || "",
+      countDays: order?.countDays ?? "",
+      completedDate: order?.completedDate || "",
+      completingTime: order?.completingTime || "",
+      completingLink: order?.completingLink || "",
+      orderImpressions: order?.orderImpressions || "",
+      solutionLink: order?.solutionLink || "",
+      additionalSolutionLinks: order?.additionalSolutionLinks || "",
+      solutionCopyLink: order?.solutionCopyLink || "",
+      readySolution: order?.readySolution || "",
+      work_log: order?.work_log || [],
+    };
+  }, [mode, order]);
+
   const methods = useForm({
-    defaultValues:
-      mode === "create"
-        ? newOrderDefaults
-        : {
-            stage: order?.stage || "",
-            tags: order?.tags || [],
-            isOldOrder: order?.isOldOrder || false,
-            urgency: order?.urgency || "",
-            appealDate: order?.appealDate || "",
-            proposalDate: order?.proposalDate || "",
-            orderDate: order?.orderDate || "",
-            interval: order?.interval || "",
-            orderType: order?.orderType || "",
-            orderStatus: order?.orderStatus || "",
-            closeReason: order?.closeReason || "",
-            plannedStartDate: order?.plannedStartDate || "",
-            plannedFinishDate: order?.plannedFinishDate || "",
-            project: order?.project || "",
-            orderDescription: order?.orderDescription || "",
-            techTags: order?.techTags || [],
-            taskTags: order?.taskTags || [],
-            workList:
-              order?.workList && order.workList.length > 0
-                ? order.workList
-                : [{ description: "", amount: "", specification: "", sale: false }],
-            techSpecifications: order?.techSpecifications || "",
-            additionalConditions: order?.additionalConditions || "",
-            notes: order?.notes || "",
-            order_client: order?.order_client || "",
-            order_main_client: order?.order_main_client || "",
-            client_company: order?.client_company || "",
-            partner_name: order?.partner_name || "",
-            third_parties: order?.third_parties || [],
-            partner_disable_share: order?.partner_disable_share ?? false,
-            partner_payment: order?.partner_payment ?? "",
-            partner_plan: order?.partner_plan ?? "",
-            partner_percent_plan: order?.partner_percent_plan ?? "",
-            partner_sum_plan: order?.partner_sum_plan ?? "",
-            partner_underpayment: order?.partner_underpayment ?? "",
-            performers: order?.performers || [],
-            // ВАЖНО: используем ?? чтобы не терять 0 / false
-            share_percent: order?.share_percent ?? "",
-            budget: order?.budget ?? "",
-            minOrderAmount: order?.minOrderAmount ?? "",
-            currency_type: order?.currency_type ?? "",
-            currency_rate: order?.currency_rate ?? "",
-            hourly_rate: order?.hourly_rate ?? "",
-            round_hour: order?.round_hour ?? false,
-            discount: order?.discount ?? "",
-            discountReason: order?.discountReason ?? "",
-            upsell: order?.upsell ?? "",
-            expenses: order?.expenses ?? "",
-            tips: order?.tips ?? "",
-            payment_details: order?.payment_details ?? "",
-            payment_log:
-              order?.payment_log && order.payment_log.length > 0
-                ? order.payment_log
-                : [{ date: "", item: "", sub_item: "", account: "", amount: "" }],
-            executionTime: order?.executionTime || "",
-            startDate: order?.startDate || "",
-            endDate: order?.endDate || "",
-            countDays: order?.countDays ?? "",
-            completedDate: order?.completedDate || "",
-            completingTime: order?.completingTime || "",
-            completingLink: order?.completingLink || "",
-            orderImpressions: order?.orderImpressions || "",
-            work_log: order?.work_log || [],
-          },
+    defaultValues: formDefaults,
   });
 
   const { control, handleSubmit, watch, reset, setValue, getValues, formState } = methods;
   const { isDirty } = formState;
+
+  useEffect(() => {
+    reset(formDefaults);
+  }, [formDefaults, reset]);
 
   const {
     transactions,
@@ -219,6 +233,7 @@ function OrderModal({
     tags: [],
     techTags: [],
     taskTags: [],
+    readySolution: [],
   });
 
   const [clientsData, setClientsData] = useState([]);
@@ -231,16 +246,13 @@ function OrderModal({
   });
   const [employees, setEmployees] = useState([]);
 
-  // ---- refs для кликов снаружи ----
   const tagInputRef = useRef(null);
   const tagDropdownRef = useRef(null);
   const stageDropdownRef = useRef(null);
 
-  // ---- watchers ----
   const watchedStage = watch("stage");
   const watchedTags = watch("tags") || [];
 
-  // ---- загрузка сотрудников (локально) ----
   useEffect(() => {
     try {
       setEmployees(getEmployees());
@@ -250,7 +262,6 @@ function OrderModal({
     }
   }, []);
 
-  // ---- подтянуть work_log из журнала ----
   useEffect(() => {
     if (!order || !order.id || !journalEntries) return;
 
@@ -276,7 +287,6 @@ function OrderModal({
     });
   }, [order, journalEntries, reset, getValues]);
 
-  // ---- операции/транзакции заказа из контекста ----
   const orderTransactions = useMemo(() => {
     if (!order?.id && !order?.numberOrder && order?.orderSequence == null) return [];
     const orderId = order?.id ? String(order.id) : null;
@@ -289,19 +299,15 @@ function OrderModal({
     const list = Array.isArray(transactions) ? transactions : [];
     return list.filter((trx) => {
       const trxOrderId = trx?.orderId ?? trx?.order_id ?? trx?.order?.id ?? null;
-      const trxOrderNumber =
-        trx?.orderNumber ?? trx?.order_number ?? trx?.order?.numberOrder ?? null;
+      const trxOrderNumber = trx?.orderNumber ?? trx?.order_number ?? trx?.order?.numberOrder ?? null;
 
       if (orderId && trxOrderId != null && String(trxOrderId) === orderId) return true;
-      if (orderNumber && trxOrderNumber != null && String(trxOrderNumber) === orderNumber)
-        return true;
-      if (orderSequence && trxOrderNumber != null && String(trxOrderNumber) === orderSequence)
-        return true;
+      if (orderNumber && trxOrderNumber != null && String(trxOrderNumber) === orderNumber) return true;
+      if (orderSequence && trxOrderNumber != null && String(trxOrderNumber) === orderSequence) return true;
       return false;
     });
   }, [transactions, order?.id, order?.numberOrder, order?.orderSequence]);
 
-  // ---- клиенты ----
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -317,7 +323,6 @@ function OrderModal({
     };
   }, []);
 
-  // ---- поля заказов + поля исполнителей из localStorage ----
   useEffect(() => {
     const savedFields = localStorage.getItem("fieldsData");
     if (savedFields) {
@@ -336,6 +341,7 @@ function OrderModal({
             tags: [],
             techTags: [],
             taskTags: [],
+            readySolution: [],
           };
           setOrderFields({ ...base, ...parsed.orderFields });
         }
@@ -356,7 +362,6 @@ function OrderModal({
         console.error("Ошибка парсинга полей из localStorage:", e);
       }
     } else {
-      // хотя бы сотрудников подтянем
       const employeesFromStorage = JSON.parse(localStorage.getItem("employees")) || [];
       const activeEmployees = (Array.isArray(employeesFromStorage) ? employeesFromStorage : []).filter(
         (emp) => emp.status === "active"
@@ -365,7 +370,6 @@ function OrderModal({
     }
   }, []);
 
-  // ---- закрытие дропдаунов кликом снаружи ----
   useEffect(() => {
     const handleClickOutside = (event) => {
       const target = event.target;
@@ -388,9 +392,7 @@ function OrderModal({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ---- helpers ----
   const calculateDaysFromOrder = () => {
-    // у тебя было: order?.date; оставляю как было
     if (mode === "create" || !order?.date) return 0;
     const orderDate = new Date(order.date.split(".").reverse().join("-"));
     const currentDate = new Date();
@@ -402,7 +404,7 @@ function OrderModal({
   const createMultiColorProgress = () => {
     const currentStageIndex = stages.indexOf(watchedStage);
     const segments = [];
-    for (let i = 0; i <= currentStageIndex; i++) {
+    for (let i = 0; i <= currentStageIndex; i += 1) {
       const stageColor = getStageColor(stages[i]);
       const segmentWidth = (1 / stages.length) * 100;
       segments.push({
@@ -466,7 +468,6 @@ function OrderModal({
   const handleConfirmAction = () => {
     if (confirmAction === "duplicate") {
       console.log("Дублируем заказ", order?.id);
-      // тут можно будет вызвать onDuplicate если появится
     } else if (confirmAction === "delete") {
       if (onDeleteOrder && order?.id) onDeleteOrder(order.id);
       onClose?.();
@@ -568,10 +569,7 @@ function OrderModal({
   };
 
   const resetChanges = () => {
-    reset(mode === "create" ? newOrderDefaults : methods.getValues());
-    // Если хочешь вернуть именно исходный order, а не текущие значения — можно подставить объект как в defaultValues
-    // но это очень длинно, поэтому оставил безопасный вариант. Ниже вариант "как было раньше":
-    // reset({...newOrderDefaultsFromOrder});
+    reset(formDefaults);
   };
 
   const multiColorSegments = createMultiColorProgress();
@@ -582,7 +580,6 @@ function OrderModal({
       <div className="order-modal-content custom-scrollbar">
         <FormProvider {...methods}>
           <form onSubmit={handleSubmit(onSubmit)} className="order-modal-form">
-            {/* HEADER */}
             <div className="order-modal-header-section">
               <div className="header-top-row">
                 <div className="order-modal-header">
@@ -591,9 +588,11 @@ function OrderModal({
                       ? "Создание нового заказа"
                       : order?.name ||
                         (order?.numberOrder
-                          ? `${order?.orderSequence !== undefined && order?.orderSequence !== null ? "Заказ №" : "Заявка №"} ${
-                              order.numberOrder
-                            }`
+                          ? `${
+                              order?.orderSequence !== undefined && order?.orderSequence !== null
+                                ? "Заказ №"
+                                : "Заявка №"
+                            } ${order.numberOrder}`
                           : `Заявка #${order?.id}`)}
                   </h2>
 
@@ -653,7 +652,6 @@ function OrderModal({
                 )}
               </div>
 
-              {/* TAGS */}
               <div className="tags-section-header">
                 <Controller
                   control={control}
@@ -711,7 +709,6 @@ function OrderModal({
                 />
               </div>
 
-              {/* STAGE */}
               <div className="developing-stages-container">
                 <Controller
                   control={control}
@@ -744,8 +741,7 @@ function OrderModal({
 
                       {mode === "edit" && daysFromOrder > 0 && (
                         <span className="days-counter">
-                          {daysFromOrder}{" "}
-                          {daysFromOrder === 1 ? "день" : daysFromOrder < 5 ? "дня" : "дней"}
+                          {daysFromOrder} {daysFromOrder === 1 ? "день" : daysFromOrder < 5 ? "дня" : "дней"}
                         </span>
                       )}
                     </div>
@@ -775,7 +771,6 @@ function OrderModal({
                 </div>
               </div>
 
-              {/* TABS */}
               <div className="order-tabs-container">
                 <div className="tabs">
                   {tabs.map((tab) => (
@@ -792,16 +787,13 @@ function OrderModal({
               </div>
             </div>
 
-            {/* BODY */}
             <div className="order-modal-body-section">
               <div className="tab-content">
                 {activeTab === "Сводка" && <OrderSummary />}
                 {activeTab === "Основное" && (
                   <GeneralInformation control={control} orderFields={orderFields} mode={mode} />
                 )}
-                {activeTab === "Планы" && (
-                  <WorkPlan control={control} orderFields={orderFields} mode={mode} />
-                )}
+                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} />}
                 {activeTab === "Участники" && (
                   <Participants
                     control={control}
@@ -819,7 +811,6 @@ function OrderModal({
               </div>
             </div>
 
-            {/* FOOTER */}
             <div className="order-modal-footer">
               <div className="action-buttons">
                 <button type="button" className="cancel-order-btn" onClick={resetChanges}>
@@ -834,7 +825,6 @@ function OrderModal({
         </FormProvider>
       </div>
 
-      {/* CHAT */}
       <div className="order-chat-panel-wrapper">
         {mode === "create" ? (
           <div className="chat-placeholder">
@@ -845,7 +835,6 @@ function OrderModal({
         )}
       </div>
 
-      {/* RIGHT MENU */}
       <div className="right-side-menu">
         {mode === "create" ? (
           <div className="menu-placeholder">
@@ -896,7 +885,6 @@ function OrderModal({
         )}
       </div>
 
-      {/* MODALS */}
       {showConfirmModal && (
         <ConfirmationModal
           {...getConfirmModalProps()}

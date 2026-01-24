@@ -1,11 +1,13 @@
-// src/pages/ClientsPage.jsx
-import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
 import "../styles/ClientsPage.css";
-
-import { fetchClients, saveClient as saveClientApi, deleteClient as deleteClientApi } from "../api/clients";
+import {
+  fetchClients,
+  saveClient as saveClientApi,
+  deleteClient as deleteClientApi,
+} from "../api/clients";
 import { fetchFields } from "../api/fields";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
@@ -32,7 +34,6 @@ const statusToEmojiMap = {
 const STORAGE_KEY = "clientsTableWidths";
 const MIN_W = 24;
 
-/* ====== UI helpers ====== */
 function TagsCell({ tags = [] }) {
   if (!tags.length) return <span className="ellipsis">—</span>;
   const visible = tags.slice(0, 2);
@@ -58,35 +59,13 @@ function TagsCell({ tags = [] }) {
   );
 }
 
-const STATUS_MAP = {
-  active: { text: "Активен", cls: "status--active" },
-  inactive: { text: "Неактивен", cls: "status--inactive" },
-  paused: { text: "Пауза", cls: "status--paused" },
-  prospect: { text: "Потенциальный", cls: "status--prospect" },
-  lead: { text: "Лид", cls: "status--lead" },
-  blacklist: { text: "Блэклист", cls: "status--blacklist" },
-};
-
-function StatusPill({ value }) {
-  const safeValue = typeof value === "object" && value !== null ? value.name : value;
-  if (!safeValue) return <span className="ellipsis">—</span>;
-
-  const key = String(safeValue).toLowerCase();
-  const m = STATUS_MAP[key] || { text: safeValue, cls: "status--neutral" };
-
-  return (
-    <span className={`status-pill ${m.cls}`} title={String(safeValue)}>
-      {m.text}
-    </span>
-  );
-}
-
-// Умный Ellipsis: понимает строки/объекты/массивы
 const Ellipsis = ({ value }) => {
   let text;
 
   if (Array.isArray(value)) {
-    text = value.map((t) => (t && typeof t === "object" ? t.name ?? JSON.stringify(t) : String(t))).join(", ");
+    text = value
+      .map((t) => (t && typeof t === "object" ? t.name ?? JSON.stringify(t) : String(t)))
+      .join(", ");
   } else if (value && typeof value === "object") {
     text = value.name || JSON.stringify(value);
   } else {
@@ -102,7 +81,6 @@ const Ellipsis = ({ value }) => {
 
 const normalizeStr = (value) => String(value ?? "").trim();
 const uniqueList = (arr) => Array.from(new Set(arr));
-
 const extractValues = (items, { preferCode = false } = {}) => {
   const list = Array.isArray(items) ? items : [];
   const values = list
@@ -113,7 +91,6 @@ const extractValues = (items, { preferCode = false } = {}) => {
       return normalizeStr(item.name ?? item.value ?? item.code);
     })
     .filter(Boolean);
-
   return uniqueList(values);
 };
 
@@ -149,7 +126,6 @@ export default function ClientsPage({
   const referrerOptions = useMemo(() => {
     const items = [];
     const seen = new Set();
-
     const addItem = (id, name, label) => {
       if (!id || !name) return;
       const key = String(id);
@@ -183,11 +159,13 @@ export default function ClientsPage({
   const withReferrerNames = (client) => {
     if (!client || !referrerById.size) return client;
     const refId = client.referrer_id != null ? String(client.referrer_id) : "";
-    const refFirstId = client.referrer_first_id != null ? String(client.referrer_first_id) : "";
+    const refFirstId =
+      client.referrer_first_id != null ? String(client.referrer_first_id) : "";
     return {
       ...client,
       referrer_name: client.referrer_name || referrerById.get(refId) || "",
-      referrer_first_name: client.referrer_first_name || referrerById.get(refFirstId) || "",
+      referrer_first_name:
+        client.referrer_first_name || referrerById.get(refFirstId) || "",
     };
   };
 
@@ -198,14 +176,14 @@ export default function ClientsPage({
         const data = await fetchFields();
         if (!mounted) return;
         const nextCountries = extractValues(data?.clientFields?.country);
-        const nextCategories = extractValues(data?.clientFields?.category);
         const nextCurrencies = extractValues(
           data?.generalFields?.currency ?? data?.clientFields?.currency,
           { preferCode: true }
         );
+        const nextCategories = extractValues(data?.clientFields?.category);
         if (nextCountries.length) setCountriesList(nextCountries);
-        if (nextCategories.length) setCategoriesList(nextCategories);
         if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
+        if (nextCategories.length) setCategoriesList(nextCategories);
       } catch (e) {
         console.error("fetchFields (clients) failed:", e);
       }
@@ -276,7 +254,6 @@ export default function ClientsPage({
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -290,56 +267,51 @@ export default function ClientsPage({
 
     const ordersJson = localStorage.getItem("ordersData");
     let ordersData = [];
-
     if (ordersJson) {
       try {
         ordersData = JSON.parse(ordersJson);
-      } catch (err) {
-        console.error("Ошибка парсинга заказов из localStorage:", err);
+      } catch (error) {
+        console.error("Ошибка парсинга заказов из localStorage:", error);
       }
     }
 
     for (const order of ordersData) {
       const clientIdNum = parseInt(order.order_client, 10);
-      if (Number.isNaN(clientIdNum)) continue;
-
+      if (isNaN(clientIdNum)) continue;
       if (!clientOrders.has(clientIdNum)) clientOrders.set(clientIdNum, []);
       clientOrders.get(clientIdNum).push(order);
     }
 
     for (const [clientId, orders] of clientOrders.entries()) {
       if (!orders.length) continue;
-
       const sortedOrders = orders.sort((a, b) => {
         const dateA = new Date(a.orderDate);
         const dateB = new Date(b.orderDate);
-
-        if (Number.isNaN(dateA.getTime())) return 1;
-        if (Number.isNaN(dateB.getTime())) return -1;
-
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
         return dateB.getTime() - dateA.getTime();
       });
 
       const latestOrder = sortedOrders[0];
-      if (latestOrder?.stage) statusMap.set(clientId, latestOrder.stage);
+      if (latestOrder && latestOrder.stage) {
+        statusMap.set(clientId, latestOrder.stage);
+      }
     }
 
     return statusMap;
   }, []);
 
-  /* === фильтрация === */
   const filteredRows = useMemo(() => {
     return (list || [])
       .filter((c) => {
         if (!search) return true;
-
         const parts = [
           c.name,
-          ...(c.tags || []).map((t) => t?.name ?? t),
+          ...(c.tags || []).map((t) => t.name),
           c.note,
           c.intro_description,
-          c.category?.name || c.category,
           c.source?.name || c.source,
+          c.category?.name || c.category,
           c.full_name,
           c.country?.name || c.country,
           c.currency?.name || c.currency,
@@ -349,9 +321,8 @@ export default function ClientsPage({
           c.referrer_first_name,
           c.status,
           c.last_order_date,
-          ...(c.credentials || []).flatMap((cr) => [cr?.login, cr?.description]),
+          ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
         ];
-
         const text = parts.join(" ").toLowerCase();
         return text.includes(search.toLowerCase());
       })
@@ -359,8 +330,15 @@ export default function ClientsPage({
         const curName = c.currency?.name || c.currency;
         return !currencyFilter || curName === currencyFilter;
       })
-      .filter((c) => !statusFilter || c.status === statusFilter)
-      .filter((c) => !tagFilter.length || (c.tags || []).some((t) => tagFilter.includes(t.name)))
+      .filter((c) => {
+        const status = c.status?.name || c.status;
+        return !statusFilter || status === statusFilter;
+      })
+      .filter(
+        (c) =>
+          !tagFilter.length ||
+          (c.tags || []).some((t) => tagFilter.includes(t.name))
+      )
       .filter((c) => {
         const srcName = c.source?.name || c.source;
         return !sourceFilter || srcName === sourceFilter;
@@ -375,12 +353,22 @@ export default function ClientsPage({
       })
       .filter((c) => {
         if (!shareFilter) return true;
-        const hasShare = Boolean(c.share_info);
-        return shareFilter === "yes" ? hasShare : !hasShare;
+        const share = c.share_info === true || c.share_info === "true";
+        return shareFilter === "yes" ? share : !share;
       })
       .filter((c) => {
-        if (dateFrom && c.last_order_date !== "—" && new Date(c.last_order_date) < new Date(dateFrom)) return false;
-        if (dateTo && c.last_order_date !== "—" && new Date(c.last_order_date) > new Date(dateTo)) return false;
+        if (
+          dateFrom &&
+          c.last_order_date !== "—" &&
+          new Date(c.last_order_date) < new Date(dateFrom)
+        )
+          return false;
+        if (
+          dateTo &&
+          c.last_order_date !== "—" &&
+          new Date(c.last_order_date) > new Date(dateTo)
+        )
+          return false;
         return true;
       });
   }, [
@@ -397,39 +385,35 @@ export default function ClientsPage({
     dateTo,
   ]);
 
-  /* === опции селектов === */
-  const currencyOptions = useMemo(() => {
-    const fromFields = currenciesList?.length ? currenciesList : [];
-    if (fromFields.length) return fromFields;
-
-    return Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean);
-  }, [currenciesList, list]);
-
-  const statusOptions = useMemo(() => Array.from(new Set(list.map((c) => c.status))).filter(Boolean), [list]);
-
-  const tagOptions = useMemo(
-    () => Array.from(new Set(list.flatMap((c) => (c.tags || []).map((t) => t.name)))).filter(Boolean),
+  const currencyOptions = useMemo(
+    () =>
+      currenciesList.length
+        ? currenciesList
+        : Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean),
+    [currenciesList, list]
+  );
+  const statusOptions = useMemo(
+    () => Array.from(new Set(list.map((c) => c.status))).filter(Boolean),
     [list]
   );
-
+  const tagOptions = useMemo(
+    () =>
+      Array.from(new Set(list.flatMap((c) => (c.tags || []).map((t) => t.name)))).filter(Boolean),
+    [list]
+  );
   const sourceOptions = useMemo(
     () => Array.from(new Set(list.map((c) => c.source?.name || c.source))).filter(Boolean),
     [list]
   );
+  const categoryOptions = useMemo(
+    () => (categoriesList.length ? categoriesList : []),
+    [categoriesList]
+  );
+  const countryOptions = useMemo(
+    () => (countriesList.length ? countriesList : []),
+    [countriesList]
+  );
 
-  const categoryOptions = useMemo(() => {
-    const fromFields = categoriesList?.length ? categoriesList : [];
-    if (fromFields.length) return fromFields;
-    return Array.from(new Set(list.map((c) => c.category?.name || c.category))).filter(Boolean);
-  }, [categoriesList, list]);
-
-  const countryOptions = useMemo(() => {
-    const fromFields = countriesList?.length ? countriesList : [];
-    if (fromFields.length) return fromFields;
-    return Array.from(new Set(list.map((c) => c.country?.name || c.country))).filter(Boolean);
-  }, [countriesList, list]);
-
-  /* === заголовки и ширины === */
   const headers = [
     "Клиент",
     "Теги",
@@ -456,7 +440,6 @@ export default function ClientsPage({
       return Array(COLS).fill(null);
     }
   };
-
   const [colWidths, setColWidths] = useState(load);
   const wrapRef = useRef(null);
 
@@ -466,24 +449,15 @@ export default function ClientsPage({
       const w = Math.floor(total / COLS);
       setColWidths(Array(COLS).fill(w));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrapRef, COLS]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(colWidths));
   }, [colWidths]);
 
-  /* === лог по credential логинам у отфильтрованных (для отладки) === */
-  useEffect(() => {
-    const logins = filteredRows.flatMap((c) => (c.credentials || []).map((cr) => cr?.login));
-    console.log("Filtered credentials logins:", logins);
-  }, [filteredRows]);
-
-  /* === модалка/редактирование === */
   const [showModal, setShow] = useState(false);
   const [active, setActive] = useState(null);
   const [expanded, setExp] = useState({});
-
   const idMap = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
 
   const openEdit = (c) => {
@@ -551,7 +525,6 @@ export default function ClientsPage({
     e.preventDefault();
     const startX = e.clientX;
     const startW = colWidths[i] ?? 0;
-
     const move = (ev) => {
       const next = Math.max(startW + (ev.clientX - startX), MIN_W);
       setColWidths((prev) => {
@@ -560,12 +533,10 @@ export default function ClientsPage({
         return arr;
       });
     };
-
     const up = () => {
       document.removeEventListener("mousemove", move);
       document.removeEventListener("mouseup", up);
     };
-
     document.addEventListener("mousemove", move);
     document.addEventListener("mouseup", up);
   };
@@ -637,7 +608,6 @@ export default function ClientsPage({
   return (
     <div className="clients-layout">
       <Sidebar />
-
       <div className="clients-page">
         <ClientsPageHeader
           onAdd={() => {
@@ -652,7 +622,17 @@ export default function ClientsPage({
           sourceOptions={sourceOptions}
           categoryOptions={categoryOptions}
           countryOptions={countryOptions}
-          onFilterChange={({ currency, status, tags, source, category, country, share, dateFrom: df, dateTo: dt }) => {
+          onFilterChange={({
+            currency,
+            status,
+            tags,
+            source,
+            category,
+            country,
+            share,
+            dateFrom: df,
+            dateTo: dt,
+          }) => {
             setCurrencyFilter(currency);
             setStatusFilter(status);
             setTagFilter(tags);
@@ -673,7 +653,7 @@ export default function ClientsPage({
               <thead className="fixed-task-panel">
                 <tr>
                   {headers.map((h, i) => (
-                    <th key={h}>
+                    <th key={h} style={{ width: colWidths[i] ?? undefined }}>
                       {h}
                       <span className="resizer" onMouseDown={(e) => onDown(i, e)} />
                     </th>
@@ -732,8 +712,6 @@ export default function ClientsPage({
                             <td className="ref-cell" onClick={(e) => openRef(c.referrer_first_id, e)}>
                               <Ellipsis value={c.referrer_first_name} />
                             </td>
-
-                            {/* Статус по последнему заказу (эмодзи) */}
                             {(() => {
                               const latestStatus = latestOrderStatusMap.get(c.id);
                               const emoji = statusToEmojiMap[latestStatus] || "—";
@@ -746,7 +724,6 @@ export default function ClientsPage({
                                 </td>
                               );
                             })()}
-
                             <td>
                               <Ellipsis value={formatDate(c.last_order_date || "")} />
                             </td>

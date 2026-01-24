@@ -18,7 +18,6 @@ export const useTransactions = () => {
 };
 
 export const TransactionsProvider = ({ children }) => {
-    
     const safeArr = (x) => (Array.isArray(x) ? x : []);
     const sortByDateDesc = (list) =>
         safeArr(list).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -89,11 +88,8 @@ export const TransactionsProvider = ({ children }) => {
     };
 
     const [transactions, setTransactions] = useState([]);
-
     const [assets, setAssets] = useState([]);
-    
     const [financeFields, setFinanceFields] = useState({ articles: [], subarticles: [], subcategory: [] });
-    
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isViewEditModalOpen, setIsViewEditModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -101,7 +97,6 @@ export const TransactionsProvider = ({ children }) => {
     const [orders, setOrders] = useState([]);
     const [counterparties, setCounterparties] = useState([]);
 
-    
     useEffect(() => {
         let mounted = true;
         const loadAll = async () => {
@@ -204,9 +199,8 @@ export const TransactionsProvider = ({ children }) => {
         return () => {
             mounted = false;
         };
-    }, []); 
+    }, []);
 
-    
     useEffect(() => {
         try {
             localStorage.setItem("transactionsData", JSON.stringify(transactions));
@@ -354,7 +348,6 @@ export const TransactionsProvider = ({ children }) => {
         setIsViewEditModalOpen(false);
     };
 
-    
     const value = {
         transactions,
         assets,

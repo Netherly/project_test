@@ -1,4 +1,3 @@
-// src/services/fields.service.js (пример; оставь свой путь)
 const prisma = require('../../prisma/client');
 const fs = require('fs');
 const path = require('path');
@@ -141,7 +140,6 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
 /* ==============================
    Tags (единая версия)
 ================================ */
-
 async function ensureTagCategory(tx, code, name) {
   return tx.tagCategory.upsert({
     where: { code },
@@ -150,7 +148,11 @@ async function ensureTagCategory(tx, code, name) {
   });
 }
 
-async function upsertTags(tx, tagsList, { categoryCode = 'default', categoryName = 'General' } = {}) {
+async function upsertTags(
+  tx,
+  tagsList,
+  { categoryCode = 'default', categoryName = 'General' } = {}
+) {
   const tagCategory = await ensureTagCategory(tx, categoryCode, categoryName);
 
   const items = Array.isArray(tagsList) ? tagsList : [];
@@ -202,6 +204,7 @@ async function getAll(db) {
     paymentSystems,
     articles,
     subcategories,
+    typeWorks,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereActive, orderBy: { code: 'asc' } }),
     _db.country.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
@@ -209,14 +212,21 @@ async function getAll(db) {
     _db.clientSourceDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientGroup.findMany({ orderBy: { order: 'asc' } }),
-    _db.orderStatusDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }),
-    _db.orderCloseReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }),
-    _db.orderProjectDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }),
-    _db.orderDiscountReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }),
+    _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }) : [],
+    _db.orderCloseReasonDict
+      ? _db.orderCloseReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } })
+      : [],
+    _db.orderProjectDict ? _db.orderProjectDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }) : [],
+    _db.orderDiscountReasonDict
+      ? _db.orderDiscountReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } })
+      : [],
     _db.assetTypeDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.paymentSystemDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.financeArticleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.financeSubcategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.sundryTypeWorkDict
+      ? _db.sundryTypeWorkDict.findMany({ ...whereActive, orderBy: { name: 'asc' } })
+      : [],
   ]);
 
   const [intervals, orderCats, cardDesigns, subarticles, tagCategories] = await Promise.all([
@@ -265,6 +275,8 @@ async function getAll(db) {
     tagsByCode('task'),
   ]);
 
+  const mapTags = (list) => list.map((t) => ({ id: t.id, name: t.name, color: t.color }));
+
   return {
     generalFields: {
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
@@ -283,9 +295,9 @@ async function getAll(db) {
       closeReasons: orderCloseReasons.map((r) => ({ id: r.id, name: r.name })),
       projects: orderProjects.map((p) => ({ id: p.id, name: p.name })),
       discountReason: orderDiscountReasons.map((d) => ({ id: d.id, name: d.name })),
-      tags: orderTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-      techTags: orderTechTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-      taskTags: orderTaskTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: mapTags(orderTags),
+      techTags: mapTags(orderTechTags),
+      taskTags: mapTags(orderTaskTags),
     },
 
     executorFields: {
@@ -298,17 +310,17 @@ async function getAll(db) {
       category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
       country: countries.map((c) => ({ id: c.id, name: c.name })),
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      tags: clientTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: mapTags(clientTags),
       groups: clientGroups.map((g) => ({ id: g.id, name: g.name, order: g.order })),
     },
 
     companyFields: {
-      tags: companyTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: mapTags(companyTags),
     },
 
     employeeFields: {
       country: countries.map((c) => ({ id: c.id, name: c.name })),
-      tags: employeeTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: mapTags(employeeTags),
     },
 
     assetsFields: {
@@ -333,11 +345,11 @@ async function getAll(db) {
     },
 
     taskFields: {
-      tags: taskTags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      tags: mapTags(taskTags),
     },
 
     sundryFields: {
-      typeWork: [],
+      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name })),
     },
   };
 }
@@ -459,7 +471,6 @@ async function saveAll(payload) {
 
       await syncSimpleDict(tx, 'orderIntervalDict', intervalValues, { field: 'value' });
 
-      // мягко деактивируем отсутствующие интервалы (и их категории), чтобы не рвать связи
       const existingIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
       const keepSet = new Set(intervalValues);
       const intervalsToDeactivate = existingIntervals.filter((i) => !keepSet.has(i.value));
@@ -485,7 +496,6 @@ async function saveAll(payload) {
       const finalIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
       const intervalByValue = new Map(finalIntervals.map((i) => [i.value, i.id]));
 
-      // ensure intervals exist for any categories that reference a non-existent interval
       for (const c of catsIncoming) {
         if (!intervalByValue.has(c.intervalValue)) {
           const created = await tx.orderIntervalDict.create({ data: { value: c.intervalValue } });
@@ -493,18 +503,15 @@ async function saveAll(payload) {
         }
       }
 
-      // create missing categories
       for (const c of catsIncoming) {
         const intervalId = intervalByValue.get(c.intervalValue);
         if (!intervalId) continue;
-
         const exists = await tx.orderCategoryDict.findFirst({ where: { value: c.value, intervalId } });
         if (!exists) {
           await tx.orderCategoryDict.create({ data: { value: c.value, intervalId } });
         }
       }
 
-      // activate desired & deactivate others per interval
       for (const [value, intervalId] of intervalByValue.entries()) {
         const desired = new Set(catsIncoming.filter((c) => c.intervalValue === value).map((c) => c.value));
 
@@ -519,18 +526,26 @@ async function saveAll(payload) {
         });
       }
 
-      // 3. Статусы/причины/проекты/скидки (если таблицы есть)
+      // 3. Справочники заказов
       if (tx.orderStatusDict) {
         await syncSimpleDict(tx, 'orderStatusDict', arrToUniqueStrings(payload?.orderFields?.statuses, 'name'));
       }
       if (tx.orderCloseReasonDict) {
-        await syncSimpleDict(tx, 'orderCloseReasonDict', arrToUniqueStrings(payload?.orderFields?.closeReasons, 'name'));
+        await syncSimpleDict(
+          tx,
+          'orderCloseReasonDict',
+          arrToUniqueStrings(payload?.orderFields?.closeReasons, 'name')
+        );
       }
       if (tx.orderProjectDict) {
         await syncSimpleDict(tx, 'orderProjectDict', arrToUniqueStrings(payload?.orderFields?.projects, 'name'));
       }
       if (tx.orderDiscountReasonDict) {
-        await syncSimpleDict(tx, 'orderDiscountReasonDict', arrToUniqueStrings(payload?.orderFields?.discountReason, 'name'));
+        await syncSimpleDict(
+          tx,
+          'orderDiscountReasonDict',
+          arrToUniqueStrings(payload?.orderFields?.discountReason, 'name')
+        );
       }
 
       // 4. EXECUTOR
@@ -546,7 +561,10 @@ async function saveAll(payload) {
         upsertTags(tx, payload?.orderFields?.tags, { categoryCode: 'order', categoryName: 'Order' }),
         upsertTags(tx, payload?.orderFields?.techTags, { categoryCode: 'order-tech', categoryName: 'Order Tech' }),
         upsertTags(tx, payload?.orderFields?.taskTags, { categoryCode: 'order-task', categoryName: 'Order Task' }),
-        upsertTags(tx, payload?.clientFields?.tags ?? payload?.clientFields?.tag, { categoryCode: 'client', categoryName: 'Client' }),
+        upsertTags(tx, payload?.clientFields?.tags ?? payload?.clientFields?.tag, {
+          categoryCode: 'client',
+          categoryName: 'Client',
+        }),
         upsertTags(tx, payload?.companyFields?.tags, { categoryCode: 'company', categoryName: 'Company' }),
         upsertTags(tx, payload?.employeeFields?.tags, { categoryCode: 'employee', categoryName: 'Employee' }),
         upsertTags(tx, payload?.taskFields?.tags, { categoryCode: 'task', categoryName: 'Task' }),
@@ -556,7 +574,6 @@ async function saveAll(payload) {
       await syncSimpleDict(tx, 'assetTypeDict', arrToUniqueStrings(payload?.assetsFields?.type, 'name'));
       await syncSimpleDict(tx, 'paymentSystemDict', arrToUniqueStrings(payload?.assetsFields?.paymentSystem, 'name'));
 
-      // Card designs (soft deactivate missing)
       const incomingDesigns = (Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [])
         .map((d) => ({
           id: d?.id || null,
@@ -607,7 +624,11 @@ async function saveAll(payload) {
 
       // 8. FINANCE
       await syncSimpleDict(tx, 'financeArticleDict', arrToUniqueStrings(payload?.financeFields?.articles, 'name'));
-      await syncSimpleDict(tx, 'financeSubcategoryDict', arrToUniqueStrings(payload?.financeFields?.subcategory, 'name'));
+      await syncSimpleDict(
+        tx,
+        'financeSubcategoryDict',
+        arrToUniqueStrings(payload?.financeFields?.subcategory, 'name')
+      );
 
       const desiredSubs = (Array.isArray(payload?.financeFields?.subarticles) ? payload.financeFields.subarticles : [])
         .map((s) => ({
@@ -625,7 +646,6 @@ async function saveAll(payload) {
       const artByName = new Map(arts.map((a) => [a.name, a.id]));
       const subcatByName = new Map(subcats.map((s) => [s.name, s.id]));
 
-      // create missing
       for (const s of desiredSubs) {
         const articleId = artByName.get(s.parentName) || null;
         const subcategoryId = !articleId ? subcatByName.get(s.parentName) || null : null;
@@ -657,7 +677,6 @@ async function saveAll(payload) {
         });
       }
 
-      // reactivate desired
       const desiredIds = subsExisting.filter((r) => desiredKeys.has(keyOf(r))).map((r) => r.id);
       if (desiredIds.length) {
         await tx.financeSubarticleDict.updateMany({
@@ -668,19 +687,19 @@ async function saveAll(payload) {
 
       // 9. SUNDRY
       if (tx.sundryTypeWorkDict) {
-        await syncSimpleDict(tx, 'sundryTypeWorkDict', arrToUniqueStrings(payload?.sundryFields?.typeWork, 'name'));
+        await syncSimpleDict(
+          tx,
+          'sundryTypeWorkDict',
+          arrToUniqueStrings(payload?.sundryFields?.typeWork, 'name')
+        );
       }
 
-      // Вернём свежий бандл
       return getAll(tx);
     },
     { maxWait: 20000, timeout: 60000 }
   );
 }
 
-/* ==============================
-   EXPORTS
-================================ */
 module.exports = {
   loadBundle: () => getAll(),
   saveBundle: (payload) => saveAll(payload),

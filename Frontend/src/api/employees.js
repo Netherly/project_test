@@ -126,7 +126,6 @@ function parseRequisiteValue(value) {
   const text = toText(value);
   if (!text) return { bank: "", card: "", owner: "", currency: "", structured: false };
 
-  // JSON
   if (text.startsWith("{") || text.startsWith("[")) {
     try {
       const parsed = JSON.parse(text);
@@ -142,13 +141,11 @@ function parseRequisiteValue(value) {
     } catch (_) {}
   }
 
-  // pipe-format: bank|card|owner
   if (text.includes("|")) {
     const [bank, card, owner] = text.split("|").map((p) => toText(p));
     return { bank, card, owner, currency: "", structured: true };
   }
 
-  // key:value;key:value
   if (text.includes(";") && text.includes(":")) {
     const out = {};
     text
@@ -174,7 +171,6 @@ function parseRequisiteValue(value) {
     }
   }
 
-  // plain string -> treat as card
   return { bank: "", card: text, owner: "", currency: "", structured: false };
 }
 
@@ -210,8 +206,6 @@ function normalizeRequisites(raw) {
   if (Array.isArray(source)) {
     source.forEach((item) => {
       if (!item) return;
-
-      // form {label,value}
       if (typeof item === "object" && ("label" in item || "value" in item)) {
         const labelInfo = parseRequisiteLabel(item.label);
         const valueInfo = parseRequisiteValue(item.value);
@@ -224,11 +218,9 @@ function normalizeRequisites(raw) {
         });
         return;
       }
-
       if (typeof item === "object") pushItem(item);
     });
   } else if (source && typeof source === "object") {
-    // map format: { UAH:[...], USD:[...] }
     Object.entries(source).forEach(([currency, entries]) => {
       if (!Array.isArray(entries)) return;
       entries.forEach((entry) => {
@@ -321,55 +313,39 @@ export function normalizeEmployee(e = {}) {
     id: e.id ?? null,
     fullName,
     full_name: fullName,
-
     login: tidy(e.login),
     password: "",
-
     source: tidy(e.source),
     birthDate: normalizeDateOnly(e.birthDate ?? e.birth_date ?? ""),
-
     phone: tidy(e.phone),
     email: tidy(e.email),
-
     passport: tidy(e.passport),
     address: tidy(e.address),
     chatLink: tidy(e.chatLink ?? e.chat_link),
-
     balance: toNumberSafe(e.balance, 0),
     cashOnHand: toNumberSafe(e.cashOnHand ?? e.cash_on_hand, 0),
-
     status: e.status === "inactive" || e.status === "pending" ? e.status : "active",
-
     avatarUrl: rawAvatar ? fileUrl(rawAvatar) : "",
     photoLink: toText(e.photoLink ?? e.photo_link ?? rawAvatar),
-
     mainCurrency: mainCurrency ? mainCurrency.toLowerCase() : "",
     rates: normalizedRates,
     hourlyRates: normalizedRates,
-
     startDate: e.startDate ?? e.createdAt ?? e.created_at ?? "",
-
     telegram,
     telegramNick:
       telegram.nickname || tidy(e.telegramNickname ?? e.telegramUsername ?? e.telegramNick),
-
     managerId: e.managerId ?? e.manager_id ?? null,
     companyId: e.companyId ?? null,
-
     countryId,
     country: countryValue,
     countryName: toText(e.country?.name),
-
     currencyId: e.currencyId ?? null,
     roleId: e.roleId ?? null,
     publicId: e.publicId ?? null,
     userid: e.userid ?? null,
-
     tags: normalizeTags(e.tags || e.EmployeeTag || e.employeeTags || []),
-
     requisites,
     requisitesList,
-
     settings: e.settings ?? null,
   };
 }
@@ -381,35 +357,46 @@ export function serializeEmployee(e = {}) {
   const mainCurrency = normalizeCurrencyCode(e.mainCurrency ?? e.main_currency ?? "");
   const telegram = e.telegram || {};
   const password = toText(e.password);
-
   const countryCandidate = toText(e.countryId ?? e.country);
   const countryId = countryCandidate && isUuid(countryCandidate) ? countryCandidate : undefined;
   const countryName =
     !countryId && countryCandidate ? countryCandidate : toText(e.country);
 
+  /**
+   * ✅ FIX MERGE CONFLICT (обе версии логики)
+   * Поддерживаем два формата ввода реквизитов:
+   * 1) Уже "готовые" элементы для API: [{id,label,value}]  -> отправляем как есть
+   * 2) UI-список: [{id,currency,bank,card,owner}] -> сериализуем через serializeRequisites
+   */
+  const serializeRequisitesCompat = (input) => {
+    const arr = Array.isArray(input) ? input : [];
+    if (!arr.length) return [];
+    const first = arr[0];
+    const looksLikeApiShape =
+      first &&
+      typeof first === "object" &&
+      ("label" in first || "value" in first) &&
+      !("currency" in first || "bank" in first || "card" in first || "owner" in first);
+
+    if (looksLikeApiShape) return arr;
+    return serializeRequisites(arr);
+  };
+
   const obj = {
     id: e.id,
-
     full_name: tidy(e.fullName ?? e.full_name),
     login: tidy(e.login),
     source: tidy(e.source),
-
     birthDate: normalizeDateOnly(e.birthDate ?? ""),
     phone: tidy(e.phone),
     email: tidy(e.email),
-
     passport: tidy(e.passport),
     address: tidy(e.address),
     chatLink: tidy(e.chatLink),
-
     balance: toNumberSafe(e.balance, undefined),
     cashOnHand: toNumberSafe(e.cashOnHand, undefined),
-
     status: e.status === "inactive" || e.status === "pending" ? e.status : "active",
-
     photoLink: tidy(e.photoLink ?? e.avatarStorageKey ?? e.avatarUrl),
-
-    // FK — если редактируются
     managerId: toOptional(e.managerId),
     companyId: toOptional(e.companyId),
     countryId,
@@ -418,10 +405,8 @@ export function serializeEmployee(e = {}) {
     roleId: toOptional(e.roleId),
     publicId: toOptional(e.publicId),
     userid: toOptional(e.userid),
-
     mainCurrency: mainCurrency ? mainCurrency.toLowerCase() : undefined,
     rates: Object.keys(normalizedRates).length ? normalizedRates : undefined,
-
     telegram:
       toText(telegram.dateTime ?? e.telegramDateTime) ||
       toText(telegram.id ?? e.telegramId) ||
@@ -436,15 +421,14 @@ export function serializeEmployee(e = {}) {
             bindingLink: toText(telegram.bindingLink ?? e.telegramBindingLink),
           }
         : undefined,
-
     tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
 
-    requisites: Array.isArray(requisitesList) ? requisitesList : serializeRequisites(requisitesList),
+    // ✅ итог: совместимо с обеими версиями
+    requisites: serializeRequisitesCompat(requisitesList),
   };
 
   if (password) obj.password = password;
 
-  // Удалим ключи с undefined, чтобы не затирать
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 }
 

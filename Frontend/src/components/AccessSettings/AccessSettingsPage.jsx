@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import "./AccessSettings.css";
 import Sidebar from "../Sidebar.jsx";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
@@ -46,12 +47,13 @@ export const ModulePermissionStatus = ({ rolePermissions, moduleKey }) => {
 };
 
 function AccessSettings() {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedEmployee, setSelectedEmployee] = useState(null);
-    const [isGeneralMode, setIsGeneralMode] = useState(false);
-    const [searchTerm, setSearchTerm] = useState("");
+    
+    const navigate = useNavigate();
+    const { subPage } = useParams();
 
     
+    const [searchTerm, setSearchTerm] = useState("");
+
     const loadRoles = () => {
         try {
             const saved = localStorage.getItem('access-roles');
@@ -67,7 +69,6 @@ function AccessSettings() {
         return defaultRoles;
     };
 
-    
     const loadEmployees = () => {
         try {
             const saved = localStorage.getItem('employees');
@@ -120,12 +121,21 @@ function AccessSettings() {
     const [employees, setEmployees] = useState(loadEmployees);
     const [roles, setRoles] = useState(loadRoles);
 
-   
+    
+    const isGeneralMode = subPage === 'general';
+    
+    const selectedEmployee = useMemo(() => {
+        if (!subPage || subPage === 'general') return null;
+        return employees.find(e => String(e.id) === String(subPage)) || null;
+    }, [employees, subPage]);
+
+    const isModalOpen = isGeneralMode || !!selectedEmployee;
+
+
     const syncEmployeeRoles = useCallback(() => {
         const currentRoles = loadRoles();
         setRoles(currentRoles);
 
-        
         setEmployees(prev => prev.map(employee => {
             const currentRole = currentRoles.find(role => role.id === employee.roleId);
 
@@ -143,7 +153,6 @@ function AccessSettings() {
             }
         }));
 
-        
         try {
             const updatedEmployees = employees.map(employee => {
                 const currentRole = currentRoles.find(role => role.id === employee.roleId);
@@ -169,22 +178,16 @@ function AccessSettings() {
 
     const getProtectedRoles = () => ['owner']; 
 
-    
     const canChangeEmployeeRole = (employee) => {
         if (employee.isProtected) return false;
-
         return true;
     };
 
-    
     const getAvailableRolesForEmployee = (employee) => {
         const protectedRoles = getProtectedRoles();
-
         if (employee.isProtected) {
             return roles.filter(role => role.id === employee.roleId);
         }
-
-        
         return roles.filter(role => !protectedRoles.includes(role.id));
     };
 
@@ -192,10 +195,8 @@ function AccessSettings() {
         return roles.find(role => role.id === employee.roleId);
     };
 
-    
     const getDisplayRole = (employee) => {
         const role = getEmployeeRole(employee);
-
         if (role) {
             return {
                 name: role.name,
@@ -211,18 +212,14 @@ function AccessSettings() {
         }
     };
 
-    
     const filteredEmployees = useMemo(() => {
         if (!searchTerm.trim()) {
             return employees;
         }
-
         const searchLower = searchTerm.toLowerCase().trim();
         return employees.filter(employee => {
             const fullName = employee.name.toLowerCase();
-
             const searchWords = searchLower.split(/\s+/);
-
             return searchWords.every(word => fullName.includes(word));
         });
     }, [employees, searchTerm]);
@@ -231,43 +228,33 @@ function AccessSettings() {
         syncEmployeeRoles();
     }, [syncEmployeeRoles]);
 
+    
     const handleAccessButtonClick = () => {
-        setSelectedEmployee(null);
-        setIsGeneralMode(true);
-        setIsModalOpen(true);
+        navigate('/access/general');
     };
 
     const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setSelectedEmployee(null);
-        setIsGeneralMode(false);
-
+        navigate('/access');
         refreshRoles();
     };
 
     const handleEmployeeClick = (employee) => {
-        setSelectedEmployee(employee);
-        setIsGeneralMode(false);
-        setIsModalOpen(true);
+        navigate(`/access/${employee.id}`);
     };
 
     const handleSearchChange = (e) => {
         setSearchTerm(e.target.value);
     };
 
-    
     const handleEmployeeRoleChange = (employeeId, newRoleId) => {
-        
         const currentRoles = loadRoles();
         const newRole = currentRoles.find(role => role.id === newRoleId);
 
-        
         if (!newRole) {
             console.error("Не удалось найти назначенную роль. Синхронизация не удалась.");
             return;
         }
 
-        
         setEmployees(prevEmployees => {
             const updatedEmployees = prevEmployees.map(employee =>
                 employee.id === employeeId
@@ -279,7 +266,6 @@ function AccessSettings() {
                     : employee
             );
 
-            
             try {
                 localStorage.setItem('employees', JSON.stringify(updatedEmployees));
                 console.log(`Роль "${newRole.name}" назначена сотруднику.`);
@@ -289,6 +275,7 @@ function AccessSettings() {
 
             return updatedEmployees; 
         });
+        handleCloseModal();
     };
 
     return (
@@ -300,21 +287,6 @@ function AccessSettings() {
                         <PageHeaderIcon pageName="Роли/Доступы" />
                         Доступы
                     </h1>
-                     {/*<div className="access-filter">
-                        <div className="search-input-wrapper">
-                            <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M21 21L16.514 16.506M19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            <input
-                                type="text"
-                                placeholder="Поиск по имени и фамилии..."
-                                className="filter-input"
-                                value={searchTerm}
-                                onChange={handleSearchChange}
-                            />
-                        </div>
-                    </div>
-                    */}
                     <button className="access-button" onClick={handleAccessButtonClick}>
                         <Plus size={20}/>Добавить
                     </button>
@@ -353,7 +325,7 @@ function AccessSettings() {
                                                 !displayRole.hasRole ? 'Нажмите для назначения роли' : 'Нажмите для изменения роли'}
                                         >
                                             <td>
-                                                {employee.fullName}
+                                                {employee.fullName || employee.name}
                                                 {employee.isProtected && (
                                                     <span className="protected-badge" title="Защищенный пользователь">
                                                         🛡️
@@ -396,6 +368,7 @@ function AccessSettings() {
                     </table>
                 </div>
 
+                
                 <AccessModal
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}

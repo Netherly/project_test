@@ -9,7 +9,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Безопасное извлечение справочников
   const { generalFields, assetsFields } = fields || {
     generalFields: { currency: [] },
     assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
@@ -26,30 +25,25 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
     requisites: [{ label: "", value: "" }],
   });
 
-  // Установка дефолтных значений при загрузке справочников
   useEffect(() => {
     setFormData((prev) => {
       const next = { ...prev };
 
-      // Валюта: приходит из normStrs -> {id, value, isDeleted}
       if ((!prev.currency || prev.currency === "") && generalFields.currency?.[0]) {
         const first = generalFields.currency[0];
         next.currency = first?.value || "";
       }
 
-      // Тип
       if ((!prev.type || prev.type === "") && assetsFields.type?.[0]) {
         const first = assetsFields.type[0];
         next.type = first?.value || "";
       }
 
-      // Платежная система
       if ((!prev.paymentSystem || prev.paymentSystem === "") && assetsFields.paymentSystem?.[0]) {
         const first = assetsFields.paymentSystem[0];
         next.paymentSystem = first?.value || "";
       }
 
-      // Дизайн (структура: {id, name, url, ...})
       if ((!prev.design || prev.design === "") && assetsFields.cardDesigns?.[0]) {
         const first = assetsFields.cardDesigns[0];
         next.design = first?.id || "";
@@ -114,7 +108,11 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
       limitTurnover: parseFloat(formData.limitTurnover) || 0,
       requisites: filteredRequisites,
       employeeName: selectedEmployee?.fullName || selectedEmployee?.full_name || "",
-      employee: selectedEmployee?.fullName || selectedEmployee?.full_name || formData.employeeId,
+      employee:
+        selectedEmployee?.fullName ||
+        selectedEmployee?.full_name ||
+        formData.employeeId ||
+        "",
     };
 
     try {
@@ -303,9 +301,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 className="form-input1"
                 disabled={isLoading}
               >
-                <option value="">
-                  Не выбрано
-                </option>
+                <option value="">Не выбрано</option>
                 {employees?.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.fullName || emp.full_name || emp.name || emp.id}

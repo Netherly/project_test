@@ -190,8 +190,9 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
                             <div
                                 className="minimap-column-fill"
                                 style={{
-                                    width: `${visibility * 100}%`,
+                                    width: '100%', // Всегда полная ширина
                                     height: '100%',
+                                    opacity: visibility, // Управляем прозрачностью (от 0 до 1)
                                 }}
                             />
                         </div>
