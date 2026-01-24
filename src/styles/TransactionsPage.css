@@ -1,0 +1,296 @@
+.transactions-page {
+    display: flex;
+    min-height: 100vh;
+    color: var(--text-color);
+}
+
+.transactions-page-main-container {
+    flex-grow: 1;
+    transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100vh; 
+    overflow-x: hidden;
+}
+
+.transactions-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background-color: var(--container-bg);
+    height: 60px;
+    border-bottom: 1px solid var(--border--color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0; 
+}
+
+.add-transaction-wrapper {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    border-left: 1px solid var(--border--color);
+    box-sizing: border-box;
+}
+
+.add-transaction-button {
+    background-color: var(--container-bg);
+    color: #fff;
+    padding: 15px 15px;
+    border: none;
+    font-size: var(--font-size-table-header);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.transactions-title {
+    font-size: var(--font-size-page-title);
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    text-transform: uppercase;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border--color);
+    height: 100%;
+}
+
+.transactions-table-container {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow: auto; 
+    flex-grow: 1; 
+}
+
+.transactions-table {
+    width: 100%;
+    border-spacing: 0;
+    text-align: left;
+    color: var(--container-text-color);
+    table-layout: fixed;
+}
+
+.transactions-table thead {
+    background-color: var(--container-bg);
+    font-size: var(--font-size-table-header);
+    
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.transactions-table th {
+    padding: 5px 5px;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+    font-weight: 600;
+    
+    border-right: 1px solid var(--bg-color);
+    text-align: center;
+    background-color: var(--container-bg); 
+}
+
+.transactions-table th,
+.transactions-table td {
+    vertical-align: middle;
+}
+
+
+.transactions-table th:nth-child(1),
+.transactions-table td:nth-child(1),
+.transactions-table th:nth-child(6),
+.transactions-table td:nth-child(6),
+.transactions-table th:nth-child(8),
+.transactions-table td:nth-child(8) {
+    white-space: nowrap;
+}
+
+.transactions-table th:nth-child(1),
+.transactions-table td:nth-child(1){
+    width: 100px;
+}
+
+
+
+.transactions-table th:nth-child(2), .transactions-table td:nth-child(2),
+.transactions-table th:nth-child(3), .transactions-table td:nth-child(3),
+.transactions-table th:nth-child(11), .transactions-table td:nth-child(11) {
+    width: 130px; 
+}
+
+
+.transactions-table th:nth-child(4),
+.transactions-table td:nth-child(4) {
+    width: 250px;
+}
+
+
+.transactions-table th:nth-child(5),
+.transactions-table td:nth-child(5) {
+    width: 170px;
+}
+
+.transactions-table th:nth-child(6),
+.transactions-table td:nth-child(6) {
+    width: 50px;
+}
+
+.transactions-table th:nth-child(7),
+.transactions-table td:nth-child(7) {
+    width: 110px;
+}
+
+.transactions-table th:nth-child(8),
+.transactions-table td:nth-child(8) {
+    width: 70px;
+}
+
+.transactions-table th:nth-child(9),
+.transactions-table td:nth-child(9) {
+    width: 110px;
+    font-weight: 500;
+}
+
+.transactions-table th:nth-child(10),
+.transactions-table td:nth-child(10) {
+    width: 110px;
+}
+
+
+.transactions-table th:nth-child(12),
+.transactions-table td:nth-child(12) {
+    width: 210px;
+}
+
+
+
+.transactions-table thead tr th:last-child {
+    
+}
+
+.transactions-table tbody tr td:nth-child(11){
+    text-align: left;
+}
+
+.transactions-table tbody tr.transaction-row {
+    transition: background-color 0.2s ease;
+}
+
+.transactions-table tbody tr td:nth-child(2){
+ text-align: left;
+}
+
+.transactions-table tbody tr td:nth-child(3){
+ text-align: left;
+}
+
+.transactions-table tbody tr td:nth-child(4){
+ text-align: left;
+}
+
+.transactions-table tbody tr.transaction-row:last-child {
+    border-bottom: none;
+}
+
+.transactions-table tbody tr.transaction-row:hover {
+    background-color: var(--input-border-focus);
+}
+
+.transactions-table .table-spacer-row td {
+  background-color: transparent;
+  height: 5px;
+  border: none;
+  padding: 0;
+}
+
+.transactions-table .table-spacer-row:hover,
+.transactions-table .table-spacer-row:hover td {
+  background-color: transparent !important;
+}
+
+.transactions-table td {
+    padding: 5px 5px;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-all;
+    color: var(--text-color);
+    vertical-align: top;
+    border-bottom: 1px solid var(--bg-color);
+    border-top: 1px solid var(--bg-color);
+    border-right: 1px solid var(--bg-color);
+    text-align: center;
+    font-size: var(--font-size-table-text);
+    background-color: var(--container-bg);
+}
+
+.sorting-indicator-row td {
+    background-color: var(--bg-color);
+    color: var(--chips-color);
+    font-size: 13px;
+    padding: 8px 15px;
+    font-weight: normal;
+    border-bottom: 1px solid var(--border--color);
+}
+
+.sorting-indicator-row td .sorting-text {
+    display: block;
+    text-align: left;
+}
+
+.amount-positive {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.amount-negative {
+    color: #f44336;
+    font-weight: bold;
+}
+
+.transaction-account-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.transaction-account-info .transaction-account-main-name {
+    color: var(--text-color);
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.copy-button-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-all;
+}
+
+.copy-button-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%237F8BA4"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>');
+    background-size: 80%;
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.copy-button-icon:hover {
+    opacity: 1;
+}

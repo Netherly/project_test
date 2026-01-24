@@ -18,8 +18,17 @@ let _API_BASE = (() => {
   const win =
     typeof window !== "undefined" && window.__API_BASE__ ? window.__API_BASE__ : null;
 
-  // Дефолт — относительный префикс /api
-  return vite || cra || win || "/api";
+  // Если ничего не задано — для девелопмента ходим на локальный бэкенд
+  const fallback = (() => {
+    if (typeof window !== "undefined") {
+      const isLocal = /localhost|127\.0\.0\.1/.test(window.location.hostname);
+      if (isLocal) return "http://localhost:3000/api";
+    }
+    // прод — относительный /api
+    return "/api";
+  })();
+
+  return vite || cra || win || fallback;
 })();
 
 function normalizeBase(u) {

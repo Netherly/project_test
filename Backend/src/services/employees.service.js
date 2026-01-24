@@ -194,6 +194,12 @@ const EmployeesService = {
   },
 
   async updateTags(employeeId, tags) {
+    const category = await prisma.tagCategory.upsert({
+      where: { code: 'employee' },
+      update: { name: 'Employee' },
+      create: { code: 'employee', name: 'Employee' },
+    });
+
     // Delete existing tags
     await prisma.employeeTag.deleteMany({ where: { employeeId } });
 
@@ -204,9 +210,9 @@ const EmployeesService = {
         tagRecord = await prisma.tag.findUnique({ where: { id: tag.id } });
       } else {
         tagRecord = await prisma.tag.upsert({
-          where: { name: tag.name },
+          where: { name_categoryId: { name: tag.name, categoryId: category.id } },
           update: { color: tag.color || '#777' },
-          create: { name: tag.name, color: tag.color || '#777' },
+          create: { name: tag.name, color: tag.color || '#777', categoryId: category.id },
         });
       }
       if (tagRecord) {

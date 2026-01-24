@@ -223,6 +223,7 @@ export default function ClientsPageHeader({
   statusOptions   = [],
   tagOptions      = [],
   sourceOptions   = [],
+  categoryOptions = [],
   countryOptions  = [],
   onFilterChange,
 }) {
@@ -231,7 +232,7 @@ export default function ClientsPageHeader({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [filters, setFilters] = useState({
-    currency: "", status: "", tags: [], source: "", country: "",
+    currency: "", status: "", tags: [], source: "", category: "", country: "",
     share: "", dateFrom: "", dateTo: ""
   });
 
@@ -248,6 +249,7 @@ export default function ClientsPageHeader({
     if (filters.status) parts.push(`статус:${filters.status}`);
     if (filters.tags?.length) parts.push(`теги:${filters.tags.join(", ")}`);
     if (filters.source) parts.push(`источник:${filters.source}`);
+    if (filters.category) parts.push(`категория:${filters.category}`);
     if (filters.country) parts.push(`страна:${filters.country}`);
     if (filters.share) parts.push(`доля:${filters.share === "yes" ? "есть" : "нет"}`);
     if (filters.dateFrom || filters.dateTo) {
@@ -268,7 +270,7 @@ export default function ClientsPageHeader({
   };
 
   const handleReset = () => {
-    const empty = { currency:"", status:"", tags:[], source:"", country:"", share:"", dateFrom:"", dateTo:"" };
+    const empty = { currency:"", status:"", tags:[], source:"", category:"", country:"", share:"", dateFrom:"", dateTo:"" };
     setFilters(empty);
     setQuery("");
     onFilterChange?.(empty);
@@ -277,7 +279,7 @@ export default function ClientsPageHeader({
 
   const hasActive =
     !!(query || filters.currency || filters.status || filters.tags.length ||
-       filters.source || filters.country || filters.share ||
+       filters.source || filters.category || filters.country || filters.share ||
        filters.dateFrom || filters.dateTo);
 
   return (
@@ -394,6 +396,24 @@ export default function ClientsPageHeader({
                 <span
                   className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
                   onClick={() => setFilters(f => ({ ...f, source: "" }))}
+                  title="Очистить"
+                >×</span>
+              )}
+            </div>
+
+            <div className={styles.searchFieldGroup}>
+              <label>Категория</label>
+              <select value={filters.category} onChange={handleChange("category")}>
+                <option value="">Все категории</option>
+                {categoryOptions.map((c, idx) => {
+                    const name = getName(c);
+                    return <option key={name || idx} value={name}>{name}</option>
+                })}
+              </select>
+              {filters.category && (
+                <span
+                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
+                  onClick={() => setFilters(f => ({ ...f, category: "" }))}
                   title="Очистить"
                 >×</span>
               )}

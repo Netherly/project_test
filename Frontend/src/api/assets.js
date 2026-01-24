@@ -23,19 +23,46 @@ const toNum = (x, def = 0) => {
 };
 const safeArr = (x) => (Array.isArray(x) ? x : []);
 const safeObj = (x) => (x && typeof x === "object" ? x : {});
+const isUuid = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
+const pickFieldValue = (field) => {
+  if (field === undefined || field === null) return "";
+  if (typeof field === "object") return field.code || field.name || field.value || "";
+  return field;
+};
+const resolveField = (field, fallback = "") => {
+  if (field === undefined || field === null || field === "") return { value: fallback, raw: field };
+  if (typeof field === "object") return { value: field.code || field.name || fallback, raw: field };
+  return { value: field, raw: field };
+};
 
 export function withAssetDefaults(asset) {
   const a = safeObj(asset);
   const id = a.id ?? a.accountName ?? String(Date.now());
-  const curr = safeObj(a.currency);
-  const typ = safeObj(a.type);
-  const paySys = safeObj(a.paymentSystem);
+  const currencyResolved = resolveField(a.currency, "UAH");
+  const typeResolved = resolveField(a.type, "");
+  const paymentSystemResolved = resolveField(a.paymentSystem, "");
+  const designResolved = resolveField(a.design, "default-design");
+  const employeeName =
+    a.employeeName ||
+    a.employeeFullName ||
+    a.employee?.full_name ||
+    a.employee?.fullName ||
+    a.employee?.name ||
+    (typeof a.employee === "string" ? a.employee : "");
+  const employeeId = a.employeeId || a.employee?.id || null;
   return {
     id,
     accountName: a.accountName ?? a.id ?? "Без названия",
-    currency: curr.code || curr.name || 'UAH',
-    type: typ.name || '',
-    employee: a.employee ?? "",
+    currency: currencyResolved.value,
+    currencyRaw: currencyResolved.raw ?? currencyResolved.value,
+    type: typeResolved.value,
+    typeRaw: typeResolved.raw ?? typeResolved.value,
+    employee: employeeName,
+    employeeName,
+    employeeId,
     balance: toNum(a.balance),
     balanceUAH: toNum(a.balanceUAH),
     balanceUSD: toNum(a.balanceUSD),
@@ -53,9 +80,47 @@ export function withAssetDefaults(asset) {
       label: r?.label ?? "",
       value: r?.value ?? "",
     })),
-    design: a.design ?? "default-design",
-    paymentSystem: paySys.name || '',
+    design: designResolved.value,
+    designRaw: designResolved.raw ?? designResolved.value,
+    paymentSystem: paymentSystemResolved.value,
+    paymentSystemRaw: paymentSystemResolved.raw ?? paymentSystemResolved.value,
   };
+}
+
+function normalizeAssetPayload(payload = {}) {
+  const p = safeObj(payload);
+
+  const currencyCode = pickFieldValue(p.currencyCode ?? p.currency);
+  const typeName = pickFieldValue(p.typeName ?? p.type);
+  const paymentSystemName = pickFieldValue(p.paymentSystemName ?? p.paymentSystem);
+
+  const designRaw = p.designRaw ?? p.cardDesign ?? p.design;
+  let cardDesignId = p.cardDesignId ?? p.cardDesign?.id ?? p.designRaw?.id ?? p.designId;
+  let designName = p.cardDesignName ?? p.designName ?? p.cardDesign?.name ?? p.designRaw?.name;
+
+  if (!cardDesignId && typeof designRaw === "string" && isUuid(designRaw)) {
+    cardDesignId = designRaw;
+  }
+  if (!designName && typeof designRaw === "string" && !isUuid(designRaw)) {
+    designName = designRaw;
+  }
+
+  const employeeId =
+    p.employeeId ??
+    p.employee?.id ??
+    (typeof p.employee === "string" && isUuid(p.employee) ? p.employee : undefined);
+
+  const normalized = {
+    ...p,
+    ...(currencyCode ? { currencyCode } : {}),
+    ...(typeName ? { typeName } : {}),
+    ...(paymentSystemName ? { paymentSystemName } : {}),
+    ...(cardDesignId ? { cardDesignId } : {}),
+    ...(designName ? { designName } : {}),
+    ...(employeeId ? { employeeId } : {}),
+  };
+
+  return normalized;
 }
 
 export function withAssetsDefaults(list) {
@@ -76,14 +141,17 @@ export async function fetchAssetById(id) {
 }
 
 export async function createAsset(payload) {
-  const r = await httpPost(`/assets`, payload || {});
+  const r = await httpPost(`/assets`, normalizeAssetPayload(payload || {}));
   const data = unwrap(r);
   return withAssetDefaults(data);
 }
 
 export async function updateAsset(id, patch) {
   if (!id) throw new Error("Asset id is required");
-  const r = await httpPatch(`/assets/${encodeURIComponent(id)}`, patch || {});
+  const r = await httpPatch(
+    `/assets/${encodeURIComponent(id)}`,
+    normalizeAssetPayload(patch || {})
+  );
   const data = unwrap(r);
   return withAssetDefaults(data);
 }

@@ -1,0 +1,165 @@
+
+
+.requisites-tab-wrapper .employee-requisites-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.requisites-tab-wrapper .requisites-row {
+    display: flex;
+    align-items: stretch; 
+    width: 100%;
+}
+
+
+.requisites-tab-wrapper .requisites-row.header-row {
+    color: var(--chips-color);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+
+.requisites-tab-wrapper .header-content-wrapper {
+    display: flex;         
+    flex-grow: 1;          
+    padding: 10px 0;
+    background-color: rgb(20, 27, 46);
+}
+
+
+.requisites-tab-wrapper .requisites-cell {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding-bottom: 5px;
+    padding-left: 1px;
+}
+
+
+.requisites-tab-wrapper .header-content-wrapper .requisites-cell {
+    padding-bottom: 0; 
+}
+
+
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(1){
+    text-align: center;
+    padding-right: 15px;
+    padding-left: 15px;
+    flex: 25;
+}
+
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(1) {
+    flex: 15; 
+    flex-basis: 0;
+    padding-right: 15px; 
+}
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(2){
+    text-align: center;
+    padding-right: 15px;
+    flex: 25;
+}
+
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(2) {
+    flex: 25;
+    flex-basis: 0;
+    padding-right: 15px;
+}
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(3),
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(3) {
+    flex: 35;
+    flex-basis: 0;
+    padding-right: 15px;
+}
+
+.requisites-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(4),
+.requisites-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(4) {
+    flex: 25;
+    flex-basis: 0;
+}
+
+
+.requisites-tab-wrapper .requisites-cell.action-cell {
+    flex: none; 
+    flex-basis: 30px;
+    flex-shrink: 0;
+    justify-content: center;
+    padding-bottom: 0; 
+}
+
+
+
+
+.requisites-tab-wrapper .assets-workplan-textarea {
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border-form-color);
+    outline: none;
+    color: var(--text-color);
+    padding: 8px;
+    width: 100%;
+    resize: none; 
+    overflow-y: hidden; 
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: border-color 0.2s ease;
+}
+
+.requisites-tab-wrapper .assets-workplan-textarea:focus {
+    border-bottom-color: var(--input-border-focus);
+}
+
+.requisites-tab-wrapper .assets-workplan-textarea::placeholder {
+    color: #777;
+}
+
+
+.requisites-tab-wrapper select.assets-workplan-textarea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+
+.requisites-tab-wrapper select.assets-workplan-textarea option {
+    background-color: #19213A; 
+    color: var(--text-color);
+}
+
+
+.requisites-tab-wrapper .add-requisites-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    margin-top: 10px;
+    width: auto;
+    background: none;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.requisites-tab-wrapper .requisites-remove-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0; 
+    width: 30px;
+    height: 30px;
+    background-color: transparent;
+    color: #777;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}

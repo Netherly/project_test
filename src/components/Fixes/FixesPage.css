@@ -1,0 +1,300 @@
+.fixes-page {
+    display: flex;
+    min-height: 100vh;
+    color: var(--text-color);
+}
+
+.fixes-page-main-container {
+    flex-grow: 1;
+    transition: margin-left 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-x: hidden;
+}
+
+.fixes-header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    background-color: var(--container-bg);
+    height: 60px;
+    border-bottom: 1px solid var(--border--color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.fixes-header-buttons {
+    display: flex;
+    height: 100%;
+}
+
+.fixes-title {
+    font-size: var(--font-size-page-title);
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-color);
+    text-transform: uppercase;
+    padding: 0 15px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border--color);
+    height: 100%;
+}
+
+.fixes-button {
+    background-color: var(--container-bg);
+    color: #fff;
+    padding: 15px 15px;
+    border: none;
+    font-size: var(--font-size-table-header);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+    gap: 15px;
+    border-left: 1px solid var(--border--color);
+}
+
+.fixes-button:hover {
+    background-color: var(--container-hover-bg);
+}
+
+.fixes-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Стили таблицы фиксов */
+.fixes-table-container {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow: auto;
+    flex-grow: 1;
+}
+
+.fixes-table {
+    width: 100%;
+    border-spacing: 0;
+    text-align: left;
+    color: var(--container-text-color);
+    table-layout: fixed;
+}
+
+.fixes-table thead {
+    background-color: var(--container-bg);
+    font-size: var(--font-size-table-header);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.fixes-table th {
+    padding: 5px 5px;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-word;
+    font-weight: 600;
+    border-right: 1px solid var(--bg-color);
+    text-align: center;
+    background-color: var(--container-bg);
+}
+
+/* Стили для сортируемых заголовков */
+.fixes-sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+    position: relative;
+}
+
+.fixes-sortable-header:hover {
+    background-color: var(--container-hover-bg);
+}
+
+.fixes-sort-icon {
+    display: inline-block;
+    vertical-align: middle;
+    color: var(--accent-color);
+    margin-left: 4px;
+}
+
+.fixes-table th,
+.fixes-table td {
+    vertical-align: middle;
+}
+
+/* Фиксированные ширины для каждого столбца */
+.fixes-table th:nth-child(1),
+.fixes-table td:nth-child(1) {
+    width: 110px;
+}
+
+.fixes-table th:nth-child(2),
+.fixes-table td:nth-child(2) {
+    width: 100px;
+}
+
+.fixes-table th:nth-child(3),
+.fixes-table td:nth-child(3) {
+    width: auto;
+    min-width: 300px;
+}
+
+.fixes-table th:nth-child(4),
+.fixes-table td:nth-child(4) {
+    width: 50px;
+}
+
+.fixes-table th:nth-child(5),
+.fixes-table td:nth-child(5) {
+    width: 105px;
+}
+
+.fixes-table th:nth-child(6),
+.fixes-table td:nth-child(6) {
+    width: 100px;
+}
+
+.fixes-table th:nth-child(7),
+.fixes-table td:nth-child(7) {
+    width: 85px;
+}
+
+.fixes-table th:nth-child(8),
+.fixes-table td:nth-child(8) {
+    width: 100px;
+}
+
+.fixes-table th:nth-child(9),
+.fixes-table td:nth-child(9) {
+    width: 140px;
+}
+
+.fixes-table tbody tr.fixes-row {
+    transition: background-color 0.2s ease;
+}
+
+.fixes-table tbody tr.fixes-row:last-child {
+    border-bottom: none;
+}
+
+.fixes-table tbody tr.fixes-row:hover {
+    background-color: var(--input-border-focus);
+}
+
+.fixes-table td {
+    padding: 5px 5px;
+    white-space: normal;
+    word-wrap: break-word;
+    word-break: break-all;
+    color: var(--text-color);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--bg-color);
+    border-top: 1px solid var(--bg-color);
+    border-right: 1px solid var(--bg-color);
+    text-align: center;
+    font-size: var(--font-size-table-text);
+    background-color: var(--container-bg);
+}
+
+/* Столбец "Описание" */
+.fixes-table td:nth-child(3) {
+    text-align: left;
+}
+
+.fixes-table td:nth-child(3)>span {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    word-wrap: break-word;
+    margin: 0;
+}
+
+/* Стили для ячейки медиа */
+.fixes-media-download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background-color: transparent;
+    border: 1px solid var(--border--color);
+    border-radius: 4px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.fixes-media-download-btn:hover {
+    background-color: rgba(52, 199, 89, 0.15);
+    border-color: rgba(52, 199, 89, 0.5);
+    color: #34c759;
+}
+
+.fixes-no-media {
+    color: var(--chips-color);
+    opacity: 0.6;
+    font-size: var(--font-size-table-text);
+}
+
+.fixes-media-link {
+    color: var(--container-text-color);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: var(--font-size-table-text);
+}
+
+.fixes-media-link:hover {
+    color: var(--container-hover-bg);
+}
+
+/* Стили для статуса */
+.fixes-status {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.fixes-status-fixed {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.fixes-status-inprogress {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #FF9800;
+}
+
+/* Стили для типа (фронтенд/бэкенд) */
+.fixes-type {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.fixes-type-frontend {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #2196F3;
+}
+
+.fixes-type-backend {
+    background-color: rgba(156, 39, 176, 0.2);
+    color: #9C27B0;
+}

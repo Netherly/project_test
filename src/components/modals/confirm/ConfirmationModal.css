@@ -1,0 +1,107 @@
+.confirmation-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.confirmation-modal-content {
+  background-color: var(--container-bg);
+  color: var(--container-text-color);
+  border-radius: 8px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.confirmation-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 0 20px;
+}
+
+.confirmation-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--container-text-color);
+}
+
+.confirmation-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--container-text-color);
+  opacity: 0.7;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.confirmation-modal-close:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.confirmation-modal-body {
+  padding: 20px;
+}
+
+.confirmation-modal-message {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--container-text-color);
+}
+
+.confirmation-modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px 20px 20px;
+  justify-content: flex-end;
+}
+
+.confirmation-modal-btn {
+  padding: 8px 16px;
+  border: 2px solid;
+  background: none;
+  color: var(--container-text-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.confirmation-modal-cancel {
+  border-color: var(--container-text-color);
+  opacity: 0.7;
+}
+
+.confirmation-modal-cancel:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.confirmation-modal-confirm {
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+.confirmation-modal-confirm:hover {
+  background-color: #ff4444;
+  color: white;
+}

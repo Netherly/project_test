@@ -3,17 +3,53 @@ const prisma = require('../../prisma/client');
 const dayjs = require('dayjs');
 
 // ---- helpers ----
+const normalizeOptionalId = (value) => {
+  if (value === undefined) return undefined;
+  const text = String(value ?? '').trim();
+  return text ? text : null;
+};
+
 async function resolveCurrencyId(payload) {
   const { currencyId, currencyCode, currency } = payload || {};
   if (currencyId) {
     const byId = await prisma.currencyDict.findUnique({ where: { id: currencyId } });
     if (byId) return byId.id;
   }
-  const code = (currencyCode || currency || '').toString().trim().toUpperCase();
-  if (code) {
-    const byCode = await prisma.currencyDict.findUnique({ where: { code } });
-    if (byCode) return byCode.id;
+
+  let raw = currencyCode;
+  let nameCandidate = null;
+  if (!raw && currency) {
+    if (typeof currency === 'object') {
+      raw = currency.code || currency.name || '';
+      nameCandidate = currency.name || null;
+    } else {
+      raw = currency;
+      nameCandidate = currency;
+    }
   }
+
+  const code = String(raw || '').trim();
+  if (code) {
+    const normalized = code.toUpperCase();
+    const byCode = await prisma.currencyDict.findUnique({ where: { code: normalized } });
+    if (byCode) return byCode.id;
+
+    if (/^[A-Z]{2,5}$/.test(normalized)) {
+      const created = await prisma.currencyDict.create({
+        data: { code: normalized, name: normalized },
+      });
+      return created.id;
+    }
+  }
+
+  const name = String(nameCandidate || '').trim();
+  if (name) {
+    const byName = await prisma.currencyDict.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
+    });
+    if (byName) return byName.id;
+  }
+
   const e = new Error('currencyId not found');
   e.status = 400;
   throw e;
@@ -98,8 +134,8 @@ const AssetsService = {
         typeId,
         paymentSystemId,
         cardDesignId,
-        employeeId: payload.employeeId ?? null,
-        companyId:  payload.companyId  ?? null,
+        employeeId: normalizeOptionalId(payload.employeeId),
+        companyId: normalizeOptionalId(payload.companyId),
         design:     payload.design     ?? null,
 
         balance,
@@ -160,8 +196,8 @@ const AssetsService = {
       typeId: nextTypeId,
       paymentSystemId: nextPaymentSystemId,
       cardDesignId: nextCardDesignId,
-      employeeId: payload.employeeId,
-      companyId: payload.companyId,
+      employeeId: normalizeOptionalId(payload.employeeId),
+      companyId: normalizeOptionalId(payload.companyId),
       design: payload.design,
     };
 

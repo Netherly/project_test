@@ -13,6 +13,9 @@ const assetsRoutes = require('./assets.routes');
 const telegramRoutes = require('./telegram.routes');
 const profileRoutes = require('./profile.routes');
 const employeesRoutes = require('./employees.routes');
+const ordersRoutes = require('./orders.routes');
+const companyRoutes = require('./company.routes');
+const regularPaymentsRoutes = require('./regular-payments.routes');
 
 
 const authJwt = require('../middlewares/auth.middleware');
@@ -29,6 +32,9 @@ router.use('/upload', authJwt, uploadRoutes);
 router.use('/assets', authJwt, assetsRoutes);
 router.use('/fields', authJwt, fieldsRoutes);
 router.use('/profile', authJwt, profileRoutes);
+router.use('/orders', authJwt, ordersRoutes);
+router.use('/companies', authJwt, companyRoutes);
+router.use('/regular-payments', authJwt, regularPaymentsRoutes);
 
 router.get('/health', (_req, res) => res.json({ ok: true }));
 router.use((req, res) => res.status(404).json({ error: 'Not Found' }));

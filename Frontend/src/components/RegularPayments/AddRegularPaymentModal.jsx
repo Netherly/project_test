@@ -2,6 +2,19 @@ import React, { useState, useMemo, useEffect } from "react";
 import "../../styles/AddTransactionModal.css"; 
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 
+const getArticleValue = (article) =>
+    String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
+const getSubarticleInterval = (sub) =>
+    String(
+        sub?.subarticleInterval ??
+        sub?.parentArticleName ??
+        sub?.articleName ??
+        sub?.interval ??
+        sub?.group ??
+        ''
+    ).trim();
+const getSubarticleValue = (sub) =>
+    String(sub?.subarticleValue ?? sub?.name ?? sub?.value ?? '').trim();
 
 const daysOfWeek = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
 const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -18,7 +31,7 @@ const getTodayDate = () => {
 
 const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {} }) => {
     const initialFormData = useMemo(() => ({
-        category: financeFields?.articles?.[0]?.articleValue || "",
+        category: financeFields?.articles?.[0] ? getArticleValue(financeFields.articles[0]) : "",
         subcategory: "",
         description: "", 
         account: assets?.[0]?.id || "",
@@ -39,13 +52,28 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             return [];
         }
         return financeFields.subarticles.filter(
-            (sub) => sub.subarticleInterval === formData.category
+            (sub) => getSubarticleInterval(sub) === formData.category
         );
     }, [formData.category, financeFields]);
 
     useEffect(() => {
         setFormData(prev => ({ ...prev, subcategory: "" }));
     }, [formData.category]);
+
+    useEffect(() => {
+        if (hasUnsavedChanges) return;
+        setFormData((prev) => {
+            const next = { ...prev };
+            if (!prev.category && financeFields?.articles?.[0]) {
+                next.category = getArticleValue(financeFields.articles[0]);
+            }
+            if (!prev.account && assets?.[0]?.id) {
+                next.account = assets[0].id;
+                next.accountCurrency = assets[0]?.currency || prev.accountCurrency || "UAH";
+            }
+            return next;
+        });
+    }, [assets, financeFields, hasUnsavedChanges]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -152,9 +180,17 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                         <label htmlFor="category" className="form-label">Статья</label>
                         <select id="category" name="category" value={formData.category} onChange={handleChange} required className="form-input1">
                             <option value="" disabled>Выберите статью</option>
-                            {financeFields?.articles?.map((article, index) => (
-                                <option key={index} value={article.articleValue}>{article.articleValue}</option>
-                            ))}
+                            {financeFields?.articles
+                                ?.map((article, index) => ({
+                                    key: article?.id || index,
+                                    value: getArticleValue(article),
+                                }))
+                                .filter((article) => article.value)
+                                .map((article) => (
+                                    <option key={article.key} value={article.value}>
+                                        {article.value}
+                                    </option>
+                                ))}
                         </select>
                     </div>
 
@@ -164,11 +200,19 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
                             <select id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleChange} className="form-input1">
                                 <option value="">Выберите подстатью</option>
-                                {availableSubcategories.map((sub, index) => (
-                                    <option key={index} value={sub.subarticleValue}>{sub.subarticleValue}</option>
+                            {availableSubcategories
+                                .map((sub, index) => ({
+                                    key: sub?.id || index,
+                                    value: getSubarticleValue(sub),
+                                }))
+                                .filter((sub) => sub.value)
+                                .map((sub) => (
+                                    <option key={sub.key} value={sub.value}>
+                                        {sub.value}
+                                    </option>
                                 ))}
-                            </select>
-                        </div>
+                        </select>
+                    </div>
                     )}
 
                     {/* Описание */}
