@@ -1,4 +1,3 @@
-// src/controllers/transaction.controller.js
 const { OperationType } = require('@prisma/client');
 const prisma = require('../../prisma/client');
 
@@ -24,12 +23,11 @@ function parseDateMaybe(x) {
   if (typeof x === 'string') {
     const str = x.includes(' ') ? x.replace(' ', 'T') : x;
     const d = new Date(str);
-    return isNaN(d.getTime()) ? undefined : d;
+    return Number.isNaN(d.getTime()) ? undefined : d;
   }
   return undefined;
 }
 
-// Безопасное преобразование в число
 const safeNum = (v) => {
   if (v === undefined || v === null || v === '') return 0;
   const n = Number(v);
@@ -73,8 +71,7 @@ const diffEffects = (next, prev) => ({
 });
 
 const isZeroEffect = (effect) =>
-  !effect ||
-  (!effect.balanceDelta && !effect.incomingDelta && !effect.outgoingDelta);
+  !effect || (!effect.balanceDelta && !effect.incomingDelta && !effect.outgoingDelta);
 
 const applyAssetEffect = async (db, accountId, effect) => {
   if (!accountId || isZeroEffect(effect)) return;
@@ -152,7 +149,6 @@ async function prepareTransactionData(input, db = prisma) {
 
   const data = {};
 
-  // 1. Обязательные поля
   const parsedDate = parseDateMaybe(date);
   if (parsedDate) data.date = parsedDate;
 
@@ -164,7 +160,6 @@ async function prepareTransactionData(input, db = prisma) {
 
   if (commission !== undefined) data.commission = safeNum(commission);
 
-  // 2. Строковые поля
   if (category !== undefined) data.category = category;
   if (subcategory !== undefined) data.subcategory = subcategory;
   if (counterparty !== undefined) data.counterparty = counterparty;
@@ -174,7 +169,6 @@ async function prepareTransactionData(input, db = prisma) {
   if (orderNumber !== undefined) data.orderNumber = String(orderNumber);
   if (orderCurrency !== undefined) data.orderCurrency = orderCurrency;
 
-  // 3. Числовые поля
   data.sumUAH = safeNum(sumUAH);
   data.sumUSD = safeNum(sumUSD);
   data.sumRUB = safeNum(sumRUB);
@@ -185,13 +179,9 @@ async function prepareTransactionData(input, db = prisma) {
   if (balanceBefore !== undefined) data.balanceBefore = safeNum(balanceBefore);
   if (balanceAfter !== undefined) data.balanceAfter = safeNum(balanceAfter);
 
-  // 4. Флаги
   if (sentToCounterparty !== undefined) data.sentToCounterparty = Boolean(sentToCounterparty);
   if (sendLion !== undefined) data.sendLion = Boolean(sendLion);
 
-  // --- СВЯЗИ (SCALARS) ---
-
-  // A. СЧЕТ (Обязательно)
   if (accountId) {
     data.accountId = accountId;
   }
@@ -204,19 +194,16 @@ async function prepareTransactionData(input, db = prisma) {
     if (account?.currency?.code) data.accountCurrency = account.currency.code;
   }
 
-  // B. КАТЕГОРИЯ (Ищем ID по имени)
   if (category) {
     const catObj = await db.financeArticleDict.findFirst({ where: { name: category } });
     data.categoryId = catObj ? catObj.id : null;
   }
 
-  // C. ПОДКАТЕГОРИЯ
   if (subcategory) {
     const subCatObj = await db.financeSubarticleDict.findFirst({ where: { name: subcategory } });
     data.subcategoryId = subCatObj ? subCatObj.id : null;
   }
 
-  // D. ЗАКАЗ
   if (orderId && typeof orderId === 'string' && orderId.trim() !== '') {
     const orderExists = await db.order.findUnique({ where: { id: orderId } });
     if (orderExists) {
@@ -251,22 +238,11 @@ exports.list = async (req, res, next) => {
     if (accountId) where.accountId = accountId;
 
     const [items, total] = await Promise.all([
-      prisma.transaction.findMany({
-        where,
-        include: trxInclude,
-        orderBy: { date: 'desc' },
-        skip,
-        take,
-      }),
+      prisma.transaction.findMany({ where, include: trxInclude, orderBy: { date: 'desc' }, skip, take }),
       prisma.transaction.count({ where }),
     ]);
 
-    res.json({
-      page: Number(page),
-      pageSize: take,
-      total,
-      items: items.map(viewModel),
-    });
+    res.json({ page: Number(page), pageSize: take, total, items: items.map(viewModel) });
   } catch (err) {
     next(err);
   }
@@ -275,10 +251,7 @@ exports.list = async (req, res, next) => {
 /** GET /api/transactions/:id */
 exports.getById = async (req, res, next) => {
   try {
-    const trx = await prisma.transaction.findUnique({
-      where: { id: req.params.id },
-      include: trxInclude,
-    });
+    const trx = await prisma.transaction.findUnique({ where: { id: req.params.id }, include: trxInclude });
     if (!trx) return res.status(404).json({ message: 'Transaction not found' });
     res.json(viewModel(trx));
   } catch (err) {
@@ -287,7 +260,7 @@ exports.getById = async (req, res, next) => {
 };
 
 /** POST /api/transactions */
-exports.create = async (req, res, next) => {
+exports.create = async (req, res) => {
   try {
     const body = req.body;
 
@@ -297,7 +270,6 @@ exports.create = async (req, res, next) => {
 
         if (!data.accountId) throw new Error('accountId is required');
 
-        // Если ID пришел с фронта (TRX_...), не передаем его в Prisma (если в БД UUID по умолчанию)
         if (rawItem?.id && String(rawItem.id).startsWith('TRX_')) {
           delete data.id;
         }
@@ -416,7 +388,6 @@ exports.duplicate = async (req, res, next) => {
       await applyAssetEffect(tx, created.accountId, effect);
       return created;
     });
-
     res.status(201).json(viewModel(copy));
   } catch (err) {
     if (err.status === 404) return res.status(404).json({ message: 'Transaction not found' });

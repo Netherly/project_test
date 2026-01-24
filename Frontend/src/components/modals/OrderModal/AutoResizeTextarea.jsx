@@ -1,11 +1,11 @@
 // src/components/modals/OrderModal/AutoResizeTextarea.jsx
 import React, { useEffect, useRef } from "react";
+import "./AutoResizeTextarea.css";
 
 /**
  * Авто-ресайз textarea под контент.
  * - Поддерживает forwardRef (и function ref, и object ref)
  * - Корректно работает при внешнем изменении value
- * - Не требует отдельного CSS, но className/стили можно передать
  */
 const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
   { value, onChange, onInput, className = "", style, rows = 1, ...rest },
@@ -30,11 +30,8 @@ const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
   }, [value]);
 
   const handleChange = (event) => {
-    // сначала даём родителю обновить value (если он контролирует)
     onChange?.(event);
-    // если кто-то использует onInput отдельно — поддержим
     if (onInput && onInput !== onChange) onInput(event);
-    // и ресайз под текущий DOM
     resize(event.target);
   };
 
@@ -49,7 +46,7 @@ const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
       ref={setRefs}
       value={value ?? ""}
       rows={rows}
-      className={className}
+      className={`auto-resize-textarea ${className}`.trim()}
       style={style}
       onChange={handleChange}
       onInput={handleInput}

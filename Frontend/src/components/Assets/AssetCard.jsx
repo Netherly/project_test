@@ -59,12 +59,8 @@ const AssetCard = ({
   const paymentSystemValue = asset?.paymentSystemRaw ?? asset?.paymentSystem;
   const currencyValue = asset?.currencyRaw ?? asset?.currency;
 
-  // дизайн может прийти как строка/ид, или как объект designRaw
   const designValue =
-    asset?.designRaw?.id ??
-    asset?.designRaw?.name ??
-    asset?.design ??
-    "";
+    asset?.designRaw?.id ?? asset?.designRaw?.name ?? asset?.design ?? "";
   const designNameValue = asset?.designRaw?.name ?? asset?.design ?? "";
 
   const designObj = cardDesigns.find(
@@ -75,9 +71,7 @@ const AssetCard = ({
       designNameMap[d?.name] === designNameValue
   );
 
-  const designClass = designValue
-    ? `card-design-${designValue}`
-    : "card-design-default";
+  const designClass = designValue ? `card-design-${designValue}` : "card-design-default";
 
   const designUrl = asset?.cardDesign?.url
     ? fileUrl(asset.cardDesign.url)
@@ -104,19 +98,12 @@ const AssetCard = ({
         case "Мир":
           return <img src={mirLogo} alt="Мир" className="card-type-logo mir" />;
         case "Криптовалюта":
-          return (
-            <img
-              src={cryptoLogo}
-              alt="Bitcoin"
-              className="card-type-logo crypto"
-            />
-          );
+          return <img src={cryptoLogo} alt="Bitcoin" className="card-type-logo crypto" />;
         default:
           break;
       }
     }
 
-    // fallback по первой цифре номера карты
     if (cardNumber) {
       if (cardNumber.startsWith("4")) {
         return <img src={visaLogo} alt="Visa" className="card-type-logo visa" />;
@@ -159,10 +146,7 @@ const AssetCard = ({
     }
   };
 
-  const balance = Number.isFinite(Number(asset?.balance))
-    ? Number(asset.balance)
-    : 0;
-
+  const balance = Number.isFinite(Number(asset?.balance)) ? Number(asset.balance) : 0;
   const shouldShowCardElements = true;
 
   return (

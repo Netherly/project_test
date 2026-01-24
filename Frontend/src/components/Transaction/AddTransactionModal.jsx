@@ -784,7 +784,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             className="form-input1"
                         >
                             <option value="">Выберите номер заказа</option>
-                            {orders.map(order => {
+                            {orders.map((order) => {
                                 const orderLabel = order.numberOrder ?? order.orderSequence ?? order.id;
                                 const clientLabel = order.clientName || order.name;
                                 const typeLabel = order.orderSequence != null ? "заказ" : "заявка";

@@ -42,7 +42,6 @@ export default function ClientModal({
 
   // ID для связки формы и кнопки submit (кнопка находится вне <form>)
   const formId = "client-main-form";
-
   const sampleLogs = [
     { timestamp: "2023-03-07T12:36", author: "Менеджеры", message: "Отримувач: …" },
     { timestamp: "2023-03-07T12:38", author: "Менеджеры", message: "ДУБЛЬ!!!!!!!!!!!" },
@@ -145,6 +144,7 @@ export default function ClientModal({
           />
 
           <FormProvider {...methods}>
+            {/* ВАЖНО: Добавлен id={formId} */}
             <form
               id={formId}
               className="client-modal-body custom-scrollbar"
@@ -175,7 +175,6 @@ export default function ClientModal({
               {activeTab === "accesses" && <AccessesTab />}
             </form>
           </FormProvider>
-
           <div className="form-actions-bottom">
             <button
               className="cancel-order-btn"

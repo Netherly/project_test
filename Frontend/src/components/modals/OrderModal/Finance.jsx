@@ -1,11 +1,10 @@
-// src/components/Order/OrderModal/Tabs/Finance.jsx
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import CustomSelect from "../../ui/CustomSelect";
 import AutoResizeTextarea from "./AutoResizeTextarea";
 
 const Finance = ({ control, orderFields, transactions = [] }) => {
-  useFormContext(); // оставляем, если где-то дальше будет нужен watch()
+  useFormContext();
 
   const totalIncome = (transactions || [])
     .filter((t) => t.operation === "Зачисление")
@@ -15,9 +14,6 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
     .filter((t) => t.operation === "Списание")
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-  // orderFields.currency может быть:
-  // - массивом строк ["USD","UAH"]
-  // - массивом объектов [{code,value,name}]
   const currencyOptions = (orderFields?.currency || [])
     .map((curr) => {
       const value =
@@ -282,22 +278,24 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
               <div key={trx.id} className="finances-log-row">
                 <div className="finances-log-content-wrapper">
                   <div className="finances-log-cell">
-                    <input type="text" value={trx.date} readOnly />
+                    <input type="text" value={trx.date || ""} readOnly />
                   </div>
                   <div className="finances-log-cell">
-                    <input type="text" value={trx.category} readOnly />
+                    <input type="text" value={trx.category || ""} readOnly />
                   </div>
                   <div className="finances-log-cell">
-                    <input type="text" value={trx.subcategory} readOnly />
+                    <input type="text" value={trx.subcategory || ""} readOnly />
                   </div>
                   <div className="finances-log-cell">
-                    <input type="text" value={trx.account} readOnly />
+                    <input type="text" value={trx.account || ""} readOnly />
                   </div>
                   <div className="finances-log-cell">
                     <input
                       type="text"
                       value={`${Number(trx.amount || 0).toFixed(2)} ${trx.accountCurrency || ""}`}
-                      className={trx.operation === "Зачисление" ? "text-success" : "text-danger"}
+                      className={
+                        trx.operation === "Зачисление" ? "text-success" : "text-danger"
+                      }
                       readOnly
                     />
                   </div>
@@ -319,7 +317,6 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
           )}
         </div>
 
-        {/* (необязательно) быстрый итог */}
         <div style={{ marginTop: 10, opacity: 0.85 }}>
           <div>Итого зачисления: {totalIncome.toFixed(2)}</div>
           <div>Итого списания: {totalExpense.toFixed(2)}</div>

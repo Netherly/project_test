@@ -39,7 +39,6 @@ export const normIntervals = (arr) =>
 export const normCategories = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
-    // Важно: берем либо то что пришло с фронта, либо структуру с бека (interval.value)
     categoryInterval: tidy(
       it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group
     ),
@@ -57,7 +56,6 @@ export const normArticles = (arr) =>
 export const normSubarticles = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
-    // Родитель может быть статьей или подкатегорией
     subarticleInterval: tidy(
       it?.subarticleInterval ??
         it?.interval ??
@@ -89,11 +87,7 @@ export const normTags = (arr) => {
     if (!seen.has(k)) {
       seen.add(k);
       const color =
-        typeof t === "string"
-          ? "#ffffff"
-          : isHex(t?.color)
-          ? t.color
-          : "#ffffff";
+        typeof t === "string" ? "#ffffff" : isHex(t?.color) ? t.color : "#ffffff";
       out.push({ id: t?.id || rid(), name, color, isDeleted: t?.isDeleted || false });
     }
   }
@@ -277,7 +271,6 @@ export const serTags = (arr) => {
   return out;
 };
 
-// Функция сборки общего объекта
 export function serializeForSave(values) {
   const currencyList = serByCode(values?.generalFields?.currency);
 

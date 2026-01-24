@@ -10,9 +10,12 @@ const ExecutorCard = ({ order, onCardClick, onOpenOrderModal, formatDate }) => {
     };
 
     const handleOpenModalClick = (event) => {
+        
         event.stopPropagation();
+        
+        
         if (onOpenOrderModal) {
-            onOpenOrderModal(order.orderId);
+            onOpenOrderModal(order.orderNumber || order.orderId); 
         }
     };
     
@@ -34,8 +37,11 @@ const ExecutorCard = ({ order, onCardClick, onOpenOrderModal, formatDate }) => {
                     <span className="order-status-emoji" title={order.orderStatus}>
                         {order.orderStatusEmoji || '🔘'}
                     </span>
-                    <span className="order-number-link" onClick={handleOpenModalClick}>
-                        Заказ № {order.orderId}
+                    <span 
+                        className="order-number-link" 
+                        onClick={handleOpenModalClick}
+                    >
+                        Заказ № {order.orderNumber || order.orderId}
                     </span>
                 </div>
                 <div className="date-and-arrow">

@@ -73,7 +73,6 @@ model ClientSourceDict {
   // обратка
   clients  Client[]
 }
-
 model SundryTypeWorkDict {
   id       String  @id @default(uuid())
   name     String  @unique @db.VarChar(150)

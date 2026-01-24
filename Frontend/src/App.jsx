@@ -34,21 +34,21 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/home" element={<ProtectedRoute element={<HomePage />} />} />
-          <Route path="/orders" element={<ProtectedRoute element={<OrdersPage />} />} />
-          <Route path="/executors" element={<ProtectedRoute element={<ExecutorsPage />} />} />
-          <Route path="/employees" element={<ProtectedRoute element={<EmployeePage />} />} />
-          <Route path="/journal" element={<ProtectedRoute element={<JournalPage />} />} />
+          <Route path="/orders/:orderId?" element={<ProtectedRoute element={<OrdersPage />} />} />
+          <Route path="/executors/:executorId?" element={<ProtectedRoute element={<ExecutorsPage />} />} />
+          <Route path="/employees/:employeeId?" element={<ProtectedRoute element={<EmployeePage />} />} />
+          <Route path="/journal/:entryId?" element={<ProtectedRoute element={<JournalPage />} />} />
           <Route path="/currency-rates" element={<ProtectedRoute element={<CurrencyRates />} />} />
-          <Route path="/assets" element={<ProtectedRoute element={<AssetsPage />} />} />
-          <Route path="/list" element={<ProtectedRoute element={<TransactionsPage />} />} />
-          <Route path="/regular" element={<ProtectedRoute element={<RegularPaymentsPage />} />} />
+          <Route path="/assets/:assetId?" element={<ProtectedRoute element={<AssetsPage />} />} />
+          <Route path="/list/:transactionId?" element={<ProtectedRoute element={<TransactionsPage />} />} />
+          <Route path="/regular/:paymentId?" element={<ProtectedRoute element={<RegularPaymentsPage />} />} />
           <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
           <Route path="/fields" element={<ProtectedRoute element={<FieldsPage />} />} />
-          <Route path="/access" element={<ProtectedRoute element={<AccessSettings />} />} />
+          <Route path="/access/:subPage?" element={<ProtectedRoute element={<AccessSettings />} />} />
           <Route path="/tasks" element={<ProtectedRoute element={<TasksPage />} />} />
           <Route path="/company" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
           <Route
-            path="/clients"
+            path="/clients/:clientId?"
             element={
               <ProtectedRoute
                 element={

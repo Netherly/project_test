@@ -643,3 +643,89 @@
     background-color: rgba(255, 82, 82, 0.15);
     color: #ff1744;
 }
+
+
+
+.finances-log-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 15px;
+    overflow: hidden;
+}
+
+.finances-log-row {
+    display: flex;
+    width: 100%;
+}
+
+.finances-log-content-wrapper {
+    display: flex;
+    flex-grow: 1;
+    width: 100%;
+}
+
+
+.finances-log-row.header-row .finances-log-content-wrapper {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 10px 0;
+}
+
+.finances-log-row.header-row .finances-log-cell {
+    font-weight: 600;
+    font-size: 12px;
+    color: #8b95a5;
+    justify-content: center;
+    text-align: center;
+}
+
+
+.finances-log-row:not(.header-row) .finances-log-content-wrapper {
+    background-color: transparent;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+    transition: background-color 0.2s ease;
+}
+
+.finances-log-row:not(.header-row):hover .finances-log-content-wrapper {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.finances-log-row:last-child:not(.header-row) .finances-log-content-wrapper {
+    border-bottom: none;
+}
+
+
+.finances-log-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center; 
+    padding: 0 5px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+
+.finances-log-cell span {
+    display: block;
+    width: 100%;
+    font-size: 13px;
+    color: #e0e0e0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    padding: 10px 0;
+}
+
+
+.text-success { color: #4caf50 !important; }
+.text-danger { color: #f44336 !important; }
+
+
+.no-transactions-message {
+    padding: 20px;
+    text-align: center;
+    color: #8b95a5;
+    font-size: 13px;
+}

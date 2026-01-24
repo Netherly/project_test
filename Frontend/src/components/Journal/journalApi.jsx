@@ -2,7 +2,6 @@
 
 const JOURNAL_KEY = 'journalEntries'; 
 
-
 /**
  * Получает всех исполнителей из localStorage.
  * @returns {Array} Массив исполнителей или пустой массив.
@@ -33,20 +32,28 @@ export const getOrders = () => {
 
 /**
  * Получает все записи журнала из localStorage.
- * @returns {Array} Массив записей журнала или пустой массив, если записей нет.
+ * @returns {Array} Массив записей журнала.
  */
 export const getLogEntries = () => {
     try {
         const savedLogs = localStorage.getItem(JOURNAL_KEY);
-        // Добавление заглушек для новых полей, отсутствующих в старых данных
         const entries = savedLogs ? JSON.parse(savedLogs) : [];
-        return entries.map(entry => ({
-            // Поля, необходимые для фильтрации, но которых может не быть в старых данных
-            role: entry.role || entry.executorRole, // Используем executorRole как роль, если роль не задана
-            adminApproved: entry.adminApproved || (Math.random() > 0.66 ? "Одобрено" : Math.random() > 0.33 ? "Не одобрено" : "Ожидает"),
-            source: entry.source || "СРМ", // Заглушка для источника отчета
-            ...entry,
-        }));
+        return entries.map(entry => {
+            let roleValue = '';
+            if (typeof entry.role === 'string') {
+                roleValue = entry.role;
+            } else if (Array.isArray(entry.role) && entry.role.length > 0) {
+                roleValue = entry.role[0]; // Берем первую роль
+            } else if (entry.executorRole) {
+                roleValue = entry.executorRole; 
+            }
+
+            return {
+                ...entry,
+                role: roleValue,
+                correctionTime: entry.correctionTime || ''
+            };
+        });
     } catch (error) {
         console.error("Ошибка при чтении записей журнала из localStorage:", error);
         return [];
@@ -65,25 +72,20 @@ const saveLogEntries = (entries) => {
     }
 };
 
-// Добавляем статичные роли по умолчанию для фильтра
-const DEFAULT_ROLES = ["Фронтендер", "Бэкендер", "Менеджер", "Дизайнер", "Тестировщик"];
-
 /**
- * Получает уникальные роли исполнителей из записей журнала.
- * @returns {Array<string>} Массив уникальных ролей.
+ * Получает список всех уникальных ролей.
+ * @returns {Array} Отсортированный массив строк-ролей.
  */
 export const getAvailableRoles = () => {
-    const allEntries = getLogEntries();
-    const uniqueRoles = new Set(DEFAULT_ROLES);
-
-    allEntries.forEach(entry => {
-        // Используем поле executorRole для извлечения ролей, так как в исходной структуре нет отдельного поля 'role'
-        if (entry.executorRole) {
-            uniqueRoles.add(entry.executorRole);
-        }
-    });
-
-    return Array.from(uniqueRoles).sort();
+    const defaultRoles = [
+        "Фронтенд-разработчик", 
+        "Бэкенд-разработчик", 
+        "Дизайнер", 
+        "Менеджер проекта", 
+        "Тестировщик (QA)", 
+        "Аналитик"
+    ];
+    return defaultRoles.sort();
 };
 
 /**
@@ -94,11 +96,14 @@ export const getAvailableRoles = () => {
 export const addLogEntry = (newEntryData) => {
     const allEntries = getLogEntries();
     const entryToAdd = {
-        id: Date.now(), // Генерируем уникальный ID на основе времени
-        status: newEntryData.status || "Лид", // Статус по умолчанию
-        adminApproved: "Ожидает", // Дефолтное значение для нового поля
-        source: newEntryData.source || "СРМ", // Дефолтное значение для нового поля
+        id: Date.now(),
+        status: newEntryData.status || "Лид", 
+        adminApproved: "Ожидает",
+        source: newEntryData.source || "СРМ", 
+        createdAt: new Date().toISOString(),
         ...newEntryData,
+        role: typeof newEntryData.role === 'string' ? newEntryData.role : '',
+        correctionTime: newEntryData.correctionTime || ''
     };
     const updatedEntries = [entryToAdd, ...allEntries];
     saveLogEntries(updatedEntries);
@@ -113,7 +118,12 @@ export const addLogEntry = (newEntryData) => {
 export const updateLogEntry = (updatedEntry) => {
     const allEntries = getLogEntries();
     const updatedEntries = allEntries.map(entry =>
-        entry.id === updatedEntry.id ? updatedEntry : entry
+        entry.id === updatedEntry.id ? {
+            ...updatedEntry,
+            role: typeof updatedEntry.role === 'string' ? updatedEntry.role : '',
+            correctionTime: updatedEntry.correctionTime || '',
+            createdAt: entry.createdAt || new Date().toISOString()
+        } : entry
     );
     saveLogEntries(updatedEntries);
     return updatedEntries;
