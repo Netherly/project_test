@@ -35,8 +35,6 @@ const ExecutorsPage = () => {
     
     
     const viewMode = searchParams.get('view') || 'card';
-
-    L
     const setViewMode = (mode) => {
         setSearchParams({ view: mode });
     };

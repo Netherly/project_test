@@ -228,7 +228,7 @@ export default function InfoTab({
         render={({ field }) => (
           <div className="form-field">
        
-            <label>Компания<span className="req">*</span></label>
+            <label>Компания</label>
       
             <select
               {...field}

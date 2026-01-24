@@ -189,6 +189,34 @@
 }
 
 
+.journal-form-modal input[type="number"]::-webkit-outer-spin-button,
+.journal-form-modal input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+
+.journal-form-modal input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+
+.journal-form-modal select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: none; 
+}
+
+
+.journal-form-modal input[type="text"],
+.journal-form-modal input[type="time"],
+.journal-form-modal input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
 @media (max-width: 768px) {
     .journal-form-modal {
         width: 100%;

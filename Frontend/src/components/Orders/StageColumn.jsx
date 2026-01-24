@@ -12,11 +12,21 @@ const StageColumn = ({
   onOrderClick,
   isDraggingRef,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  isMassEditMode,
+  selectedOrders = [], 
+  onSelectAllInStage   
 }) => {
   const ref = useRef(null);
   const totalAmount = orders.reduce((sum, o) => sum + (o.price || 0), 0);
   const stageColor = getStageColor(stage);
+
+  
+  const isAllSelected = orders.length > 0 && orders.every(o => selectedOrders.includes(o.id));
+
+  const handleCheckboxChange = (e) => {
+      onSelectAllInStage(stage, e.target.checked);
+  };
 
   const [{ isOver }, drop] = useDrop({
     accept: ItemTypes.ORDER,
@@ -24,7 +34,6 @@ const StageColumn = ({
       if (item.stage !== stage) {
         moveOrder(item.id, stage, orders.length);
       }
-      // Завершаем перетаскивание
       if (onDragEnd) onDragEnd();
     },
     collect: (monitor) => ({
@@ -40,7 +49,21 @@ const StageColumn = ({
       className={`stage-column ${isOver ? "highlight" : ""}`}
     >
       <header className="stage-column-header">
-        <h3>{stage}</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>{stage}</h3>
+            
+           
+            {isMassEditMode && (
+                <input 
+                    type="checkbox" 
+                    checked={isAllSelected} 
+                    onChange={handleCheckboxChange}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                    title="Выбрать все в этой колонке"
+                />
+            )}
+        </div>
+
         <div className="stage-subtitle">
           {orders.length} заказов / {totalAmount.toLocaleString()} грн
         </div>
@@ -62,6 +85,9 @@ const StageColumn = ({
             isDraggingRef={isDraggingRef}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            
+            isMassEditMode={isMassEditMode}
+            isSelected={selectedOrders.includes(order.id)}
           />
         ))}
       </div>

@@ -179,6 +179,7 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         )}
       />
       
+      
       <div className="form-field">
         <label>Основная валюта</label>
         <Controller
@@ -197,7 +198,56 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         />
       </div>
 
-      
+      <div className="checkbox-container-modal" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        
+        
+        <Controller
+          name="autoConfirmJournal"
+          control={control}
+          defaultValue={false}
+          render={({ field }) => (
+            <div className="form-field-checkbox">
+             
+              <label htmlFor="autoConfirmJournal" style={{ margin: 0, cursor: 'pointer' }}>
+                Автоматически подтверждать журнал
+              </label>
+              
+              
+              <input 
+                type="checkbox" 
+                id="autoConfirmJournal" 
+                {...field} 
+                checked={field.value || false} 
+              />
+            </div>
+          )}
+        />
+
+       
+        <Controller
+          name="workTimeControl"
+          control={control}
+          defaultValue={false}
+          render={({ field }) => (
+            <div className="form-field-checkbox" style={{ display: 'flex', alignItems: 'center'}}>
+              
+              <label htmlFor="workTimeControl" style={{ margin: 0, cursor: 'pointer' }}>
+                Контроль рабочего времени
+              </label>
+
+             
+              <input 
+                type="checkbox" 
+                id="workTimeControl" 
+                {...field} 
+                checked={field.value || false}
+                style={{gap: '15px'}} 
+              />
+            </div>
+          )}
+        />
+      </div>
+
       <div className="currency-field">
         <label className="currency-title" style={{ marginTop: 12 }}>Ставка в час</label>
         <div className="currency-table">
@@ -224,8 +274,9 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
             />
           </div>
         ))}
+        </div>
       </div>
-      </div>
+
     </div>
   );
 }

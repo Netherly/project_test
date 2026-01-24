@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"; 
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { DndProvider, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
@@ -10,12 +10,12 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import ColumnMinimap from "./Minimap/ColumnMinimap";
 import ColumnVisibilityToggle from "./ColumnVisibilityToggle/ColumnVisibilityToggle";
 import useHorizontalDragScroll from "./hooks/useHorizontalDragScroll";
+import OrderMassActionBar from "./OrderMassActionBar"; // <--- ИМПОРТ
 
 import { getLogEntries } from "../Journal/journalApi";
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
-
 
 const QuickDropZone = ({ stage, moveOrder, onDragEnd }) => {
     const [{ isOver }, drop] = useDrop({
@@ -82,7 +82,6 @@ const ORDERS_STORAGE_KEY = 'ordersData';
 const OrdersPage = () => {
     const navigate = useNavigate();
     const { orderId } = useParams();
-   
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [orders, setOrders] = useState(() => {
@@ -98,18 +97,18 @@ const OrdersPage = () => {
 
     const [journalEntries, setJournalEntries] = useState([]);
 
-    
     const [visibleOrderStages, setVisibleOrderStages] = useState(() => {
-        
         const stagesParam = searchParams.get('stages');
-        
         if (stagesParam) {
-           
             return stagesParam.split(',');
         }
-        
         return allStages;
     });
+
+    // --- State для массового выделения ---
+    const [isMassEditMode, setIsMassEditMode] = useState(false);
+    const [selectedOrders, setSelectedOrders] = useState([]);
+    // -------------------------------------
 
     const selectedOrder = useMemo(() => {
         if (!orderId) return null;
@@ -131,7 +130,6 @@ const OrdersPage = () => {
         setJournalEntries(allEntries);
     }, []);
 
-    
     const moveOrder = useCallback((orderIdToMove, newStage, newIndex) => {
         setOrders((prevOrders) => {
             const order = prevOrders.find((o) => o.id === orderIdToMove);
@@ -150,17 +148,11 @@ const OrdersPage = () => {
             )
         );
 
-        
         if (!visibleOrderStages.includes(updatedOrder.stage)) {
             const newStages = [...visibleOrderStages, updatedOrder.stage];
-            
-            
             setVisibleOrderStages(newStages);
-
-           
             const newParams = new URLSearchParams(searchParams);
             newParams.set('stages', newStages.join(','));
-            
             navigate({ pathname: '/orders', search: newParams.toString() });
         } else {
             navigate({ pathname: '/orders', search: searchParams.toString() });
@@ -171,21 +163,15 @@ const OrdersPage = () => {
     const handleDragEnd = () => { setIsDragging(false); };
 
     const handleToggleStage = (stage) => {
-        
         let newStages;
         if (visibleOrderStages.includes(stage)) {
             newStages = visibleOrderStages.filter(s => s !== stage);
         } else {
             newStages = [...visibleOrderStages, stage];
         }
-
-        
         setVisibleOrderStages(newStages);
-
-       
         setSearchParams(prev => {
             const newParams = new URLSearchParams(prev);
-            
             if (newStages.length > 0) {
                 newParams.set('stages', newStages.join(','));
             } else {
@@ -222,11 +208,61 @@ const OrdersPage = () => {
         navigate({ pathname: '/orders', search: searchParams.toString() });
     };
 
+    
+
+    const toggleMassEditMode = () => {
+        setIsMassEditMode(prev => !prev);
+        setSelectedOrders([]); 
+    };
+
+    
     const handleOrderClick = (order) => {
-        navigate({
-            pathname: `/orders/${order.id}`,
-            search: searchParams.toString() 
-        });
+        if (isMassEditMode) {
+            setSelectedOrders(prev => 
+                prev.includes(order.id) 
+                    ? prev.filter(id => id !== order.id) 
+                    : [...prev, order.id]
+            );
+        } else {
+            // Если обычный режим - открываем модал
+            navigate({
+                pathname: `/orders/${order.id}`,
+                search: searchParams.toString() 
+            });
+        }
+    };
+
+    const handleMassUpdate = (field, value) => {
+        if (field === 'stage') {
+            
+            setOrders(prevOrders => prevOrders.map(order => {
+                if (selectedOrders.includes(order.id)) {
+                    return { ...order, stage: value };
+                }
+                return order;
+            }));
+            
+            
+            setIsMassEditMode(false);
+            setSelectedOrders([]);
+        }
+    };
+
+    const handleSelectAllInStage = (stageName, shouldSelect) => {
+        
+        const ordersInStage = orders.filter(o => o.stage === stageName);
+        const idsInStage = ordersInStage.map(o => o.id);
+
+        if (shouldSelect) {
+            
+            setSelectedOrders(prev => {
+                const newSelection = new Set([...prev, ...idsInStage]);
+                return Array.from(newSelection);
+            });
+        } else {
+            
+            setSelectedOrders(prev => prev.filter(id => !idsInStage.includes(id)));
+        }
     };
 
     const handleCloseModal = () => {
@@ -264,11 +300,23 @@ const OrdersPage = () => {
                         </button>
                     </div>
 
+
                     <ColumnVisibilityToggle
                         stages={allStages}
                         visibleStages={visibleOrderStages}
                         onToggleStage={handleToggleStage}
                     />
+
+                     <button 
+                        className={`journal-mass-action-button ${isMassEditMode ? 'active' : ''}`} 
+                        onClick={toggleMassEditMode}
+                        title="Массовое выделение"
+                        style={{ marginLeft: '10px' }}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    </button>
 
                     <button className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14" /><path d="M12 5v14" /></svg> Добавить
@@ -283,10 +331,13 @@ const OrdersPage = () => {
                                 stage={stage}
                                 orders={getFilteredOrdersForStage(stage)}
                                 moveOrder={moveOrder}
-                                onOrderClick={handleOrderClick}
+                                onOrderClick={handleOrderClick} 
                                 isDraggingRef={isDraggingRef}
                                 onDragStart={handleDragStart}
                                 onDragEnd={handleDragEnd}
+                                isMassEditMode={isMassEditMode}
+                                selectedOrders={selectedOrders}
+                                onSelectAllInStage={handleSelectAllInStage}
                             />
                         ))}
                     </div>
@@ -313,6 +364,16 @@ const OrdersPage = () => {
                         </div>
                     )}
                 </DndProvider>
+
+
+                {isMassEditMode && selectedOrders.length > 0 && (
+                    <OrderMassActionBar
+                        selectedCount={selectedOrders.length}
+                        onClose={() => { setIsMassEditMode(false); setSelectedOrders([]); }}
+                        stages={allStages}
+                        onMassUpdate={handleMassUpdate}
+                    />
+                )}
             </div>
 
             {selectedOrder && (

@@ -157,8 +157,8 @@
 /* Fixed column widths */
 .journal-table th:nth-child(1),
 .journal-table td:nth-child(1) {
-    width: 20px;
-    min-width: 20px;
+    width: 50px;
+    min-width: 50px;
 }
 
 .journal-table th:nth-child(2),

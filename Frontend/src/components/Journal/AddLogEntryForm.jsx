@@ -200,7 +200,7 @@ const AddLogEntryForm = ({ onAdd, onClose, employees = [], orders = [], currentU
                                 <option value="">Выберите заказ</option>
                                 {activeOrders.map((order) => (
                                     <option key={order.orderNumber} value={order.orderNumber}>
-                                        {order.orderNumber} - {order.description}
+                                        {order.orderNumber}
                                     </option>
                                 ))}
                             </select>

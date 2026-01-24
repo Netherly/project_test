@@ -26,7 +26,9 @@ const OrderCard = ({
   onClick,
   isDraggingRef,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  isMassEditMode,
+  isSelected
 }) => {
   const ref = useRef(null);
   const [expandedRegular, setExpandedRegular] = useState(false);
@@ -39,12 +41,12 @@ const OrderCard = ({
       if (onDragStart) onDragStart();
       return { id: order.id, index, stage };
     },
+    canDrag: !isMassEditMode, 
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
     end: () => {
       isDraggingRef.current = false;
-
       if (onDragEnd) onDragEnd();
     },
   });
@@ -78,7 +80,11 @@ const OrderCard = ({
     },
   });
 
-  drag(drop(ref));
+  
+  if (!isMassEditMode) {
+      drag(drop(ref));
+  } else {
+  }
 
   const TagGroup = ({ tags, expanded, setExpanded, className }) => {
     if (!tags?.length) return null;
@@ -124,13 +130,52 @@ const OrderCard = ({
     );
   };
 
+  
+  const handleClick = (e) => {
+      if (isMassEditMode) {
+          e.preventDefault(); 
+         
+      }
+      onClick(order);
+  };
+
+  
+  const getOpacity = () => {
+      if (isDragging) return 0.5;
+      if (isMassEditMode && !isSelected) return 0.6; 
+      return 1;
+  };
+
   return (
     <div
-      ref={ref}
-      className={`order-container ${isDragging ? "dragging" : ""}`}
-      onClick={() => onClick(order)}
-      style={{ opacity: isDragging ? 0.5 : 1 }}
+      ref={isMassEditMode ? null : (node) => drag(drop(node))} 
+      className={`order-container ${isDragging ? "dragging" : ""} ${isSelected ? "selected-card" : ""}`}
+      onClick={handleClick}
+      style={{ 
+          opacity: getOpacity(),
+          border: isSelected ? '2px solid #478cff' : '1px solid transparent',
+          cursor: isMassEditMode ? 'pointer' : 'grab',
+          position: 'relative'
+      }}
     >
+      
+      {isMassEditMode && (
+        <div style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            zIndex: 10,
+            pointerEvents: 'none' 
+        }}>
+            <input 
+                type="checkbox" 
+                checked={isSelected || false} 
+                readOnly 
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+            />
+        </div>
+      )}
+
       <div className="order-card-header">
         <div className="order-left-content">
           <div>{order.numberOrder ? `Заказ № ${order.numberOrder}` : `Заявка #${order.id}`}</div>

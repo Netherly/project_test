@@ -13,7 +13,6 @@ export const clientSchema = yup.object().shape({
       })
     )
     .min(1, 'Выберите хотя бы один тег'),
-  company_id: yup.string().required('Компания обязательна'),
   intro_description: yup.string().required('Вводное описание обязательно'),
   note: yup.string().required('Примечание обязательно'),
 
