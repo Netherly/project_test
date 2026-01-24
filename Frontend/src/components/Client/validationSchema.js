@@ -23,7 +23,6 @@ const tagSchema = yup
 
 export const clientSchema = yup.object().shape({
   // === INFO ===
-<<<<<<< HEAD
   name: yup.string().required('Клиент обязателен'),
   category: yup.string().required('Категория обязательна'),
   source: yup.string().required('Источник обязателен'),
@@ -37,15 +36,6 @@ export const clientSchema = yup.object().shape({
     .min(1, 'Выберите хотя бы один тег'),
   intro_description: yup.string().required('Вводное описание обязательно'),
   note: yup.string().required('Примечание обязательно'),
-=======
-  name: yup.string().required("Клиент обязателен"),
-  category: yup.string().required("Категория обязательна"),
-  source: yup.string().required("Источник обязателен"),
-  tags: yup.array().of(tagSchema).min(1, "Выберите хотя бы один тег"),
-  company_id: yup.string().required("Компания обязательна"),
-  intro_description: yup.string().required("Вводное описание обязательно"),
-  note: yup.string().required("Примечание обязательно"),
->>>>>>> origin/main
 
   // === CONTACTS ===
   full_name: yup.string().required("ФИО обязательно"),
