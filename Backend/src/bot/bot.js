@@ -18,6 +18,13 @@ function readStartPayload(ctx) {
   return '';
 }
 
+function buildChatLink({ username, userId }) {
+  const uname = String(username || "").trim().replace(/^@/, "");
+  if (uname) return `https://t.me/${uname}`;
+  if (userId) return `tg://user?id=${userId}`;
+  return null;
+}
+
 async function initTelegramBot() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not set');
@@ -49,8 +56,13 @@ async function initTelegramBot() {
           telegramUserId: toBigIntSafe(ctx.from.id),
           telegramChatId: toBigIntSafe(ctx.chat.id),
           telegramUsername: ctx.from.username || null,
+          telegramName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ') || null,
+          telegramNickname: ctx.from.username || null,
+          telegramId: toBigIntSafe(ctx.chat.id),
+          telegramDateTime: new Date(),
           telegramLinkedAt: new Date(),
           telegramVerified: true,
+          chatLink: buildChatLink({ username: ctx.from.username, userId: ctx.from.id }),
         },
       });
 

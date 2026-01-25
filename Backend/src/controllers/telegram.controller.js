@@ -27,6 +27,13 @@ async function createLinkToken(req, res, next) {
   }
 }
 
+function buildChatLink({ username, userId }) {
+  const uname = String(username || "").trim().replace(/^@/, "");
+  if (uname) return `https://t.me/${uname}`;
+  if (userId) return `tg://user?id=${userId}`;
+  return null;
+}
+
 async function consumeLinkToken(req, res, next) {
   try {
     const { code, tgUserId, tgChatId, tgUsername } = req.body || {};
@@ -56,8 +63,12 @@ async function consumeLinkToken(req, res, next) {
         telegramUserId: BigInt(tgUserId),
         telegramChatId: BigInt(tgChatId),
         telegramUsername: tgUsername || null,
+        telegramNickname: tgUsername || null,
+        telegramId: BigInt(tgChatId),
+        telegramDateTime: new Date(),
         telegramLinkedAt: new Date(),
         telegramVerified: true,
+        chatLink: buildChatLink({ username: tgUsername, userId: tgUserId }),
       },
     });
 

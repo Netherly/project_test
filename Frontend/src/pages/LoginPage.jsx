@@ -38,17 +38,15 @@ function LoginPage() {
     try {
       const data = await api.login({ login, password });
       if (data?.token) localStorage.setItem("token", data.token);
-      localStorage.setItem("isAuthenticated", "true");
-      navigate("/home");
+      navigate("/dashboard");
       return;
     } catch (err) {
-      if (login === "user" && password === "123456") {
-        localStorage.setItem("token", "dev-token-user-123456");
-        localStorage.setItem("isAuthenticated", "true");
-        navigate("/home");
-        return;
+      const status = err?.status;
+      if (status === 401 || status === 404) {
+        setError("Неверный логин или пароль");
+      } else {
+        setError(err?.message || "Не удалось выполнить вход");
       }
-      setError(err?.message || "Не удалось выполнить вход");
     } finally {
       setLoading(false);
     }
@@ -153,7 +151,6 @@ function LoginPage() {
       });
       if (loginResp?.token) {
         localStorage.setItem("token", loginResp.token);
-        localStorage.setItem("isAuthenticated", "true");
       }
 
       const linkResp = await api.createTelegramLink();
@@ -168,8 +165,14 @@ function LoginPage() {
     } catch (err) {
       const status = err?.status || err?.response?.status;
       const msg = (err?.message || err?.response?.data?.message || "").toString().toLowerCase();
-      if (status === 409 || (/username|login/.test(msg) && /(taken|занят|exists|существует)/.test(msg))) {
-        setRegErrors((prev) => ({ ...prev, username: "Такой логин уже занят" }));
+      if (status === 409) {
+        if (/email|почт/.test(msg)) {
+          setRegErrors((prev) => ({ ...prev, email: "Такая почта уже используется" }));
+        } else if (/username|login|логин/.test(msg)) {
+          setRegErrors((prev) => ({ ...prev, username: "Такой логин уже занят" }));
+        } else {
+          setError("Логин или почта уже используются");
+        }
       } else {
         setError(err?.message || "Ошибка при регистрации");
       }
