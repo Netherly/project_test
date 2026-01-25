@@ -5,8 +5,7 @@ on:
   push:
     branches: [main]
 
-# Чтобы НЕ было "The operation was canceled" при новом пуше во время деплоя:
-# следующий запуск будет ждать, а не отменять текущий.
+# Чтобы не ловить "The operation was canceled" при новом пуше во время деплоя:
 concurrency:
   group: deploy-crm-${{ github.ref }}
   cancel-in-progress: false
@@ -115,7 +114,6 @@ jobs:
 
           echo "FE_OUT=$FE_OUT" >> "$GITHUB_ENV"
           echo "FE_DIR=$FE_DIR" >> "$GITHUB_ENV"
-          echo "FE_DIR=$FE_DIR FE_OUT=$FE_OUT"
 
           test -d "$FE_DIR/$FE_OUT"
           find "$FE_DIR/$FE_OUT" -maxdepth 1 -type f | head -n 10 || true
@@ -129,7 +127,6 @@ jobs:
           URL="${VITE_API_URL//$'\r'/}"
           URL="${URL%/}"
 
-          echo "Searching for '/undefined/' in bundle..."
           if grep -RIn --no-messages "/undefined/" "$OUT" >/dev/null ; then
             echo "Bundle contains '/undefined/'. Check VITE_API_URL!" >&2
             exit 1
@@ -150,8 +147,6 @@ jobs:
             echo "Bundle does not contain VITE_API_URL ($URL). Check env injection/build or frontend code." >&2
             exit 1
           fi
-
-          echo "OK: bundle URLs look clean"
 
       - name: Pack frontend build
         run: |
@@ -239,7 +234,7 @@ jobs:
             fi
             rm -f backend.tgz
 
-      # Делаем backend.env локально БЕЗ проблем кавычек/CRLF и грузим на сервер
+      # Делаем backend.env локально (без CRLF) и грузим на сервер
       - name: Prepare backend .env file
         env:
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
@@ -321,9 +316,8 @@ jobs:
             export HUSKY=0
             export NODE_ENV=production
 
-            # Быстрая проверка, что БД реально доступна (иначе Prisma упадет)
+            echo "Checking DB readiness (127.0.0.1:5432)..."
             if command -v pg_isready >/dev/null 2>&1; then
-              echo "Checking DB readiness (127.0.0.1:5432)..."
               for i in {1..20}; do
                 if pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
                   echo "DB is ready"
@@ -333,14 +327,14 @@ jobs:
                 sleep 2
               done
               pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || { echo "DB is NOT reachable"; exit 1; }
+            else
+              echo "pg_isready not found, skipping DB readiness check"
             fi
 
             npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
 
-            # Генерация клиента
             npx prisma generate
 
-            # Если миграции есть — в проде всегда migrate deploy (идемпотентно)
             HAS_MIGRATIONS=0
             if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
               HAS_MIGRATIONS=1
@@ -358,7 +352,6 @@ jobs:
               fi
             fi
 
-            # старт/перезапуск pm2
             if npm run | grep -qE " start"; then
               pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start
             else
@@ -367,6 +360,7 @@ jobs:
             fi
             pm2 save
 
+      # ВАЖНО: у вас реальный health endpoint = /health (а /api/health = 404)
       - name: Backend health check (wait + fail if bad)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -380,11 +374,12 @@ jobs:
             HOST_HEADER="${{ secrets.PRIMARY_DOMAIN || 'gsse.work' }}"
 
             for i in {1..20}; do
-              if curl -fsS --max-time 3 -H "Host: $HOST_HEADER" "http://127.0.0.1/api/health" >/dev/null; then
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)
+              if [ "$code" = "200" ]; then
                 echo "Backend health: OK"
                 exit 0
               fi
-              echo "Waiting for backend... ($i/20)"
+              echo "Waiting for backend... ($i/20) code=$code"
               sleep 3
             done
 
