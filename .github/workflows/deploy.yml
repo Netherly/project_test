@@ -5,7 +5,6 @@ on:
   push:
     branches: [main]
 
-# Чтобы не ловить "The operation was canceled" при новом пуше во время деплоя:
 concurrency:
   group: deploy-crm-${{ github.ref }}
   cancel-in-progress: false
@@ -30,7 +29,7 @@ jobs:
         with:
           node-version: ${{ secrets.NODE_VERSION || '20' }}
 
-      # 1) Пишем prod-env (без CRLF) + страховочный .env
+      # ---------- FRONTEND ----------
       - name: Write frontend env files (normalize)
         working-directory: ./${{ env.FE_DIR }}
         env:
@@ -50,18 +49,16 @@ jobs:
           env_prod = Path(".env.production")
           env_prod.write_text(data.rstrip("\n") + "\n", encoding="utf-8")
 
-          # страховка: если build пойдет не в production-mode, Vite всё равно подхватит .env
+          # fallback
           Path(".env").write_text(env_prod.read_text(encoding="utf-8"), encoding="utf-8")
           PY
 
-      # 2) Удаляем любые другие .env*, которые могут перебить
       - name: Remove other env files
         working-directory: ./${{ env.FE_DIR }}
         run: |
           set -e
           rm -f .env.local .env.development .env.development.local .env.production.local || true
 
-      # 3) Валидируем и экспортируем VITE_API_URL из .env.production
       - name: Validate & export VITE_API_URL
         working-directory: ./${{ env.FE_DIR }}
         run: |
@@ -71,19 +68,15 @@ jobs:
           from pathlib import Path
 
           text = Path(".env.production").read_text(encoding="utf-8")
-
           m = re.search(r"^VITE_API_URL=(.*)$", text, flags=re.MULTILINE)
           if not m:
               raise SystemExit("VITE_API_URL is missing in FRONTEND_ENV")
 
           url = m.group(1).strip().replace("\r", "")
-
-          # снять обрамляющие кавычки
           if (url.startswith('"') and url.endswith('"')) or (url.startswith("'") and url.endswith("'")):
               url = url[1:-1].strip()
 
-          url = url.rstrip("/")  # нормализуем
-
+          url = url.rstrip("/")
           if not url:
               raise SystemExit("VITE_API_URL is empty after normalization")
 
@@ -116,7 +109,6 @@ jobs:
           echo "FE_DIR=$FE_DIR" >> "$GITHUB_ENV"
 
           test -d "$FE_DIR/$FE_OUT"
-          find "$FE_DIR/$FE_OUT" -maxdepth 1 -type f | head -n 10 || true
 
       - name: Fail if bundle contains bad base url
         env:
@@ -187,6 +179,7 @@ jobs:
             fi
             rm -f frontend.tgz
 
+      # ---------- BACKEND ----------
       - name: Pack backend source
         run: |
           set -e
@@ -234,7 +227,6 @@ jobs:
             fi
             rm -f backend.tgz
 
-      # Делаем backend.env локально (без CRLF) и грузим на сервер
       - name: Prepare backend .env file
         env:
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
@@ -300,7 +292,8 @@ jobs:
               sudo npm i -g pm2
             fi
 
-      - name: Install backend deps, migrate, restart pm2
+      # 🔥 ВАЖНО: pm2 у тебя живёт у пользователя deploy — запускаем всё под ним
+      - name: Install backend deps, prisma migrate, restart pm2 (as deploy)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -311,57 +304,36 @@ jobs:
           envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
-            cd /var/www/crm-backend
 
-            export HUSKY=0
-            export NODE_ENV=production
+            sudo -iu deploy bash -lc "cd /var/www/crm-backend && \
+              export HUSKY=0 && export NODE_ENV=production && \
+              echo 'Checking DB readiness (127.0.0.1:5432)...' && \
+              if command -v pg_isready >/dev/null 2>&1; then \
+                for i in {1..20}; do \
+                  pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break; \
+                  echo \"Waiting for DB... (\$i/20)\"; sleep 2; \
+                done; \
+                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1); \
+              else \
+                echo 'pg_isready not found, skipping DB readiness check'; \
+              fi && \
+              npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund && \
+              npx prisma generate && \
+              if [ -d prisma/migrations ] && [ \"\$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)\" -gt 0 ]; then \
+                echo 'Running prisma migrate deploy...' && npx prisma migrate deploy; \
+              else \
+                echo 'No migrations found. Running prisma db push...' && \
+                if [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'yes' ] || [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'true' ]; then \
+                  npx prisma db push --accept-data-loss; \
+                else \
+                  npx prisma db push; \
+                fi; \
+              fi && \
+              (pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start) && \
+              pm2 save"
 
-            echo "Checking DB readiness (127.0.0.1:5432)..."
-            if command -v pg_isready >/dev/null 2>&1; then
-              for i in {1..20}; do
-                if pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
-                  echo "DB is ready"
-                  break
-                fi
-                echo "Waiting for DB... ($i/20)"
-                sleep 2
-              done
-              pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || { echo "DB is NOT reachable"; exit 1; }
-            else
-              echo "pg_isready not found, skipping DB readiness check"
-            fi
-
-            npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
-
-            npx prisma generate
-
-            HAS_MIGRATIONS=0
-            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
-              HAS_MIGRATIONS=1
-            fi
-
-            if [ "$HAS_MIGRATIONS" -eq 1 ]; then
-              echo "Running 'prisma migrate deploy'..."
-              npx prisma migrate deploy
-            else
-              echo "No migrations found. Running 'prisma db push'..."
-              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = "yes" ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = "true" ]; then
-                npx prisma db push --accept-data-loss
-              else
-                npx prisma db push
-              fi
-            fi
-
-            if npm run | grep -qE " start"; then
-              pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start
-            else
-              pm2 delete crm-backend || true
-              pm2 start node --name crm-backend -- src/server.js
-            fi
-            pm2 save
-
-      # ВАЖНО: у вас реальный health endpoint = /health (а /api/health = 404)
-      - name: Backend health check (wait + fail if bad)
+      # ✅ HEALTH CHECK: 301 — это нормально. Следуем редиректу (-L) и проверяем 200.
+      - name: Backend health check (follow redirects)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -374,7 +346,7 @@ jobs:
             HOST_HEADER="${{ secrets.PRIMARY_DOMAIN || 'gsse.work' }}"
 
             for i in {1..20}; do
-              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)
+              code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)
               if [ "$code" = "200" ]; then
                 echo "Backend health: OK"
                 exit 0
