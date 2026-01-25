@@ -5,13 +5,16 @@ on:
   push:
     branches: [main]
 
+# Чтобы НЕ было "The operation was canceled" при новом пуше во время деплоя:
+# следующий запуск будет ждать, а не отменять текущий.
 concurrency:
-  group: deploy-crm
-  cancel-in-progress: true
+  group: deploy-crm-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -59,7 +62,7 @@ jobs:
           set -e
           rm -f .env.local .env.development .env.development.local .env.production.local || true
 
-      # 3) Валидируем и экспортируем VITE_API_URL из .env.production (нормализуем \r, снимаем кавычки, убираем / на конце)
+      # 3) Валидируем и экспортируем VITE_API_URL из .env.production
       - name: Validate & export VITE_API_URL
         working-directory: ./${{ env.FE_DIR }}
         run: |
@@ -88,8 +91,6 @@ jobs:
           print(f"VITE_API_URL={url}")
           PY
 
-          echo "Exported VITE_API_URL=$VITE_API_URL"
-
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
         env:
@@ -97,7 +98,6 @@ jobs:
         run: |
           set -e
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-          # сначала пробуем явно production-mode (для Vite это важно)
           npm run build -- --mode production || npm run build || npm run build:prod
 
       - name: Detect FE_OUT
@@ -114,6 +114,7 @@ jobs:
           fi
 
           echo "FE_OUT=$FE_OUT" >> "$GITHUB_ENV"
+          echo "FE_DIR=$FE_DIR" >> "$GITHUB_ENV"
           echo "FE_DIR=$FE_DIR FE_OUT=$FE_OUT"
 
           test -d "$FE_DIR/$FE_OUT"
@@ -144,7 +145,6 @@ jobs:
             exit 1
           fi
 
-          # ищем URL и в форме без / и с /
           if ! grep -RInF --no-messages "$URL" "$OUT" >/dev/null && \
              ! grep -RInF --no-messages "${URL}/" "$OUT" >/dev/null; then
             echo "Bundle does not contain VITE_API_URL ($URL). Check env injection/build or frontend code." >&2
@@ -239,7 +239,7 @@ jobs:
             fi
             rm -f backend.tgz
 
-      # Делаем backend.env локально БЕЗ проблем кавычек/CRLF и грузим на сервер (без heredoc-индента)
+      # Делаем backend.env локально БЕЗ проблем кавычек/CRLF и грузим на сервер
       - name: Prepare backend .env file
         env:
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
@@ -283,7 +283,6 @@ jobs:
             cd /var/www
             test -f backend.env
             mkdir -p crm-backend
-            # более безопасные права по умолчанию
             umask 027
             mv -f backend.env crm-backend/.env
             chmod 640 crm-backend/.env
@@ -306,7 +305,7 @@ jobs:
               sudo npm i -g pm2
             fi
 
-      - name: Install backend deps, auto-migrate on schema change, restart pm2
+      - name: Install backend deps, migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -320,47 +319,43 @@ jobs:
             cd /var/www/crm-backend
 
             export HUSKY=0
+            export NODE_ENV=production
+
+            # Быстрая проверка, что БД реально доступна (иначе Prisma упадет)
+            if command -v pg_isready >/dev/null 2>&1; then
+              echo "Checking DB readiness (127.0.0.1:5432)..."
+              for i in {1..20}; do
+                if pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
+                  echo "DB is ready"
+                  break
+                fi
+                echo "Waiting for DB... ($i/20)"
+                sleep 2
+              done
+              pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || { echo "DB is NOT reachable"; exit 1; }
+            fi
+
             npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
 
-            # вычисляем текущий хэш схемы
-            CURR_HASH=""
-            if [ -f prisma/schema.prisma ]; then
-              CURR_HASH=$(sha256sum prisma/schema.prisma | awk '{print $1}')
-            fi
-            PREV_HASH=$(cat .schema.sha256 2>/dev/null || echo "")
+            # Генерация клиента
+            npx prisma generate
 
-            SCHEMA_CHANGED=0
-            if [ "$CURR_HASH" != "$PREV_HASH" ]; then
-              SCHEMA_CHANGED=1
-              echo "Prisma schema changed: $PREV_HASH -> $CURR_HASH"
+            # Если миграции есть — в проде всегда migrate deploy (идемпотентно)
+            HAS_MIGRATIONS=0
+            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
+              HAS_MIGRATIONS=1
+            fi
+
+            if [ "$HAS_MIGRATIONS" -eq 1 ]; then
+              echo "Running 'prisma migrate deploy'..."
+              npx prisma migrate deploy
             else
-              echo "Prisma schema unchanged."
-            fi
-
-            # На всякий случай — всегда сгенерировать клиент
-            npx prisma generate || true
-
-            if [ "$SCHEMA_CHANGED" -eq 1 ]; then
-              echo "Checking migrations..."
-              HAS_MIGRATIONS=0
-              if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
-                HAS_MIGRATIONS=1
-              fi
-
-              if [ "$HAS_MIGRATIONS" -eq 1 ]; then
-                echo "Running 'prisma migrate deploy'..."
-                npx prisma migrate deploy
+              echo "No migrations found. Running 'prisma db push'..."
+              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = "yes" ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = "true" ]; then
+                npx prisma db push --accept-data-loss
               else
-                echo "No migrations found. Running 'prisma db push'..."
-                if [ "${PRISMA_ACCEPT_DATA_LOSS}" = "yes" ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = "true" ]; then
-                  npx prisma db push --accept-data-loss
-                else
-                  npx prisma db push
-                fi
+                npx prisma db push
               fi
-
-              # записываем новый хэш только если все прошло успешно
-              echo -n "$CURR_HASH" > .schema.sha256
             fi
 
             # старт/перезапуск pm2
@@ -372,7 +367,7 @@ jobs:
             fi
             pm2 save
 
-      - name: Backend health check
+      - name: Backend health check (wait + fail if bad)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -382,4 +377,16 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             set -e
-            curl -fsSI -H "Host: ${{ secrets.PRIMARY_DOMAIN || 'gsse.work' }}" http://127.0.0.1/api/health || true
+            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN || 'gsse.work' }}"
+
+            for i in {1..20}; do
+              if curl -fsS --max-time 3 -H "Host: $HOST_HEADER" "http://127.0.0.1/api/health" >/dev/null; then
+                echo "Backend health: OK"
+                exit 0
+              fi
+              echo "Waiting for backend... ($i/20)"
+              sleep 3
+            done
+
+            echo "Backend health check FAILED"
+            exit 1
