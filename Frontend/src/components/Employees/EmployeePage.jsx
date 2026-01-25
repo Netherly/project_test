@@ -97,76 +97,10 @@ const EmployeeCard = ({ employee, onClick }) => {
 };
 
 const EmployeePage = () => {
-  const defaultEmployees = [
-    {
-      id: 1,
-      fullName: "Иванов И.И.",
-      tags: [{ id: "t1", name: "IT", color: "#4b7bec" }],
-      login: "ivanov_i",
-      telegramNick: "@ivan_dev",
-      startDate: "2024-01-10",
-      source: "Telegram",
-      birthDate: "1990-01-01",
-      phone: "+380501234567",
-      balance: "100",
-      cashOnHand: "50",
-      status: "active",
-      requisites: { UAH: [{ bank: "ПриватБанк", card: "1234...", holder: "IVANOV I. I." }] },
-      hourlyRates: { uah: 350, usd: 10, usdt: 10.1, eur: 8, rub: 700 },
-    },
-    {
-      id: 2,
-      fullName: "Петров П.П.",
-      tags: [{ id: "t2", name: "Sales", color: "#ff9f43" }],
-      login: "petrov_p",
-      telegramNick: "@petr_sales",
-      startDate: "2023-05-20",
-      source: "Viber",
-      birthDate: "1985-11-05",
-      phone: "+380679876543",
-      balance: "1000",
-      cashOnHand: "500",
-      status: "inactive",
-      hourlyRates: { uah: 400, usd: 12, usdt: 12.1, eur: 10, rub: 800 },
-    },
-    {
-      id: 3,
-      fullName: "Сидоров С.С.",
-      tags: [],
-      login: "sidorov_s",
-      telegramNick: "@sid_devops",
-      startDate: "2024-03-15",
-      source: "Referral",
-      birthDate: "1995-07-20",
-      phone: "+380995554433",
-      balance: "0",
-      cashOnHand: "0",
-      status: "pending",
-      hourlyRates: { uah: 500, usd: 15, usdt: 15.1, eur: 13, rub: 1000 },
-    },
-  ];
-
-  const [employees, setEmployees] = useState(() => {
-    try {
-      const saved = localStorage.getItem("employees");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return Array.isArray(parsed)
-          ? parsed.map(normalizeEmployee)
-          : defaultEmployees.map(normalizeEmployee);
-      }
-    } catch (_) {}
-    return defaultEmployees.map(normalizeEmployee);
-  });
+  const [employees, setEmployees] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("employees", JSON.stringify(employees));
-    } catch (_) {}
-  }, [employees]);
 
   useEffect(() => {
     let mounted = true;
@@ -178,12 +112,9 @@ const EmployeePage = () => {
         if (!mounted) return;
         setEmployees(list);
       } catch (e) {
-        console.warn(
-          "API /employees недоступен, используем кэш/localStorage. Причина:",
-          e?.message || e
-        );
+        console.warn("API /employees недоступен:", e?.message || e);
         if (!mounted) return;
-        setError("Не удалось получить данные с сервера. Показаны сохранённые локально.");
+        setError("Не удалось получить данные с сервера.");
       } finally {
         if (mounted) setLoading(false);
       }

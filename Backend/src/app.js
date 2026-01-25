@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 const app = express();
 
 const routes = require('./routes/index');
@@ -15,6 +16,7 @@ app.set('json replacer', (key, value) => (typeof value === 'bigint' ? value.toSt
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname,'..', 'uploads')));
 app.use('/api', routes);
 

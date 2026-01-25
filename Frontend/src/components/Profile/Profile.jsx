@@ -6,16 +6,16 @@ import { ThemeContext } from "../../context/ThemeContext";
 import {
     fetchProfile,
     saveProfile,
-    uploadProfileBackground,
     withDefaults,
     changePassword,
     createTelegramLink,
+    unlinkTelegram,
     openTelegramDeepLink,
 } from "../../api/profile";
 import "../../styles/Profile.css";
 
 function Profile() {
-    const { theme, toggleTheme, setBackgroundImage, profilePhoto, setProfilePhoto, profileNickname, setProfileNickname } = useContext(ThemeContext);
+    const { theme, toggleTheme, setBackgroundImage } = useContext(ThemeContext);
 
     const emptySettings = useMemo(
         () => ({
@@ -67,19 +67,12 @@ function Profile() {
     const reloadProfile = async () => {
         const data = await fetchProfile();
         const serverSettings = withDefaults({ ...emptySettings, ...data });
-        const localPhoto = profilePhoto || (typeof window !== 'undefined' ? localStorage.getItem('profilePhoto') : null);
-        const localBg = typeof window !== 'undefined' ? localStorage.getItem('backgroundImage') : null;
-        const localBackup = typeof window !== 'undefined' ? (() => { try { return JSON.parse(localStorage.getItem('profileBackup')); } catch { return null; } })() : null;
 
-        //локальные изменения (photo, background)
-        const merged = { ...serverSettings, ...(localBackup || {}), nickname: (localBackup && localBackup.nickname) || serverSettings.nickname || profileNickname || "", photoLink: localPhoto || (localBackup && localBackup.photoLink) || serverSettings.photoLink, crmBackground: localBg || (localBackup && localBackup.crmBackground) || serverSettings.crmBackground };
-
-        setSettings(merged);
-        setOriginalSettings(merged);
-        methods.reset({ requisites: merged.requisites || emptySettings.requisites });
-        if (localBg) setBackgroundImage(localBg);
-        else if (merged.crmBackground) setBackgroundImage(merged.crmBackground);
-        if (merged.crmTheme !== theme) toggleTheme();
+        setSettings(serverSettings);
+        setOriginalSettings(serverSettings);
+        methods.reset({ requisites: serverSettings.requisites || emptySettings.requisites });
+        setBackgroundImage(serverSettings.crmBackground || null);
+        if (serverSettings.crmTheme !== theme) toggleTheme();
     };
 
     useEffect(() => {
@@ -90,18 +83,12 @@ function Profile() {
                 const data = await fetchProfile();
                 if (!mounted) return;
                 const serverSettings = withDefaults({ ...emptySettings, ...data });
-                const localPhoto = profilePhoto || (typeof window !== 'undefined' ? localStorage.getItem('profilePhoto') : null);
-                const localBg = typeof window !== 'undefined' ? localStorage.getItem('backgroundImage') : null;
-                const localBackup = typeof window !== 'undefined' ? (() => { try { return JSON.parse(localStorage.getItem('profileBackup')); } catch { return null; } })() : null;
 
-                const merged = { ...serverSettings, ...(localBackup || {}), nickname: (localBackup && localBackup.nickname) || serverSettings.nickname || profileNickname || "", photoLink: localPhoto || (localBackup && localBackup.photoLink) || serverSettings.photoLink, crmBackground: localBg || (localBackup && localBackup.crmBackground) || serverSettings.crmBackground };
-
-                setSettings(merged);
-                setOriginalSettings(merged);
-                methods.reset({ requisites: merged.requisites || emptySettings.requisites });
-                if (localBg) setBackgroundImage(localBg);
-                else if (merged.crmBackground) setBackgroundImage(merged.crmBackground);
-                if (merged.crmTheme !== theme) toggleTheme();
+                setSettings(serverSettings);
+                setOriginalSettings(serverSettings);
+                methods.reset({ requisites: serverSettings.requisites || emptySettings.requisites });
+                setBackgroundImage(serverSettings.crmBackground || null);
+                if (serverSettings.crmTheme !== theme) toggleTheme();
             } catch (e) {
                 console.error("Не удалось загрузить профиль:", e?.message || e);
             } finally {
@@ -187,11 +174,7 @@ function Profile() {
                 setOriginalSettings(normalized);
                 methods.reset({ requisites: normalized.requisites || emptySettings.requisites });
 
-                try { if (normalized.photoLink) localStorage.setItem('profilePhoto', normalized.photoLink); } catch { }
-                try { if (normalized.crmBackground) localStorage.setItem('backgroundImage', normalized.crmBackground); } catch { }
-
                 if (normalized.nickname !== undefined && normalized.nickname !== null && normalized.nickname !== '') {
-                    try { localStorage.setItem('profileNickname', normalized.nickname); } catch { }
                     try { window.dispatchEvent(new CustomEvent('profile:nickname-updated', { detail: { nickname: normalized.nickname } })); } catch { }
                 }
                 try { window.dispatchEvent(new CustomEvent('profile:photo-updated', { detail: { photo: normalized.photoLink || null } })); } catch { }
@@ -199,26 +182,7 @@ function Profile() {
                 console.log("Профиль сохранён на сервере");
             } catch (e) {
 
-                try {
-                    localStorage.setItem('profileBackup', JSON.stringify(payload));
-                    setOriginalSettings(payload);
-                    setSettings(payload);
-                    methods.reset({ requisites: payload.requisites || emptySettings.requisites });
-
-                    try { if (payload.photoLink) localStorage.setItem('profilePhoto', payload.photoLink); else localStorage.removeItem('profilePhoto'); } catch { }
-                    try { if (payload.crmBackground) localStorage.setItem('backgroundImage', payload.crmBackground); else localStorage.removeItem('backgroundImage'); } catch { }
-
-                    if (payload.nickname !== undefined && payload.nickname !== null && payload.nickname !== '') {
-                        try { localStorage.setItem('profileNickname', payload.nickname); } catch { }
-                        try { window.dispatchEvent(new CustomEvent('profile:nickname-updated', { detail: { nickname: payload.nickname } })); } catch { }
-                    }
-                    try { window.dispatchEvent(new CustomEvent('profile:photo-updated', { detail: { photo: payload.photoLink || null } })); } catch { }
-                    try { window.dispatchEvent(new CustomEvent('profile:background-updated', { detail: { background: payload.crmBackground || null } })); } catch { }
-
-                    console.warn('Сохранение на сервер не удалось — изменения сохранены локально.');
-                } catch (ex) {
-                    console.error('Не удалось сохранить локально:', ex?.message || ex);
-                }
+                setErrors({ general: "Не удалось сохранить профиль. Проверьте авторизацию и попробуйте снова." });
             }
         } catch (e) {
             console.error("Не удалось сохранить профиль:", e?.message || e);
@@ -229,17 +193,6 @@ function Profile() {
 
     const handleCancel = () => {
         setSettings(originalSettings);
-        // восстанавливается локальное фото и фон в localStorage
-        try {
-            if (originalSettings.photoLink) localStorage.setItem('profilePhoto', originalSettings.photoLink);
-            else localStorage.removeItem('profilePhoto');
-            if (originalSettings.crmBackground) localStorage.setItem('backgroundImage', originalSettings.crmBackground);
-            else localStorage.removeItem('backgroundImage');
-            window.dispatchEvent(new CustomEvent('profile:photo-updated', { detail: { photo: originalSettings.photoLink || null } }));
-            window.dispatchEvent(new CustomEvent('profile:background-updated', { detail: { background: originalSettings.crmBackground || null } }));
-            try { setProfilePhoto && setProfilePhoto(originalSettings.photoLink || null); } catch { }
-            try { setProfileNickname && setProfileNickname(originalSettings.nickname || 'Nickname'); } catch { }
-        } catch { }
 
         setEditingNickname(false);
         setEditNicknameValue("");
@@ -263,8 +216,6 @@ function Profile() {
             // без сервера
             setBackgroundImage(dataUrl);
             handleChange("crmBackground", dataUrl);
-            localStorage.setItem('backgroundImage', dataUrl);
-            try { window.dispatchEvent(new CustomEvent('profile:background-updated', { detail: { background: dataUrl } })); } catch { }
             console.log('Фон обновлён локально');
         };
         reader.readAsDataURL(file);
@@ -291,35 +242,20 @@ function Profile() {
             const dataUrl = reader.result;
             const payload = { ...settings, photoLink: dataUrl };
 
-            if ((payload.nickname === undefined || payload.nickname === null || payload.nickname === '') && profileNickname) payload.nickname = profileNickname;
-
             setSettings(payload);
             setOriginalSettings(payload);
-            localStorage.setItem("profilePhoto", dataUrl);
             try {
                 window.dispatchEvent(new CustomEvent("profile:photo-updated", { detail: { photo: dataUrl } }));
             } catch { }
-
-            if (payload.nickname !== undefined && payload.nickname !== null && payload.nickname !== '') {
-                try { localStorage.setItem('profileNickname', payload.nickname); } catch { }
-                try { window.dispatchEvent(new CustomEvent('profile:nickname-updated', { detail: { nickname: payload.nickname } })); } catch { }
-                try { setProfileNickname && setProfileNickname(payload.nickname); } catch { }
-            }
-            try { setProfilePhoto && setProfilePhoto(dataUrl); } catch { }
 
             try {
                 const updated = await saveProfile(payload);
                 const normalized = withDefaults(updated);
                 setSettings(normalized);
                 setOriginalSettings(normalized);
-                if (normalized.photoLink) localStorage.setItem("profilePhoto", normalized.photoLink);
                 try {
                     window.dispatchEvent(new CustomEvent("profile:photo-updated", { detail: { photo: normalized.photoLink || dataUrl } }));
                 } catch { }
-                try { setProfilePhoto && setProfilePhoto(normalized.photoLink || dataUrl); } catch { }
-                if (normalized.nickname !== undefined && normalized.nickname !== null) {
-                    try { setProfileNickname && setProfileNickname(normalized.nickname); } catch { }
-                }
                 console.log("Аватар обновлён и сохранён на сервере");
             } catch (e) {
 
@@ -343,9 +279,14 @@ function Profile() {
     };
 
     const handleUnlinkTelegram = async () => {
-        console.log("Отвязка Telegram...");
-        handleChange("telegramUsername", null);
-        handleChange("photoLink", null);
+        try {
+            await unlinkTelegram();
+            handleChange("telegramUsername", null);
+            await reloadProfile();
+        } catch (e) {
+            console.error("Не удалось отвязать Telegram:", e?.message || e);
+            setErrors({ general: "Не удалось отвязать Telegram. Попробуйте снова." });
+        }
     };
 
     if (loading) {
@@ -373,6 +314,9 @@ function Profile() {
                         </button>
                     </div>
                 )}
+                {errors.general && (
+                    <div className="profile-error-message">{errors.general}</div>
+                )}
 
                 <h3 className="profile-title-section">
                     Настройки профиля{" "}
@@ -385,7 +329,7 @@ function Profile() {
                     <div className="profile-header">
                         <div className="profile-avatar-container">
                             <img
-                                src={settings.photoLink || profilePhoto || "/avatar.jpg"}
+                                src={settings.photoLink || "/avatar.jpg"}
                                 alt="Avatar"
                                 className="profile-avatar"
                             />
@@ -418,12 +362,12 @@ function Profile() {
                                 <div className="profile-input-error-container">
                                     {!editingNickname ? (
                                         <div className="profile-inline">
-                                            <span className="profile-user-fullname">{settings.nickname || profileNickname || "Не назначен"}</span>
+                                            <span className="profile-user-fullname">{settings.nickname || "Не назначен"}</span>
                                             <button
                                                 type="button"
                                                 className="profile-edit-btn"
                                                 title="Редактировать никнейм"
-                                                onClick={() => { setEditNicknameValue(settings.nickname || profileNickname || ""); setEditingNickname(true); }}
+                                                onClick={() => { setEditNicknameValue(settings.nickname || ""); setEditingNickname(true); }}
                                             >
                                                 ✎
                                             </button>
@@ -446,7 +390,7 @@ function Profile() {
                                                 className="profile-text-input"
                                                 autoFocus
                                             />
-                                            <button type="button" className="profile-save-small" onClick={() => { setSettings((prev) => ({ ...prev, nickname: editNicknameValue })); if (editNicknameValue !== undefined && editNicknameValue !== null && editNicknameValue !== '') { try { localStorage.setItem('profileNickname', editNicknameValue); } catch { } try { window.dispatchEvent(new CustomEvent('profile:nickname-updated', { detail: { nickname: editNicknameValue } })); } catch { } try { setProfileNickname && setProfileNickname(editNicknameValue); } catch { } } setEditingNickname(false); }}>
+                                            <button type="button" className="profile-save-small" onClick={() => { setSettings((prev) => ({ ...prev, nickname: editNicknameValue })); if (editNicknameValue !== undefined && editNicknameValue !== null && editNicknameValue !== '') { try { window.dispatchEvent(new CustomEvent('profile:nickname-updated', { detail: { nickname: editNicknameValue } })); } catch { } } setEditingNickname(false); }}>
                                                 ✓
                                             </button>
                                             <button type="button" className="profile-cancel-small" onClick={() => { setEditingNickname(false); setEditNicknameValue(""); }}>

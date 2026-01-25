@@ -1,8 +1,9 @@
 // src/App.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { TransactionsProvider } from './context/TransactionsContext';
+import { api } from './api/api';
 
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
@@ -23,18 +24,100 @@ import EmployeePage from './components/Employees/EmployeePage';
 import RegularPaymentsPage from './components/RegularPayments/RegularPaymentsPage';
 import CompaniesPage from './components/Companies/CompaniesPage.jsx';
 
-const ProtectedRoute = ({ element }) => {
-  const isAuthenticated = localStorage.getItem('isAuthenticated');
-  return isAuthenticated ? element : <Navigate to="/" replace />;
+const decodeToken = (token) => {
+  try {
+    const base64 = token.split('.')[1];
+    if (!base64) return null;
+    const normalized = base64.replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(normalized);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
+
+const isTokenValid = (token) => {
+  const payload = decodeToken(token);
+  if (!payload?.exp) return false;
+  return payload.exp * 1000 > Date.now() + 5000;
 };
 
 export default function App() {
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token && isTokenValid(token)) {
+        if (active) setAuthReady(true);
+        return;
+      }
+      try {
+        await api.refresh();
+      } catch {
+        try { localStorage.removeItem('token'); } catch {}
+      } finally {
+        if (active) setAuthReady(true);
+      }
+    };
+    initAuth();
+    return () => { active = false; };
+  }, []);
+
+  const ProtectedRoute = ({ element }) => {
+    const [refreshing, setRefreshing] = useState(false);
+    const [refreshFailed, setRefreshFailed] = useState(false);
+    const token = localStorage.getItem('token');
+    const valid = token && isTokenValid(token);
+
+    useEffect(() => {
+      if (!authReady || valid || refreshing || refreshFailed) return;
+      let active = true;
+      setRefreshing(true);
+      api.refresh()
+        .catch(() => {
+          if (active) setRefreshFailed(true);
+        })
+        .finally(() => {
+          if (active) setRefreshing(false);
+        });
+      return () => { active = false; };
+    }, [authReady, valid, refreshing, refreshFailed]);
+
+    if (!authReady || refreshing) return null;
+    const nextToken = localStorage.getItem('token');
+    return nextToken && isTokenValid(nextToken) ? element : <Navigate to="/login" replace />;
+  };
+
+  const LoginRoute = () => {
+    if (!authReady) return null;
+    const token = localStorage.getItem('token');
+    return token && isTokenValid(token) ? <Navigate to="/dashboard" replace /> : <LoginPage />;
+  };
+
+  useEffect(() => {
+    if (!authReady) return;
+    const timer = setInterval(async () => {
+      const token = localStorage.getItem('token');
+      if (!token || isTokenValid(token)) return;
+      try {
+        await api.refresh();
+      } catch {
+        try { localStorage.removeItem('token'); } catch {}
+      }
+    }, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [authReady]);
+
   return (
     <ThemeProvider>
       <TransactionsProvider>
         <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/home" element={<ProtectedRoute element={<HomePage />} />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LoginRoute />} />
+          <Route path="/dashboard" element={<ProtectedRoute element={<HomePage />} />} />
+          <Route path="/home" element={<Navigate to="/dashboard" replace />} />
           <Route path="/orders/:orderId?" element={<ProtectedRoute element={<OrdersPage />} />} />
           <Route path="/executors/:executorId?" element={<ProtectedRoute element={<ExecutorsPage />} />} />
           <Route path="/employees/:employeeId?" element={<ProtectedRoute element={<EmployeePage />} />} />
@@ -61,7 +144,7 @@ export default function App() {
             }
           />
           {/* fallback */}
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </TransactionsProvider>
     </ThemeProvider>
