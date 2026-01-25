@@ -1,110 +1,299 @@
-.requisites-table {
-    margin-top: 5px;
+/* контейнер */
+.requisites {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.requisites-scroll {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 6px;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+/* таблица */
+.requisites table {
     width: 100%;
     border-collapse: collapse;
-    border: 1px solid rgba(128, 128, 128, 0.3);
-    border-radius: 8px;
-    overflow: hidden;
+    background: var(--container-bg);
+    min-width: 600px;
 }
 
-.requisites-table th,
-.requisites-table td {
-    border: 1px solid rgba(128, 128, 128, 0.2);
-    text-align: left;
-    vertical-align: top;
+.requisites thead {
+    background: var(--container-bg);
 }
 
-.requisites-table th {
-    font-weight: bold;
+.requisites th {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    border-right: 1px solid rgba(128, 128, 128, 0.15);
+    background: var(--container-bg);
+    color: var(--text-color);
+    font-weight: 600;
     font-size: 13px;
-    padding: 10px;
-    text-align: center;
-}
-
-.requisites-content-table {
-    margin-top: 20px;
-    width: 100%;
-    overflow-x: hidden;
-}
-
-.requisites-table td:nth-child(2),
-.requisites-table th:nth-child(2) {
-    width: 118px;
+    text-align: left;
     white-space: nowrap;
 }
 
-.requisites-input,
-.requisites-select {
-    width: 100%;
+.requisites th:last-child {
+    border-right: none;
+    text-align: center;
+}
+
+.requisites th:nth-child(1) {
+    width: 18%;
+}
+
+.requisites th:nth-child(2) {
+    width: 38%;
+}
+
+.requisites th:nth-child(3) {
+    width: 32%;
+}
+
+.requisites th:nth-child(4) {
+    width: 12%;
+}
+
+.requisites tbody tr {
+    border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+    transition: background 0.15s;
+}
+
+.requisites tbody tr:hover {
+    background: rgba(128, 128, 128, 0.05);
+}
+
+.requisites tbody tr.dragging {
+    opacity: 0.5;
+    background: rgba(128, 128, 128, 0.2);
+}
+
+.requisites tbody tr.drag-over {
+    background: rgba(66, 153, 225, 0.15);
+    border-top: 2px solid rgba(66, 153, 225, 0.5);
+}
+
+.requisites tbody tr:last-child {
+    border-bottom: none;
+}
+
+.requisites tbody tr.editing {
+    background: rgba(76, 175, 80, 0.05);
+}
+
+.requisites td {
+    border-right: 1px solid rgba(128, 128, 128, 0.15);
     background: var(--container-bg);
+}
+
+.requisites td:last-child {
+    border-right: none;
+}
+
+/* емтпи */
+/* емтпи */
+.requisites .empty td {
+    text-align: center;
+    padding: 32px 12px;
+    color: var(--chips-color);
+    font-size: 14px;
+    font-style: italic;
+}
+
+/* инпуты*/
+.requisites input,
+.requisites select {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    background: var(--bg-color);
+    color: var(--container-text-color);
+    font-size: 13px;
     box-sizing: border-box;
-    background-color: #0f1a24;
-    color: var(--container-text-color);
-    border: 0px solid #37474f;
-    padding: 8px;
-    min-height: 35px;
+    transition: all 0.15s;
 }
 
-.requisites-input:focus,
-.requisites-select:focus {
-    border-color: var(--container-text-color);
-    outline: none;
-}
-
-.requisites-input:disabled,
-.requisites-select:disabled {
-    color: var(--container-text-color);
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.requisites-input::placeholder {
-    color: var(--container-text-color);
+.requisites input::placeholder {
+    color: var(--chips-color);
     opacity: 0.6;
 }
 
-.requisites-table button {
-    background: none;
-    border: none;
+.requisites select {
+    appearance: none;
     cursor: pointer;
-    font-size: 16px;
-    color: var(--container-text-color);
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M10 4L6 9 2 4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 12px;
+    border: none;
+    padding: 10px;
 }
 
-.requisites-table button:hover {
-    background-color: rgba(128, 128, 128, 0.1);
+.requisites input:focus,
+.requisites select:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    background: var(--bg-color);
+    color: var(--text-color);
 }
 
-.table-btn-section {
+.requisites input:disabled,
+.requisites select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: var(--container-bg);
+    color: var(--chips-color);
+}
+
+/* Действия */
+.requisites .actions {
     display: flex;
-    gap: 4px;
     align-items: center;
     justify-content: center;
-    margin-top: 3px;
+    gap: 8px;
 }
 
-.requisites-add-row {
-    font-size: 12px;
-    padding: 0;
-    margin-top: 5px;
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: flex-start;
-}
-
-.requisites-add-row button {
-    background: none;
-    border: 1px solid rgba(128, 128, 128, 0.3);
-    color: var(--container-text-color);
-    cursor: pointer;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    transition: all 0.2s ease;
+.requisites .actions button {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    background: none;
+    color: var(--container-text-color);
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.requisites .actions button:hover {
+    background: rgba(128, 128, 128, 0.15);
+    color: var(--text-color);
+}
+
+.requisites .actions button:active {
+    transform: scale(0.95);
+}
+
+.requisites .btn-edit {
+    color: #4CAF50;
+}
+
+.requisites .btn-edit:hover {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4CAF50;
+}
+
+.requisites .btn-delete {
+    color: #f44336;
+}
+
+.requisites .btn-delete:hover {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+}
+
+/* кнопка добавить - акцентная */
+.requisites .btn-add {
+    background-color: transparent;
+    color: #fff;
+    border-radius: 6px;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin-left: auto;
+    align-self: flex-end;
+}
+
+.requisites .btn-add:active {
+    transform: translateY(0);
+}
+
+/* адаптив */
+@media (max-width: 768px) {
+    .requisites table {
+        font-size: 12px;
+    }
+
+    .requisites input,
+    .requisites select {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+
+    .requisites th,
+    .requisites td {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .requisites .actions {
+        gap: 6px;
+    }
+
+    .requisites .actions button {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .requisites .btn-add {
+        font-size: 12px;
+        padding: 8px 12px;
+        gap: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .requisites-scroll {
+        overflow-x: scroll;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .requisites table {
+        min-width: 500px;
+    }
+
+    .requisites input,
+    .requisites select {
+        font-size: 11px;
+        padding: 6px 8px;
+    }
+
+    .requisites th,
+    .requisites td {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    .requisites .actions {
+        gap: 4px;
+    }
+
+    .requisites .actions button {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+
+    .requisites .btn-add {
+        font-size: 11px;
+        padding: 6px 10px;
+        gap: 4px;
+    }
 }
