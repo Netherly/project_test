@@ -296,8 +296,14 @@ export function normalizeEmployee(e = {}) {
   const countryValue = (countryId ?? toText(e.country?.name ?? e.country ?? "")) || "";
 
   const telegram = {
-    dateTime: toText(e.telegram?.dateTime ?? e.telegramDateTime ?? e.telegram_date_time),
-    id: toText(e.telegram?.id ?? e.telegramId ?? e.telegram_id),
+    dateTime: toText(
+      e.telegram?.dateTime ??
+        e.telegramDateTime ??
+        e.telegram_date_time ??
+        e.telegramLinkedAt ??
+        e.telegram_linked_at
+    ),
+    id: toText(e.telegram?.id ?? e.telegramId ?? e.telegram_id ?? e.telegramChatId ?? e.telegram_chat_id),
     name: toText(e.telegram?.name ?? e.telegramName ?? e.telegram_name),
     nickname: toText(
       e.telegram?.nickname ??
@@ -332,6 +338,11 @@ export function normalizeEmployee(e = {}) {
     hourlyRates: normalizedRates,
     startDate: e.startDate ?? e.createdAt ?? e.created_at ?? "",
     telegram,
+    telegramDateTime: telegram.dateTime,
+    telegramId: telegram.id,
+    telegramName: telegram.name,
+    telegramNickname: telegram.nickname,
+    telegramBindingLink: telegram.bindingLink,
     telegramNick:
       telegram.nickname || tidy(e.telegramNickname ?? e.telegramUsername ?? e.telegramNick),
     managerId: e.managerId ?? e.manager_id ?? null,

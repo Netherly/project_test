@@ -29,12 +29,10 @@ function getToken() {
 function setToken(token) {
   if (token) {
     localStorage.setItem('token', token);
-    localStorage.setItem('isAuthenticated', 'true');
   }
 }
 function clearAuth() {
   localStorage.removeItem('token');
-  localStorage.removeItem('isAuthenticated');
 }
 function authHeaders(extra = {}) {
   const t = getToken();
@@ -55,19 +53,29 @@ export const api = {
       credentials: 'include',
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || data?.error || 'Ошибка авторизации');
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.error || 'Ошибка авторизации');
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
     if (data?.token) setToken(data.token);
     return data;
   },
 
-  async register({ login, password, full_name, phone, email }) {
+  async register({ login, password, full_name, birthDate, phone, email }) {
     const res = await fetch(url('/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login, password, full_name, phone, email }),
+      body: JSON.stringify({ login, password, full_name, birthDate, phone, email }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || data?.error || 'Ошибка регистрации');
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.error || 'Ошибка регистрации');
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
     return data;
   },
 

@@ -3,6 +3,9 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 
+const ACCESS_TTL = process.env.JWT_ACCESS_TTL || '15m';
+const REFRESH_TTL = process.env.JWT_REFRESH_TTL || '3d';
+
 function httpErr(message, status = 400) {
   const e = new Error(message);
   e.status = status;
@@ -26,17 +29,35 @@ async function generateUniqueUserId(maxAttempts = 20) {
   httpErr('Не удалось сгенерировать уникальный userid', 500);
 }
 
-async function register({ full_name, phone, email, login, password }) {
-  const exists = await prisma.employee.findFirst({
-    where: { OR: [{ login }, { email }] },
-  });
-  if (exists) httpErr('Логин или email уже используется', 409);
+async function register({ full_name, birthDate, phone, email, login, password }) {
+  if (login) {
+    const loginExists = await prisma.employee.findFirst({
+      where: { login },
+      select: { id: true },
+    });
+    if (loginExists) httpErr('Логин уже используется', 409);
+  }
+  if (email) {
+    const emailExists = await prisma.employee.findFirst({
+      where: { email },
+      select: { id: true },
+    });
+    if (emailExists) httpErr('Email уже используется', 409);
+  }
 
   const userid = await generateUniqueUserId();
   const hashed = await bcrypt.hash(password, 10);
 
   const employee = await prisma.employee.create({
-    data: { full_name, phone, email, login, password: hashed, userid },
+    data: {
+      full_name,
+      birthDate: birthDate ? new Date(birthDate) : null,
+      phone,
+      email,
+      login,
+      password: hashed,
+      userid,
+    },
   });
 
   const token = await createLinkTokenForEmployee(employee.id, 60);
@@ -45,22 +66,62 @@ async function register({ full_name, phone, email, login, password }) {
   return { employee, telegramLink };
 }
 
+function signAccessToken(employee) {
+  if (!process.env.JWT_SECRET) httpErr('JWT secret is not configured', 500);
+  return jwt.sign(
+    { employeeId: employee.id, userid: employee.userid },
+    process.env.JWT_SECRET,
+    { expiresIn: ACCESS_TTL }
+  );
+}
+
+function signRefreshToken(employee) {
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+  if (!secret) httpErr('JWT refresh secret is not configured', 500);
+  return jwt.sign(
+    { employeeId: employee.id },
+    secret,
+    { expiresIn: REFRESH_TTL }
+  );
+}
+
 async function login(identifier, password) {
   const employee = await prisma.employee.findFirst({
     where: { OR: [{ login: identifier }, { email: identifier }] },
   });
-  if (!employee) httpErr('Пользователь не найден', 404);
+  if (!employee) httpErr('Неверный логин или пароль', 401);
 
   const ok = await bcrypt.compare(password, employee.password);
-  if (!ok) httpErr('Неверный пароль', 401);
+  if (!ok) httpErr('Неверный логин или пароль', 401);
 
-  const token = jwt.sign(
-    { employeeId: employee.id, userid: employee.userid },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+  const token = signAccessToken(employee);
+  const refreshToken = signRefreshToken(employee);
 
-  return { token };
+  return { token, refreshToken };
 }
 
-module.exports = { register, login };
+async function refreshTokens(refreshToken) {
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+  if (!secret) httpErr('JWT refresh secret is not configured', 500);
+  let payload;
+  try {
+    payload = jwt.verify(refreshToken, secret, { algorithms: ['HS256'], clockTolerance: 5 });
+  } catch (e) {
+    httpErr('Invalid refresh token', 401);
+  }
+
+  const employeeId = payload?.employeeId || payload?.id || payload?.sub;
+  if (!employeeId) httpErr('Refresh token has no employee id', 401);
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+  });
+  if (!employee) httpErr('Employee not found', 401);
+
+  return {
+    token: signAccessToken(employee),
+    refreshToken: signRefreshToken(employee),
+  };
+}
+
+module.exports = { register, login, refreshTokens };

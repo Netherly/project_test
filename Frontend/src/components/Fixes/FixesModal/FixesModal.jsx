@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Download, Trash2 } from 'lucide-react';
 import './FixesModal.css';
-import ConfirmationModal from '../../../../../src/components/modals/confirm/ConfirmationModal';
+import ConfirmationModal from '../../modals/confirm/ConfirmationModal';
 
 function FixesModal({ fix, onClose, onSave, onDelete }) {
     const getCurrentDateTime = () => {

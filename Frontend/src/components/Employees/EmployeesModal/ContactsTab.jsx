@@ -7,6 +7,19 @@ export default function ContactsTab({ isNew }) {
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [linkError, setLinkError] = useState('');
 
+  const formatDateTime = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const d = new Date(text);
+    if (Number.isNaN(d.getTime())) return text;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+  };
+
   const handleGenerateLink = async () => {
     setIsGeneratingLink(true);
     setLinkError('');
@@ -22,6 +35,12 @@ export default function ContactsTab({ isNew }) {
     } finally {
       setIsGeneratingLink(false);
     }
+  };
+
+  const openLink = (value) => {
+    const link = String(value || '').trim();
+    if (!link) return;
+    window.open(link, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -101,7 +120,14 @@ export default function ContactsTab({ isNew }) {
             render={({ field }) => (
               <div className="form-field">
                 <label>Телеграм дата и время</label>
-                <input {...field} placeholder="Дата и время" readOnly={!isNew} />
+                <input
+                  name={field.name}
+                  ref={field.ref}
+                  value={formatDateTime(field.value)}
+                  onChange={() => {}}
+                  placeholder="Дата и время"
+                  readOnly
+                />
               </div>
             )}
           />
@@ -159,6 +185,14 @@ export default function ContactsTab({ isNew }) {
                   >
                     {isGeneratingLink ? 'Генерация...' : 'Сгенерировать'}
                   </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => openLink(field.value)}
+                    disabled={!field.value}
+                  >
+                    Открыть
+                  </button>
                 </div>
                 {linkError && <p className="error">{linkError}</p>}
               </div>
@@ -171,7 +205,17 @@ export default function ContactsTab({ isNew }) {
             render={({ field }) => (
               <div className="form-field">
                 <label>Ссылка на чат</label>
-                <input {...field} placeholder="https://..." readOnly={!isNew} />
+                <div className="input-with-action">
+                  <input {...field} placeholder="https://..." readOnly />
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => openLink(field.value)}
+                    disabled={!field.value}
+                  >
+                    Открыть
+                  </button>
+                </div>
               </div>
             )}
           />

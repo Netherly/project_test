@@ -1,506 +1,435 @@
-// Frontend/src/api/employees.js
-import { httpGet, httpPost, httpPut, httpDelete, fileUrl } from "./http";
-
-/* -------------------------- utils -------------------------- */
-
-const unwrap = (resp) => {
-  if (resp && typeof resp === "object" && "ok" in resp) {
-    if (resp.ok) return resp.data;
-    const err = new Error(resp?.error || "Request failed");
-    err.status = resp?.status ?? 400;
-    err.payload = resp;
-    throw err;
-  }
-  return resp;
-};
-
-const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-const tidy = (v) => String(v ?? "").trim();
-const isHex = (c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(c || ""));
-const toText = (v) => {
-  if (v === null || v === undefined) return "";
-  if (typeof v === "string") return v.trim();
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
-  return "";
-};
-const isUuid = (value) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || "")
-  );
-
-const toOptional = (v) => {
-  const text = toText(v);
-  return text ? text : undefined;
-};
-
-const isCurrencyCode = (value) => /^[A-Z]{3,5}$/i.test(String(value || "").trim());
-const normalizeCurrencyCode = (value) => toText(value).toUpperCase();
-
-const normalizeDateOnly = (value) => {
-  const text = toText(value);
-  if (!text) return "";
-  const d = new Date(text);
-  if (Number.isNaN(d.getTime())) return text;
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-};
-
-const normalizeRates = (raw) => {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-  const out = {};
-  Object.entries(raw).forEach(([key, value]) => {
-    const k = toText(key).toLowerCase();
-    if (!k) return;
-    if (value === "" || value === null || value === undefined) {
-      out[k] = "";
-      return;
-    }
-    const num = Number(value);
-    out[k] = Number.isFinite(num) ? num : value ?? "";
-  });
-  return out;
-};
-
-const toNumberSafe = (v, fallback = 0) => {
-  if (v === null || v === undefined) return fallback;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-};
-
-/* ----------------------- normalizers ----------------------- */
-
-function normalizeTags(raw) {
-  if (!raw) return [];
-  const input = Array.isArray(raw) ? raw : raw.tags || raw.EmployeeTag || [];
-
-  const flat = input
-    .map((t) => {
-      if (typeof t === "string") {
-        return { id: rid(), name: tidy(t), color: "#777777" };
-      }
-
-      const base = t?.tag || t;
-      const name = tidy(base?.name ?? base?.value);
-      if (!name) return null;
-
-      const id = base?.id ?? t?.tagId ?? t?.id ?? rid();
-      const color = isHex(base?.color) ? base.color : "#777777";
-
-      return { id, name, color };
-    })
-    .filter(Boolean);
-
-  const seen = new Set();
-  const result = [];
-  for (const t of flat) {
-    const key = t.name.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(t);
-  }
-  return result;
-}
-
-/**
- * Реквизиты:
- * нормализуем любые форматы к:
- * - list: [{ id, currency, bank, card, owner }]
- * - map:  { [currency]: [{ bank, card, holder }] }
- */
-function parseRequisiteLabel(label) {
-  const text = toText(label);
-  if (!text) return { currency: "", bank: "" };
-  const parts = text.split(":");
-  if (parts.length > 1) {
-    const currency = normalizeCurrencyCode(parts.shift());
-    const bank = parts.join(":").trim();
-    return { currency, bank };
-  }
-  if (isCurrencyCode(text)) return { currency: normalizeCurrencyCode(text), bank: "" };
-  return { currency: "", bank: text };
-}
-
-function parseRequisiteValue(value) {
-  const text = toText(value);
-  if (!text) return { bank: "", card: "", owner: "", currency: "", structured: false };
-
-  if (text.startsWith("{") || text.startsWith("[")) {
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return {
-          bank: toText(parsed.bank),
-          card: toText(parsed.card ?? parsed.number ?? parsed.account),
-          owner: toText(parsed.owner ?? parsed.holder ?? parsed.name),
-          currency: toText(parsed.currency),
-          structured: true,
-        };
-      }
-    } catch (_) {}
-  }
-
-  if (text.includes("|")) {
-    const [bank, card, owner] = text.split("|").map((p) => toText(p));
-    return { bank, card, owner, currency: "", structured: true };
-  }
-
-  if (text.includes(";") && text.includes(":")) {
-    const out = {};
-    text
-      .split(";")
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .forEach((part) => {
-        const idx = part.indexOf(":");
-        if (idx === -1) return;
-        const key = part.slice(0, idx).trim().toLowerCase();
-        const val = part.slice(idx + 1).trim();
-        if (key) out[key] = val;
-      });
-
-    if (Object.keys(out).length) {
-      return {
-        bank: toText(out.bank),
-        card: toText(out.card ?? out.account ?? out.number),
-        owner: toText(out.owner ?? out.holder),
-        currency: toText(out.currency),
-        structured: true,
-      };
-    }
-  }
-
-  return { bank: "", card: text, owner: "", currency: "", structured: false };
-}
-
-function normalizeRequisites(raw) {
-  const source = Array.isArray(raw)
-    ? raw
-    : Array.isArray(raw?.requisites)
-    ? raw.requisites
-    : Array.isArray(raw?.EmployeeRequisite)
-    ? raw.EmployeeRequisite
-    : Array.isArray(raw?.employeeRequisites)
-    ? raw.employeeRequisites
-    : raw;
-
-  const list = [];
-  const map = {};
-
-  const pushItem = (item) => {
-    const currency = normalizeCurrencyCode(item.currency);
-    const bank = toText(item.bank);
-    const card = toText(item.card);
-    const owner = toText(item.owner ?? item.holder ?? item.name);
-    if (!currency && !bank && !card && !owner) return;
-    list.push({
-      id: item.id ?? rid(),
-      currency,
-      bank,
-      card,
-      owner,
-    });
-  };
-
-  if (Array.isArray(source)) {
-    source.forEach((item) => {
-      if (!item) return;
-      if (typeof item === "object" && ("label" in item || "value" in item)) {
-        const labelInfo = parseRequisiteLabel(item.label);
-        const valueInfo = parseRequisiteValue(item.value);
-        pushItem({
-          id: item.id,
-          currency: valueInfo.currency || labelInfo.currency,
-          bank: valueInfo.bank || labelInfo.bank,
-          card: valueInfo.card,
-          owner: valueInfo.owner,
-        });
-        return;
-      }
-      if (typeof item === "object") pushItem(item);
-    });
-  } else if (source && typeof source === "object") {
-    Object.entries(source).forEach(([currency, entries]) => {
-      if (!Array.isArray(entries)) return;
-      entries.forEach((entry) => {
-        if (!entry) return;
-        pushItem({
-          id: entry.id,
-          currency,
-          bank: entry.bank ?? entry.label ?? "",
-          card: entry.card ?? entry.number ?? entry.account ?? entry.value ?? "",
-          owner: entry.owner ?? entry.holder ?? "",
-        });
-      });
-    });
-  }
-
-  list.forEach((item) => {
-    const currency = normalizeCurrencyCode(item.currency);
-    if (!currency) return;
-    if (!map[currency]) map[currency] = [];
-    map[currency].push({
-      bank: item.bank || "",
-      card: item.card || "",
-      holder: item.owner || "",
-    });
-  });
-
-  return { list, map };
-}
-
-function serializeRequisites(list) {
-  const items = Array.isArray(list) ? list : [];
-  return items
-    .map((item) => {
-      const currency = normalizeCurrencyCode(item.currency);
-      const bank = toText(item.bank);
-      const card = toText(item.card);
-      const owner = toText(item.owner ?? item.holder);
-      if (!currency && !bank && !card && !owner) return null;
-
-      const label = bank ? (currency ? `${currency}:${bank}` : bank) : currency || "CARD";
-
-      const payload = {};
-      if (currency) payload.currency = currency;
-      if (bank) payload.bank = bank;
-      if (card) payload.card = card;
-      if (owner) payload.owner = owner;
-
-      return {
-        id: item.id,
-        label,
-        value: JSON.stringify(payload),
-      };
-    })
-    .filter(Boolean);
-}
-
-export function normalizeEmployee(e = {}) {
-  const fullName =
-    tidy(e.fullName) ||
-    tidy(e.full_name) ||
-    tidy([e.firstName, e.lastName].filter(Boolean).join(" "));
-
-  const rawAvatar =
-    e.avatarUrl || e.photoLink || e.photo_link || e.settings?.avatarUrl || "";
-
-  const { list: requisitesList, map: requisites } = normalizeRequisites(
-    e.requisitesList ?? e.requisites ?? e.EmployeeRequisite ?? e.employeeRequisites ?? []
-  );
-
-  const normalizedRates = normalizeRates(e.rates ?? e.hourlyRates ?? {});
-  const mainCurrency = normalizeCurrencyCode(e.mainCurrency ?? e.main_currency ?? "");
-  const countryId = e.countryId ?? e.country?.id ?? null;
-  const countryValue = (countryId ?? toText(e.country?.name ?? e.country ?? "")) || "";
-
-  const telegram = {
-    dateTime: toText(e.telegram?.dateTime ?? e.telegramDateTime ?? e.telegram_date_time),
-    id: toText(e.telegram?.id ?? e.telegramId ?? e.telegram_id),
-    name: toText(e.telegram?.name ?? e.telegramName ?? e.telegram_name),
-    nickname: toText(
-      e.telegram?.nickname ??
-        e.telegramNickname ??
-        e.telegram_username ??
-        e.telegramUsername ??
-        e.telegramNick
-    ),
-    bindingLink: toText(e.telegram?.bindingLink ?? e.telegramBindingLink ?? e.telegram_binding_link),
-  };
-
-  return {
-    id: e.id ?? null,
-    fullName,
-    full_name: fullName,
-    login: tidy(e.login),
-    password: "",
-    source: tidy(e.source),
-    birthDate: normalizeDateOnly(e.birthDate ?? e.birth_date ?? ""),
-    phone: tidy(e.phone),
-    email: tidy(e.email),
-    passport: tidy(e.passport),
-    address: tidy(e.address),
-    chatLink: tidy(e.chatLink ?? e.chat_link),
-    balance: toNumberSafe(e.balance, 0),
-    cashOnHand: toNumberSafe(e.cashOnHand ?? e.cash_on_hand, 0),
-    status: e.status === "inactive" || e.status === "pending" ? e.status : "active",
-    avatarUrl: rawAvatar ? fileUrl(rawAvatar) : "",
-    photoLink: toText(e.photoLink ?? e.photo_link ?? rawAvatar),
-    mainCurrency: mainCurrency ? mainCurrency.toLowerCase() : "",
-    rates: normalizedRates,
-    hourlyRates: normalizedRates,
-    startDate: e.startDate ?? e.createdAt ?? e.created_at ?? "",
-    telegram,
-    telegramNick:
-      telegram.nickname || tidy(e.telegramNickname ?? e.telegramUsername ?? e.telegramNick),
-    managerId: e.managerId ?? e.manager_id ?? null,
-    companyId: e.companyId ?? null,
-    countryId,
-    country: countryValue,
-    countryName: toText(e.country?.name),
-    currencyId: e.currencyId ?? null,
-    roleId: e.roleId ?? null,
-    publicId: e.publicId ?? null,
-    userid: e.userid ?? null,
-    tags: normalizeTags(e.tags || e.EmployeeTag || e.employeeTags || []),
-    requisites,
-    requisitesList,
-    settings: e.settings ?? null,
-  };
-}
-
-export function serializeEmployee(e = {}) {
-  const tags = normalizeTags(e.tags);
-
-  // ВАЖНО: берем исходные реквизиты с объекта e,
-  // чтобы поддержать обе версии (реально список может быть уже в API-форме)
-  const rawRequisites =
-    e.requisitesList ?? e.requisites ?? e.EmployeeRequisite ?? e.employeeRequisites ?? [];
-
-  const { list: requisitesList } = normalizeRequisites(rawRequisites);
-
-  const normalizedRates = normalizeRates(e.rates ?? e.hourlyRates ?? {});
-  const mainCurrency = normalizeCurrencyCode(e.mainCurrency ?? e.main_currency ?? "");
-  const telegram = e.telegram || {};
-  const password = toText(e.password);
-  const countryCandidate = toText(e.countryId ?? e.country);
-  const countryId = countryCandidate && isUuid(countryCandidate) ? countryCandidate : undefined;
-  const countryName = !countryId && countryCandidate ? countryCandidate : toText(e.country);
-
-  /**
-   * ✅ Совместимость с двумя версиями реквизитов:
-   * 1) API-форма: [{id,label,value}] -> отправляем как есть
-   * 2) UI-форма: [{id,currency,bank,card,owner}] -> сериализуем
-   * Дополнительно формируем "гибрид": label/value + currency/bank/card/owner,
-   * чтобы бэкенд любой версии мог корректно прочитать.
-   */
-  const serializeRequisitesCompat = (input) => {
-    const arr = Array.isArray(input) ? input : [];
-    if (!arr.length) return [];
-
-    const first = arr[0];
-    const isApiShape = first && typeof first === "object" && "label" in first && "value" in first;
-
-    if (isApiShape) return arr;
-
-    return arr
-      .map((item) => {
-        const currency = normalizeCurrencyCode(item.currency);
-        const bank = toText(item.bank);
-        const card = toText(item.card);
-        const owner = toText(item.owner ?? item.holder ?? item.name);
-
-        if (!currency && !bank && !card && !owner) return null;
-
-        const label = bank ? (currency ? `${currency}:${bank}` : bank) : currency || "CARD";
-
-        const payload = {};
-        if (currency) payload.currency = currency;
-        if (bank) payload.bank = bank;
-        if (card) payload.card = card;
-        if (owner) payload.owner = owner;
-
-        return {
-          id: item.id,
-          label,
-          value: JSON.stringify(payload),
-
-          // дублируем поля для совместимости "в обе стороны"
-          currency,
-          bank,
-          card,
-          owner,
-        };
-      })
-      .filter(Boolean);
-  };
-
-  const obj = {
-    id: e.id,
-    full_name: tidy(e.fullName ?? e.full_name),
-    login: tidy(e.login),
-    source: tidy(e.source),
-    birthDate: normalizeDateOnly(e.birthDate ?? ""),
-    phone: tidy(e.phone),
-    email: tidy(e.email),
-    passport: tidy(e.passport),
-    address: tidy(e.address),
-    chatLink: tidy(e.chatLink),
-    balance: toNumberSafe(e.balance, undefined),
-    cashOnHand: toNumberSafe(e.cashOnHand, undefined),
-    status: e.status === "inactive" || e.status === "pending" ? e.status : "active",
-    photoLink: tidy(e.photoLink ?? e.avatarStorageKey ?? e.avatarUrl),
-    managerId: toOptional(e.managerId),
-    companyId: toOptional(e.companyId),
-    countryId,
-    country: countryName,
-    currencyId: toOptional(e.currencyId),
-    roleId: toOptional(e.roleId),
-    publicId: toOptional(e.publicId),
-    userid: toOptional(e.userid),
-    mainCurrency: mainCurrency ? mainCurrency.toLowerCase() : undefined,
-    rates: Object.keys(normalizedRates).length ? normalizedRates : undefined,
-    telegram:
-      toText(telegram.dateTime ?? e.telegramDateTime) ||
-      toText(telegram.id ?? e.telegramId) ||
-      toText(telegram.name ?? e.telegramName) ||
-      toText(telegram.nickname ?? e.telegramNickname ?? e.telegramNick) ||
-      toText(telegram.bindingLink ?? e.telegramBindingLink)
-        ? {
-            dateTime: toText(telegram.dateTime ?? e.telegramDateTime),
-            id: toText(telegram.id ?? e.telegramId),
-            name: toText(telegram.name ?? e.telegramName),
-            nickname: toText(telegram.nickname ?? e.telegramNickname ?? e.telegramNick),
-            bindingLink: toText(telegram.bindingLink ?? e.telegramBindingLink),
-          }
-        : undefined,
-    tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
-
-    // ✅ совместимый формат
-    requisites: serializeRequisitesCompat(requisitesList),
-  };
-
-  if (password) obj.password = password;
-
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
-}
-
-/* -------------------------- API ---------------------------- */
-
-export async function fetchEmployees() {
-  const r = await httpGet("/employees");
-  const data = unwrap(r);
-  const list = Array.isArray(data) ? data : data?.employees ?? [];
-  return list.map(normalizeEmployee);
-}
-
-export async function fetchEmployeeById(id) {
-  const r = await httpGet(`/employees/${id}`);
-  return normalizeEmployee(unwrap(r));
-}
-
-export async function createEmployee(payload) {
-  const r = await httpPost("/employees", serializeEmployee(payload));
-  return normalizeEmployee(unwrap(r));
-}
-
-export async function updateEmployee(id, payload) {
-  const r = await httpPut(`/employees/${id}`, serializeEmployee(payload));
-  return normalizeEmployee(unwrap(r));
-}
-
-export async function deleteEmployee(id) {
-  const r = await httpDelete(`/employees/${id}`);
-  return unwrap(r) ?? true;
-}
-
-export default {
-  fetchEmployees,
-  fetchEmployeeById,
-  createEmployee,
-  updateEmployee,
-  deleteEmployee,
+import React, { useState, useEffect, useMemo } from "react";
+import Sidebar from "../Sidebar";
+import EmployeeModal from "./EmployeesModal/EmployeeModal";
+import "../../styles/EmployeesPage.css";
+import avatarPlaceholder from "../../assets/avatar-placeholder.svg";
+import {
+  fetchEmployees as apiFetchEmployees,
+  fetchEmployeeById as apiFetchEmployeeById,
+  createEmployee as apiCreateEmployee,
+  updateEmployee as apiUpdateEmployee,
+  deleteEmployee as apiDeleteEmployee,
   normalizeEmployee,
   serializeEmployee,
+} from "../../api/employees";
+import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
+
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
 };
+
+const formatNumberWithSpaces = (num) => {
+  if (num === null || num === undefined || isNaN(Number(num))) {
+    return "0.00";
+  }
+  const fixedNum = Number(num).toFixed(2);
+  const parts = fixedNum.split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.join(".");
+};
+
+const getFirstRequisite = (requisites) => {
+  if (!requisites || typeof requisites !== "object" || Array.isArray(requisites)) {
+    return null;
+  }
+
+  const allRequisiteArrays = Object.values(requisites);
+
+  const firstValidArray = allRequisiteArrays.find(
+    (arr) => Array.isArray(arr) && arr.length > 0
+  );
+
+  return firstValidArray ? firstValidArray[0] : null;
+};
+
+const EmployeeCard = ({ employee, onClick }) => {
+  const avatar = employee.avatarUrl || employee.photoLink || avatarPlaceholder;
+  const tags = Array.isArray(employee.tags) ? employee.tags : [];
+  return (
+    <div className="employee-card" onClick={onClick}>
+      <img
+        src={avatar}
+        alt={employee.fullName || employee.full_name || "Сотрудник"}
+        className="card-avatar"
+      />
+      <div className="card-details">
+        <div className="card-header">
+          <span className="card-full-name">
+            {employee.fullName || employee.full_name || "Без имени"}
+          </span>
+          {employee.birthDate && (
+            <span className="card-birthdate">{formatDate(employee.birthDate)}</span>
+          )}
+        </div>
+        <div className="card-login-wrapper">
+          <span className="card-login">{employee.login}</span>
+        </div>
+        <div className="card-footer">
+          <div className="card-tags-container">
+            {tags.length > 0 ? (
+              tags.map((tag) => (
+                <span
+                  key={tag.id || tag.name}
+                  className="tag-chip"
+                  style={{ backgroundColor: tag.color || "#777" }}
+                >
+                  {tag.name}
+                </span>
+              ))
+            ) : (
+              <span className="card-label" />
+            )}
+          </div>
+          <div className="card-balance-container">
+            <span className="card-label">Баланс:</span>
+            <span className="card-balance">{formatNumberWithSpaces(employee.balance)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EmployeePage = () => {
+  const [employees, setEmployees] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const list = await apiFetchEmployees();
+        if (!mounted) return;
+        setEmployees(list);
+      } catch (e) {
+        console.warn("API /employees недоступен:", e?.message || e);
+        if (!mounted) return;
+        setError("Не удалось получить данные с сервера.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const [viewMode, setViewMode] = useState("card");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+
+  const handleOpenModal = (employee = null) => {
+    setSelectedEmployee(employee);
+    setIsModalOpen(true);
+    if (employee?.id) {
+      apiFetchEmployeeById(employee.id)
+        .then((fresh) => {
+          setSelectedEmployee(fresh);
+          setEmployees((prev) => prev.map((e) => (e.id === fresh.id ? fresh : e)));
+        })
+        .catch((e) => {
+          console.warn("Не удалось обновить данные сотрудника:", e?.message || e);
+        });
+    }
+  };
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedEmployee(null);
+  };
+
+  const upsertLocal = (data, existedId) => {
+    if (existedId) {
+      setEmployees((prev) =>
+        prev.map((e) => (e.id === existedId ? normalizeEmployee({ ...e, ...data }) : e))
+      );
+    } else {
+      const newEmp = normalizeEmployee({ ...data, id: Date.now() });
+      setEmployees((prev) => [...prev, newEmp]);
+    }
+  };
+
+  const handleSaveEmployee = async (formData) => {
+    const outgoing = serializeEmployee(formData);
+    try {
+      if (selectedEmployee && selectedEmployee.id) {
+        const saved = await apiUpdateEmployee(selectedEmployee.id, outgoing);
+        setEmployees((prev) => prev.map((e) => (e.id === saved.id ? saved : e)));
+        return saved;
+      } else {
+        const created = await apiCreateEmployee(outgoing);
+        setEmployees((prev) => [...prev, created]);
+        return created;
+      }
+    } catch (e) {
+      console.warn("Сохранение через API не удалось, применяю локально:", e?.message || e);
+      upsertLocal(outgoing, selectedEmployee?.id);
+      setError("Сервер недоступен. Изменения сохранены локально.");
+      return normalizeEmployee({ ...outgoing, id: selectedEmployee?.id ?? Date.now() });
+    } finally {
+      // modal closes itself after successful save
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId) => {
+    try {
+      await apiDeleteEmployee(employeeId);
+      setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+    } catch (e) {
+      console.warn("Удаление через API не удалось, удаляю локально:", e?.message || e);
+      setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
+      setError("Сервер недоступен. Удалено локально.");
+    } finally {
+      handleCloseModal();
+    }
+  };
+
+  const groupedEmployees = useMemo(() => {
+    return (employees || []).reduce(
+      (acc, employee) => {
+        let key;
+        switch (employee.status) {
+          case "inactive":
+            key = "Не работает";
+            break;
+          case "pending":
+            key = "На рассмотрении";
+            break;
+          case "active":
+          default:
+            key = "Работает";
+        }
+
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(employee);
+        return acc;
+      },
+      {}
+    );
+  }, [employees]);
+
+  const groupOrder = {
+    "На рассмотрении": 1,
+    "Работает": 2,
+    "Не работает": 3,
+  };
+
+  const toggleGroup = (groupKey) => {
+    setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
+  };
+
+  return (
+    <div className="employees-page">
+      <Sidebar />
+      <div className="employees-page-main-container">
+        <header className="employees-header-container">
+          <h1 className="employees-title">
+            <PageHeaderIcon pageName={"Сотрудники"} />
+            СОТРУДНИКИ
+          </h1>
+
+          <div className="view-mode-buttons">
+            <button
+              className={`view-mode-button ${viewMode === "card" ? "active" : ""}`}
+              onClick={() => setViewMode("card")}
+              title="Карточный вид"
+            >
+              &#x25A3;
+            </button>
+            <button
+              className={`view-mode-button ${viewMode === "table" ? "active" : ""}`}
+              onClick={() => setViewMode("table")}
+              title="Табличный вид"
+            >
+              &#x2261;
+            </button>
+          </div>
+
+          <button className="add-employee-button" onClick={() => handleOpenModal()}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-plus"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
+            </svg>
+            Добавить
+          </button>
+        </header>
+
+        {loading && <div className="employees-loading">Загрузка…</div>}
+        {!!error && !loading && <div className="employees-error">{error}</div>}
+
+        <div className="employees-content">
+          {viewMode === "table" ? (
+            <div className="employees-table-container">
+              <table className="employees-table">
+                <thead>
+                  <tr>
+                    <th>ФИО</th>
+                    <th>Логин</th>
+                    <th>Ник ТГ</th>
+                    <th>ДР</th>
+                    <th>Теги</th>
+                    <th>ДН</th>
+                    <th>UAH/ч</th>
+                    <th>USD/ч</th>
+                    <th>USDT/ч</th>
+                    <th>EUR/ч</th>
+                    <th>RUB/ч</th>
+                    <th>Баланс</th>
+                    <th>Банк</th>
+                    <th>Карта</th>
+                    <th>Держатель</th>
+                    <th>На руках</th>
+                  </tr>
+                </thead>
+                {Object.entries(groupedEmployees)
+                  .sort(
+                    ([groupNameA], [groupNameB]) =>
+                      (groupOrder[groupNameA] || 99) - (groupOrder[groupNameB] || 99)
+                  )
+                  .map(([groupName, groupEmployees]) => (
+                    <tbody key={groupName}>
+                      <tr className="group-header" onClick={() => toggleGroup(groupName)}>
+                        <td colSpan="16">
+                          <span
+                            className={`collapse-icon ${
+                              collapsedGroups[groupName] ? "collapsed" : ""
+                            }`}
+                          >
+                            ▼
+                          </span>
+                          {`${groupName.toUpperCase()}`}
+                          <span className="group-count">{groupEmployees.length}</span>
+                        </td>
+                      </tr>
+                      {!collapsedGroups[groupName] &&
+                        groupEmployees.map((employee) => {
+                          const firstReq = getFirstRequisite(employee.requisites);
+
+                          return (
+                            <tr
+                              key={employee.id}
+                              onClick={() => handleOpenModal(employee)}
+                              style={{ cursor: "pointer" }}
+                            >
+                              <td>{employee.fullName}</td>
+                              <td>{employee.login}</td>
+                              <td>{employee.telegramNick || "-"}</td>
+                              <td>{formatDate(employee.birthDate)}</td>
+                              <td>
+                                {(Array.isArray(employee.tags) ? employee.tags : []).map((tag) => (
+                                  <span
+                                    key={tag.id || tag.name}
+                                    style={{
+                                      backgroundColor: tag.color || "#555",
+                                      color: "#fff",
+                                      padding: "2px 8px",
+                                      borderRadius: "12px",
+                                      marginRight: "4px",
+                                      fontSize: "12px",
+                                      display: "inline-block",
+                                    }}
+                                  >
+                                    {tag.name}
+                                  </span>
+                                ))}
+                              </td>
+                              <td>{formatDate(employee.startDate) || "-"}</td>
+
+                              <td>{employee.hourlyRates?.uah}</td>
+                              <td>{employee.hourlyRates?.usd}</td>
+                              <td>{employee.hourlyRates?.usdt}</td>
+                              <td>{employee.hourlyRates?.eur}</td>
+                              <td>{employee.hourlyRates?.rub}</td>
+
+                              <td>{formatNumberWithSpaces(employee.balance)}</td>
+
+                              <td>{firstReq?.bank || "-"}</td>
+                              <td>{firstReq?.card || "-"}</td>
+                              <td>{firstReq?.holder || "-"}</td>
+
+                              <td>{formatNumberWithSpaces(employee.cashOnHand)}</td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  ))}
+              </table>
+            </div>
+          ) : (
+            <div className="employees-card-view">
+              {Object.entries(groupedEmployees)
+                .sort(
+                  ([groupNameA], [groupNameB]) =>
+                    (groupOrder[groupNameA] || 99) - (groupOrder[groupNameB] || 99)
+                )
+                .map(([groupName, groupEmployees]) => (
+                  <div key={groupName} className="card-group">
+                    <h2
+                      className="group-header card-group-header"
+                      onClick={() => toggleGroup(groupName)}
+                    >
+                      <span
+                        className={`collapse-icon ${
+                          collapsedGroups[groupName] ? "collapsed" : ""
+                        }`}
+                      >
+                        ▼
+                      </span>
+                      {`${groupName.toUpperCase()}`}
+                      <span className="group-count">{groupEmployees.length}</span>
+                    </h2>
+                    {!collapsedGroups[groupName] && (
+                      <div className="cards-container">
+                        {groupEmployees.map((employee) => (
+                          <EmployeeCard
+                            key={employee.id}
+                            employee={employee}
+                            onClick={() => handleOpenModal(employee)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isModalOpen && (
+        <EmployeeModal
+          employee={selectedEmployee}
+          onClose={handleCloseModal}
+          onSave={handleSaveEmployee}
+          onDelete={selectedEmployee ? () => handleDeleteEmployee(selectedEmployee.id) : null}
+        />
+      )}
+    </div>
+  );
+};
+
+export default EmployeePage;

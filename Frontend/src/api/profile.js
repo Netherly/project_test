@@ -1,5 +1,5 @@
 // src/api/profile.js
-import { httpGet, httpPut, fileUrl, apiBase } from "./http";
+import { httpGet, httpPost, httpPut, fileUrl, apiBase } from "./http";
 
 const unwrap = (resp) => {
   if (resp && typeof resp === "object" && "ok" in resp) {
@@ -116,6 +116,11 @@ export async function changePassword({ currentPassword, newPassword }) {
   return unwrap(r);
 }
 
+export async function unlinkTelegram() {
+  const r = await httpPost("/profile/telegram/unlink", {});
+  return unwrap(r);
+}
+
 /**
  * Утилита: построить deep-link к боту из botName и code
  * Возвращает оба варианта: tg:// и https://
@@ -157,7 +162,7 @@ export async function openTelegramDeepLink({ tg, https, code }) {
  * Мы дополняем ответ вычисленными tg/https ссылками.
  */
 export async function createTelegramLink() {
-  const r = await httpGet("/telegram/link/create");
+  const r = await httpPost("/telegram/link/create", {});
   const data = unwrap(r); // { link, code, ttlMinutes }
   const { tg, https } = buildTelegramDeepLinks({
     httpsLink: data?.link,
@@ -173,4 +178,5 @@ export default {
   uploadProfileBackground,
   withDefaults,
   ProfileAPI,
+  unlinkTelegram,
 };

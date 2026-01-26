@@ -5,90 +5,144 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-crm-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Detect frontend/backend dirs
+        run: |
+          set -e
+          if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> "$GITHUB_ENV"; else echo "FE_DIR=frontend" >> "$GITHUB_ENV"; fi
+          if [ -d Backend  ]; then echo "BE_DIR=Backend"  >> "$GITHUB_ENV"; else echo "BE_DIR=backend"  >> "$GITHUB_ENV"; fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ secrets.NODE_VERSION || '20' }}
 
-      - name: Detect frontend/backend dirs
+      # ---------- FRONTEND ----------
+      - name: Write frontend env files (normalize)
+        working-directory: ./${{ env.FE_DIR }}
+        env:
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
         run: |
-          if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> $GITHUB_ENV; else echo "FE_DIR=frontend" >> $GITHUB_ENV; fi
-          if [ -d Backend ]; then echo "BE_DIR=Backend"  >> $GITHUB_ENV; else echo "BE_DIR=backend"  >> $GITHUB_ENV; fi
+          set -e
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
 
-      # 1) Пишем prod-env
-      - name: Write frontend .env.production
-        run: |
-          cd "${{ env.FE_DIR }}"
-          printf "%s\n" "${{ secrets.FRONTEND_ENV }}" > .env.production || true
+          data = os.environ.get("FRONTEND_ENV", "")
+          data = data.replace("\r\n", "\n").replace("\r", "\n")
 
-      # 2) Удаляем любые другие .env*, которые могут перебить
+          if not data.strip():
+              raise SystemExit("FRONTEND_ENV is empty")
+
+          env_prod = Path(".env.production")
+          env_prod.write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+
+          # fallback
+          Path(".env").write_text(env_prod.read_text(encoding="utf-8"), encoding="utf-8")
+          PY
+
       - name: Remove other env files
         working-directory: ./${{ env.FE_DIR }}
         run: |
-          rm -f .env .env.local .env.development .env.development.local .env.production.local || true
+          set -e
+          rm -f .env.local .env.development .env.development.local .env.production.local || true
 
-      # 3) Валидируем и экспортируем VITE_API_URL из .env.production
       - name: Validate & export VITE_API_URL
         working-directory: ./${{ env.FE_DIR }}
         run: |
-          echo "----- .env.production (first 50 lines) -----"
-          sed -n '1,50p' .env.production || true
-          echo "--------------------------------------------"
-          URL=$(grep -E '^VITE_API_URL=' .env.production | sed 's/^VITE_API_URL=//')
-          if [ -z "$URL" ]; then
-            echo "VITE_API_URL is missing in FRONTEND_ENV" >&2
-            exit 1
-          fi
-          echo "VITE_API_URL=$URL" >> $GITHUB_ENV
+          set -e
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import re
+          from pathlib import Path
+
+          text = Path(".env.production").read_text(encoding="utf-8")
+          m = re.search(r"^VITE_API_URL=(.*)$", text, flags=re.MULTILINE)
+          if not m:
+              raise SystemExit("VITE_API_URL is missing in FRONTEND_ENV")
+
+          url = m.group(1).strip().replace("\r", "")
+          if (url.startswith('"') and url.endswith('"')) or (url.startswith("'") and url.endswith("'")):
+              url = url[1:-1].strip()
+
+          url = url.rstrip("/")
+          if not url:
+              raise SystemExit("VITE_API_URL is empty after normalization")
+
+          print(f"VITE_API_URL={url}")
+          PY
 
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
         env:
           VITE_API_URL: ${{ env.VITE_API_URL }}
         run: |
-          npm ci || npm install
-          npm run build || npm run build:prod || echo "no build script"
+          set -e
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          npm run build -- --mode production || npm run build || npm run build:prod
 
       - name: Detect FE_OUT
         run: |
-          if [ -d "${{ env.FE_DIR }}/dist" ]; then echo "FE_OUT=dist" >> $GITHUB_ENV; else echo "FE_OUT=build" >> $GITHUB_ENV; fi
-          echo "FE_DIR=${{ env.FE_DIR }} FE_OUT=${{ env.FE_OUT }}"
-          test -d "${{ env.FE_DIR }}/${{ env.FE_OUT }}" || (echo "Build dir not found" && exit 1)
-          find "${{ env.FE_DIR }}/${{ env.FE_OUT }}" -maxdepth 1 -type f | head -n 10
+          set -e
+          FE_DIR="${{ env.FE_DIR }}"
+          if [ -d "$FE_DIR/dist" ]; then
+            FE_OUT="dist"
+          elif [ -d "$FE_DIR/build" ]; then
+            FE_OUT="build"
+          else
+            echo "Build dir not found (expected dist/ or build/)" >&2
+            exit 1
+          fi
+
+          echo "FE_OUT=$FE_OUT" >> "$GITHUB_ENV"
+          echo "FE_DIR=$FE_DIR" >> "$GITHUB_ENV"
+
+          test -d "$FE_DIR/$FE_OUT"
 
       - name: Fail if bundle contains bad base url
+        env:
+          VITE_API_URL: ${{ env.VITE_API_URL }}
         run: |
           set -e
-          echo "Searching for '/undefined/' in bundle..."
-          if grep -RIn --no-messages "/undefined/" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" >/dev/null ; then
+          OUT="${{ env.FE_DIR }}/${{ env.FE_OUT }}"
+          URL="${VITE_API_URL//$'\r'/}"
+          URL="${URL%/}"
+
+          if grep -RIn --no-messages "/undefined/" "$OUT" >/dev/null ; then
             echo "Bundle contains '/undefined/'. Check VITE_API_URL!" >&2
             exit 1
           fi
-          echo "Validating VITE_API_URL..."
-          if [ -z "${{ env.VITE_API_URL }}" ]; then
+
+          if [ -z "$URL" ]; then
             echo "VITE_API_URL is missing." >&2
             exit 1
           fi
-          if echo "${{ env.VITE_API_URL }}" | grep -Eqi '(localhost|127\.0\.0\.1)'; then
+
+          if echo "$URL" | grep -Eqi '(localhost|127\.0\.0\.1)'; then
             echo "VITE_API_URL points to localhost. Fix FRONTEND_ENV." >&2
             exit 1
           fi
-          if ! grep -RInF --no-messages "${{ env.VITE_API_URL }}" "${{ env.FE_DIR }}/${{ env.FE_OUT }}" >/dev/null ; then
-            echo "Bundle does not contain VITE_API_URL. Check env injection/build." >&2
+
+          if ! grep -RInF --no-messages "$URL" "$OUT" >/dev/null && \
+             ! grep -RInF --no-messages "${URL}/" "$OUT" >/dev/null; then
+            echo "Bundle does not contain VITE_API_URL ($URL). Check env injection/build or frontend code." >&2
             exit 1
           fi
-          echo "OK: bundle URLs look clean"
 
       - name: Pack frontend build
         run: |
+          set -e
           tar -C "${{ env.FE_DIR }}" -czf frontend.tgz "${{ env.FE_OUT }}"
 
       - name: Upload frontend archive
@@ -125,6 +179,7 @@ jobs:
             fi
             rm -f frontend.tgz
 
+      # ---------- BACKEND ----------
       - name: Pack backend source
         run: |
           set -e
@@ -156,7 +211,6 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
-        # Распаковываем и кладем исходники в crm-backend
           script: |
             set -e
             cd /var/www
@@ -173,7 +227,37 @@ jobs:
             fi
             rm -f backend.tgz
 
-      - name: Write backend .env on server
+      - name: Prepare backend .env file
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+        run: |
+          set -e
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          data = os.environ.get("BACKEND_ENV", "")
+          data = data.replace("\r\n", "\n").replace("\r", "\n")
+
+          if not data.strip():
+              raise SystemExit("BACKEND_ENV is empty")
+
+          Path("backend.env").write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload backend env file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "backend.env"
+          target: "/var/www"
+          overwrite: true
+
+      - name: Move backend .env into place (chmod 640)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -182,10 +266,13 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
-            cat > /var/www/crm-backend/.env << 'EOF'
-            ${{ secrets.BACKEND_ENV }}
-            EOF
-            chmod 640 /var/www/crm-backend/.env
+            set -e
+            cd /var/www
+            test -f backend.env
+            mkdir -p crm-backend
+            umask 027
+            mv -f backend.env crm-backend/.env
+            chmod 640 crm-backend/.env
 
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
@@ -196,6 +283,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
+            set -e
             if ! command -v node >/dev/null 2>&1; then
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
@@ -204,7 +292,8 @@ jobs:
               sudo npm i -g pm2
             fi
 
-      - name: Install backend deps, auto-migrate on schema change, restart pm2
+      # 🔥 ВАЖНО: pm2 у тебя живёт у пользователя deploy — запускаем всё под ним
+      - name: Install backend deps, prisma migrate, restart pm2 (as deploy)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -215,63 +304,36 @@ jobs:
           envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
-            cd /var/www/crm-backend
 
-            export HUSKY=0
-            npm ci --omit=dev || npm install --omit=dev
+            sudo -iu deploy bash -lc "cd /var/www/crm-backend && \
+              export HUSKY=0 && export NODE_ENV=production && \
+              echo 'Checking DB readiness (127.0.0.1:5432)...' && \
+              if command -v pg_isready >/dev/null 2>&1; then \
+                for i in {1..20}; do \
+                  pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break; \
+                  echo \"Waiting for DB... (\$i/20)\"; sleep 2; \
+                done; \
+                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1); \
+              else \
+                echo 'pg_isready not found, skipping DB readiness check'; \
+              fi && \
+              npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund && \
+              npx prisma generate && \
+              if [ -d prisma/migrations ] && [ \"\$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)\" -gt 0 ]; then \
+                echo 'Running prisma migrate deploy...' && npx prisma migrate deploy; \
+              else \
+                echo 'No migrations found. Running prisma db push...' && \
+                if [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'yes' ] || [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'true' ]; then \
+                  npx prisma db push --accept-data-loss; \
+                else \
+                  npx prisma db push; \
+                fi; \
+              fi && \
+              (pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start) && \
+              pm2 save"
 
-            # вычисляем текущий хэш схемы
-            CURR_HASH=""
-            if [ -f prisma/schema.prisma ]; then
-              CURR_HASH=$(sha256sum prisma/schema.prisma | awk '{print $1}')
-            fi
-            PREV_HASH=$(cat .schema.sha256 2>/dev/null || echo "")
-
-            SCHEMA_CHANGED=0
-            if [ "$CURR_HASH" != "$PREV_HASH" ]; then
-              SCHEMA_CHANGED=1
-              echo "Prisma schema changed: $PREV_HASH -> $CURR_HASH"
-            else
-              echo "Prisma schema unchanged."
-            fi
-
-            # На всякий случай — всегда сгенерировать клиент
-            npx prisma generate || true
-
-            if [ "$SCHEMA_CHANGED" -eq 1 ]; then
-              echo "Checking migrations..."
-              HAS_MIGRATIONS=0
-              if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
-                HAS_MIGRATIONS=1
-              fi
-
-              if [ "$HAS_MIGRATIONS" -eq 1 ]; then
-                echo "Running 'prisma migrate deploy'..."
-                npx prisma migrate deploy
-              else
-                echo "No migrations found. Running 'prisma db push'..."
-                if [ "${PRISMA_ACCEPT_DATA_LOSS}" = "yes" ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = "true" ]; then
-                  npx prisma db push --accept-data-loss
-                else
-                  # попытаемся без accept-data-loss (упадет при разрушительных изменениях)
-                  npx prisma db push
-                fi
-              fi
-
-              # записываем новый хэш, только если все прошло успешно
-              echo -n "$CURR_HASH" > .schema.sha256
-            fi
-
-            # старт/перезапуск pm2
-            if npm run | grep -qE " start"; then
-              pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start
-            else
-              pm2 delete crm-backend || true
-              pm2 start node --name crm-backend -- src/server.js
-            fi
-            pm2 save
-
-      - name: Backend health check
+      # ✅ HEALTH CHECK: 301 — это нормально. Следуем редиректу (-L) и проверяем 200.
+      - name: Backend health check (follow redirects)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -281,4 +343,17 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             set -e
-            curl -fsSI -H "Host: ${{ secrets.PRIMARY_DOMAIN || 'gsse.work' }}" http://127.0.0.1/api/health || true
+            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN || 'gsse.work' }}"
+
+            for i in {1..20}; do
+              code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)
+              if [ "$code" = "200" ]; then
+                echo "Backend health: OK"
+                exit 0
+              fi
+              echo "Waiting for backend... ($i/20) code=$code"
+              sleep 3
+            done
+
+            echo "Backend health check FAILED"
+            exit 1

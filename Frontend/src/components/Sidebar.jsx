@@ -130,7 +130,7 @@ const Sidebar = () => {
   };
 
   const mainMenuItems = [
-    { name: "Дашборд", path: "/home", exact: "/statistics", iconActive: DashboardJson, iconInactive: DashboardJson },
+    { name: "Дашборд", path: "/dashboard", exact: "/statistics", iconActive: DashboardJson, iconInactive: DashboardJson },
     { name: "Рабочий стол", menu: "Desktop", iconActive: DesktopWebm, iconInactive: DesktopWebm },
     { name: "Финансы", menu: "transactions", iconActive: FinanceWebm, iconInactive: FinanceWebm },
     { name: "Справочник", menu: "directory", iconActive: DirectoryWebm, iconInactive: DirectoryWebm },
