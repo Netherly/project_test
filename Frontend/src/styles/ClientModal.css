@@ -9,7 +9,7 @@
   position: fixed;
   inset: 0;
   background: var(--opacity-container);
-  z-index: 87;
+  z-index: 9999;
 }
 
 /* ------------------- Root Layout ------------------- */

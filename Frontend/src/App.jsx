@@ -21,8 +21,10 @@ import TasksPage from "./components/TasksPage/TasksPage";
 
 import ExecutorsPage from './components/Executors/ExecutorsPage';
 import EmployeePage from './components/Employees/EmployeePage';
+import EmployeeDetailsPage from './components/Employees/EmployeeDetailsPage';
 import RegularPaymentsPage from './components/RegularPayments/RegularPaymentsPage';
 import CompaniesPage from './components/Companies/CompaniesPage.jsx';
+import ClientDetailsPage from './pages/ClientDetailsPage';
 
 const decodeToken = (token) => {
   try {
@@ -120,7 +122,8 @@ export default function App() {
           <Route path="/home" element={<Navigate to="/dashboard" replace />} />
           <Route path="/orders/:orderId?" element={<ProtectedRoute element={<OrdersPage />} />} />
           <Route path="/executors/:executorId?" element={<ProtectedRoute element={<ExecutorsPage />} />} />
-          <Route path="/employees/:employeeId?" element={<ProtectedRoute element={<EmployeePage />} />} />
+          <Route path="/employees" element={<ProtectedRoute element={<EmployeePage />} />} />
+          <Route path="/employees/:employeeId" element={<ProtectedRoute element={<EmployeeDetailsPage />} />} />
           <Route path="/journal/:entryId?" element={<ProtectedRoute element={<JournalPage />} />} />
           <Route path="/currency-rates" element={<ProtectedRoute element={<CurrencyRates />} />} />
           <Route path="/assets/:assetId?" element={<ProtectedRoute element={<AssetsPage />} />} />
@@ -133,7 +136,7 @@ export default function App() {
           <Route path="/fixes" element={<ProtectedRoute element={<FixesPage />} />} />
           <Route path="/company" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
           <Route
-            path="/clients/:clientId?"
+            path="/clients"
             element={
               <ProtectedRoute
                 element={
@@ -142,6 +145,10 @@ export default function App() {
                 }
               />
             }
+          />
+          <Route
+            path="/clients/:clientId"
+            element={<ProtectedRoute element={<ClientDetailsPage />} />}
           />
           {/* fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

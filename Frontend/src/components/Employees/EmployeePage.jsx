@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
-import EmployeeModal from "./EmployeesModal/EmployeeModal";
 import "../../styles/EmployeesPage.css";
 import avatarPlaceholder from "../../assets/avatar-placeholder.svg";
 import {
   fetchEmployees as apiFetchEmployees,
-  fetchEmployeeById as apiFetchEmployeeById,
-  createEmployee as apiCreateEmployee,
-  updateEmployee as apiUpdateEmployee,
-  deleteEmployee as apiDeleteEmployee,
   normalizeEmployee,
-  serializeEmployee,
 } from "../../api/employees";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 
@@ -97,6 +92,9 @@ const EmployeeCard = ({ employee, onClick }) => {
 };
 
 const EmployeePage = () => {
+  const navigate = useNavigate();
+  const { employeeId } = useParams();
+  
   const [employees, setEmployees] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -125,72 +123,13 @@ const EmployeePage = () => {
   }, []);
 
   const [viewMode, setViewMode] = useState("card");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState({});
 
-  const handleOpenModal = (employee = null) => {
-    setSelectedEmployee(employee);
-    setIsModalOpen(true);
+  const handleOpenEmployee = (employee = null) => {
     if (employee?.id) {
-      apiFetchEmployeeById(employee.id)
-        .then((fresh) => {
-          setSelectedEmployee(fresh);
-          setEmployees((prev) => prev.map((e) => (e.id === fresh.id ? fresh : e)));
-        })
-        .catch((e) => {
-          console.warn("Не удалось обновить данные сотрудника:", e?.message || e);
-        });
-    }
-  };
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedEmployee(null);
-  };
-
-  const upsertLocal = (data, existedId) => {
-    if (existedId) {
-      setEmployees((prev) =>
-        prev.map((e) => (e.id === existedId ? normalizeEmployee({ ...e, ...data }) : e))
-      );
+      navigate(`/employees/${employee.id}`);
     } else {
-      const newEmp = normalizeEmployee({ ...data, id: Date.now() });
-      setEmployees((prev) => [...prev, newEmp]);
-    }
-  };
-
-  const handleSaveEmployee = async (formData) => {
-    const outgoing = serializeEmployee(formData);
-    try {
-      if (selectedEmployee && selectedEmployee.id) {
-        const saved = await apiUpdateEmployee(selectedEmployee.id, outgoing);
-        setEmployees((prev) => prev.map((e) => (e.id === saved.id ? saved : e)));
-        return saved;
-      } else {
-        const created = await apiCreateEmployee(outgoing);
-        setEmployees((prev) => [...prev, created]);
-        return created;
-      }
-    } catch (e) {
-      console.warn("Сохранение через API не удалось, применяю локально:", e?.message || e);
-      upsertLocal(outgoing, selectedEmployee?.id);
-      setError("Сервер недоступен. Изменения сохранены локально.");
-      return normalizeEmployee({ ...outgoing, id: selectedEmployee?.id ?? Date.now() });
-    } finally {
-      // modal closes itself after successful save
-    }
-  };
-
-  const handleDeleteEmployee = async (employeeId) => {
-    try {
-      await apiDeleteEmployee(employeeId);
-      setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
-    } catch (e) {
-      console.warn("Удаление через API не удалось, удаляю локально:", e?.message || e);
-      setEmployees((prev) => prev.filter((e) => e.id !== employeeId));
-      setError("Сервер недоступен. Удалено локально.");
-    } finally {
-      handleCloseModal();
+      navigate("/employees/new");
     }
   };
 
@@ -257,7 +196,7 @@ const EmployeePage = () => {
             </button>
           </div>
 
-          <button className="add-employee-button" onClick={() => handleOpenModal()}>
+          <button className="add-employee-button" onClick={() => handleOpenEmployee()}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -332,7 +271,7 @@ const EmployeePage = () => {
                           return (
                             <tr
                               key={employee.id}
-                              onClick={() => handleOpenModal(employee)}
+                              onClick={() => handleOpenEmployee(employee)}
                               style={{ cursor: "pointer" }}
                             >
                               <td>{employee.fullName}</td>
@@ -408,7 +347,7 @@ const EmployeePage = () => {
                           <EmployeeCard
                             key={employee.id}
                             employee={employee}
-                            onClick={() => handleOpenModal(employee)}
+                            onClick={() => handleOpenEmployee(employee)}
                           />
                         ))}
                       </div>
@@ -419,15 +358,6 @@ const EmployeePage = () => {
           )}
         </div>
       </div>
-
-      {isModalOpen && (
-        <EmployeeModal
-          employee={selectedEmployee}
-          onClose={handleCloseModal}
-          onSave={handleSaveEmployee}
-          onDelete={selectedEmployee ? () => handleDeleteEmployee(selectedEmployee.id) : null}
-        />
-      )}
     </div>
   );
 };
