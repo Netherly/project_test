@@ -1,6 +1,6 @@
 // src/components/Sidebar.jsx
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 import "../styles/Sidebar.css";
 import { ProfileAPI } from "../api/profile";
@@ -27,9 +27,9 @@ import EmployesWebm from "../assets/menu-icons/Сотрудники.webm";
 import DashboardJson from "../assets/menu-icons/Дашборд.webm";
 
 const MediaIcon = ({ src, alt, className, active }) => {
-  const lottieRef = React.useRef(null);
-  const cycleCountRef = React.useRef(0);
-  const pauseTimerRef = React.useRef(null);
+  const lottieRef = useRef(null);
+  const cycleCountRef = useRef(0);
+  const pauseTimerRef = useRef(null);
 
   const handleComplete = () => {
     cycleCountRef.current += 1;
@@ -43,7 +43,7 @@ const MediaIcon = ({ src, alt, className, active }) => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const lottie = lottieRef.current;
     if (!lottie) return;
     if (active) {
@@ -87,12 +87,13 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState(null);
+  const leaveTimerRef = useRef(null); 
 
-  // профиль для шапки
+ 
   const [profile, setProfile] = useState({ nickname: "Nickname", userId: "" });
   const loadProfile = useCallback(async () => {
     try {
-      const p = await ProfileAPI.get();            // ✅ берём с api/profile.js
+      const p = await ProfileAPI.get();
       setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "" });
     } catch (e) {
       console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
@@ -100,7 +101,6 @@ const Sidebar = () => {
   }, []);
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  // освежаем при наведении
   const handleAvatarEnter = useCallback(() => { loadProfile(); }, [loadProfile]);
 
   const submenus = {
@@ -138,13 +138,35 @@ const Sidebar = () => {
     { name: "Настройки", menu: "settings", iconActive: SettingsWebm, iconInactive: SettingsWebm },
   ];
 
-  const MouseEnter = useCallback((menuName) => setActiveMenu(menuName), []);
-  const MouseLeave = useCallback(() => setActiveMenu(null), []);
+  
+  const handleMouseEnter = (menuName) => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+    setActiveMenu(menuName);
+  };
+
+  const handleMouseLeave = () => {
+    leaveTimerRef.current = setTimeout(() => {
+      setActiveMenu(null);
+    }, 300); 
+  };
+
   const isActivePath = useCallback((path) => location.pathname === path, [location.pathname]);
   const isParentMenuActive = useCallback(
     (menuKey) => submenus[menuKey]?.some((submenuItem) => location.pathname === submenuItem.path) || false,
     [location.pathname]
   );
+
+  
+  const handleParentClick = (menuKey) => {
+    const firstItem = submenus[menuKey]?.[0];
+    if (firstItem && firstItem.path) {
+      navigate(firstItem.path);
+      setActiveMenu(null); 
+    }
+  };
 
   const copyClientId = useCallback((id) => {
     if (!id) return;
@@ -156,7 +178,7 @@ const Sidebar = () => {
 
   const handleLogout = useCallback(() => {
     try {
-      localStorage.removeItem("token");   // ✅ токен вычищаем — http.js перестанет слать Authorization
+      localStorage.removeItem("token");
     } catch {}
     navigate("/login", { replace: true });
   }, [navigate]);
@@ -168,8 +190,8 @@ const Sidebar = () => {
         <div
           key={`submenu-${key}`}
           className="submenu-panel show"
-          onMouseEnter={() => MouseEnter(key)}
-          onMouseLeave={MouseLeave}
+          onMouseEnter={() => handleMouseEnter(key)} 
+          onMouseLeave={handleMouseLeave}
         >
           <ul className="submenu">
             {submenus[key].map(({ name, path, icon }) => (
@@ -191,7 +213,7 @@ const Sidebar = () => {
         </div>
       );
     },
-    [MouseEnter, MouseLeave, location.pathname]
+    [location.pathname]
   );
 
   return (
@@ -230,8 +252,9 @@ const Sidebar = () => {
                 <li
                   key={item.name}
                   className={`menu-item ${isItemActive ? "active" : ""}`}
-                  onMouseEnter={() => item.menu && MouseEnter(item.menu)}
-                  onMouseLeave={MouseLeave}
+                  onMouseEnter={() => item.menu && handleMouseEnter(item.menu)}
+                  onMouseLeave={handleMouseLeave}
+                  onClick={() => item.menu && handleParentClick(item.menu)}
                 >
                   {item.path ? (
                     <NavLink to={item.path} className={isExactActive ? "active" : ""} onClick={() => setActiveMenu(null)}>
