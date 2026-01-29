@@ -8,6 +8,7 @@ import "./JournalPage.css";
 import LogEntryDetails from "./LogEntryDetail";
 import AddLogEntryForm from "./AddLogEntryForm";
 import { formatDate, formatTime } from "./formatUtils";
+import { Check } from 'lucide-react';
 
 import { fetchOrders, updateOrder } from "../../api/orders";
 import { fetchEmployees } from "../../api/employees";
@@ -1028,7 +1029,7 @@ const JournalPage = () => {
 
           <div className="journal-view-toggle-buttons">
             <button
-              className={`journal-view-toggle-btn-single ${expandedRows ? "active" : ""}`}
+              className={`journal-view-mode-button ${expandedRows ? "active" : ""}`}
               onClick={() => setExpandedRows(!expandedRows)}
               title={expandedRows ? "Компактный вид" : "Расширенный вид"}
             >
@@ -1045,13 +1046,14 @@ const JournalPage = () => {
                 </svg>
               )}
             </button>
+            <button
+              className={`journal-view-mode-button ${isMassEditMode ? "active" : ""}`}
+              onClick={toggleMassEditMode}
+              title="Массовые действия"
+            >
+              <Check />
+            </button>
           </div>
-
-          <button className="journal-mass-action-button" onClick={toggleMassEditMode}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </button>
 
           <div className="journal-add-entry-button-wrapper">
             <button className="journal-add-entry-button" onClick={handleAddButtonClick}>

@@ -4,7 +4,7 @@ import './RequisitesTab.css';
 import { X, Plus } from 'lucide-react';
 
 
-const CURRENCIES = ['UAH', 'USD', 'EUR', 'USDT'];
+const CURRENCIES = ['UAH', 'USD', 'EUR', 'USDT', 'RUB'];
 
 export default function RequisitesTab() {
     const { control } = useFormContext();
