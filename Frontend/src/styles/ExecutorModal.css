@@ -1,3 +1,6 @@
+select option:disabled {
+  display: none;
+}
 
 .employee-modal-overlay {
   position: fixed;

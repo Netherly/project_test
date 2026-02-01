@@ -41,7 +41,7 @@ const tabsConfig = [
   { key: "employeeFields", label: "Сотрудники" },
   { key: "assetsFields", label: "Активы" },
   { key: "financeFields", label: "Транзакции" },
-  { key: "miscFields", label: "Разное" },
+
 ];
 
 
@@ -79,9 +79,7 @@ const initialValues = {
   taskFields: {
     tags: [],
   },
-  miscFields: {
-    businessLine: [], 
-  }
+
 };
 
 
@@ -1278,6 +1276,18 @@ function FieldsPage() {
                 showHidden={showHidden}
               />
             </div>
+            <div className="field-row">
+              <label className="field-label">Направление бизнеса</label>
+              <EditableList
+                items={selectedValues.generalFields?.businessLine || []}
+                onChange={(index, val) => handleStringItemChange("generalFields", "businessLine", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "businessLine", index)}
+                onAdd={() => handleStringItemAdd("generalFields", "businessLine")}
+                onCommit={(index) => handleStringItemBlur("generalFields", "businessLine", index)}
+                placeholder="Введите направление"
+                showHidden={showHidden}
+              />
+            </div>
           </div>
         );
 
@@ -1582,24 +1592,7 @@ function FieldsPage() {
           </div>
         );
 
-      // !!! 4. ОБНОВЛЕНИЕ: Рендер новой вкладки "Разное"
-      case "miscFields":
-        return (
-          <div className="fields-vertical-grid">
-            <div className="field-row">
-              <label className="field-label">Направление бизнеса</label>
-              <EditableList
-                items={selectedValues.miscFields?.businessLine || []}
-                onChange={(index, val) => handleStringItemChange("miscFields", "businessLine", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("miscFields", "businessLine", index)}
-                onAdd={() => handleStringItemAdd("miscFields", "businessLine")}
-                onCommit={(index) => handleStringItemBlur("miscFields", "businessLine", index)}
-                placeholder="Введите направление"
-                showHidden={showHidden}
-              />
-            </div>
-          </div>
-        );
+
 
       default:
         return null;
@@ -1647,16 +1640,18 @@ function FieldsPage() {
           <div className="main-content-wrapper">
             <div className="tabs-content-wrapper">
               <div className="tabs-container">
-                {tabsConfig.map((tab) => (
-                  <button
-                    key={tab.key}
-                    className={`tab-button ${activeTab === tab.key ? "active" : ""}`}
-                    onClick={() => onTabClick(tab.key)}
-                    type="button"
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                {tabsConfig
+                  .filter(tab => tab.key !== "miscFields")
+                  .map((tab) => (
+                    <button
+                      key={tab.key}
+                      className={`tab-button ${activeTab === tab.key ? "active" : ""}`}
+                      onClick={() => onTabClick(tab.key)}
+                      type="button"
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
               </div>
 
               <div className="fields-content">
