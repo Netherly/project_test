@@ -65,7 +65,7 @@ export default function ContactsTab({ countries = [], openImage }) {
           <div className="form-field">
             <label>Страна<span className="req">*</span></label>
             <select {...field} className={errors.country ? 'input-error' : ''}>
-              <option value="">-- Выберите страну --</option>
+              <option value="" disabled>-- Выберите страну --</option>
               {countries.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}

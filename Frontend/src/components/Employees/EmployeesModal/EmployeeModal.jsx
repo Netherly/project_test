@@ -99,13 +99,16 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const submitHandler = async (data) => {
     try {
       if (typeof onSave === "function") {
-        await onSave(data);
+        const saved = await onSave(data);
+        // Обновляем форму с сохраненными данными
+        if (saved) {
+          reset({ status: "active", ...normalizeEmployee(saved) }, { keepValues: false });
+        }
+        setFormErrors(null);
       }
-      closeHandler();
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       console.error("Ошибка сохранения сотрудника:", e);
-      alert(e?.message || "Не удалось сохранить сотрудника");
     }
   };
 
