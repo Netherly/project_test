@@ -491,6 +491,10 @@ select option:disabled {
   flex-shrink: 0; 
   background-color: #19213A;
 }
+.employee-modal-actions .form-submit-error {
+  margin-right: auto;
+  align-self: center;
+}
 
 
 .checkbox-container-modal {
