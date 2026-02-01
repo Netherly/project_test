@@ -7,7 +7,8 @@ import { api } from "../api/api";
 function LoginPage() {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [registerError, setRegisterError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [showRegister, setShowRegister] = useState(false);
@@ -33,7 +34,7 @@ function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setLoginError("");
     setLoading(true);
     try {
       const data = await api.login({ login, password });
@@ -43,9 +44,9 @@ function LoginPage() {
     } catch (err) {
       const status = err?.status;
       if (status === 401 || status === 404) {
-        setError("Неверный логин или пароль");
+        setLoginError("Неверный логин или пароль");
       } else {
-        setError(err?.message || "Не удалось выполнить вход");
+        setLoginError(err?.message || "Не удалось выполнить вход");
       }
     } finally {
       setLoading(false);
@@ -55,6 +56,7 @@ function LoginPage() {
   const handleRegisterChange = (e) => {
     const { name, value } = e.target;
     setRegData((prev) => ({ ...prev, [name]: value }));
+    setRegisterError("");
     setRegErrors((prev) => {
       const next = { ...prev };
       delete next[name];
@@ -132,7 +134,7 @@ function LoginPage() {
     e.preventDefault();
     if (!validateRegistration()) return;
 
-    setError("");
+    setRegisterError("");
     setLoading(true);
     try {
       const payload = {
@@ -171,10 +173,10 @@ function LoginPage() {
         } else if (/username|login|логин/.test(msg)) {
           setRegErrors((prev) => ({ ...prev, username: "Такой логин уже занят" }));
         } else {
-          setError("Логин или почта уже используются");
+          setRegisterError("Логин или почта уже используются");
         }
       } else {
-        setError(err?.message || "Ошибка при регистрации");
+        setRegisterError(err?.message || "Ошибка при регистрации");
       }
     } finally {
       setLoading(false);
@@ -192,6 +194,7 @@ function LoginPage() {
       confirmPassword: "",
     });
     setRegErrors({});
+    setRegisterError("");
     setUsernameFocused(false);
   };
 
@@ -234,13 +237,20 @@ function LoginPage() {
             />
           </div>
 
-          {error && <p className="error-message">{error}</p>}
+          {loginError && <p className="error-message">{loginError}</p>}
 
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? "Входим..." : "Войти"}
           </button>
 
-          <p className="register-link" onClick={() => setShowRegister(true)}>
+          <p
+            className="register-link"
+            onClick={() => {
+              setLoginError("");
+              setRegisterError("");
+              setShowRegister(true);
+            }}
+          >
             Стать частью команды
           </p>
         </form>
@@ -397,6 +407,7 @@ function LoginPage() {
               </div>
 
               <div className="form-actions">
+                {registerError && <p className="register-error">{registerError}</p>}
                 <button type="submit" disabled={loading}>
                   {loading ? "Отправляем..." : "Отправить заявку"}
                 </button>
