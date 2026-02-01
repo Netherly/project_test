@@ -93,7 +93,9 @@ export default function ClientModal({
     try {
       const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
       await onSave?.(payload);
-      closeHandler();
+      // Сброс isDirty после успешного сохранения
+      reset(payload);
+      setFormErrors(null);
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       // eslint-disable-next-line no-console
