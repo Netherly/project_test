@@ -1,7 +1,147 @@
 const bcrypt = require('bcrypt');
 const prisma = require('../../prisma/client');
+const { createLinkTokenForEmployee } = require('./link-token.service');
+const { logActivity, diffObjects } = require('./activity-log.service');
 
 const SALT_ROUNDS = 10;
+
+const EMPLOYEE_LOG_EXCLUDE_FIELDS = ['createdAt', 'updatedAt', 'password'];
+
+const normalizeActorMeta = (actor = {}) => ({
+  actorId: actor?.actorId || actor?.id || null,
+  actorName: actor?.actorName || null,
+  source: actor?.source || 'manual',
+  ip: actor?.ip,
+  userAgent: actor?.userAgent,
+});
+
+const safeLog = async (payload) => {
+  try {
+    return await logActivity(payload);
+  } catch (e) {
+    console.warn('[log] employee activity failed:', e?.message || e);
+    return null;
+  }
+};
+
+const getEmployeeLabel = (employee) =>
+  employee?.full_name || employee?.login || employee?.email || employee?.id || 'сотрудник';
+
+const fetchEmployeeTagNames = async (employeeId) => {
+  const tags = await prisma.employeeTag.findMany({
+    where: { employeeId },
+    include: { tag: true },
+  });
+  return tags
+    .map((t) => t?.tag?.name)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+};
+
+const arraysEqual = (a = [], b = []) => {
+  if (a.length !== b.length) return false;
+  return a.every((value, idx) => value === b[idx]);
+};
+
+const isEmpty = (value) => value === null || value === undefined || String(value).trim() === '';
+
+const genUserId8 = () => {
+  const n = Math.floor(Math.random() * 100_000_000);
+  return String(n).padStart(8, '0');
+};
+
+const generateUniqueUserId = async (maxAttempts = 20) => {
+  for (let i = 0; i < maxAttempts; i += 1) {
+    const candidate = genUserId8();
+    const exists = await prisma.employee.findUnique({
+      where: { userid: candidate },
+      select: { id: true },
+    });
+    if (!exists) return candidate;
+  }
+  const err = new Error('Не удалось сгенерировать уникальный userid');
+  err.status = 500;
+  throw err;
+};
+
+const formatRequisite = (req = {}) => {
+  const label = String(req?.label || '').trim();
+  const bank = String(req?.bank || '').trim();
+  const currency = String(req?.currency || '').trim();
+  const card = String(req?.card || '').trim();
+  const owner = String(req?.owner || '').trim();
+  const value = String(req?.value || '').trim();
+  const parts = [];
+
+  if (label) {
+    parts.push(label);
+  } else {
+    if (bank) parts.push(bank);
+    if (currency) parts.push(currency);
+  }
+
+  if (card) parts.push(card);
+  if (value && value !== card) parts.push(value);
+  if (owner) parts.push(owner);
+
+  const text = parts.filter(Boolean).join(' / ');
+  return text;
+};
+
+const fetchEmployeeRequisiteLabels = async (employeeId) => {
+  const requisites = await prisma.employeeRequisite.findMany({
+    where: { employeeId },
+    select: {
+      bank: true,
+      currency: true,
+      card: true,
+      owner: true,
+      label: true,
+      value: true,
+    },
+  });
+
+  return requisites
+    .map(formatRequisite)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+};
+
+const diffStringList = (before = [], after = []) => {
+  const beforeCount = new Map();
+  const afterCount = new Map();
+
+  before.forEach((item) => {
+    const key = String(item);
+    beforeCount.set(key, (beforeCount.get(key) || 0) + 1);
+  });
+  after.forEach((item) => {
+    const key = String(item);
+    afterCount.set(key, (afterCount.get(key) || 0) + 1);
+  });
+
+  const added = [];
+  const removed = [];
+
+  for (const [key, count] of afterCount.entries()) {
+    const prev = beforeCount.get(key) || 0;
+    if (count > prev) {
+      added.push(...Array.from({ length: count - prev }, () => key));
+    }
+  }
+
+  for (const [key, count] of beforeCount.entries()) {
+    const next = afterCount.get(key) || 0;
+    if (count > next) {
+      removed.push(...Array.from({ length: count - next }, () => key));
+    }
+  }
+
+  added.sort((a, b) => a.localeCompare(b, 'ru'));
+  removed.sort((a, b) => a.localeCompare(b, 'ru'));
+
+  return { added, removed };
+};
 
 const hashPassword = async (raw) => {
   const text = String(raw ?? '').trim();
@@ -98,7 +238,9 @@ const EmployeesService = {
     return employee;
   },
 
-  async create(payload) {
+  async create(payload, actor = {}) {
+    const actorMeta = normalizeActorMeta(actor);
+    const userIdValue = isEmpty(payload.userid) ? null : String(payload.userid).trim();
     const data = {
       status: payload.status,
       full_name: payload.full_name,
@@ -106,7 +248,7 @@ const EmployeesService = {
       email: payload.email,
       login: payload.login,
       folder: payload.folder,
-      userid: payload.userid,
+      userid: userIdValue,
       companyId: payload.companyId,
       publicId: payload.publicId,
       roleId: payload.roleId,
@@ -131,6 +273,9 @@ const EmployeesService = {
       rates: payload.rates,
       mainCurrency: payload.mainCurrency,
     };
+    if (!data.userid) {
+      data.userid = await generateUniqueUserId();
+    }
     const hashedPassword = await hashPassword(payload.password);
     if (hashedPassword) data.password = hashedPassword;
 
@@ -147,20 +292,77 @@ const EmployeesService = {
       },
     });
 
+    let needsRefetch = false;
+
     // Handle tags if provided
     if (payload.tags && Array.isArray(payload.tags)) {
       await this.updateTags(employee.id, payload.tags);
+      needsRefetch = true;
     }
 
     // Handle requisites if provided
     if (payload.requisites && Array.isArray(payload.requisites)) {
       await this.updateRequisites(employee.id, payload.requisites);
+      needsRefetch = true;
     }
 
-    return employee;
+    if (isEmpty(data.telegramBindingLink)) {
+      try {
+        const ttlMinutes = Number(payload?.telegramLinkTtlMinutes) || 60;
+        const token = await createLinkTokenForEmployee(employee.id, ttlMinutes);
+        const botName = process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot';
+        const link = `https://t.me/${botName}?start=${token.code}`;
+        await prisma.employee.update({
+          where: { id: employee.id },
+          data: { telegramBindingLink: link },
+        });
+        needsRefetch = true;
+      } catch (e) {
+        console.warn('[telegram link] create failed:', e?.message || e);
+      }
+    }
+
+    const finalEmployee = needsRefetch
+      ? await prisma.employee.findUnique({
+          where: { id: employee.id },
+          include: {
+            country: true,
+            role: true,
+            company: true,
+            currency: true,
+            settings: true,
+            tags: { include: { tag: true } },
+            requisites: true,
+          },
+        })
+      : employee;
+
+    await safeLog({
+      entityType: 'employee',
+      entityId: employee.id,
+      action: 'created',
+      message: `Создан сотрудник "${getEmployeeLabel(finalEmployee)}"`,
+      ...actorMeta,
+    });
+
+    return finalEmployee;
   },
 
-  async update(id, payload) {
+  async update(id, payload, actor = {}) {
+    const actorMeta = normalizeActorMeta(actor);
+    const before = await prisma.employee.findUnique({ where: { id } });
+    const beforeLinked = Boolean(
+      before?.telegramUserId ||
+        before?.telegramChatId ||
+        before?.telegramUsername ||
+        before?.telegramVerified ||
+        before?.chatLink
+    );
+    const shouldTrackTags = payload.tags !== undefined;
+    const shouldTrackRequisites = payload.requisites !== undefined;
+    const beforeTagNames = shouldTrackTags ? await fetchEmployeeTagNames(id) : null;
+    const beforeReqs = shouldTrackRequisites ? await fetchEmployeeRequisiteLabels(id) : null;
+
     const data = {};
     if (payload.status !== undefined) data.status = payload.status;
     if (payload.full_name !== undefined) data.full_name = payload.full_name;
@@ -213,27 +415,104 @@ const EmployeesService = {
       },
     });
 
+    let needsRefetch = false;
+
     // Handle tags if provided
     if (payload.tags !== undefined) {
       await this.updateTags(employee.id, payload.tags);
+      needsRefetch = true;
     }
 
     // Handle requisites if provided
     if (payload.requisites !== undefined) {
       await this.updateRequisites(employee.id, payload.requisites);
+      needsRefetch = true;
     }
 
-    return employee;
+    const after = await prisma.employee.findUnique({ where: { id } });
+    const afterLinked = Boolean(
+      after?.telegramUserId ||
+        after?.telegramChatId ||
+        after?.telegramUsername ||
+        after?.telegramVerified ||
+        after?.chatLink
+    );
+    const changes = diffObjects(before, after, { exclude: EMPLOYEE_LOG_EXCLUDE_FIELDS });
+
+    if (shouldTrackTags) {
+      const afterTags = await fetchEmployeeTagNames(id);
+      if (!arraysEqual(beforeTagNames || [], afterTags || [])) {
+        changes.tags = { from: beforeTagNames || [], to: afterTags || [] };
+      }
+    }
+
+    if (shouldTrackRequisites) {
+      const afterReqs = await fetchEmployeeRequisiteLabels(id);
+      const { added, removed } = diffStringList(beforeReqs || [], afterReqs || []);
+      if (beforeReqs && afterReqs && beforeReqs.length !== afterReqs.length) {
+        changes.requisitesCount = { from: beforeReqs.length, to: afterReqs.length };
+      }
+      if (added.length || removed.length) {
+        changes.requisites = { added, removed };
+      }
+    }
+
+    if (Object.keys(changes).length) {
+      await safeLog({
+        entityType: 'employee',
+        entityId: id,
+        action: 'updated',
+        changes,
+        ...actorMeta,
+      });
+    }
+
+    if (beforeLinked && !afterLinked) {
+      await safeLog({
+        entityType: 'employee',
+        entityId: id,
+        action: 'telegram_unlinked',
+        message: 'Telegram отвязан',
+        ...actorMeta,
+      });
+    }
+
+    if (!needsRefetch) return employee;
+
+    return prisma.employee.findUnique({
+      where: { id },
+      include: {
+        country: true,
+        role: true,
+        company: true,
+        currency: true,
+        settings: true,
+        tags: { include: { tag: true } },
+        requisites: true,
+      },
+    });
   },
 
-  async delete(id) {
+  async delete(id, actor = {}) {
+    const actorMeta = normalizeActorMeta(actor);
+    const before = await prisma.employee.findUnique({ where: { id } });
     // Delete related tags and requisites first
     await prisma.employeeTag.deleteMany({ where: { employeeId: id } });
     await prisma.employeeRequisite.deleteMany({ where: { employeeId: id } });
 
-    return prisma.employee.delete({
+    const removed = await prisma.employee.delete({
       where: { id },
     });
+
+    await safeLog({
+      entityType: 'employee',
+      entityId: id,
+      action: 'deleted',
+      message: `Удалён сотрудник "${getEmployeeLabel(before)}"`,
+      ...actorMeta,
+    });
+
+    return removed;
   },
 
   async updateTags(employeeId, tags) {
@@ -249,15 +528,20 @@ const EmployeesService = {
     // Add new tags, upserting Tag by name if no id
     for (const tag of tags) {
       let tagRecord;
-      if (tag.id) {
+      if (tag?.id) {
         tagRecord = await prisma.tag.findUnique({ where: { id: tag.id } });
-      } else {
+      }
+
+      if (!tagRecord) {
+        const name = String(tag?.name ?? tag?.value ?? '').trim();
+        if (!name) continue;
         tagRecord = await prisma.tag.upsert({
-          where: { name_categoryId: { name: tag.name, categoryId: category.id } },
-          update: { color: tag.color || '#777' },
-          create: { name: tag.name, color: tag.color || '#777', categoryId: category.id },
+          where: { name_categoryId: { name, categoryId: category.id } },
+          update: { color: tag?.color || '#777' },
+          create: { name, color: tag?.color || '#777', categoryId: category.id },
         });
       }
+
       if (tagRecord) {
         await prisma.employeeTag.create({ data: { employeeId, tagId: tagRecord.id } });
       }

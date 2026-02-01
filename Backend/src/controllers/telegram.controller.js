@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../prisma/client');
 const { fetchAndSaveTelegramAvatar } = require('../services/telegram-avatar.service');
+const { logActivity } = require('../services/activity-log.service');
 
 function minutesFromNow(min) {
   const d = new Date();
@@ -47,6 +48,20 @@ async function consumeLinkToken(req, res, next) {
     });
     if (!ticket) return res.status(400).json({ message: 'Invalid or expired token' });
 
+    const employee = ticket.employee;
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+    if (employee.telegramVerified || employee.telegramUserId || employee.telegramChatId) {
+      return res.status(409).json({ message: 'Telegram уже привязан к этому аккаунту' });
+    }
+
+    const existing = await prisma.employee.findFirst({
+      where: { telegramUserId: BigInt(tgUserId) },
+      select: { id: true },
+    });
+    if (existing && existing.id !== ticket.employeeId) {
+      return res.status(409).json({ message: 'Этот Telegram уже привязан к другому аккаунту' });
+    }
+
     await prisma.telegramLinkTicket.update({
       where: { id: ticket.id },
       data: {
@@ -76,6 +91,22 @@ async function consumeLinkToken(req, res, next) {
       employeeId: ticket.employeeId,
       telegramUserId: Number(tgUserId),
     });
+
+    try {
+      await logActivity({
+        entityType: 'employee',
+        entityId: ticket.employeeId,
+        action: 'telegram_linked',
+        source: 'telegram',
+        actorId: ticket.employeeId,
+        actorName: employee.full_name || employee.login || null,
+        message: tgUsername
+          ? `Привязан Telegram @${tgUsername}`
+          : `Привязан Telegram ID ${tgUserId}`,
+      });
+    } catch (err) {
+      console.warn('[log] telegram link failed:', err?.message || err);
+    }
 
     return res.json({ ok: true, avatar });
   } catch (e) {

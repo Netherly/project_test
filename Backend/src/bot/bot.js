@@ -2,6 +2,7 @@
 const { Telegraf } = require('telegraf');
 const prisma = require('../../prisma/client');
 const { consumeToken } = require('../services/link-token.service');
+const { logActivity } = require('../services/activity-log.service');
 const { t } = require('./i18n');
 const { fetchAndSaveTelegramAvatar } = require('../services/telegram-avatar.service');
 
@@ -49,6 +50,17 @@ async function initTelegramBot() {
       }
 
       const emp = ticket.employee;
+      if (emp.telegramVerified || emp.telegramUserId || emp.telegramChatId) {
+        return ctx.reply(t('linkAlready', lang));
+      }
+
+      const existing = await prisma.employee.findFirst({
+        where: { telegramUserId: toBigIntSafe(ctx.from.id) },
+        select: { id: true },
+      });
+      if (existing && existing.id !== emp.id) {
+        return ctx.reply(t('linkTaken', lang));
+      }
 
       await prisma.employee.update({
         where: { id: emp.id },
@@ -71,11 +83,32 @@ async function initTelegramBot() {
         telegramUserId: Number(ctx.from.id),
       });
 
+      try {
+        await logActivity({
+          entityType: 'employee',
+          entityId: emp.id,
+          action: 'telegram_linked',
+          source: 'telegram',
+          actorId: emp.id,
+          actorName: emp.full_name || emp.login || null,
+          message: ctx.from.username
+            ? `Привязан Telegram @${ctx.from.username}`
+            : `Привязан Telegram ID ${ctx.from.id}`,
+        });
+      } catch (e) {
+        console.warn('[log] telegram link failed:', e?.message || e);
+      }
+
       await ctx.reply(
         t('linkSuccess', lang, { login: emp.login }),
         { parse_mode: 'HTML' }
       );
     } catch (e) {
+      if (e?.code === 'P2002') {
+        try {
+          return await ctx.reply(t('linkTaken', lang));
+        } catch (_) {}
+      }
       console.error('Telegram /start error:', e);
       try {
         await ctx.reply(t('errorGeneric', lang));
