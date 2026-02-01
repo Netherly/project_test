@@ -82,7 +82,7 @@
     font-weight: 500;
     font-size: var(--font-size-table-header);
     border-right: 1px solid var(--bg-color);
-    padding: 10px 12px;
+    padding: 3px 3px;
     color: var(--text-color);
     text-align: center;
     background-color: var(--container-bg);
@@ -96,7 +96,7 @@
     border-right: 1px solid var(--bg-color);
     border-top: 1px solid var(--bg-color);
     border-bottom: 1px solid var(--bg-color);
-    padding: 8px 10px;
+    padding: 3px 3px;
     color: var(--text-color);
     text-align: center;
     background-color: var(--container-bg);
@@ -116,8 +116,8 @@
 }
 
 .journal-table.expanded-rows tbody td {
-    padding: 20px 16px;
-    vertical-align: top;
+    padding: 12px 4px; 
+    vertical-align: top; 
     height: auto;
 }
 
@@ -187,25 +187,25 @@
 
 .journal-table th:nth-child(6),
 .journal-table td:nth-child(6) {
-    width: 55px;
-    min-width: 55px;
+    width: 40px;
+    min-width: 40px;
 }
 
 .journal-table th:nth-child(7),
 .journal-table td:nth-child(7) {
-    width: 65px;
-    min-width: 65px;
+    width: 45px;
+    min-width: 45px;
 }
 .journal-table th:nth-child(8),
 .journal-table td:nth-child(8) {
-    width: 50px;
-    min-width: 50px;
+    width: 45px;
+    min-width: 45px;
 }
 
 .journal-table th:nth-child(9),
 .journal-table td:nth-child(9) {
-    width: 45px;
-    min-width: 45px;
+    width: 40px;
+    min-width: 40px;
 }
 
 .journal-table th:nth-child(10),
@@ -221,35 +221,35 @@
 }
 .journal-table th:nth-child(12),
 .journal-table td:nth-child(12) {
-    width: 80px;
-    min-width: 80px;
+    width: 60px;
+    min-width: 60px;
 }
 .journal-table th:nth-child(13),
 .journal-table td:nth-child(13) {
-    width: 100px;
-    min-width: 100px;
+    width: 65px;
+    min-width: 65px;
 }
 .journal-table th:nth-child(14),
 .journal-table td:nth-child(14) {
-    width: 55px;
-    min-width: 55px;
+    width: 45px;
+    min-width: 45px;
 }
 .journal-table th:nth-child(15),
 .journal-table td:nth-child(15) {
-    width: 90px;
-    min-width: 90px;
+    width: 65px;
+    min-width: 65px;
 }
 .journal-table th:nth-child(16),
 .journal-table td:nth-child(16) {
-    width: 105px;
-    min-width: 105px;
+    width: 70px;
+    min-width: 70px;
 }
 .journal-table th:nth-child(17),
 .journal-table td:nth-child(17),
 .journal-table th:nth-child(18),
 .journal-table td:nth-child(18) {
-    width: 110px;
-    min-width: 110px;
+    width: 60px;
+    min-width: 60px;
 }
 .journal-table th:nth-child(19),
 .journal-table td:nth-child(19) {
@@ -441,7 +441,6 @@
     display: flex; 
     align-items: center; 
     height: 100%; 
-    border-left: 1px solid var(--border--color); 
     box-sizing: border-box; 
 }
 .journal-add-entry-button {
@@ -745,11 +744,73 @@
     cursor: pointer;
     transition: all 0.2s ease;
 }
-.journal-view-toggle-btn-single:hover {
+
+
+
+
+.journal-view-toggle-buttons {
+    display: flex;
+    gap: 0; 
+    padding: 0 20px;
+    border-right: 1px solid var(--border--color); 
+    height: 100%;
+    align-items: center;
+}
+
+
+.journal-view-mode-button {
+    background-color: transparent;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px; 
+    cursor: pointer;
+    font-size: 1.2em;
+    color: var(--chips-color);
+    transition: background-color 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+}
+
+.journal-view-mode-button:hover {
     background-color: var(--button-bg-hover);
     color: var(--text-color);
 }
-.journal-view-toggle-btn-single.active {
-     background-color: #478cff;
+
+
+.journal-view-mode-button.active {
+    background-color: #478cff;
     color: white;
+}
+
+
+.journal-view-mode-button:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+
+.journal-view-mode-button:first-child.active {
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+
+.journal-view-mode-button:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+
+.journal-view-mode-button:last-child.active {
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+
+.journal-view-toggle-btn-single,
+.journal-mass-action-button {
+    display: none; 
 }

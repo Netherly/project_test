@@ -12,6 +12,7 @@ import { fetchFields } from "../api/fields";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 
+
 const statusToEmojiMap = {
   "Лид": "🎯",
   "Изучаем ТЗ": "📄",
@@ -124,6 +125,7 @@ export default function ClientsPage({
   const [companiesList, setCompaniesList] = useState(companies);
   const [employeesList, setEmployeesList] = useState(employees);
 
+  
   const referrerOptions = useMemo(() => {
     const items = [];
     const seen = new Set();
@@ -170,6 +172,7 @@ export default function ClientsPage({
     };
   };
 
+  
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -381,6 +384,7 @@ export default function ClientsPage({
     dateTo,
   ]);
 
+  
   const currencyOptions = useMemo(
     () =>
       currenciesList.length
@@ -439,13 +443,14 @@ export default function ClientsPage({
   const [colWidths, setColWidths] = useState(load);
   const wrapRef = useRef(null);
 
+  
   useLayoutEffect(() => {
-    if (colWidths.every((w) => w == null) && wrapRef.current) {
+    if (wrapRef.current && colWidths.every((w) => w == null)) {
       const total = wrapRef.current.clientWidth || 1200;
       const w = Math.floor(total / COLS);
       setColWidths(Array(COLS).fill(w));
     }
-  }, [wrapRef, COLS]);
+  }, [COLS]); 
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(colWidths));
@@ -540,6 +545,7 @@ export default function ClientsPage({
     document.addEventListener("mouseup", up);
   };
 
+  
   const normalizeCategoryName = (value) => {
     if (!value) return "";
     if (typeof value === "string") return value.trim();
