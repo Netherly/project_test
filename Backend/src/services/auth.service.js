@@ -5,6 +5,7 @@ const { createLinkTokenForEmployee } = require('./link-token.service');
 
 const ACCESS_TTL = process.env.JWT_ACCESS_TTL || '15m';
 const REFRESH_TTL = process.env.JWT_REFRESH_TTL || '3d';
+const MAX_LOGIN_AGE_MS = Number(process.env.JWT_MAX_LOGIN_AGE_MS || '') || 3 * 24 * 60 * 60 * 1000;
 
 function httpErr(message, status = 400) {
   const e = new Error(message);
@@ -75,11 +76,13 @@ function signAccessToken(employee) {
   );
 }
 
-function signRefreshToken(employee) {
+function signRefreshToken(employee, loginAtMs) {
   const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
   if (!secret) httpErr('JWT refresh secret is not configured', 500);
+  const payload = { employeeId: employee.id };
+  if (loginAtMs) payload.loginAt = Math.floor(loginAtMs / 1000);
   return jwt.sign(
-    { employeeId: employee.id },
+    payload,
     secret,
     { expiresIn: REFRESH_TTL }
   );
@@ -94,8 +97,9 @@ async function login(identifier, password) {
   const ok = await bcrypt.compare(password, employee.password);
   if (!ok) httpErr('Неверный логин или пароль', 401);
 
+  const loginAtMs = Date.now();
   const token = signAccessToken(employee);
-  const refreshToken = signRefreshToken(employee);
+  const refreshToken = signRefreshToken(employee, loginAtMs);
 
   return { token, refreshToken };
 }
@@ -118,9 +122,22 @@ async function refreshTokens(refreshToken) {
   });
   if (!employee) httpErr('Employee not found', 401);
 
+  const loginAtSec = payload?.loginAt || payload?.login_at;
+  const loginAtMs = loginAtSec
+    ? Number(loginAtSec) * 1000
+    : payload?.iat
+    ? Number(payload.iat) * 1000
+    : null;
+
+  if (loginAtMs && Date.now() - loginAtMs > MAX_LOGIN_AGE_MS) {
+    httpErr('Сессия истекла. Войдите снова', 401);
+  }
+
+  const nextLoginAtMs = loginAtMs || Date.now();
+
   return {
     token: signAccessToken(employee),
-    refreshToken: signRefreshToken(employee),
+    refreshToken: signRefreshToken(employee, nextLoginAtMs),
   };
 }
 
