@@ -44,6 +44,7 @@ const arraysEqual = (a = [], b = []) => {
 };
 
 const isEmpty = (value) => value === null || value === undefined || String(value).trim() === '';
+const toText = (value) => (value === null || value === undefined ? '' : String(value).trim());
 
 const genUserId8 = () => {
   const n = Math.floor(Math.random() * 100_000_000);
@@ -240,13 +241,40 @@ const EmployeesService = {
 
   async create(payload, actor = {}) {
     const actorMeta = normalizeActorMeta(actor);
+    const loginValue = toText(payload.login);
+    const emailValue = toText(payload.email);
+
+    if (loginValue) {
+      const exists = await prisma.employee.findFirst({
+        where: { login: { equals: loginValue, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (exists) {
+        const err = new Error('Логин уже используется');
+        err.status = 409;
+        throw err;
+      }
+    }
+
+    if (emailValue) {
+      const exists = await prisma.employee.findFirst({
+        where: { email: { equals: emailValue, mode: 'insensitive' } },
+        select: { id: true },
+      });
+      if (exists) {
+        const err = new Error('Почта уже используется');
+        err.status = 409;
+        throw err;
+      }
+    }
+
     const userIdValue = isEmpty(payload.userid) ? null : String(payload.userid).trim();
     const data = {
       status: payload.status,
       full_name: payload.full_name,
       phone: payload.phone,
-      email: payload.email,
-      login: payload.login,
+      email: emailValue || null,
+      login: loginValue || null,
       folder: payload.folder,
       userid: userIdValue,
       companyId: payload.companyId,
