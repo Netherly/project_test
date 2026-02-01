@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
+import { useFields } from "../context/FieldsContext";
 import {
   fetchClients,
   saveClient as saveClientApi,
   deleteClient as deleteClientApi,
 } from "../api/clients";
-import { fetchFields } from "../api/fields";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 import "../styles/ClientsPage.css";
@@ -34,6 +34,8 @@ const withReferrerNames = (client) => {
 export default function ClientDetailsPage() {
   const { clientId } = useParams();
   const navigate = useNavigate();
+  const { fields } = useFields(); // Используем Context для получения полей
+  
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,29 +46,21 @@ export default function ClientDetailsPage() {
   const [employeesList, setEmployeesList] = useState([]);
   const [referrerOptions, setReferrerOptions] = useState([]);
 
+  // обновление списков
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const data = await fetchFields();
-        if (!mounted) return;
-        const nextCountries = extractValues(data?.clientFields?.country);
-        const nextCurrencies = extractValues(
-          data?.generalFields?.currency ?? data?.clientFields?.currency,
-          { preferCode: true }
-        );
-        const nextCategories = extractValues(data?.clientFields?.category);
-        if (nextCountries.length) setCountriesList(nextCountries);
-        if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
-        if (nextCategories.length) setCategoriesList(nextCategories);
-      } catch (e) {
-        console.error("fetchFields failed:", e);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (!fields) return;
+    
+    const nextCountries = extractValues(fields?.clientFields?.country);
+    const nextCurrencies = extractValues(
+      fields?.generalFields?.currency ?? fields?.clientFields?.currency,
+      { preferCode: true }
+    );
+    const nextCategories = extractValues(fields?.clientFields?.category);
+    
+    if (nextCountries.length) setCountriesList(nextCountries);
+    if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
+    if (nextCategories.length) setCategoriesList(nextCategories);
+  }, [fields]);
 
   useEffect(() => {
     let mounted = true;

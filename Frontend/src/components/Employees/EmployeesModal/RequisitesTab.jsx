@@ -1,21 +1,28 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
+import { useFields } from '../../../context/FieldsContext';
 import './RequisitesTab.css'; 
 import { X, Plus } from 'lucide-react';
 
 
-const CURRENCIES = ['UAH', 'USD', 'EUR', 'USDT'];
-
 export default function RequisitesTab() {
     const { control } = useFormContext();
-    const fieldArrayName = 'requisitesList'; 
+    const fieldArrayName = 'requisitesList';
+    const { currencies, loading } = useFields();
 
     const { fields, append, remove } = useFieldArray({
         control,
         name: fieldArrayName,
     });
 
-    
+    // валюты из Context
+    const currencyOptions = useMemo(() => {
+        if (currencies && currencies.length > 0) {
+            return currencies;
+        }
+        return ['UAH', 'USD', 'EUR', 'USDT']; // Резерв
+    }, [currencies]);
+
     const handleTextareaAutoResize = (e) => {
         e.target.style.height = 'auto';
         e.target.style.height = `${e.target.scrollHeight}px`;
@@ -43,10 +50,10 @@ export default function RequisitesTab() {
                             <Controller
                                 name={`${fieldArrayName}[${index}].currency`}
                                 control={control}
-                                defaultValue={item.currency || 'UAH'}
+                                defaultValue={item.currency || currencyOptions[0] || 'UAH'}
                                 render={({ field }) => (
-                                    <select {...field} className="assets-workplan-textarea">
-                                        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    <select {...field} className="assets-workplan-textarea" disabled={loading}>
+                                        {currencyOptions.map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 )}
                             />
@@ -124,7 +131,7 @@ export default function RequisitesTab() {
             <button 
                 type="button" 
                 className="add-requisites-btn" 
-                onClick={() => append({ currency: 'UAH', bank: '', card: '', owner: '' })}>
+                onClick={() => append({ currency: currencyOptions[0] || 'UAH', bank: '', card: '', owner: '' })}>
                 <Plus size={16} /> Добавить
             </button>
         </div>

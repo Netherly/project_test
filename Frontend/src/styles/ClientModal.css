@@ -4,6 +4,10 @@
    Файл: client-modal.css
    ================================================ */
 
+select option:disabled {
+  display: none;
+}
+
 /* -------------------- Overlay -------------------- */
 .client-modal-overlay {
   position: fixed;

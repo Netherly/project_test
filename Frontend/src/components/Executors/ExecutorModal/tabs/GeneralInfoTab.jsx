@@ -64,7 +64,7 @@ export default function GeneralInfoTab({ orders, fields }) {
           <div className="form-field">
             <label>Номер заказа</label>
             <select {...field} className={errors.orderId ? 'input-error' : ''}>
-              <option value="">Выберите заказ</option>
+              <option value="" disabled>Выберите заказ</option>
               {orders.map((order) => {
                 const label = order.orderSequence ?? order.numberOrder ?? order.id;
                 return (
