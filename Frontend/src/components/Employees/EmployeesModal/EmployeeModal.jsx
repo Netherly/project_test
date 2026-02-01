@@ -107,7 +107,16 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
         setFormErrors(null);
       }
     } catch (e) {
-      setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
+      const raw = e?.message || "Ошибка сохранения";
+      let msg = raw;
+      const jsonMatch = raw.match(/(\{.*\})/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed?.error) msg = parsed.error;
+        } catch {}
+      }
+      setFormErrors({ submit: [msg] });
       console.error("Ошибка сохранения сотрудника:", e);
     }
   };
@@ -160,6 +169,9 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
           {/* КНОПКИ ПОЯВЛЯЮТСЯ ТОЛЬКО ЕСЛИ ФОРМА ИЗМЕНЕНА (isDirty) */}
           {isDirty && (
             <div className="employee-modal-actions">
+              {formErrors?.submit?.length ? (
+                <div className="form-submit-error error">{formErrors.submit[0]}</div>
+              ) : null}
               <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
                 Сбросить
               </button>
