@@ -1,6 +1,8 @@
 {
   "greeting": "Hello! To link your account, please use the link from the CRM system (the 'Link Telegram' button) at gsse.work.",
   "linkInvalid": "The link is invalid or has expired. Please generate a new one in the CRM.",
+  "linkAlready": "Telegram is already linked to this account.",
+  "linkTaken": "This Telegram account is already linked to another profile. Please unlink it first.",
   "linkSuccess": "Done! Your account is linked to <b>{{login}}</b>. You will now receive notifications.",
   "errorGeneric": "An error occurred while linking. Please try again later."
 }

@@ -51,7 +51,7 @@ export default function ClientModal({
 
   /* ---------- useForm ---------- */
   const methods = useForm({
-    resolver: yupResolver(clientSchema),
+    resolver: yupResolver(clientSchema, { context: { isNew } }),
     mode: "onChange",
     reValidateMode: "onChange",
     shouldUnregister: false,

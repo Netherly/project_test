@@ -2,6 +2,7 @@ const prisma = require('../../prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { createLinkTokenForEmployee } = require('./link-token.service');
+const { logActivity } = require('./activity-log.service');
 
 const ACCESS_TTL = process.env.JWT_ACCESS_TTL || '15m';
 const REFRESH_TTL = process.env.JWT_REFRESH_TTL || '3d';
@@ -60,6 +61,21 @@ async function register({ full_name, birthDate, phone, email, login, password })
       userid,
     },
   });
+
+  try {
+    const label = employee.full_name || employee.login || employee.id;
+    await logActivity({
+      entityType: 'employee',
+      entityId: employee.id,
+      action: 'created',
+      source: 'self',
+      actorId: employee.id,
+      actorName: employee.full_name || employee.login || null,
+      message: `Создан сотрудник "${label}" (саморегистрация)`,
+    });
+  } catch (e) {
+    console.warn('[log] register employee failed:', e?.message || e);
+  }
 
   const token = await createLinkTokenForEmployee(employee.id, 60);
   const telegramLink = `https://t.me/gsse_assistant_bot?start=${token}`;
