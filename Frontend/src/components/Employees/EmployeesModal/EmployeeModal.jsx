@@ -150,7 +150,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
               {activeTab === "summary" && <SummaryTab employee={safeEmployee} />}
               {activeTab === "general" && <GeneralInfoTab employeeFields={allFields.employeeFields} loading={loadingFields} />}
-              {activeTab === "contacts" && <ContactsTab isNew={isNew} />}
+              {activeTab === "contacts" && <ContactsTab isNew={isNew} employeeId={safeEmployee.id} />}
               {activeTab === "requisites" && <RequisitesTab />}
               {activeTab === "finances" && <FinancesTab isNew={isNew} employee={safeEmployee} />}
               {activeTab === "orders" && <OrdersTab isNew={isNew} employee={safeEmployee} />}
