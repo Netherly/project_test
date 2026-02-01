@@ -17,6 +17,13 @@
   padding: 8px;
 }
 
+.chat-empty {
+  padding: 12px;
+  color: var(--chips-color);
+  text-align: center;
+  font-size: 0.95rem;
+}
+
 /* ────────── Заголовок группы по дате ────────── */
 .chat-group__header {
   text-align: center;

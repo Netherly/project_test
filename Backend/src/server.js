@@ -5,6 +5,7 @@ const app =require('./app');
 const { initRatesAutofillJob } = require('./jobs/rates.autofill.job');
 const { scheduleTokenCleanup } = require('./jobs/tokens.cleanup.job');
 const { initRegularPaymentsJob } = require('./jobs/regular-payments.job');
+const { initTelegramAvatarJob } = require('./jobs/telegram-avatars.job');
 const { initTelegramBot, stopTelegramBot } = require('./bot/bot');
 const { ensureDefaultCompanies } = require('./seeds/companies.seed');
 const { ensureDefaultClientGroups } = require('./seeds/client-groups.seed');
@@ -16,6 +17,7 @@ function startJobs() {
   try {
     initRatesAutofillJob();
     scheduleTokenCleanup(); // Добавили запуск нашей новой задачи
+    initTelegramAvatarJob();
     initRegularPaymentsJob();
     console.log('[cron] all jobs scheduled');
   } catch (e) {
