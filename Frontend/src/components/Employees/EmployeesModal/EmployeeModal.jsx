@@ -154,14 +154,17 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
             </form>
           </FormProvider>
 
-          <div className="employee-modal-actions">
-            <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
-              Сбросить
-            </button>
-            <button className="save-order-btn" type="submit" form={formId}>
-              Сохранить
-            </button>
-          </div>
+          {/* КНОПКИ ПОЯВЛЯЮТСЯ ТОЛЬКО ЕСЛИ ФОРМА ИЗМЕНЕНА (isDirty) */}
+          {isDirty && (
+            <div className="employee-modal-actions">
+              <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
+                Сбросить
+              </button>
+              <button className="save-order-btn" type="submit" form={formId}>
+                Сохранить
+              </button>
+            </div>
+          )}
         </div>
 
         {isNew ? (

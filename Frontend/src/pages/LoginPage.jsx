@@ -11,6 +11,9 @@ function LoginPage() {
   const [registerError, setRegisterError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+
   const [showRegister, setShowRegister] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -18,6 +21,10 @@ function LoginPage() {
   const [telegramLink, setTelegramLink] = useState("");
 
   const [usernameFocused, setUsernameFocused] = useState(false);
+
+  
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
   const [regData, setRegData] = useState({
     fullName: "",
@@ -55,6 +62,9 @@ function LoginPage() {
 
   const handleRegisterChange = (e) => {
     const { name, value } = e.target;
+    if (name === "phone") {
+      if (!/^\d*$/.test(value)) return;
+    }
     setRegData((prev) => ({ ...prev, [name]: value }));
     setRegisterError("");
     setRegErrors((prev) => {
@@ -98,21 +108,17 @@ function LoginPage() {
 
     const phone = regData.phone.trim();
     if (phone) {
-      const hasPlus = phone.includes("+");
-      const digitsOnly = /^[0-9]+$/.test(phone);
       const lengthOk = phone.length >= 11 && phone.length <= 14;
       const notStartsWithZero = !/^0/.test(phone);
-      if (hasPlus || !digitsOnly || !lengthOk || !notStartsWithZero) {
-        errors.phone =
-          "Телефон должен быть без «+», только цифры, с кодом страны, 11–14 цифр, не начинается с 0 (пример: 380XXXXXXXXX).";
+      if (!lengthOk || !notStartsWithZero) {
+        errors.phone = "11–14 цифр, формат 380XXXXXXXXX";
         isValid = false;
       }
     }
 
     const pwd = regData.password;
-    if (pwd && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])\S{6,}$/.test(pwd)) {
-      errors.password =
-        "Пароль должен быть не короче 6 символов, содержать строчную, заглавную, цифру и спецсимвол, без пробелов.";
+    if (pwd && pwd.length < 6) {
+      errors.password = "Пароль должен быть не короче 6 символов";
       isValid = false;
     }
 
@@ -196,10 +202,17 @@ function LoginPage() {
     setRegErrors({});
     setRegisterError("");
     setUsernameFocused(false);
+    setShowRegPassword(false);
+    setShowRegConfirmPassword(false);
   };
 
   const handleCloseRegister = () => {
-    setShowCloseConfirm(true);
+    const hasData = Object.values(regData).some((val) => val !== "");
+    if (hasData) {
+      setShowCloseConfirm(true);
+    } else {
+      confirmCloseRegister();
+    }
   };
 
   const confirmCloseRegister = () => {
@@ -209,6 +222,20 @@ function LoginPage() {
   };
 
   const getInputClassName = (name) => (regErrors[name] ? "input-error" : "");
+
+  
+  const EyeIcon = ({ visible }) =>
+    visible ? (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    ) : (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </svg>
+    );
 
   return (
     <div className="login-page">
@@ -226,15 +253,29 @@ function LoginPage() {
               required
               autoComplete="username"
             />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="login-input"
-              placeholder="Пароль"
-              required
-              autoComplete="current-password"
-            />
+
+            
+            <div className="password-input-wrapper login-wrapper">
+              <input
+                type={showLoginPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="login-input password-field"
+                placeholder="Пароль"
+                required
+                autoComplete="current-password"
+              />
+              {password && (
+                <button
+                  type="button"
+                  className="eye-toggle-btn login-eye"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                >
+                  <EyeIcon visible={showLoginPassword} />
+                </button>
+              )}
+            </div>
           </div>
 
           {loginError && <p className="error-message">{loginError}</p>}
@@ -259,16 +300,15 @@ function LoginPage() {
       {showRegister && (
         <div className="modal-overlay-reg" onClick={handleCloseRegister}>
           <div className="register-modal" onClick={(e) => e.stopPropagation()}>
+            <span className="close-icon-reg" onClick={handleCloseRegister}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </span>
+
             <div className="form-header">
               <h2>Регистрация</h2>
-              <span className="close-icon" onClick={handleCloseRegister}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </span>
             </div>
 
             <form onSubmit={handleRegisterSubmit} className="register-form" noValidate>
@@ -284,45 +324,36 @@ function LoginPage() {
                     className={getInputClassName("fullName")}
                     required
                   />
-                  {regErrors.fullName && (
-                    <p className="validation-hint">{regErrors.fullName}</p>
-                  )}
+                  {regErrors.fullName && <p className="validation-hint">{regErrors.fullName}</p>}
                 </div>
-              <div className="form-register-group">
+
+                <div className="form-register-group">
                   <label htmlFor="birthDate">Дата рождения</label>
-                  {/* Додано спеціальний контейнер для стилізації іконки */}
-                  <div className="date-input-container">
-                    <input
-                      type="date"
-                      name="birthDate"
-                      value={regData.birthDate}
-                      onChange={handleRegisterChange}
-                      
-                      className={`date-input ${getInputClassName("birthDate")}`}
-                      required
-                    />
-                  </div>
-                  {regErrors.birthDate && (
-                    <p className="validation-hint">{regErrors.birthDate}</p>
-                  )}
+                  <input
+                    type="date"
+                    name="birthDate"
+                    value={regData.birthDate}
+                    onChange={handleRegisterChange}
+                    className={`date-input ${getInputClassName("birthDate")}`}
+                    required
+                  />
+                  {regErrors.birthDate && <p className="validation-hint">{regErrors.birthDate}</p>}
                 </div>
+
                 <div className="form-register-group">
                   <label htmlFor="phone">Телефон</label>
                   <input
                     type="tel"
                     name="phone"
                     value={regData.phone}
-                    onChange={(e) => {
-                      handleRegisterChange(e);
-                    }}
-                    placeholder="Введите ваш номер телефона"
+                    onChange={handleRegisterChange}
+                    placeholder="Только цифры (380...)"
                     className={getInputClassName("phone")}
                     required
                   />
-                  {regErrors.phone && (
-                    <p className="validation-hint">{regErrors.phone}</p>
-                  )}
+                  {regErrors.phone && <p className="validation-hint">{regErrors.phone}</p>}
                 </div>
+
                 <div className="form-register-group">
                   <label htmlFor="email">Почта</label>
                   <input
@@ -337,11 +368,10 @@ function LoginPage() {
                   {regErrors.email ? (
                     <p className="validation-hint">{regErrors.email}</p>
                   ) : (
-                    regData.email && (
-                      <p className="validation-hint">Почта должна быть в домене @gmail.com</p>
-                    )
+                    regData.email && <p className="validation-hint">Почта должна быть в домене @gmail.com</p>
                   )}
                 </div>
+
                 <div className="form-register-group">
                   <label htmlFor="username">Логин</label>
                   <input
@@ -358,57 +388,80 @@ function LoginPage() {
                     className={getInputClassName("username")}
                     required
                   />
-                  {regErrors.username && (
-                    <p className="validation-hint">{regErrors.username}</p>
-                  )}
+                  {regErrors.username && <p className="validation-hint">{regErrors.username}</p>}
                 </div>
+
                 {usernameFocused && (
-                  <p className="username-hint">
+                  <p className="username-hint" onMouseDown={(e) => e.preventDefault()}>
                     Отправьте ваш никнейм, который будет привязан к вам в системе.<br />
-                    У нас правило, что никнейм должен быть связан с IT-сферой,
-                    латинскими буквами и с цифрами в конце
-                    (например: <b>Support-404</b>, <b>Dev-245</b>, <b>JSDev-008</b>).<br />
-                    Подобрать себе никнейм можете с помощью{" "}
+                    У нас правило, что никнейм должен быть связан с IT-сферой...<br />
+                    Подобрать никнейм можно на{" "}
                     <a href="https://science.involta.ru/glossary" target="_blank" rel="noreferrer">
-                      сайта
+                      сайте
                     </a>.
                   </p>
                 )}
+
                 <div className="form-register-group">
                   <label htmlFor="password">Пароль</label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={regData.password}
-                    onChange={handleRegisterChange}
-                    placeholder="Придумайте пароль"
-                    className={getInputClassName("password")}
-                    required
-                  />
-                  {regErrors.password && (
-                    <p className="validation-hint">{regErrors.password}</p>
-                  )}
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showRegPassword ? "text" : "password"}
+                      name="password"
+                      value={regData.password}
+                      onChange={handleRegisterChange}
+                      placeholder="Придумайте пароль"
+                      className={getInputClassName("password")}
+                      required
+                    />
+                    {regData.password && (
+                      <button
+                        type="button"
+                        className="eye-toggle-btn"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                      >
+                        <EyeIcon visible={showRegPassword} />
+                      </button>
+                    )}
+                  </div>
+                  {regErrors.password && <p className="validation-hint">{regErrors.password}</p>}
                 </div>
+
                 <div className="form-register-group">
-                  <label htmlFor="confirmPassword"></label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={regData.confirmPassword}
-                    onChange={handleRegisterChange}
-                    placeholder="Подтвердите пароль"
-                    className={getInputClassName("confirmPassword")}
-                    required
-                  />
-                  {regErrors.confirmPassword && (
-                    <p className="validation-hint">{regErrors.confirmPassword}</p>
-                  )}
+                  <label htmlFor="confirmPassword">Повтор</label>
+                 
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showRegConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={regData.confirmPassword}
+                      onChange={handleRegisterChange}
+                      placeholder="Подтвердите пароль"
+                      className={getInputClassName("confirmPassword")}
+                      required
+                    />
+                    {regData.confirmPassword && (
+                      <button
+                        type="button"
+                        className="eye-toggle-btn"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                      >
+                        <EyeIcon visible={showRegConfirmPassword} />
+                      </button>
+                    )}
+                  </div>
+                  {regErrors.confirmPassword && <p className="validation-hint">{regErrors.confirmPassword}</p>}
                 </div>
               </div>
 
-              <div className="form-actions">
+              <div className="form-actions-group">
                 {registerError && <p className="register-error">{registerError}</p>}
-                <button type="submit" disabled={loading}>
+                <button type="button" className="cancel-reg-btn" onClick={handleCloseRegister}>
+                  Отмена
+                </button>
+                <button type="submit" className="submit-reg-btn" disabled={loading}>
                   {loading ? "Отправляем..." : "Отправить заявку"}
                 </button>
               </div>

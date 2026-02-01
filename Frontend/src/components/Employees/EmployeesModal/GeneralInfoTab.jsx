@@ -209,8 +209,8 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         />
       </div>
 
-      <div className="checkbox-container-modal" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        
+      
+      <div className="checkbox-container-modal">
         
         <Controller
           name="autoConfirmJournal"
@@ -218,12 +218,9 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
           defaultValue={false}
           render={({ field }) => (
             <div className="form-field-checkbox">
-             
-              <label htmlFor="autoConfirmJournal" style={{ margin: 0, cursor: 'pointer' }}>
+              <label htmlFor="autoConfirmJournal">
                 Автоматически подтверждать журнал
               </label>
-              
-              
               <input 
                 type="checkbox" 
                 id="autoConfirmJournal" 
@@ -234,25 +231,20 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
           )}
         />
 
-       
         <Controller
           name="workTimeControl"
           control={control}
           defaultValue={false}
           render={({ field }) => (
-            <div className="form-field-checkbox" style={{ display: 'flex', alignItems: 'center'}}>
-              
-              <label htmlFor="workTimeControl" style={{ margin: 0, cursor: 'pointer' }}>
+            <div className="form-field-checkbox">
+              <label htmlFor="workTimeControl">
                 Контроль рабочего времени
               </label>
-
-             
               <input 
                 type="checkbox" 
                 id="workTimeControl" 
                 {...field} 
                 checked={field.value || false}
-                style={{gap: '15px'}} 
               />
             </div>
           )}
@@ -260,7 +252,7 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
       </div>
 
       <div className="currency-field">
-        <label className="currency-title" style={{ marginTop: 12 }}>Ставка в час</label>
+        <label className="currency-title">Ставка в час</label>
         <div className="currency-table">
         {currencies.map((currency) => (
           <div
