@@ -1,132 +1,141 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
-import './RequisitesTab.css'; 
+import { useFields } from '../../../context/FieldsContext';
+import './RequisitesTab.css';
 import { X, Plus } from 'lucide-react';
-
 
 const CURRENCIES = ['UAH', 'USD', 'EUR', 'USDT', 'RUB'];
 
 export default function RequisitesTab() {
-    const { control } = useFormContext();
-    const fieldArrayName = 'requisitesList'; 
+  const { control } = useFormContext();
+  const fieldArrayName = 'requisitesList';
+  const { currencies, loading } = useFields();
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: fieldArrayName,
-    });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: fieldArrayName,
+  });
 
-    
-    const handleTextareaAutoResize = (e) => {
-        e.target.style.height = 'auto';
-        e.target.style.height = `${e.target.scrollHeight}px`;
-    };
+  const currencyOptions = useMemo(() => {
+    return Array.isArray(currencies) && currencies.length > 0 ? currencies : CURRENCIES;
+  }, [currencies]);
 
-    return (
-       
-        <div className="tab-section requisites-tab-wrapper"> 
-            <div className="employee-requisites-table">
-                
-                <div className="requisites-row header-row">
-                    <div className="header-content-wrapper">
-                        <div className="requisites-cell">Валюта</div>
-                        <div className="requisites-cell">Банк</div>
-                        <div className="requisites-cell">Номер карты</div>
-                        <div className="requisites-cell">Владелец</div>
-                    </div>
-                    <div className="requisites-cell action-cell"></div> 
-                </div>
-                
-                
-                {fields.map((item, index) => (
-                    <div key={item.id} className="requisites-row">
-                        <div className="requisites-cell">
-                            <Controller
-                                name={`${fieldArrayName}[${index}].currency`}
-                                control={control}
-                                defaultValue={item.currency || 'UAH'}
-                                render={({ field }) => (
-                                    <select {...field} className="assets-workplan-textarea">
-                                        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                )}
-                            />
-                        </div>
+  const handleTextareaAutoResize = useCallback((e) => {
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  }, []);
 
-                        
-                        <div className="requisites-cell">
-                            <Controller
-                                name={`${fieldArrayName}[${index}].bank`}
-                                control={control}
-                                defaultValue={item.bank || ''}
-                                render={({ field }) => (
-                                    <textarea
-                                        {...field}
-                                        placeholder="Банк"
-                                        className="assets-workplan-textarea"
-                                        onInput={handleTextareaAutoResize}
-                                        rows={1}
-                                    />
-                                )}
-                            />
-                        </div>
+  return (
+    <div className="tab-section requisites-tab-wrapper">
+      <div className="employee-requisites-table">
+        <div className="requisites-row header-row">
+          <div className="header-content-wrapper">
+            <div className="requisites-cell">Валюта</div>
+            <div className="requisites-cell">Банк</div>
+            <div className="requisites-cell">Номер карты</div>
+            <div className="requisites-cell">Владелец</div>
+          </div>
+          <div className="requisites-cell action-cell"></div>
+        </div>
 
-                        
-                        <div className="requisites-cell">
-                            <Controller
-                                name={`${fieldArrayName}[${index}].card`}
-                                control={control}
-                                defaultValue={item.card || ''}
-                                render={({ field }) => (
-                                    <textarea
-                                        {...field}
-                                        placeholder="Номер карты"
-                                        className="assets-workplan-textarea"
-                                        onInput={handleTextareaAutoResize}
-                                        rows={1}
-                                    />
-                                )}
-                            />
-                        </div>
-
-                        
-                        <div className="requisites-cell">
-                                <Controller
-                                name={`${fieldArrayName}[${index}].owner`}
-                                control={control}
-                                defaultValue={item.owner || ''}
-                                render={({ field }) => (
-                                    <textarea
-                                        {...field}
-                                        placeholder="Владелец"
-                                        className="assets-workplan-textarea"
-                                        onInput={handleTextareaAutoResize}
-                                        rows={1}
-                                    />
-                                )}
-                            />
-                        </div>
-
-                        
-                        <div className="requisites-cell action-cell">
-                            <button
-                                type="button"
-                                className="requisites-remove-btn"
-                                onClick={() => remove(index)}
-                                title="Удалить реквизит"
-                            >
-                                <X size={18} color='red'/>
-                            </button>
-                        </div>
-                    </div>
-                ))}
+        {fields.map((item, index) => (
+          <div key={item.id} className="requisites-row">
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}.${index}.currency`}
+                control={control}
+                defaultValue={item.currency ?? currencyOptions[0] ?? 'UAH'}
+                render={({ field }) => (
+                  <select {...field} className="assets-workplan-textarea" disabled={loading}>
+                    {currencyOptions.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
             </div>
 
-            <button 
-                type="button" 
-                className="add-requisites-btn" 
-                onClick={() => append({ currency: 'UAH', bank: '', card: '', owner: '' })}>
-                <Plus size={16} /> Добавить
-            </button>
-        </div>
-    );
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}.${index}.bank`}
+                control={control}
+                defaultValue={item.bank ?? ''}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    placeholder="Банк"
+                    className="assets-workplan-textarea"
+                    onInput={handleTextareaAutoResize}
+                    rows={1}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}.${index}.card`}
+                control={control}
+                defaultValue={item.card ?? ''}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    placeholder="Номер карты"
+                    className="assets-workplan-textarea"
+                    onInput={handleTextareaAutoResize}
+                    rows={1}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="requisites-cell">
+              <Controller
+                name={`${fieldArrayName}.${index}.owner`}
+                control={control}
+                defaultValue={item.owner ?? ''}
+                render={({ field }) => (
+                  <textarea
+                    {...field}
+                    placeholder="Владелец"
+                    className="assets-workplan-textarea"
+                    onInput={handleTextareaAutoResize}
+                    rows={1}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="requisites-cell action-cell">
+              <button
+                type="button"
+                className="requisites-remove-btn"
+                onClick={() => remove(index)}
+                title="Удалить реквизит"
+              >
+                <X size={18} color="red" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        className="add-requisites-btn"
+        onClick={() =>
+          append({
+            currency: currencyOptions[0] ?? 'UAH',
+            bank: '',
+            card: '',
+            owner: '',
+          })
+        }
+      >
+        <Plus size={16} /> Добавить
+      </button>
+    </div>
+  );
 }
