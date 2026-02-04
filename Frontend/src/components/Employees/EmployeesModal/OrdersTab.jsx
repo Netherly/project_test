@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { fetchOrders } from '../../../api/orders';
+import React, { useMemo } from 'react';
 import './OrdersTab.css';
 
 const toText = (value) => String(value ?? '').trim();
@@ -56,9 +55,9 @@ const buildRowsFromOrders = (orders, employee) => {
     const orderMatches = matchesEmployee(order, employee);
     const orderLabel = getOrderLabel(order) || toText(order?.id);
     const orderStatus = getOrderStatus(order) || '-';
-  const orderDescription = toText(order?.orderDescription ?? order?.name ?? order?.title ?? '-');
+    const orderDescription = toText(order?.orderDescription ?? order?.name ?? order?.title ?? '-');
 
-  const performers = extractPerformers(order);
+    const performers = extractPerformers(order);
     const performerMatch = performers.find((performer) => {
       const performerEmployeeId = toText(performer?.employeeId ?? performer?.employee?.id);
       if (performerEmployeeId && performerEmployeeId === toText(employee?.id)) return true;
@@ -96,62 +95,12 @@ const buildRowsFromOrders = (orders, employee) => {
   return rows.sort((a, b) => new Date(b.workDate) - new Date(a.workDate));
 };
 
-export default function OrdersTab({ isNew, employee }) {
-  const [workHistory, setWorkHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadOrders = async () => {
-      if (isNew || !employee) {
-        if (mounted) {
-          setWorkHistory([]);
-          setLoadError('');
-        }
-        return;
-      }
-
-      setIsLoading(true);
-      setLoadError('');
-
-      try {
-        const response = await fetchOrders({ page: 1, limit: 1000 });
-        const orders = Array.isArray(response?.orders)
-          ? response.orders
-          : Array.isArray(response)
-          ? response
-          : [];
-
-        const rows = buildRowsFromOrders(orders, employee);
-        if (mounted) setWorkHistory(rows);
-      } catch (error) {
-        console.error('Ошибка при загрузке заказов:', error);
-        let fallbackOrders = [];
-        try {
-          const saved = localStorage.getItem('ordersData');
-          fallbackOrders = saved ? JSON.parse(saved) : [];
-        } catch (err) {
-          fallbackOrders = [];
-        }
-
-        const rows = buildRowsFromOrders(fallbackOrders, employee);
-        if (mounted) {
-          setWorkHistory(rows);
-          setLoadError('Не удалось загрузить заказы с сервера.');
-        }
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    loadOrders();
-
-    return () => {
-      mounted = false;
-    };
-  }, [employee, isNew]);
+export default function OrdersTab({ isNew, employee, orders = [] }) {
+  
+  const workHistory = useMemo(() => {
+    if (isNew || !employee) return [];
+    return buildRowsFromOrders(orders, employee);
+  }, [orders, employee, isNew]);
 
   if (isNew) {
     return (
@@ -165,9 +114,7 @@ export default function OrdersTab({ isNew, employee }) {
     <div className="tab-section">
       <div className="orders-history">
         <h3>История выполнения заказов</h3>
-        {isLoading && <p>Загрузка заказов...</p>}
-        {!isLoading && !!loadError && <p>{loadError}</p>}
-        {!isLoading && workHistory.length > 0 ? (
+        {workHistory.length > 0 ? (
           <table className="orders-table">
             <thead>
               <tr>
@@ -200,7 +147,7 @@ export default function OrdersTab({ isNew, employee }) {
             </tbody>
           </table>
         ) : (
-          !isLoading && <p>Нет записей о выполненной работе для этого сотрудника.</p>
+          <p>Нет записей о выполненной работе для этого сотрудника.</p>
         )}
       </div>
     </div>

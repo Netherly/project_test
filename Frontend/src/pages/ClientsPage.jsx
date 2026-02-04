@@ -604,7 +604,7 @@ export default function ClientsPage() {
           }}
         />
 
-        <div ref={wrapRef} className="clients-table-wrapper">
+        <div ref={wrapRef} className="clients-table-wrapper custom-scrollbar">
           {loading ? (
             <div className="table-loader">Загрузка…</div>
           ) : (

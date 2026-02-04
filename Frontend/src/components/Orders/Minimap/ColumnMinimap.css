@@ -1,4 +1,3 @@
-/* ColumnMinimap.css */
 .column-minimap-container {
     position: fixed;
     bottom: 50px;
@@ -22,46 +21,45 @@
     height: 30px;
     cursor: pointer;
     user-select: none;
+    background-color: rgba(0,0,0,0.2); 
+    border-radius: 4px;
+    padding: 2px; 
 }
 
 .minimap-column-rect {
     position: absolute;
-    background: var(--border--color);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    top: 2px; 
+    background: rgba(255, 255, 255, 0.1); 
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 2px;
     transition: background-color 0.2s ease;
     overflow: hidden;
     height: 30px;
+    z-index: 0; 
 }
+
 
 .minimap-column-rect:hover {
-    background: var(--chips-color);
-    border-color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.2);
 }
 
-.minimap-column-fill {
-    background: var(--accent-color);
-    /* Убираем transition: width */
-    /* Добавляем transition для opacity, чтобы цвет менялся плавно */
-    transition: opacity 0.1s linear; 
-    border-radius: 1px;
-}
+
 
 .minimap-viewport-indicator {
     position: absolute;
-    top: 0;
-    height: 30px;
-    background: rgba(59, 131, 246, 0.123);
-    border: 2px solid #3b83f68c;
-    border-radius: 3px;
+    top: 0; 
+    height: 100%; 
+    background: rgba(59, 131, 246, 0.4); 
+    border: 2px solid #3b82f6;
+    border-radius: 4px;
     cursor: grab;
     transition: background-color 0.2s ease;
-    z-index: 1;
+    z-index: 10; 
 }
 
 .minimap-viewport-indicator:active {
     cursor: grabbing;
-    background: rgba(59, 131, 246, 0.2);
+    background: rgba(59, 131, 246, 0.6);
 }
 
 .column-minimap-container {

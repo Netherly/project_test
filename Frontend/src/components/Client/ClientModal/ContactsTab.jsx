@@ -2,9 +2,7 @@ import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import './ContactsTab.css';
 
-/**
- * Вкладка «Контакты» для модального окна клиента.
- */
+
 export default function ContactsTab({ countries = [], openImage }) {
   const { control, formState: { errors } } = useFormContext();
 
@@ -29,11 +27,15 @@ export default function ContactsTab({ countries = [], openImage }) {
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Телефон<span className="req">*</span></label>
+            <label>Телефон</label>
             <input
               {...field}
               placeholder="+380…"
               className={errors.phone ? 'input-error' : ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9+]/g, "");
+                field.onChange(val);
+              }}
             />
             {errors.phone && <p className="error">{errors.phone.message}</p>}
           </div>
@@ -83,6 +85,18 @@ export default function ContactsTab({ countries = [], openImage }) {
           <div className="form-field">
             <label>Город</label>
             <input {...field} placeholder="Город" />
+          </div>
+        )}
+      />
+
+      
+      <Controller
+        name="messenger_name"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Имя в мессенджере</label>
+            <input {...field} placeholder="Имя в мессенджере" />
           </div>
         )}
       />
