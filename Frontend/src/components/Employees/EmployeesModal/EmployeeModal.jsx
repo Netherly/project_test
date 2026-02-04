@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { employeeSchema } from "./validationSchema";
+import { useFields } from "../../../context/FieldsContext";
 
 import EmployeeHeader from "./EmployeeHeader";
 import TabsNav from "./TabsNav";
@@ -15,20 +16,19 @@ import OrdersTab from "./OrdersTab";
 import ChatPanel from "../../Client/ClientModal/ChatPanel";
 
 import { normalizeEmployee } from "../../../api/employees";
-import { fetchFields, withDefaults } from "../../../api/fields";
 
 import "../../../styles/EmployeeModal.css";
 
 export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const safeEmployee = useMemo(() => normalizeEmployee(employee ?? {}), [employee]);
   const isNew = !safeEmployee.id;
+  const { fields, loading: loadingFields } = useFields();
 
   const [activeTab, setActiveTab] = useState(isNew ? "general" : "summary");
   const [closing, setClosing] = useState(false);
   const [formErrors, setFormErrors] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [allFields, setAllFields] = useState({ employeeFields: { country: [] } });
-  const [loadingFields, setLoadingFields] = useState(false);
 
   const formId = "employee-form";
 
@@ -38,30 +38,10 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoadingFields(true);
-      try {
-        const data = await fetchFields();
-        const normalized = withDefaults(data);
-        if (!mounted) return;
-        setAllFields(normalized);
-        try {
-          localStorage.setItem("fieldsData", JSON.stringify(normalized));
-        } catch {}
-      } catch {
-        try {
-          const saved = localStorage.getItem("fieldsData");
-          if (saved && mounted) setAllFields(JSON.parse(saved));
-        } catch {}
-      } finally {
-        if (mounted) setLoadingFields(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (fields) {
+      setAllFields(fields);
+    }
+  }, [fields]);
 
   const methods = useForm({
     resolver: yupResolver(employeeSchema),

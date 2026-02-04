@@ -1,64 +1,39 @@
 // Frontend/src/pages/EmployeesModal/tabs/GeneralInfoTab.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
-import { FieldsAPI, withDefaults } from "../../../api/fields";
+import { useFields } from "../../../context/FieldsContext";
 
 export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { country: [] } }) {
   const { control, setValue, formState: { errors } } = useFormContext();
+  const { fields, loading: fieldsLoading } = useFields();
 
   const [countries, setCountries] = useState(
     Array.isArray(propEmployeeFields?.country) ? propEmployeeFields.country : []
   );
   const [currencies, setCurrencies] = useState([]);
-  const [loadingFields, setLoadingFields] = useState(false);
-  const [fieldsError, setFieldsError] = useState("");
 
   const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
   const currentCountryId = useWatch({ control, name: "countryId" });
   const currentCountry = useWatch({ control, name: "country" });
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoadingFields(true);
-      setFieldsError("");
-      try {
-        const [employeeGroup, executorGroup] = await Promise.all([
-          FieldsAPI.getEmployee(),
-          FieldsAPI.getExecutor(),
-        ]);
+    if (!fields) return;
 
-        const safe = withDefaults({
-          employeeFields: employeeGroup,
-          executorFields: executorGroup,
-        });
+    const loadedCountries = Array.isArray(fields?.employeeFields?.country) 
+      ? fields.employeeFields.country 
+      : [];
+    setCountries(loadedCountries);
 
-        const loadedCountries = Array.isArray(safe.employeeFields?.country) ? safe.employeeFields.country : [];
-        const loadedCurrencies = Array.isArray(safe.executorFields?.currency) ? safe.executorFields.currency : [];
+    const loadedCurrencies = Array.isArray(fields?.generalFields?.currency) 
+      ? fields.generalFields.currency 
+      : [];
 
-        if (!mounted) return;
-
-        setCountries(loadedCountries);
-
-        const currencyCodes = loadedCurrencies
-          .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
-          .map((s) => String(s || "").trim().toLowerCase())
-          .filter(Boolean);
-
-        setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
-      } catch (e) {
-        if (!mounted) return;
-        setFieldsError("Не удалось загрузить справочники. Используются дефолтные значения.");
-        setCurrencies((prev) => (prev.length ? prev : ["uah", "usd", "usdt", "eur", "rub"]));
-      } finally {
-        if (mounted) setLoadingFields(false);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    const currencyCodes = loadedCurrencies
+      .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
+      .map((s) => String(s || "").trim().toLowerCase())
+      .filter(Boolean);
+    setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
+  }, [fields]);
 
   const countryOptions = useMemo(() => {
     return (Array.isArray(countries) ? countries : [])
@@ -85,14 +60,9 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
 
   return (
     <div className="tab-section">
-      {loadingFields && (
+      {fieldsLoading && (
         <div className="info" style={{ marginBottom: 12 }}>
           Загружаются справочники…
-        </div>
-      )}
-      {!!fieldsError && !loadingFields && (
-        <div className="warning" style={{ marginBottom: 12 }}>
-          {fieldsError}
         </div>
       )}
 
@@ -199,11 +169,17 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
           render={({ field }) => (
             <select {...field}>
               <option value="" disabled>Выберите валюту</option>
-              {currencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency.toUpperCase()}
-                </option>
-              ))}
+              {Array.isArray(currencies) && currencies.length > 0 ? (
+                currencies.map((currency) => {
+                  const currencyCode = typeof currency === 'string' ? currency : String(currency || '');
+                  const code = currencyCode.trim().toLowerCase();
+                  return code ? (
+                    <option key={code} value={code}>
+                      {code.toUpperCase()}
+                    </option>
+                  ) : null;
+                })
+              ) : null}
             </select>
           )}
         />
@@ -254,29 +230,36 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
       <div className="currency-field">
         <label className="currency-title">Ставка в час</label>
         <div className="currency-table">
-        {currencies.map((currency) => (
-          <div
-            key={currency}
-            className={`currency-row ${selectedMainCurrency === currency ? "selected" : ""}`}
-          >
-            <span className="currency-label">
-              {currency.toUpperCase()}
-            </span>
-            <Controller
-              name={`rates.${currency}`}
-              control={control}
-              defaultValue=""
-              render={({ field }) => (
-                <input
-                  {...field}
-                  type="number"
-                  placeholder="0.00"
-                  className="currency-input"
+        {Array.isArray(currencies) && currencies.length > 0 ? (
+          currencies.map((currency) => {
+            const currencyCode = typeof currency === 'string' ? currency : String(currency || '');
+            const code = currencyCode.trim().toLowerCase();
+            if (!code) return null;
+            return (
+              <div
+                key={code}
+                className={`currency-row ${selectedMainCurrency === code ? "selected" : ""}`}
+              >
+                <span className="currency-label">
+                  {code.toUpperCase()}
+                </span>
+                <Controller
+                  name={`rates.${code}`}
+                  control={control}
+                  defaultValue=""
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="number"
+                      placeholder="0.00"
+                      className="currency-input"
+                    />
+                  )}
                 />
-              )}
-            />
-          </div>
-        ))}
+              </div>
+            );
+          })
+        ) : null}
         </div>
       </div>
 
