@@ -1,9 +1,8 @@
-// Frontend/src/pages/EmployeesModal/tabs/GeneralInfoTab.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { useFields } from "../../../context/FieldsContext";
 
-export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { country: [] } }) {
+export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
   const { fields, loading: fieldsLoading } = useFields();
 
@@ -36,7 +35,7 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
   }, [fields]);
 
   const countryOptions = useMemo(() => {
-    return (Array.isArray(countries) ? countries : [])
+    return countries
       .map((item) => {
         if (typeof item === "string") {
           const name = item.trim();
@@ -49,10 +48,15 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
       .filter(Boolean);
   }, [countries]);
 
-  useEffect(() => {
-    if (!countryOptions.length) return;
-    const hasCurrent = countryOptions.some((opt) => opt.value === currentCountryId);
-    if (!hasCurrent && currentCountry) {
+  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
+  
+  const currentCountry = useWatch({ control, name: "country" });
+  const currentCountryId = useWatch({ control, name: "countryId" });
+
+  React.useEffect(() => {
+    if (!countryOptions.length || !currentCountry) return;
+    const hasCurrentId = countryOptions.some((opt) => opt.value === currentCountryId);
+    if (!hasCurrentId) {
       const match = countryOptions.find((opt) => opt.label === currentCountry);
       if (match) setValue("countryId", match.value, { shouldDirty: false });
     }
@@ -160,7 +164,6 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         )}
       />
       
-      
       <div className="form-field">
         <label>Основная валюта</label>
         <Controller
@@ -185,9 +188,7 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         />
       </div>
 
-      
       <div className="checkbox-container-modal">
-        
         <Controller
           name="autoConfirmJournal"
           control={control}
@@ -262,7 +263,6 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         ) : null}
         </div>
       </div>
-
     </div>
   );
 }

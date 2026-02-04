@@ -266,7 +266,7 @@ export default function ContactsTab({ isNew, employeeId }) {
                     onClick={handleGenerateLink}
                     disabled={isGeneratingLink}
                   >
-                    {isGeneratingLink ? 'Генерация...' : 'Сгенерировать'}
+                    {isGeneratingLink ? 'Генерация...' : 'Создать'}
                   </button>
                   <button
                     type="button"

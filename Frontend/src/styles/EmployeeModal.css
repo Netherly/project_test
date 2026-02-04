@@ -445,8 +445,7 @@ select option:disabled {
   display: flex;
   flex-direction: row;
   gap: 8px; 
-  margin-top: 8px;
-  padding: 10px;
+  padding: 6px;
   border-radius: 4px;
 }
 
@@ -491,6 +490,10 @@ select option:disabled {
   flex-shrink: 0; 
   background-color: #19213A;
 }
+.employee-modal-actions .form-submit-error {
+  margin-right: auto;
+  align-self: center;
+}
 
 
 .checkbox-container-modal {
@@ -517,10 +520,18 @@ select option:disabled {
 }
 
 .form-field-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   background-color: #19213A;
   border: 1px solid #555;
   appearance: auto;
   -webkit-appearance: checkbox; 
   margin: 0;
+}
+
+
+.employee-modal input,
+.employee-modal textarea {
+  caret-color: #fff;
 }

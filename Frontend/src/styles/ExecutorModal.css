@@ -87,6 +87,15 @@ select option:disabled {
   overflow-y: auto;
 }
 
+.employee-modal-body input:-webkit-autofill,
+.employee-modal-body input:-webkit-autofill:hover, 
+.employee-modal-body input:-webkit-autofill:focus, 
+.employee-modal-body input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #19213A inset !important;
+    -webkit-text-fill-color: var(--container-text-color, #fff) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 .tab-content-wrapper{
   padding: 12px 24px;
 }

@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { fetchTransactions } from '../../../api/transactions';
-import { fetchAssets } from '../../../api/assets';
+import React, { useMemo } from 'react';
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -30,136 +28,44 @@ const formatDateTime = (value) => {
 const matchesEmployee = (trx, employee) => {
   if (!trx || !employee) return false;
   const employeeId = toText(employee?.id);
-  const transactionEmployeeId =
-    toText(trx.employeeId) || toText(trx.employee?.id) || toText(trx.employee?.employeeId);
+  const transactionEmployeeId = toText(trx.employeeId) || toText(trx.employee?.id);
+  
   if (employeeId && transactionEmployeeId && employeeId === transactionEmployeeId) return true;
+
   const employeeName = toLower(employee?.fullName || employee?.full_name);
   const employeeLogin = toLower(employee?.login);
   const counterparty = toLower(trx.counterparty);
+  
   if (employeeName && counterparty === employeeName) return true;
   if (employeeLogin && counterparty === employeeLogin) return true;
+  
   return false;
 };
 
-export default function FinancesTab({ isNew, employee }) {
-  const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const [hasAssignedAsset, setHasAssignedAsset] = useState(false);
+export default function FinancesTab({ isNew, employee, transactions = [], assets = [] }) {
+  
+  const filteredTransactions = useMemo(() => {
+    if (isNew || !employee) return [];
+    
+    return transactions
+      .filter((trx) => matchesEmployee(trx, employee))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [transactions, employee, isNew]);
 
-  useEffect(() => {
-    let mounted = true;
+  const hasAssignedAsset = useMemo(() => {
+    if (isNew || !employee) return false;
+    
+    const employeeId = toText(employee?.id);
+    const employeeName = toLower(employee?.fullName || employee?.full_name || employee?.login);
 
-    const loadTransactions = async () => {
-      if (isNew || !employee) {
-        if (mounted) {
-          setTransactions([]);
-          setLoadError('');
-        }
-        return;
-      }
-
-      const employeeName = toText(employee?.fullName || employee?.full_name || employee?.login);
-
-      setIsLoading(true);
-      setLoadError('');
-
-      try {
-        const response = await fetchTransactions({
-          page: 1,
-          pageSize: 1000,
-          employeeId: employee?.id || undefined,
-          counterparty: employeeName || undefined,
-        });
-
-        const items = Array.isArray(response?.items)
-          ? response.items
-          : Array.isArray(response)
-          ? response
-          : [];
-
-        const filtered = items.filter((trx) => matchesEmployee(trx, employee));
-        const sorted = filtered
-          .slice()
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        if (mounted) setTransactions(sorted);
-      } catch (e) {
-        console.error('Ошибка загрузки транзакций сотрудника:', e);
-        let fallback = [];
-        try {
-          const saved = localStorage.getItem('transactionsData');
-          fallback = saved ? JSON.parse(saved) : [];
-        } catch (err) {
-          fallback = [];
-        }
-        const filtered = Array.isArray(fallback)
-          ? fallback.filter((trx) => matchesEmployee(trx, employee))
-          : [];
-        if (mounted) {
-          setTransactions(filtered);
-          setLoadError('Не удалось загрузить транзакции с сервера.');
-        }
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    loadTransactions();
-
-    return () => {
-      mounted = false;
-    };
-  }, [employee, isNew]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadAssets = async () => {
-      if (isNew || !employee) {
-        if (mounted) setHasAssignedAsset(false);
-        return;
-      }
-
-      const employeeId = toText(employee?.id);
-      const employeeName = toLower(employee?.fullName || employee?.full_name || employee?.login);
-
-      try {
-        const assets = await fetchAssets();
-        const matched = (Array.isArray(assets) ? assets : []).some((asset) => {
-          const assetEmployeeId = toText(asset?.employeeId ?? asset?.employee?.id);
-          if (employeeId && assetEmployeeId && employeeId === assetEmployeeId) return true;
-          const assetEmployeeName = toLower(asset?.employeeName ?? asset?.employee);
-          if (employeeName && assetEmployeeName && employeeName === assetEmployeeName) return true;
-          return false;
-        });
-        if (mounted) setHasAssignedAsset(matched);
-      } catch (error) {
-        console.error('Ошибка загрузки активов сотрудника:', error);
-        let fallback = [];
-        try {
-          const saved = localStorage.getItem('assetsData');
-          fallback = saved ? JSON.parse(saved) : [];
-        } catch (err) {
-          fallback = [];
-        }
-        const matched = (Array.isArray(fallback) ? fallback : []).some((asset) => {
-          const assetEmployeeId = toText(asset?.employeeId ?? asset?.employee?.id);
-          if (employeeId && assetEmployeeId && employeeId === assetEmployeeId) return true;
-          const assetEmployeeName = toLower(asset?.employeeName ?? asset?.employee);
-          if (employeeName && assetEmployeeName && employeeName === assetEmployeeName) return true;
-          return false;
-        });
-        if (mounted) setHasAssignedAsset(matched);
-      }
-    };
-
-    loadAssets();
-
-    return () => {
-      mounted = false;
-    };
-  }, [employee, isNew]);
+    return assets.some((asset) => {
+      const assetEmployeeId = toText(asset?.employeeId ?? asset?.employee?.id);
+      if (employeeId && assetEmployeeId && employeeId === assetEmployeeId) return true;
+      const assetEmployeeName = toLower(asset?.employeeName ?? asset?.employee);
+      if (employeeName && assetEmployeeName && employeeName === assetEmployeeName) return true;
+      return false;
+    });
+  }, [assets, employee, isNew]);
 
   if (isNew) {
     return (
@@ -203,12 +109,6 @@ export default function FinancesTab({ isNew, employee }) {
 
       <div className="tab-content-title">Журнал операций</div>
       <div className="finances-log-table">
-        {isLoading && (
-          <div className="no-transactions">Загрузка транзакций...</div>
-        )}
-        {!isLoading && !!loadError && (
-          <div className="no-transactions">{loadError}</div>
-        )}
         <div className="finances-log-row header-row">
           <div className="finances-log-content-wrapper">
             <div className="finances-log-cell">Дата</div>
@@ -220,8 +120,8 @@ export default function FinancesTab({ isNew, employee }) {
           </div>
         </div>
 
-        {!isLoading && transactions.length > 0 ? (
-          transactions.map((trx) => (
+        {filteredTransactions.length > 0 ? (
+          filteredTransactions.map((trx) => (
             <div key={trx.id} className="finances-log-row">
               <div className="finances-log-content-wrapper">
                 

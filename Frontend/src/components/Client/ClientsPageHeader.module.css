@@ -36,8 +36,15 @@
   flex: 1;
   min-width: 260px;
   position: relative;
-  z-index: 1010; /* Высокий z-index, чтобы перекрывать таблицу */
+  z-index: 1010; 
   margin-right: 15px;
+}
+
+.searchContainer.active .mainSearchBar {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  position: relative;
+  z-index: 1201; 
 }
 
 .mainSearchBar {
@@ -102,16 +109,16 @@
 
 .filtersPanel {
   position: absolute;
-  top: 100%; /* Ровно под строкой поиска */
+  top: 100%;
   left: 0;
-  width: 100%;
-  margin-top: 5px;
-  background: var(--container-bg); /* Непрозрачный фон */
-  border: 1px solid var(--border--color);
-  border-radius: 12px;
+  width: 101%;
+  margin-top: -1px; 
+  border-top: none;
+  border-radius: 0 0 8px 8px; 
+  background: var(--container-bg);
+  border-top: none; 
   padding: 20px;
-  z-index: 1200; /* Перекрывает всё */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Тень чтобы выделить над таблицей */
+  z-index: 1200;
   box-sizing: border-box;
 }
 
@@ -298,9 +305,6 @@
   height: 100%;
 }
 
-.addEntryButton:hover {
-  background-color: var(--bg-color);
-}
 
 /* Tag Select Component Styles (embedded here for consistency) */
 .tagsSelect { position: relative; width: 100%; }

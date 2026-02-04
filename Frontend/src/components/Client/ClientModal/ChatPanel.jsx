@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import './ChatPanel.css';
 import { api } from '../../../api/api';
+import { useNavigate } from 'react-router-dom';
 
 
 export default function ChatPanel({ initialLogs = [], storageKey, clientId, employeeId }) {
@@ -10,6 +11,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   const isRemote = Boolean(entityType && entityId);
   const entityLabel = entityType === 'client' ? 'клиент' : entityType === 'employee' ? 'сотрудник' : 'объект';
   const [loadError, setLoadError] = useState('');
+  const navigate = useNavigate();
 
   const FIELD_LABELS = {
     email: 'Почта',
@@ -130,6 +132,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     id: log.id,
     timestamp: log.createdAt || log.timestamp,
     author: log.actorName || (log.source === 'self' ? 'Самостоятельно' : 'Система'),
+    actorId: log.actorId || null,
     message: buildMessage(log),
     action: log.action,
     source: log.source,
@@ -256,7 +259,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }) + ' ' + log.author;
+    });
   };
 
   const pinnedLogs = isRemote ? [] : logs.filter(l => l.pinned);
@@ -274,7 +277,25 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
             <div className="log-item__icon">📌</div>
             <div className="log-item__body">
               <div className="log-header">
-                <span className="log-meta">{formatMeta(log)}</span>
+                <span className="log-meta">
+                  {formatMeta(log)}
+                  {log.author && (
+                    <>
+                      {' '}
+                      {log.actorId ? (
+                        <button
+                          type="button"
+                          className="log-actor-link"
+                          onClick={() => navigate(`/employees/${log.actorId}`)}
+                        >
+                          {log.author}
+                        </button>
+                      ) : (
+                        <span>{log.author}</span>
+                      )}
+                    </>
+                  )}
+                </span>
               </div>
               <div className="log-message">{log.message}</div>
             </div>
@@ -298,7 +319,25 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
                 <div className="log-item__icon">📄</div>
                 <div className="log-item__body">
                   <div className="log-header">
-                    <span className="log-meta">{formatMeta(log)}</span>
+                    <span className="log-meta">
+                      {formatMeta(log)}
+                      {log.author && (
+                        <>
+                          {' '}
+                          {log.actorId ? (
+                            <button
+                              type="button"
+                              className="log-actor-link"
+                              onClick={() => navigate(`/employees/${log.actorId}`)}
+                            >
+                              {log.author}
+                            </button>
+                          ) : (
+                            <span>{log.author}</span>
+                          )}
+                        </>
+                      )}
+                    </span>
                   </div>
                   {editingId === log.id ? (
                     <textarea

@@ -25,7 +25,7 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
         }
     }, [containerRef]);
 
-    // Функции для управления видимостью
+    
     const showMinimap = () => {
         setIsVisible(true);
         if (hideTimeoutRef.current) {
@@ -93,41 +93,30 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
     const viewportStartPx = viewportData.scrollLeft;
     const viewportEndPx = viewportData.scrollLeft + viewportData.clientWidth;
     const totalContentWidth = viewportData.scrollWidth;
-
     const viewportIndicatorLeft = (viewportStartPx / totalContentWidth) * minimapWidth;
-    const viewportIndicatorWidth = ((viewportEndPx - viewportStartPx) / totalContentWidth) * minimapWidth;
-
-    const getColumnVisibility = (columnIndex) => {
-        const columnStart = columnIndex * viewportData.columnWidth;
-        const columnEnd = columnStart + viewportData.columnWidth;
-        const viewportStart = viewportData.scrollLeft;
-        const viewportEnd = viewportData.scrollLeft + viewportData.clientWidth;
-
-        if (columnEnd <= viewportStart || columnStart >= viewportEnd) {
-            return 0;
-        }
-
-        const intersectionStart = Math.max(columnStart, viewportStart);
-        const intersectionEnd = Math.min(columnEnd, viewportEnd);
-        const intersectionWidth = intersectionEnd - intersectionStart;
-
-        return intersectionWidth / viewportData.columnWidth;
-    };
+    const rawIndicatorWidth = ((viewportEndPx - viewportStartPx) / totalContentWidth) * minimapWidth;
+    const viewportIndicatorWidth = Math.min(rawIndicatorWidth, minimapWidth - viewportIndicatorLeft);
 
     const handleMinimapClick = (e) => {
         if (!minimapRef.current || !containerRef.current) return;
 
         const rect = minimapRef.current.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
-        const clickedColumn = Math.floor(clickX / (rectWidth + rectGap));
+        const clickRatio = clickX / minimapWidth;
+        const targetScrollLeft = clickRatio * viewportData.scrollWidth - (viewportData.clientWidth / 2);
 
-        const newScrollLeft = clickedColumn * viewportData.columnWidth;
+        const newScrollLeft = Math.max(0, Math.min(
+             viewportData.scrollWidth - viewportData.clientWidth,
+             targetScrollLeft
+        ));
+
         containerRef.current.scrollLeft = newScrollLeft;
         onScrollToPosition?.(newScrollLeft);
     };
 
     const handleViewportDrag = (e) => {
         e.preventDefault();
+        e.stopPropagation(); 
 
         if (!minimapRef.current || !containerRef.current) return;
 
@@ -139,7 +128,8 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
 
         const handleMouseMove = (e) => {
             const deltaX = e.clientX - startX;
-            const scrollRatio = (viewportData.scrollWidth / minimapWidth) * 0.85;
+            const scrollRatio = viewportData.scrollWidth / minimapWidth;
+
             const newScrollLeft = Math.max(0, Math.min(
                 viewportData.scrollWidth - viewportData.clientWidth,
                 startScrollLeft + (deltaX * scrollRatio)
@@ -159,7 +149,7 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
         document.addEventListener('mouseup', handleMouseUp);
     };
 
-    if (viewportData.clientWidth >= viewportData.scrollWidth) {
+    if (viewportData.clientWidth >= viewportData.scrollWidth || totalContentWidth === 0) {
         return null;
     }
 
@@ -176,7 +166,6 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
                 onClick={handleMinimapClick}
             >
                 {stages.map((stage, index) => {
-                    const visibility = getColumnVisibility(index);
                     return (
                         <div
                             key={stage}
@@ -187,14 +176,6 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
                                 height: rectHeight,
                             }}
                         >
-                            <div
-                                className="minimap-column-fill"
-                                style={{
-                                    width: '100%', // Всегда полная ширина
-                                    height: '100%',
-                                    opacity: visibility, // Управляем прозрачностью (от 0 до 1)
-                                }}
-                            />
                         </div>
                     );
                 })}
@@ -205,6 +186,7 @@ const ColumnMinimap = ({ containerRef, stages, onScrollToPosition, isDragging })
                         width: viewportIndicatorWidth,
                     }}
                     onMouseDown={handleViewportDrag}
+                    onClick={(e) => e.stopPropagation()} 
                 />
             </div>
         </div>
