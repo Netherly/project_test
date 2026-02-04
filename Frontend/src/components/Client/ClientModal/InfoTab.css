@@ -42,3 +42,100 @@
   width: 36px;  
   height: 36px; 
 }
+
+.custom-tags-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%; 
+}
+
+.tag-input-container {
+  position: relative;
+  width: 100%; /
+}
+
+.input-tag-control {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  padding: 8px 12px;
+  color: var(--text-color);
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-tag-control:focus {
+  outline: none;
+  border-color: var(--input-border-focus);
+}
+
+/* Dropdown */
+.tag-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--container-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+  margin-top: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.tag-dropdown-item {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: var(--container-text-color);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tag-dropdown-item:hover {
+  background: var(--container-hover-bg);
+}
+
+/* Список выбранных */
+.selected-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+}
+
+.tag-chip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--chips-text, #fff);
+  font-size: 0.85rem;
+  border: 1px solid var(--input-bg);
+  cursor: pointer;
+}
+
+.tag-chip-item:hover{
+  background-color: rgba(255, 59, 48, 0.1);
+  border-color: rgba(255, 59, 48, 0.5);
+  transform: scale(1.05);
+}
+
+.remove-tag-icon {
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  margin-left: 2px;
+}
+
+.remove-tag-icon:hover {
+  opacity: 1;
+  color: #ff4d4f;
+}

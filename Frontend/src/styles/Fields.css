@@ -736,6 +736,45 @@
 }
 
 
+.sortable-row {
+  margin-bottom: 5px;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+  height: 40px; 
+}
+
+.drag-handle:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  color: #4a90e2;
+}
+
+
+.category-field-group {
+  margin-bottom: 0 !important; 
+  flex: 1;
+}
+
+
+.sortable-row[data-dragging="true"] {
+    opacity: 0.5;
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+
+
 @media (max-width: 1200px) {
     .main-content-wrapper {
         flex-direction: column;

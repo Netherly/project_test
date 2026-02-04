@@ -341,17 +341,19 @@
 }
 
 .journal-advanced-search-fields {
-    position: absolute; 
-    top: 100%; 
-    left: 0; 
-    width: 100%; 
-    background-color: var(--container-bg); 
-    border: 1px solid var(--border--color);
-    border-radius: 0 0 8px 8px; 
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); 
-    padding: 15px 20px; 
-    z-index: 99; 
-    box-sizing: border-box; 
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background-color: var(--container-bg);
+  border-left-width: 0px;
+  border-right-width: 0px;
+  border-top: none;
+  margin-top: -1px;
+  border-radius: 0 0 8px 8px; 
+  padding: 15px 20px;
+  z-index: 99;
+  box-sizing: border-box;
 }
 
 .journal-search-field-group {

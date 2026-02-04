@@ -54,10 +54,10 @@
 }
 /* ────────── Закреплённая карточка ────────── */
 .log-item.pinned {
-  border-color: #ffd700;            /* жёлтая обводка */
-  position: sticky;                 /* прилипает при скролле */
-  top: 0;                           /* всегда у верхнего края .chat-scroll */
-  z-index: 1;                       /* поверх остальных записей */
+  border-color: #ffd700;            
+  position: sticky;                 
+  top: 0;                           
+  z-index: 1;                       
   /* чуть светлее фон, чтобы выделить */
 }
 
@@ -158,9 +158,10 @@
   border-top: 1px solid var(--input-border);
   display: flex;
   flex-direction: column;
+  margin: 8px;
+  border-radius: 8px;
 }
 .chat-textarea {
-  width: 100%;
   resize: none;
   overflow: hidden;
   padding: 8px 12px;
@@ -191,21 +192,36 @@
 }
 .send-btn {
   all: unset;
-  background: var(--button-bg);
+  background: var(--button-bg); 
   color: var(--button-text);
   padding: 6px 16px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  transition: background .2s;
+  transition: all 0.2s ease-in-out; 
 }
+
+
 .send-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  background: #4a5b6c; 
 }
+
+
+.send-btn:not(:disabled) {
+  
+  background: #007bff; 
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.4); 
+}
+
+
 .send-btn:not(:disabled):hover {
-  background: var(--container-hover-bg);
+  background: #0056b3; 
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.6);
+  transform: translateY(-1px);
 }
 
 /* ────────── Окно подтверждения удаления ────────── */

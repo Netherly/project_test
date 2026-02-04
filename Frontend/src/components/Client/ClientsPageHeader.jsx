@@ -290,8 +290,8 @@ export default function ClientsPageHeader({
       </h1>
       <span className={styles.headerDivider} aria-hidden="true" />
 
-      {/* Поиск — как в журнале: инпут показывает превью и открывает фильтры */}
-      <div className={styles.searchContainer} role="search">
+      
+      <div className={`${styles.searchContainer} ${showAdvanced ? styles.active : ""}`} role="search">
         <div className={styles.mainSearchBar}>
           <span className={styles.searchIcon} aria-hidden="true"><FaSearch /></span>
 

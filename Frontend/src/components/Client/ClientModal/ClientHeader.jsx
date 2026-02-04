@@ -1,28 +1,23 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-
 import { useFormContext, Controller } from 'react-hook-form';
 import defaultAvatar from '../../../assets/avatar-placeholder.svg';
 import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
 import { Trash2 } from 'lucide-react';
 
-
 const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
 
 export default function ClientHeader({
   onClose,
-  onDelete = () => {}
+  onDelete // Если null, кнопка удаления скрыта
 }) {
   
-  
   const { watch, control } = useFormContext();
- const fullName = watch('full_name')?.trim() || 'ФИО клиента'; 
+  const fullName = watch('full_name')?.trim() || 'ФИО клиента'; 
   const clientName = watch('name')?.trim() || 'Имя клиента';
   const avatarSrc = watch('photo_link')?.trim() || defaultAvatar;
   
-  
   const watchedTags = watch('tags', []);
 
-  
   const [customTag, setCustomTag] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const tagInputRef = useRef(null);
@@ -33,9 +28,7 @@ export default function ClientHeader({
 
   const handleTagSelect = (tagName, fieldOnChange) => {
       const currentTags = Array.isArray(watchedTags) ? watchedTags : [];
-      
       if (tagName && !currentTags.find(t => t.name === tagName)) {
-          
           fieldOnChange([...currentTags, { name: tagName, color: '#777' }]);
       }
       setCustomTag('');
@@ -58,17 +51,14 @@ export default function ClientHeader({
       tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !watchedTags.find(t => t.name === tagString)
   );
 
-  
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setMenuOpen(false);
       }
-      
       if (tagInputRef.current && !tagInputRef.current.contains(event.target) && tagDropdownRef.current && !tagDropdownRef.current.contains(event.target)) {
           setShowTagDropdown(false);
       }
@@ -77,7 +67,6 @@ export default function ClientHeader({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  
   const handleEsc = useCallback((event) => {
     if (event.key === 'Escape') {
       setMenuOpen(false);
@@ -90,7 +79,6 @@ export default function ClientHeader({
     return () => document.removeEventListener('keydown', handleEsc);
   }, [handleEsc]);
 
-  
   return (
     <div className={styles.employeeHeader}>
       
@@ -112,7 +100,7 @@ export default function ClientHeader({
           </span>
         </div>
         
-        
+        {/* Теги в хедере */}
         <div className={styles.tagsSectionHeader}>
             <Controller
                 control={control}
@@ -121,8 +109,6 @@ export default function ClientHeader({
                     const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
                     return (
                         <div className={styles.tagsWrapper}>
-                            
-                            
                             <div className={styles.tagInputContainer} ref={tagInputRef}>
                                 <input
                                     type="text"
@@ -152,7 +138,6 @@ export default function ClientHeader({
                                 )}
                             </div>
 
-                            
                             {currentTags.map((tag, index) => (
                                 <span
                                     key={tag.id || index}
@@ -169,20 +154,22 @@ export default function ClientHeader({
         </div>
       </div>
 
-     
       <div className={styles.actions}>
         
-        <div ref={menuRef} className={styles.actionItem}>
-          <button className={styles.btn} type="button" onClick={() => setMenuOpen(o => !o)}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-          </button>
-          
-          <ul className={`${styles.dropdown} ${menuOpen ? styles.show : ''}`}>
-            <li onClick={() => { onDelete(); setMenuOpen(false); }}>
-              <Trash2 size={14} /> Удалить {name}
-            </li>
-          </ul>
-        </div>
+        {/* Кнопка меню (удаление) показывается ТОЛЬКО если есть onDelete */}
+        {onDelete && (
+          <div ref={menuRef} className={styles.actionItem}>
+            <button className={styles.btn} type="button" onClick={() => setMenuOpen(o => !o)}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+            
+            <ul className={`${styles.dropdown} ${menuOpen ? styles.show : ''}`}>
+              <li onClick={() => { onDelete(); setMenuOpen(false); }}>
+                <Trash2 size={14} /> Удалить {clientName}
+              </li>
+            </ul>
+          </div>
+        )}
 
         <div className={styles.actionItem}>
             <button className={styles.btn} type="button" onClick={onClose}>
@@ -190,17 +177,15 @@ export default function ClientHeader({
                     xmlns="http://www.w3.org/2000/svg" 
                     width="24" 
                     height="24" 
-                    viewBox="0 0 24" 
+                    viewBox="0 0 24 24" 
                     fill="none" 
                     stroke="currentColor" 
                     strokeWidth="2" 
                     strokeLinecap="round" 
                     strokeLinejoin="round"
                 >
-                    
-                    <path d="M18 6 6 18" style={{display: 'none'}} /> 
-                    <path d="M20 4 4 20" />
-                    <path d="M4 4 20 20" />
+                    <path d="M18 6 6 18" />
+                    <path d="M6 6 18 18" />
                 </svg>
             </button>
         </div>

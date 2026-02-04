@@ -1,7 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../../styles/AssetDetailsModal.css";
-import { Copy, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2, X, GripVertical } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { rid } from "../../api/fields.js";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -23,6 +40,33 @@ const formatDateShort = (dateString) => {
   return `${day}.${month} ${hours}:${minutes}`;
 };
 
+const SortableRequisiteItem = ({ id, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 999 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="requisite-item editable">
+      <div className="drag-handle" {...attributes} {...listeners}>
+        <GripVertical size={20} />
+      </div>
+      {children}
+    </div>
+  );
+};
+
 const AssetDetailsModal = ({
   asset,
   onClose,
@@ -38,8 +82,10 @@ const AssetDetailsModal = ({
   const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
   const [isEditingRequisites, setIsEditingRequisites] = useState(false);
 
-  const dragItem = useRef(null);
-  const dragOverItem = useRef(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const getInitialState = (data) => ({
     ...data,
@@ -54,7 +100,9 @@ const AssetDetailsModal = ({
     design: data?.design || "",
     currency: data?.currency || "UAH",
     type: data?.type || "",
-    requisites: Array.isArray(data?.requisites) ? data.requisites : [],
+    requisites: Array.isArray(data?.requisites) 
+      ? data.requisites.map(r => ({ ...r, internalId: r.internalId || rid() })) 
+      : [],
   });
 
   const [editableAsset, setEditableAsset] = useState(getInitialState(asset || {}));
@@ -140,7 +188,7 @@ const AssetDetailsModal = ({
   const handleAddRequisite = () => {
     setEditableAsset((prev) => ({
       ...prev,
-      requisites: [...(prev.requisites || []), { label: "", value: "" }],
+      requisites: [...(prev.requisites || []), { internalId: rid(), label: "", value: "" }],
     }));
     setIsEditingRequisites(true);
   };
@@ -160,50 +208,33 @@ const AssetDetailsModal = ({
     setIsEditingRequisites(false);
   };
 
-  const allowDrop = (e) => e.preventDefault();
-
-  const handleDragStart = (e, index) => {
-    dragItem.current = index;
-    e.dataTransfer.effectAllowed = "move";
-    e.currentTarget.classList.add("dragging");
-  };
-
-  const handleDragEnter = (e, index) => {
-    dragOverItem.current = index;
-    e.currentTarget.classList.add("drag-over");
-  };
-
-  const handleDragLeave = (e) => e.currentTarget.classList.remove("drag-over");
-
-  const handleDragEnd = (e) => {
-    e.currentTarget.classList.remove("dragging");
-    document.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over"));
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const dragged = dragItem.current;
-    const dropped = dragOverItem.current;
-    if (dragged === null || dropped === null || dragged === dropped) return;
-    const newReq = [...(editableAsset.requisites || [])];
-    const [moved] = newReq.splice(dragged, 1);
-    newReq.splice(dropped, 0, moved);
-    setEditableAsset((prev) => ({ ...prev, requisites: newReq }));
-    dragItem.current = null;
-    dragOverItem.current = null;
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setEditableAsset((prev) => {
+        const oldIndex = prev.requisites.findIndex((item) => item.internalId === active.id);
+        const newIndex = prev.requisites.findIndex((item) => item.internalId === over.id);
+        return {
+          ...prev,
+          requisites: arrayMove(prev.requisites, oldIndex, newIndex)
+        };
+      });
+    }
   };
 
   const handleSave = () => {
     const filteredRequisites = (editableAsset.requisites || []).filter(
       (req) => req.label.trim() !== "" || req.value.trim() !== ""
     );
+    const requisitesToSave = filteredRequisites.map(({ internalId, ...rest }) => rest);
+
     const limitToSave =
       editableAsset.limitTurnover === "" ? null : parseFloat(editableAsset.limitTurnover);
 
     const assetToSave = {
       ...editableAsset,
       limitTurnover: limitToSave,
-      requisites: filteredRequisites,
+      requisites: requisitesToSave,
     };
     onSave(assetToSave);
   };
@@ -534,54 +565,47 @@ const AssetDetailsModal = ({
               <div className="no-transactions-message">Нет реквизитов</div>
             )}
 
-            {(editableAsset.requisites || []).map((req, index) => (
-              <div
-                key={`${req.label}-${index}`}
-                className={`requisite-item ${isEditingRequisites ? "editable" : ""}`}
-                draggable={isEditingRequisites}
-                onDragStart={(e) => isEditingRequisites && handleDragStart(e, index)}
-                onDragEnter={(e) => isEditingRequisites && handleDragEnter(e, index)}
-                onDragLeave={handleDragLeave}
-                onDragOver={allowDrop}
-                onDrop={handleDrop}
-                onDragEnd={handleDragEnd}
-              >
-                {isEditingRequisites ? (
-                  <>
-                    <span className="drag-handle">⋮⋮</span>
-                    <input
-                      type="text"
-                      name="label"
-                      value={req.label}
-                      onChange={(e) => handleRequisiteChange(index, e)}
-                      className="requisite-input"
-                      placeholder="Название"
-                    />
-                    <input
-                      type="text"
-                      name="value"
-                      value={req.value}
-                      onChange={(e) => handleRequisiteChange(index, e)}
-                      className="requisite-input"
-                      placeholder="Значение"
-                    />
-                    <button
-                      type="button"
-                      className="remove-requisite-icon-button"
-                      onClick={() => handleRemoveRequisite(index)}
-                      title="Удалить"
-                    >
-                      <X size={16} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <label>{req.label || "—"}</label>
-                    <span>{req.value || "—"}</span>
-                  </>
-                )}
-              </div>
-            ))}
+            {isEditingRequisites ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={editableAsset.requisites.map(r => r.internalId)} strategy={verticalListSortingStrategy}>
+                  {editableAsset.requisites.map((req, index) => (
+                    <SortableRequisiteItem key={req.internalId} id={req.internalId}>
+                      <input
+                        type="text"
+                        name="label"
+                        value={req.label}
+                        onChange={(e) => handleRequisiteChange(index, e)}
+                        className="requisite-input"
+                        placeholder="Название"
+                      />
+                      <input
+                        type="text"
+                        name="value"
+                        value={req.value}
+                        onChange={(e) => handleRequisiteChange(index, e)}
+                        className="requisite-input"
+                        placeholder="Значение"
+                      />
+                      <button
+                        type="button"
+                        className="remove-requisite-icon-button"
+                        onClick={() => handleRemoveRequisite(index)}
+                        title="Удалить"
+                      >
+                        <X size={16} />
+                      </button>
+                    </SortableRequisiteItem>
+                  ))}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              (editableAsset.requisites || []).map((req, index) => (
+                <div key={`${req.label}-${index}`} className="requisite-item">
+                  <label>{req.label || "—"}</label>
+                  <span>{req.value || "—"}</span>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="modal-section">

@@ -39,10 +39,6 @@ export const clientSchema = yup.object().shape({
 
   // === CONTACTS ===
   full_name: yup.string().required("ФИО обязательно"),
-  phone: yup
-    .string()
-    .required("Телефон обязателен")
-    .matches(/^\+\d{7,}$/, 'Номер должен начинаться с "+" и содержать минимум 7 цифр'),
   email: yup.string().required("Email обязателен").email("Неверный формат"),
   country: yup.string().required("Страна обязательна"),
   city: yup.string().nullable(),

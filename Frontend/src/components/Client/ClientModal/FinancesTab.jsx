@@ -7,7 +7,7 @@ import {
 import './FinancesTab.css';
 import { Plus, Minus } from 'lucide-react';
 
-// <--- ДОБАВЛЕНО: Утилита форматирования
+// Утилита форматирования
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
     return '0.00';
@@ -18,45 +18,11 @@ const formatNumberWithSpaces = (num) => {
   return parts.join('.');
 };
 
-// <--- ДОБАВЛЕНО: Тестовые данные для клиента
-const mockTransactions = [
-  {
-    id: 'mock1',
-    date: '15-11-2025',
-    category: 'Оплата клиента',
-    subcategory: 'Оплата заказа Z-102',
-    operation: 'Зачисление', // <-- Будет зеленым
-    amount: 50000,
-    accountCurrency: 'EUR',
-    orderNumber: 'Z-102'
-  },
-  {
-    id: 'mock2',
-    date: '14-11-2025',
-    category: 'Возврат',
-    subcategory: 'Возврат по заказу Z-100',
-    operation: 'Списание', // <-- Будет красным
-    amount: 2500,
-    accountCurrency: 'EUR',
-    orderNumber: 'Z-100'
-  }
-];
-
 export default function FinancesTab({ currencies = [], referrers = [], employees = [] }) {
   const [currencyList, setCurrencyList] = useState(currencies);
   
-  // <--- ДОБАВЛЕНО: Состояние для таблицы транзакций
-  const [transactions, setTransactions] = useState(mockTransactions);
-
-  // TODO: Позже здесь будет логика загрузки реальных транзакций для клиента
-  // useEffect(() => {
-  //   // const clientId = getValues('id'); // или получить id из пропсов
-  //   // if (clientId) {
-  //   //   // ...логика загрузки транзакций по clientId...
-  //   //   // setTransactions(loadedTransactions);
-  //   // }
-  // }, []);
-
+  // ПРАВКА: Убрали хардкод, теперь таблица пустая
+  const [transactions, setTransactions] = useState([]);
 
   const addCurrency = () => {
     const val = prompt('Новая валюта (пример: CHF):');
@@ -278,10 +244,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           <div className="form-field">
             <label>Первый реферер</label>
             <select {...field} onChange={handleReferrerChange(field, 'referrer_first_name')}>
-              <option value="">-- выбрать --</option>
-              {referrers.map(r => (
-                <option key={r.id} value={r.id}>{r.label || r.name}</option>
-              ))}
             </select>
           </div>
         )}
@@ -304,14 +266,9 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         )}
       />
       
-      
-      
-      
       <div className="tab-content-title full-width">Журнал операций</div>
       
       <div className="finances-log-table full-width">
-        
-        {/* Заголовок таблицы */}
         <div className="finances-log-row header-row">
           <div className="finances-log-content-wrapper">
             <div className="finances-log-cell">Дата</div>
@@ -323,28 +280,22 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           </div>
         </div>
 
-        {/* Строки таблицы */}
         {transactions.length > 0 ? (
           transactions.map((trx) => (
             <div key={trx.id} className="finances-log-row">
               <div className="finances-log-content-wrapper">
-                
                 <div className="finances-log-cell">
                   <input type="text" value={trx.date || ''} readOnly />
                 </div>
-                
                 <div className="finances-log-cell">
                   <input type="text" value={trx.category || ''} readOnly />
                 </div>
-                
                 <div className="finances-log-cell">
                   <input type="text" value={trx.subcategory || ''} readOnly />
                 </div>
-                
                 <div className="finances-log-cell">
                   <input type="text" value={trx.operation || ''} readOnly />
                 </div>
-                
                 <div className="finances-log-cell">
                   <input
                     type="text"
@@ -353,11 +304,9 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
                     readOnly
                   />
                 </div>
-
                 <div className="finances-log-cell">
                   <input type="text" value={trx.orderNumber || 'N/A'} readOnly />
                 </div>
-
               </div>
             </div>
           ))
@@ -367,7 +316,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           </div>
         )}
       </div>
-
     </div>
   );
 }
