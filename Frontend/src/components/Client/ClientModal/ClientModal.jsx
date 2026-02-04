@@ -176,20 +176,21 @@ export default function ClientModal({
               {activeTab === "accesses" && <AccessesTab />}
             </form>
           </FormProvider>
-          <div className="form-actions-bottom">
-            <button
-              className="cancel-order-btn"
-              type="button"
-              onClick={() => reset()}
-              disabled={!isDirty}
-            >
-              Отменить
-            </button>
+          {isDirty && (
+            <div className="form-actions-bottom">
+              <button
+                className="cancel-order-btn"
+                type="button"
+                onClick={() => reset()}
+              >
+                Отменить
+              </button>
 
-            <button className="save-order-btn" type="submit" form={formId}>
-              Сохранить
-            </button>
-          </div>
+              <button className="save-order-btn" type="submit" form={formId}>
+                Сохранить
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ─── центр – чат ─── */}
