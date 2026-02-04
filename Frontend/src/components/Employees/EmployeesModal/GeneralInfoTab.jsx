@@ -1,16 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { useFields } from "../../../context/FieldsContext";
 
 export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
   const { fields, loading: fieldsLoading } = useFields();
-
-  const [countries, setCountries] = useState(
-    Array.isArray(propEmployeeFields?.country) ? propEmployeeFields.country : []
-  );
+  const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
-
   const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
   const currentCountryId = useWatch({ control, name: "countryId" });
   const currentCountry = useWatch({ control, name: "country" });
@@ -48,12 +44,9 @@ export default function GeneralInfoTab({ fieldsData }) {
       .filter(Boolean);
   }, [countries]);
 
-  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
-  
-  const currentCountry = useWatch({ control, name: "country" });
-  const currentCountryId = useWatch({ control, name: "countryId" });
+ 
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!countryOptions.length || !currentCountry) return;
     const hasCurrentId = countryOptions.some((opt) => opt.value === currentCountryId);
     if (!hasCurrentId) {
