@@ -6,9 +6,7 @@ export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
   const { fields, loading: fieldsLoading } = useFields();
 
-  const [countries, setCountries] = useState(
-    Array.isArray(fieldsData?.country) ? fieldsData.country : []
-  );
+  const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
 
   const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
@@ -48,7 +46,7 @@ export default function GeneralInfoTab({ fieldsData }) {
       .filter(Boolean);
   }, [countries]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!countryOptions.length || !currentCountry) return;
     const hasCurrentId = countryOptions.some((opt) => opt.value === currentCountryId);
     if (!hasCurrentId) {
