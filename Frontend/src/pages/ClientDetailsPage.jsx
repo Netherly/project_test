@@ -12,21 +12,6 @@ import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 import "../styles/ClientsPage.css";
 
-const extractValues = (items, { preferCode = false } = {}) => {
-  const normalizeStr = (value) => String(value ?? "").trim();
-  const uniqueList = (arr) => Array.from(new Set(arr));
-  const list = Array.isArray(items) ? items : [];
-  const values = list
-    .map((item) => {
-      if (typeof item === "string") return normalizeStr(item);
-      if (!item || typeof item !== "object") return "";
-      if (preferCode) return normalizeStr(item.code ?? item.value ?? item.name);
-      return normalizeStr(item.name ?? item.value ?? item.code);
-    })
-    .filter(Boolean);
-  return uniqueList(values);
-};
-
 const withReferrerNames = (client) => {
   return client;
 };
@@ -34,34 +19,14 @@ const withReferrerNames = (client) => {
 export default function ClientDetailsPage() {
   const { clientId } = useParams();
   const navigate = useNavigate();
-  const { fields } = useFields(); // Используем Context для получения полей
+  const { clientCountries = [], currencies = [], clientCategories = [] } = useFields();
   
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [countriesList, setCountriesList] = useState([]);
-  const [currenciesList, setCurrenciesList] = useState([]);
-  const [categoriesList, setCategoriesList] = useState([]);
   const [companiesList, setCompaniesList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
   const [referrerOptions, setReferrerOptions] = useState([]);
-
-  // обновление списков
-  useEffect(() => {
-    if (!fields) return;
-    
-    const nextCountries = extractValues(fields?.clientFields?.country);
-    const nextCurrencies = extractValues(
-      fields?.generalFields?.currency ?? fields?.clientFields?.currency,
-      { preferCode: true }
-    );
-    const nextCategories = extractValues(fields?.clientFields?.category);
-    
-    if (nextCountries.length) setCountriesList(nextCountries);
-    if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
-    if (nextCategories.length) setCategoriesList(nextCategories);
-  }, [fields]);
-
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -211,8 +176,8 @@ export default function ClientDetailsPage() {
           companies={companiesList}
           employees={employeesList}
           referrers={referrerOptions}
-          countries={countriesList}
-          currencies={currenciesList}
+          countries={clientCountries}
+          currencies={currencies}
           onClose={handleCloseModal}
           onSave={handleSaveClient}
           onDelete={clientId && clientId !== "new" ? handleDeleteClient : null}

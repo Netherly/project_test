@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useFields } from "../../context/FieldsContext";
 import Sidebar from "../Sidebar";
 import "../../styles/EmployeesPage.css";
 import avatarPlaceholder from "../../assets/avatar-placeholder.svg";
@@ -93,7 +94,7 @@ const EmployeeCard = ({ employee, onClick }) => {
 
 const EmployeePage = () => {
   const navigate = useNavigate();
-  const { employeeId } = useParams();
+  const { currencies = [] } = useFields();
   
   const [employees, setEmployees] = useState([]);
 
@@ -132,6 +133,16 @@ const EmployeePage = () => {
       navigate("/employees/new");
     }
   };
+
+  // Получаем валюты из Context или используем дефолтные
+  const currencyList = useMemo(() => {
+    if (Array.isArray(currencies) && currencies.length > 0) {
+      return currencies.map(c => 
+        typeof c === 'string' ? c.toUpperCase() : (c?.code || c?.name || '').toUpperCase()
+      );
+    }
+    return ['UAH', 'USD', 'USDT', 'EUR', 'RUB'];
+  }, [currencies]);
 
   const groupedEmployees = useMemo(() => {
     return (employees || []).reduce(
@@ -232,11 +243,9 @@ const EmployeePage = () => {
                     <th>ДР</th>
                     <th>Теги</th>
                     <th>ДН</th>
-                    <th>UAH/ч</th>
-                    <th>USD/ч</th>
-                    <th>USDT/ч</th>
-                    <th>EUR/ч</th>
-                    <th>RUB/ч</th>
+                    {currencyList.map((currency) => (
+                      <th key={currency}>{currency}/ч</th>
+                    ))}
                     <th>Баланс</th>
                     <th>Банк</th>
                     <th>Карта</th>
@@ -252,7 +261,7 @@ const EmployeePage = () => {
                   .map(([groupName, groupEmployees]) => (
                     <tbody key={groupName}>
                       <tr className="group-header" onClick={() => toggleGroup(groupName)}>
-                        <td colSpan="16">
+                        <td colSpan={11 + currencyList.length}>
                           <span
                             className={`collapse-icon ${
                               collapsedGroups[groupName] ? "collapsed" : ""
@@ -298,11 +307,11 @@ const EmployeePage = () => {
                               </td>
                               <td>{formatDate(employee.startDate) || "-"}</td>
 
-                              <td>{employee.hourlyRates?.uah}</td>
-                              <td>{employee.hourlyRates?.usd}</td>
-                              <td>{employee.hourlyRates?.usdt}</td>
-                              <td>{employee.hourlyRates?.eur}</td>
-                              <td>{employee.hourlyRates?.rub}</td>
+                              {currencyList.map((currency) => (
+                                <td key={currency}>
+                                  {employee.hourlyRates?.[currency.toLowerCase()] || "-"}
+                                </td>
+                              ))}
 
                               <td>{formatNumberWithSpaces(employee.balance)}</td>
 
