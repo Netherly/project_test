@@ -1,4 +1,3 @@
-// src/components/Client/ClientModal/ClientModal.jsx
 import React, { useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -40,7 +39,6 @@ export default function ClientModal({
   const [closing, setClosing] = useState(false);
   const [formErrors, setFormErrors] = useState(null);
 
-  // ID для связки формы и кнопки submit (кнопка находится вне <form>)
   const formId = "client-main-form";
   const sampleLogs = [
     { timestamp: "2023-03-07T12:36", author: "Менеджеры", message: "Отримувач: …" },
@@ -98,13 +96,11 @@ export default function ClientModal({
       setFormErrors(null);
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
-      // eslint-disable-next-line no-console
       console.error("saveClient failed:", e);
     }
   };
 
   const onInvalid = (err) => {
-    // eslint-disable-next-line no-console
     console.log("Validation Errors:", err);
     const grouped = groupErrors(err);
     setFormErrors(grouped);
@@ -135,7 +131,11 @@ export default function ClientModal({
         {/* ─── левая панель ─── */}
         <div className="left-panel">
           <FormProvider {...methods}>
-            <ClientHeader onClose={closeHandler} onDelete={onDelete ? deleteHandler : null} />
+            {/* ПРАВКА: Если isNew, передаем null вместо deleteHandler */}
+            <ClientHeader 
+              onClose={closeHandler} 
+              onDelete={isNew ? null : (onDelete ? deleteHandler : null)} 
+            />
           </FormProvider>
 
           <TabsNav
@@ -146,7 +146,6 @@ export default function ClientModal({
           />
 
           <FormProvider {...methods}>
-            {/* ВАЖНО: Добавлен id={formId} */}
             <form
               id={formId}
               className="client-modal-body custom-scrollbar"
@@ -177,21 +176,21 @@ export default function ClientModal({
               {activeTab === "accesses" && <AccessesTab />}
             </form>
           </FormProvider>
-          <div className="form-actions-bottom">
-            <button
-              className="cancel-order-btn"
-              type="button"
-              onClick={() => reset()}
-              disabled={!isDirty}
-            >
-              Отменить
-            </button>
+          {isDirty && (
+            <div className="form-actions-bottom">
+              <button
+                className="cancel-order-btn"
+                type="button"
+                onClick={() => reset()}
+              >
+                Отменить
+              </button>
 
-            {/* Кнопка submit вне формы — поэтому form={formId} */}
-            <button className="save-order-btn" type="submit" form={formId}>
-              Сохранить
-            </button>
-          </div>
+              <button className="save-order-btn" type="submit" form={formId}>
+                Сохранить
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ─── центр – чат ─── */}

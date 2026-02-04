@@ -1,19 +1,15 @@
-// components/Client/ClientModal/InfoTab.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import TagSelector from "../TagSelector";
 import TextareaWithCounter from "../TextareaWithCounter";
 import "./InfoTab.css";
-
-import { Plus } from "lucide-react";
-
 import { FieldsAPI } from "../../../api/fields";
+
+const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
 
 export default function InfoTab({
   companies = [],
   categoriesInit = [],
   sourcesInit = [],
-  onAddCompany,
 }) {
   const {
     control,
@@ -22,13 +18,56 @@ export default function InfoTab({
 
   const [categories, setCategories] = useState([]);
   const [sources, setSources] = useState([]);
+  
   const [tagOptions, setTagOptions] = useState([]);
+  const [customTag, setCustomTag] = useState('');
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const tagInputRef = useRef(null);
+  const tagDropdownRef = useRef(null);
 
   const [loadingLists, setLoadingLists] = useState(true);
-  const [savingCat, setSavingCat] = useState(false);
-  const [savingSrc, setSavingSrc] = useState(false);
 
+  // --- Хелперы для тегов ---
+  const handleTagInputChange = (e) => setCustomTag(e.target.value);
+  const handleTagInputFocus = () => setShowTagDropdown(true);
 
+  const handleTagSelect = (tagName, fieldOnChange, currentTagsValue) => {
+    const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
+    if (tagName && !currentTags.find(t => t.name === tagName)) {
+       fieldOnChange([...currentTags, { name: tagName, color: '#777' }]);
+    }
+    setCustomTag('');
+    setShowTagDropdown(false);
+  };
+
+  const handleCustomTagAdd = (e, fieldOnChange, currentTagsValue) => {
+    if (e.key === 'Enter' && customTag.trim()) {
+      e.preventDefault();
+      handleTagSelect(customTag.trim(), fieldOnChange, currentTagsValue);
+    }
+  };
+
+  const handleTagRemove = (tagToRemove, fieldOnChange, currentTagsValue) => {
+      const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
+      fieldOnChange(currentTags.filter(tag => tag.name !== tagToRemove.name));
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        tagInputRef.current && 
+        !tagInputRef.current.contains(event.target) && 
+        tagDropdownRef.current && 
+        !tagDropdownRef.current.contains(event.target)
+      ) {
+          setShowTagDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // --- Загрузка данных ---
   const normalizeStr = (s) => String(s ?? "").trim();
   const extractNames = (arr) => {
     if (!Array.isArray(arr)) return [];
@@ -40,25 +79,22 @@ export default function InfoTab({
       )
       .filter(Boolean);
   };
-  const unique = (arr) =>
-    Array.from(
-      new Map(arr.map((v) => [v.toLowerCase(), v])).values()
-    );
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const clientFields = await FieldsAPI.getClient();
-  const apiCats = extractNames(clientFields?.category);
-  const apiSrcs = extractNames(clientFields?.source);
-  const apiTags = Array.isArray(clientFields?.tags) ? clientFields.tags : [];
+        const apiCats = extractNames(clientFields?.category);
+        const apiSrcs = extractNames(clientFields?.source);
+        const apiTags = Array.isArray(clientFields?.tags) ? clientFields.tags : [];
         const initCats = extractNames(categoriesInit);
         const initSrcs = extractNames(sourcesInit);
+        
         if (!mounted) return;
         setCategories(apiCats.length ? apiCats : initCats);
         setSources(apiSrcs.length ? apiSrcs : initSrcs);
-  setTagOptions(apiTags);
+        setTagOptions(apiTags);
       } catch (e) {
         console.error("FieldsAPI.getClient failed:", e);
         setCategories(extractNames(categoriesInit));
@@ -71,77 +107,35 @@ export default function InfoTab({
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
-  const addOption = async (kind) => {
-    const label = kind === "category" ? "Категория" : "Источник";
-    const raw = prompt(`Новое значение для "${label}"`);
-    const v = normalizeStr(raw);
-    if (!v) return;
-
-    if (kind === "category") {
-      if (categories.some((x) => x.toLowerCase() === v.toLowerCase())) return;
-      const next = unique([...categories, v]);
-      setSavingCat(true);
-      try {
-        await FieldsAPI.setClientCategories(next);
-        setCategories(next);
-      } catch (e) {
-        console.error("setClientCategories failed:", e);
-      } finally {
-        setSavingCat(false);
-      }
-    } else {
-      if (sources.some((x) => x.toLowerCase() === v.toLowerCase())) return;
-      const next = unique([...sources, v]);
-      setSavingSrc(true);
-      try {
-        await FieldsAPI.setClientSources(next);
-        setSources(next);
-      } catch (e) {
-        console.error("setClientSources failed:", e);
-      } finally {
-        setSavingSrc(false);
-      }
-    }
-  };
-
 
   return (
     <div className="tab-section info-tab">
 
+      {/* Клиент (Имя) */}
       <Controller
         name="name"
         control={control}
         render={({ field }) => (
-       
           <div className="form-field">
-           
             <label>Клиент<span className="req">*</span></label>
-         
             <input
               {...field}
               placeholder="Клиент"
               className={errors.name ? "input-error" : ""}
             />
-           
-            
-            
             {errors.name && <p className="error grid-error">{errors.name.message}</p>}
           </div>
         )}
       />
 
-     
+      {/* Категория */}
       <Controller
         name="category"
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            
             <label>Категория<span className="req">*</span></label>
-            
             <select
               {...field}
               disabled={loadingLists}
@@ -159,15 +153,13 @@ export default function InfoTab({
         )}
       />
 
-    
+      {/* Источник */}
       <Controller
         name="source"
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            
             <label>Источник<span className="req">*</span></label>
-           
             <select
               {...field}
               disabled={loadingLists}
@@ -183,7 +175,7 @@ export default function InfoTab({
         )}
       />
 
-      
+      {/* Вводное описание */}
       <Controller
         name="intro_description"
         control={control}
@@ -205,7 +197,7 @@ export default function InfoTab({
         )}
       />
 
-      
+      {/* Примечание */}
       <Controller
         name="note"
         control={control}
@@ -229,16 +221,64 @@ export default function InfoTab({
       <Controller
         name="tags"
         control={control}
-        render={({ field }) => (
-          <div className="form-field full-width">
-            <label>Теги</label>
-            <TagSelector
-              options={tagOptions}
-              tags={Array.isArray(field.value) ? field.value : []}
-              onChange={field.onChange}
-            />
-          </div>
-        )}
+        render={({ field: { onChange, value: currentTagsValue } }) => {
+           const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
+           const suggestions = [...defaultTags, ...(tagOptions.map(t => typeof t === 'object' ? t.name : t))];
+           const uniqueSuggestions = Array.from(new Set(suggestions));
+           
+           const filteredTags = uniqueSuggestions.filter(
+              tagString => 
+                tagString.toLowerCase().includes(customTag.toLowerCase()) && 
+                !currentTags.find(t => t.name === tagString)
+           );
+
+           return (
+             <div className="form-field full-width">
+               <label>Теги</label>
+               <div className="custom-tags-wrapper">
+                  <div className="tag-input-container" ref={tagInputRef}>
+                      <input
+                          type="text"
+                          placeholder="Добавить тег"
+                          className="input-tag-control"
+                          value={customTag}
+                          onChange={handleTagInputChange}
+                          onKeyDown={(e) => handleCustomTagAdd(e, onChange, currentTagsValue)}
+                          onFocus={handleTagInputFocus}
+                          autoComplete="off"
+                      />
+                      
+                      {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                          <div className="tag-dropdown" ref={tagDropdownRef}>
+                              {filteredTags.map(tag => (
+                                  <div key={tag} className="tag-dropdown-item" onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}>
+                                      {tag}
+                                  </div>
+                              ))}
+                              {customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                  <div className="tag-dropdown-item" onClick={() => handleTagSelect(customTag.trim(), onChange, currentTagsValue)}>
+                                      Добавить: "{customTag.trim()}"
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="selected-tags-list">
+                    {currentTags.map((tag, index) => (
+                        <span key={tag.id || index} className="tag-chip-item">
+                            {tag.name} 
+                            <span 
+                              className="remove-tag-icon" 
+                              onClick={() => handleTagRemove(tag, onChange, currentTagsValue)}
+                            >×</span>
+                        </span>
+                    ))}
+                  </div>
+               </div>
+             </div>
+           );
+        }}
       />
 
       {/* Компания */}
@@ -247,9 +287,7 @@ export default function InfoTab({
         control={control}
         render={({ field }) => (
           <div className="form-field">
-       
             <label>Компания</label>
-      
             <select
               {...field}
               className={errors.company_id ? "input-error" : ""}
@@ -262,21 +300,6 @@ export default function InfoTab({
             {errors.company_id && (
               <p className="error grid-error">{errors.company_id.message}</p>
             )}
-          </div>
-        )}
-      />
-
-    
-      <Controller
-        name="messenger_name"
-        control={control}
-        render={({ field }) => (
-          <div className="form-field">
-           
-            <label>Имя в мессенджере</label>
-           
-            <input {...field} placeholder="Имя в мессенджере" />
-           
           </div>
         )}
       />

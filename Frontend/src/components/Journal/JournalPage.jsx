@@ -909,7 +909,10 @@ const JournalPage = () => {
           <PageHeaderIcon pageName="Журнал" />
           <h1 className="journal-page-title">Журнал</h1>
 
-          <div className="journal-search-container" ref={searchContainerRef}>
+          <div 
+            className={`journal-search-container ${showAdvancedSearch ? 'active' : ''}`} 
+            ref={searchContainerRef}
+          >
             <div className="journal-main-search-bar">
               <span className="journal-search-icon">
                 <svg

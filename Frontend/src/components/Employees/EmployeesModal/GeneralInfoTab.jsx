@@ -1,67 +1,22 @@
-// Frontend/src/pages/EmployeesModal/tabs/GeneralInfoTab.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
-import { FieldsAPI, withDefaults } from "../../../api/fields";
 
-export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { country: [] } }) {
+export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
 
-  const [countries, setCountries] = useState(
-    Array.isArray(propEmployeeFields?.country) ? propEmployeeFields.country : []
-  );
-  const [currencies, setCurrencies] = useState([]);
-  const [loadingFields, setLoadingFields] = useState(false);
-  const [fieldsError, setFieldsError] = useState("");
+  const countries = Array.isArray(fieldsData?.employeeFields?.country) ? fieldsData.employeeFields.country : [];
+  const rawCurrencies = Array.isArray(fieldsData?.executorFields?.currency) ? fieldsData.executorFields.currency : [];
 
-  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
-  const currentCountryId = useWatch({ control, name: "countryId" });
-  const currentCountry = useWatch({ control, name: "country" });
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoadingFields(true);
-      setFieldsError("");
-      try {
-        const [employeeGroup, executorGroup] = await Promise.all([
-          FieldsAPI.getEmployee(),
-          FieldsAPI.getExecutor(),
-        ]);
-
-        const safe = withDefaults({
-          employeeFields: employeeGroup,
-          executorFields: executorGroup,
-        });
-
-        const loadedCountries = Array.isArray(safe.employeeFields?.country) ? safe.employeeFields.country : [];
-        const loadedCurrencies = Array.isArray(safe.executorFields?.currency) ? safe.executorFields.currency : [];
-
-        if (!mounted) return;
-
-        setCountries(loadedCountries);
-
-        const currencyCodes = loadedCurrencies
-          .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
-          .map((s) => String(s || "").trim().toLowerCase())
-          .filter(Boolean);
-
-        setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
-      } catch (e) {
-        if (!mounted) return;
-        setFieldsError("Не удалось загрузить справочники. Используются дефолтные значения.");
-        setCurrencies((prev) => (prev.length ? prev : ["uah", "usd", "usdt", "eur", "rub"]));
-      } finally {
-        if (mounted) setLoadingFields(false);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const currencies = useMemo(() => {
+    const codes = rawCurrencies
+      .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
+      .map((s) => String(s || "").trim().toLowerCase())
+      .filter(Boolean);
+    return codes.length ? codes : ["uah", "usd", "usdt", "eur", "rub"];
+  }, [rawCurrencies]);
 
   const countryOptions = useMemo(() => {
-    return (Array.isArray(countries) ? countries : [])
+    return countries
       .map((item) => {
         if (typeof item === "string") {
           const name = item.trim();
@@ -74,10 +29,15 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
       .filter(Boolean);
   }, [countries]);
 
-  useEffect(() => {
-    if (!countryOptions.length) return;
-    const hasCurrent = countryOptions.some((opt) => opt.value === currentCountryId);
-    if (!hasCurrent && currentCountry) {
+  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
+  
+  const currentCountry = useWatch({ control, name: "country" });
+  const currentCountryId = useWatch({ control, name: "countryId" });
+
+  React.useEffect(() => {
+    if (!countryOptions.length || !currentCountry) return;
+    const hasCurrentId = countryOptions.some((opt) => opt.value === currentCountryId);
+    if (!hasCurrentId) {
       const match = countryOptions.find((opt) => opt.label === currentCountry);
       if (match) setValue("countryId", match.value, { shouldDirty: false });
     }
@@ -85,17 +45,6 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
 
   return (
     <div className="tab-section">
-      {loadingFields && (
-        <div className="info" style={{ marginBottom: 12 }}>
-          Загружаются справочники…
-        </div>
-      )}
-      {!!fieldsError && !loadingFields && (
-        <div className="warning" style={{ marginBottom: 12 }}>
-          {fieldsError}
-        </div>
-      )}
-
       <div className="form-field">
         <label>Статус</label>
         <Controller
@@ -190,7 +139,6 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         )}
       />
       
-      
       <div className="form-field">
         <label>Основная валюта</label>
         <Controller
@@ -209,9 +157,7 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         />
       </div>
 
-      
       <div className="checkbox-container-modal">
-        
         <Controller
           name="autoConfirmJournal"
           control={control}
@@ -279,7 +225,6 @@ export default function GeneralInfoTab({ employeeFields: propEmployeeFields = { 
         ))}
         </div>
       </div>
-
     </div>
   );
 }

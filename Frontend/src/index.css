@@ -98,4 +98,6 @@ a {
 
 input[type="checkbox"] {
     accent-color: var(--accent-color);
+	width: 16px;
+	height: 16px;
 }

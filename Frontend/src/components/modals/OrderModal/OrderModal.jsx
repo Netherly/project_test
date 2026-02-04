@@ -639,17 +639,7 @@ function OrderModal({
                     </button>
                   </div>
                 </div>
-
-                {isDirty && (
-                  <div className="action-buttons">
-                    <button type="button" className="cancel-order-btn" onClick={resetChanges}>
-                      Отменить
-                    </button>
-                    <button type="submit" className="save-order-btn">
-                      Сохранить
-                    </button>
-                  </div>
-                )}
+                {/* Убрали кнопки отмены/сохранения из хедера */}
               </div>
 
               <div className="tags-section-header">
@@ -812,14 +802,16 @@ function OrderModal({
             </div>
 
             <div className="order-modal-footer">
-              <div className="action-buttons">
-                <button type="button" className="cancel-order-btn" onClick={resetChanges}>
-                  Отменить
-                </button>
-                <button type="submit" className="save-order-btn">
-                  Сохранить
-                </button>
-              </div>
+              {isDirty && (
+                <div className="action-buttons">
+                  <button type="button" className="cancel-order-btn" onClick={resetChanges}>
+                    Отменить
+                  </button>
+                  <button type="submit" className="save-order-btn">
+                    Сохранить
+                  </button>
+                </div>
+              )}
             </div>
           </form>
         </FormProvider>

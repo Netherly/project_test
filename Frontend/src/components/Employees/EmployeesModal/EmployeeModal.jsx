@@ -1,4 +1,3 @@
-// Frontend/src/pages/EmployeesModal/EmployeeModal.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -16,8 +15,13 @@ import ChatPanel from "../../Client/ClientModal/ChatPanel";
 
 import { normalizeEmployee } from "../../../api/employees";
 import { fetchFields, withDefaults } from "../../../api/fields";
+import { fetchTransactions } from "../../../api/transactions";
+import { fetchAssets } from "../../../api/assets";
+import { fetchOrders } from "../../../api/orders";
 
 import "../../../styles/EmployeeModal.css";
+
+const toText = (value) => String(value ?? '').trim();
 
 export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const safeEmployee = useMemo(() => normalizeEmployee(employee ?? {}), [employee]);
@@ -27,8 +31,14 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const [closing, setClosing] = useState(false);
   const [formErrors, setFormErrors] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [allFields, setAllFields] = useState({ employeeFields: { country: [] } });
-  const [loadingFields, setLoadingFields] = useState(false);
+
+  const [loadingData, setLoadingData] = useState(false);
+  const [appData, setAppData] = useState({
+    fields: { employeeFields: { country: [] }, executorFields: { currency: [] } },
+    transactions: [],
+    assets: [],
+    orders: []
+  });
 
   const formId = "employee-form";
 
@@ -39,29 +49,55 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      setLoadingFields(true);
+
+    const loadAllData = async () => {
+      setLoadingData(true);
       try {
-        const data = await fetchFields();
-        const normalized = withDefaults(data);
+        const fieldsPromise = fetchFields().then(withDefaults).catch(() => ({}));
+
+        const promises = [fieldsPromise];
+
+        if (!isNew && safeEmployee?.id) {
+          const transactionsPromise = fetchTransactions({
+            page: 1,
+            pageSize: 1000,
+            employeeId: safeEmployee.id, 
+          }).catch(() => []);
+
+          const assetsPromise = fetchAssets().catch(() => []);
+
+          const ordersPromise = fetchOrders({ page: 1, limit: 1000 }).catch(() => []);
+
+          promises.push(transactionsPromise, assetsPromise, ordersPromise);
+        }
+
+        const [fieldsData, transactionsData, assetsData, ordersData] = await Promise.all(promises);
+
         if (!mounted) return;
-        setAllFields(normalized);
-        try {
-          localStorage.setItem("fieldsData", JSON.stringify(normalized));
-        } catch {}
-      } catch {
-        try {
-          const saved = localStorage.getItem("fieldsData");
-          if (saved && mounted) setAllFields(JSON.parse(saved));
-        } catch {}
+
+        const cleanTransactions = Array.isArray(transactionsData?.items) ? transactionsData.items : (Array.isArray(transactionsData) ? transactionsData : []);
+        const cleanOrders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []);
+        const cleanAssets = Array.isArray(assetsData) ? assetsData : [];
+
+        setAppData({
+          fields: fieldsData || { employeeFields: { country: [] } },
+          transactions: cleanTransactions,
+          assets: cleanAssets,
+          orders: cleanOrders
+        });
+
+      } catch (error) {
+        console.error("Ошибка загрузки данных сотрудника:", error);
       } finally {
-        if (mounted) setLoadingFields(false);
+        if (mounted) setLoadingData(false);
       }
-    })();
-    return () => {
-      mounted = false;
     };
-  }, []);
+
+    loadAllData();
+
+    return () => { mounted = false; };
+  }, [isNew, safeEmployee?.id]);
+
 
   const methods = useForm({
     resolver: yupResolver(employeeSchema),
@@ -126,7 +162,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     setFormErrors(grouped);
     const firstTabWithErrors = Object.keys(grouped)[0];
     if (firstTabWithErrors) setActiveTab(firstTabWithErrors);
-    console.log("Ошибки валидации:", err);
   };
 
   const closeHandler = () => {
@@ -157,16 +192,39 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
               <TabsNav activeTab={activeTab} setActiveTab={setActiveTab} errors={groupErrors(errors)} isNew={isNew} />
 
-              {activeTab === "summary" && <SummaryTab employee={safeEmployee} />}
-              {activeTab === "general" && <GeneralInfoTab employeeFields={allFields.employeeFields} loading={loadingFields} />}
-              {activeTab === "contacts" && <ContactsTab isNew={isNew} employeeId={safeEmployee.id} />}
-              {activeTab === "requisites" && <RequisitesTab />}
-              {activeTab === "finances" && <FinancesTab isNew={isNew} employee={safeEmployee} />}
-              {activeTab === "orders" && <OrdersTab isNew={isNew} employee={safeEmployee} />}
+              <div className={`tab-content-container ${loadingData ? "loading-opacity" : ""}`}>
+                {activeTab === "summary" && <SummaryTab employee={safeEmployee} />}
+                
+                {activeTab === "general" && (
+                  <GeneralInfoTab 
+                    fieldsData={appData.fields}
+                  />
+                )}
+                
+                {activeTab === "contacts" && <ContactsTab isNew={isNew} />}
+                
+                {activeTab === "requisites" && <RequisitesTab />}
+                
+                {activeTab === "finances" && (
+                  <FinancesTab 
+                    isNew={isNew} 
+                    employee={safeEmployee} 
+                    transactions={appData.transactions}
+                    assets={appData.assets}
+                  />
+                )}
+                
+                {activeTab === "orders" && (
+                  <OrdersTab 
+                    isNew={isNew} 
+                    employee={safeEmployee} 
+                    orders={appData.orders}
+                  />
+                )}
+              </div>
             </form>
           </FormProvider>
 
-          {/* КНОПКИ ПОЯВЛЯЮТСЯ ТОЛЬКО ЕСЛИ ФОРМА ИЗМЕНЕНА (isDirty) */}
           {isDirty && (
             <div className="employee-modal-actions">
               {formErrors?.submit?.length ? (

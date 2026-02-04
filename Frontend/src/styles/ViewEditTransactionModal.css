@@ -136,8 +136,8 @@
 }
 
 .form-checkbox {
-    width: 13px;
-    height: 13px;
+    width: 16px;
+    height: 16px;
     margin-right: auto;
     cursor: pointer;
     accent-color: var(--accent-color); 

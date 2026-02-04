@@ -58,10 +58,9 @@ export const clientSchema = yup.object().shape({
   note: requiredOnCreate(yup.string(), 'Примечание обязательно'),
 
   // === CONTACTS ===
-  full_name: requiredOnCreate(yup.string(), 'ФИО обязательно'),
-  phone: requiredOnCreate(phoneSchema, 'Телефон обязателен'),
-  email: requiredOnCreate(yup.string().email('Неверный формат'), 'Email обязателен'),
-  country: requiredOnCreate(yup.string(), 'Страна обязательна'),
+  full_name: yup.string().required("ФИО обязательно"),
+  email: yup.string().required("Email обязателен").email("Неверный формат"),
+  country: yup.string().required("Страна обязательна"),
   city: yup.string().nullable(),
   chat_link: yup.string().nullable(),
   photo_link: yup.string().nullable(),

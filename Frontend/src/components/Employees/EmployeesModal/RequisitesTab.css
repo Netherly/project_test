@@ -150,6 +150,7 @@
     cursor: pointer;
     font-weight: 600;
     transition: color 0.2s;
+    width: 150px;
 }
 
 .requisites-tab-wrapper .requisites-remove-btn {
