@@ -43,6 +43,14 @@ function authHeaders(extra = {}) {
   };
 }
 
+function activityPath(entityType, entityId) {
+  const id = String(entityId || '').trim();
+  if (!id) throw new Error('entityId is required');
+  if (entityType === 'client') return `/clients/${id}/logs`;
+  if (entityType === 'employee') return `/employees/${id}/logs`;
+  throw new Error(`Unsupported entityType: ${entityType}`);
+}
+
 export const api = {
   // === AUTH ===
   async login({ login, password }) {
@@ -128,5 +136,41 @@ export const api = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.message || data?.error || 'Не удалось подтвердить Telegram-привязку');
     return data;
+  },
+
+  // === ACTIVITY LOGS (clients/employees) ===
+  async getActivityLogs({ entityType, entityId, limit, order }) {
+    const qs = new URLSearchParams();
+    if (limit) qs.set('limit', String(limit));
+    if (order) qs.set('order', String(order));
+    const res = await fetch(url(`${activityPath(entityType, entityId)}${qs.toString() ? `?${qs}` : ''}`), {
+      headers: authHeaders(),
+      credentials: 'include',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.error || 'Ошибка загрузки логов');
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data?.data ?? [];
+  },
+
+  async addActivityNote({ entityType, entityId, message }) {
+    const res = await fetch(url(activityPath(entityType, entityId)), {
+      method: 'POST',
+      headers: authHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.error || 'Ошибка добавления заметки');
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data?.data ?? null;
   },
 };

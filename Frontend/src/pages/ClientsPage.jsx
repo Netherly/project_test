@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import ClientModal from "../components/Client/ClientModal/ClientModal";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
 import "../styles/ClientsPage.css";
 import {
@@ -102,6 +102,7 @@ export default function ClientsPage({
   countries = [],
   currencies = [],
 }) {
+  const navigate = useNavigate();
   /* === фильтры === */
   const [search, setSearch] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("");
@@ -461,8 +462,11 @@ export default function ClientsPage({
   const idMap = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
 
   const openEdit = (c) => {
-    setActive(c);
-    setShow(true);
+    if (c?.id) {
+      navigate(`/clients/${c.id}`);
+    } else {
+      navigate("/clients/new");
+    }
   };
 
   const openRef = (id, e) => {
@@ -612,8 +616,7 @@ export default function ClientsPage({
       <div className="clients-page">
         <ClientsPageHeader
           onAdd={() => {
-            setActive(null);
-            setShow(true);
+            navigate("/clients/new");
           }}
           onSearch={setSearch}
           total={filteredRows.length}
@@ -740,21 +743,6 @@ export default function ClientsPage({
 
         {!loading && filteredRows.length === 0 && (
           <div className="empty-state">{error || "Клиенты не найдены"}</div>
-        )}
-
-        {showModal && (
-          <ClientModal
-            client={active}
-            companies={companiesList}
-            employees={employeesList}
-            referrers={referrerOptions}
-            countries={countriesList}
-            currencies={currenciesList}
-            onClose={() => setShow(false)}
-            onSave={save}
-            onDelete={active?.id ? remove : null}
-            onAddCompany={addCompany}
-          />
         )}
       </div>
     </div>

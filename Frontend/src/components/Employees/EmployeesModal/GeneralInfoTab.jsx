@@ -67,7 +67,7 @@ export default function GeneralInfoTab({ fieldsData }) {
           control={control}
           render={({ field }) => (
             <select {...field} className={errors.countryId ? "input-error" : ""}>
-              <option value="">Выберите страну</option>
+              <option value="" disabled>Выберите страну</option>
               {countryOptions.map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label}
@@ -146,7 +146,7 @@ export default function GeneralInfoTab({ fieldsData }) {
           control={control}
           render={({ field }) => (
             <select {...field}>
-              <option value="">Выберите валюту</option>
+              <option value="" disabled>Выберите валюту</option>
               {currencies.map((currency) => (
                 <option key={currency} value={currency}>
                   {currency.toUpperCase()}

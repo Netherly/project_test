@@ -1,11 +1,23 @@
 import React, { useState } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
-import { httpPost } from '../../../api/http';
+import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { httpPost, httpPut } from '../../../api/http';
 
-export default function ContactsTab({ isNew }) {
+export default function ContactsTab({ isNew, employeeId }) {
   const { control, setValue, formState: { errors } } = useFormContext();
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [linkError, setLinkError] = useState('');
+  const [copyState, setCopyState] = useState('');
+  const [isUnlinking, setIsUnlinking] = useState(false);
+  const [unlinkError, setUnlinkError] = useState('');
+  const [unlinkState, setUnlinkState] = useState('');
+
+  const telegramId = useWatch({ control, name: 'telegramId' });
+  const telegramNickname = useWatch({ control, name: 'telegramNickname' });
+  const telegramName = useWatch({ control, name: 'telegramName' });
+  const telegramDateTime = useWatch({ control, name: 'telegramDateTime' });
+  const chatLinkValue = useWatch({ control, name: 'chatLink' });
+  const isTelegramLinked = [telegramId, telegramNickname, telegramName, telegramDateTime, chatLinkValue]
+    .some((val) => String(val || '').trim());
 
   const formatDateTime = (value) => {
     const text = String(value || '').trim();
@@ -21,14 +33,19 @@ export default function ContactsTab({ isNew }) {
   };
 
   const handleGenerateLink = async () => {
+    if (!employeeId) {
+      setLinkError('Сначала сохраните сотрудника');
+      return;
+    }
     setIsGeneratingLink(true);
     setLinkError('');
     try {
-      const data = await httpPost('/telegram/link/create');
-      if (!data?.link) {
+      const data = await httpPost(`/employees/${employeeId}/telegram-link`);
+      const link = data?.data?.link || data?.link;
+      if (!link) {
         throw new Error('Ссылка не получена');
       }
-      setValue('telegramBindingLink', data.link, { shouldDirty: true });
+      setValue('telegramBindingLink', link, { shouldDirty: true });
     } catch (err) {
       console.error('Ошибка генерации Telegram-ссылки:', err);
       setLinkError(err?.message || 'Не удалось создать ссылку для Telegram');
@@ -41,6 +58,72 @@ export default function ContactsTab({ isNew }) {
     const link = String(value || '').trim();
     if (!link) return;
     window.open(link, '_blank', 'noopener,noreferrer');
+  };
+
+  const copyLink = async (value) => {
+    const link = String(value || '').trim();
+    if (!link) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+        setCopyState('Скопировано');
+      } else {
+        setCopyState('Не удалось скопировать');
+      }
+    } catch (e) {
+      console.error('Copy failed:', e);
+      setCopyState('Не удалось скопировать');
+    } finally {
+      setTimeout(() => setCopyState(''), 2000);
+    }
+  };
+
+  const handleUnlinkTelegram = async () => {
+    if (!employeeId) {
+      setUnlinkError('Сначала сохраните сотрудника');
+      return;
+    }
+    if (!isTelegramLinked) {
+      setUnlinkError('Телеграм не привязан');
+      return;
+    }
+    setIsUnlinking(true);
+    setUnlinkError('');
+    setUnlinkState('');
+    try {
+      await httpPut(`/employees/${employeeId}`, {
+        telegramUserId: null,
+        telegramChatId: null,
+        telegramUsername: null,
+        telegramLinkedAt: null,
+        telegramVerified: false,
+        chatLink: null,
+        photoLink: null,
+        telegram: {
+          dateTime: null,
+          id: null,
+          name: null,
+          nickname: null,
+          bindingLink: null,
+        },
+      });
+
+      setValue('telegramDateTime', '', { shouldDirty: true });
+      setValue('telegramId', '', { shouldDirty: true });
+      setValue('telegramName', '', { shouldDirty: true });
+      setValue('telegramNickname', '', { shouldDirty: true });
+      setValue('telegramBindingLink', '', { shouldDirty: true });
+      setValue('chatLink', '', { shouldDirty: true });
+      setValue('photoLink', '', { shouldDirty: true });
+
+      setUnlinkState('Телеграм отвязан');
+      setTimeout(() => setUnlinkState(''), 2000);
+    } catch (err) {
+      console.error('Ошибка отвязки Telegram:', err);
+      setUnlinkError(err?.message || 'Не удалось отвязать Telegram');
+    } finally {
+      setIsUnlinking(false);
+    }
   };
 
   return (
@@ -193,7 +276,16 @@ export default function ContactsTab({ isNew }) {
                   >
                     Открыть
                   </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => copyLink(field.value)}
+                    disabled={!field.value}
+                  >
+                    Скопировать
+                  </button>
                 </div>
+                {copyState && <p className="hint">{copyState}</p>}
                 {linkError && <p className="error">{linkError}</p>}
               </div>
             )}
@@ -215,7 +307,17 @@ export default function ContactsTab({ isNew }) {
                   >
                     Открыть
                   </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleUnlinkTelegram}
+                    disabled={!isTelegramLinked || isUnlinking}
+                  >
+                    {isUnlinking ? 'Выходим...' : 'Выйти'}
+                  </button>
                 </div>
+                {unlinkState && <p className="hint">{unlinkState}</p>}
+                {unlinkError && <p className="error">{unlinkError}</p>}
               </div>
             )}
           />

@@ -4,12 +4,16 @@
    Файл: client-modal.css
    ================================================ */
 
+select option:disabled {
+  display: none;
+}
+
 /* -------------------- Overlay -------------------- */
 .client-modal-overlay {
   position: fixed;
   inset: 0;
   background: var(--opacity-container);
-  z-index: 87;
+  z-index: 9999;
 }
 
 /* ------------------- Root Layout ------------------- */

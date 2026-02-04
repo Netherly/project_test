@@ -49,7 +49,7 @@ export default function ClientModal({
 
   /* ---------- useForm ---------- */
   const methods = useForm({
-    resolver: yupResolver(clientSchema),
+    resolver: yupResolver(clientSchema, { context: { isNew } }),
     mode: "onChange",
     reValidateMode: "onChange",
     shouldUnregister: false,
@@ -91,7 +91,9 @@ export default function ClientModal({
     try {
       const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
       await onSave?.(payload);
-      closeHandler();
+      // Сброс isDirty после успешного сохранения
+      reset(payload);
+      setFormErrors(null);
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       console.error("saveClient failed:", e);

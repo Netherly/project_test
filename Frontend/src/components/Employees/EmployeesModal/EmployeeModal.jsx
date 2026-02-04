@@ -135,12 +135,25 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const submitHandler = async (data) => {
     try {
       if (typeof onSave === "function") {
-        await onSave(data);
+        const saved = await onSave(data);
+        // Обновляем форму с сохраненными данными
+        if (saved) {
+          reset({ status: "active", ...normalizeEmployee(saved) }, { keepValues: false });
+        }
+        setFormErrors(null);
       }
-      closeHandler();
     } catch (e) {
-      setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
-      alert(e?.message || "Не удалось сохранить сотрудника");
+      const raw = e?.message || "Ошибка сохранения";
+      let msg = raw;
+      const jsonMatch = raw.match(/(\{.*\})/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed?.error) msg = parsed.error;
+        } catch {}
+      }
+      setFormErrors({ submit: [msg] });
+      console.error("Ошибка сохранения сотрудника:", e);
     }
   };
 
@@ -214,6 +227,9 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
           {isDirty && (
             <div className="employee-modal-actions">
+              {formErrors?.submit?.length ? (
+                <div className="form-submit-error error">{formErrors.submit[0]}</div>
+              ) : null}
               <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
                 Сбросить
               </button>

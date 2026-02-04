@@ -1,9 +1,48 @@
 const prisma = require('../../prisma/client');
+const { logActivity, diffObjects } = require('./activity-log.service');
 
 const isUuid = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value || '')
   );
+
+const CLIENT_LOG_EXCLUDE_FIELDS = ['createdAt', 'updatedAt'];
+
+const normalizeActorMeta = (actor = {}) => ({
+  actorId: actor?.actorId || actor?.id || null,
+  actorName: actor?.actorName || null,
+  source: actor?.source || 'manual',
+  ip: actor?.ip,
+  userAgent: actor?.userAgent,
+});
+
+const safeLog = async (payload) => {
+  try {
+    return await logActivity(payload);
+  } catch (e) {
+    console.warn('[log] client activity failed:', e?.message || e);
+    return null;
+  }
+};
+
+const getClientLabel = (client) =>
+  client?.name || client?.full_name || client?.email || client?.id || 'клиент';
+
+const fetchClientTagNames = async (clientId) => {
+  const tags = await prisma.clientTag.findMany({
+    where: { clientId },
+    include: { tag: true },
+  });
+  return tags
+    .map((t) => t?.tag?.name)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+};
+
+const arraysEqual = (a = [], b = []) => {
+  if (a.length !== b.length) return false;
+  return a.every((value, idx) => value === b[idx]);
+};
 
 /** ===== UTILS ===== */
 
@@ -350,7 +389,8 @@ async function buildClientData(payload = {}) {
 /** ===== SERVICE ===== */
 
 const ClientService = {
-  async createClient(payload) {
+  async createClient(payload, actor = {}) {
+    const actorMeta = normalizeActorMeta(actor);
     const data = await buildClientData(payload);
     if (!data.groupId) {
       const defaultGroupId = await resolveDefaultGroupId();
@@ -376,15 +416,26 @@ const ClientService = {
       needsRefetch = true;
     }
 
+    let result;
     if (needsRefetch) {
       const updated = await prisma.client.findUnique({
         where: { id: client.id },
         include: includeClient,
       });
-      return normalizeClient(updated);
+      result = normalizeClient(updated);
+    } else {
+      result = normalizeClient(client);
     }
 
-    return normalizeClient(client);
+    await safeLog({
+      entityType: 'client',
+      entityId: client.id,
+      action: 'created',
+      message: `Создан клиент "${getClientLabel(result)}"`,
+      ...actorMeta,
+    });
+
+    return result;
   },
 
   async getAllClients() {
@@ -403,7 +454,18 @@ const ClientService = {
     return normalizeClient(client);
   },
 
-  async updateClient(id, payload) {
+  async updateClient(id, payload, actor = {}) {
+    const actorMeta = normalizeActorMeta(actor);
+    const before = await prisma.client.findUnique({ where: { id } });
+    const { hasAccesses, accesses } = extractAccessPayload(payload);
+    const shouldTrackTags = payload?.tags !== undefined;
+    const shouldTrackAccesses = hasAccesses;
+
+    const beforeTagNames = shouldTrackTags ? await fetchClientTagNames(id) : null;
+    const beforeAccessCount = shouldTrackAccesses
+      ? await prisma.credential.count({ where: { clientId: id } })
+      : null;
+
     const data = await buildClientData(payload);
 
     const client = await prisma.client.update({
@@ -411,8 +473,6 @@ const ClientService = {
       data,
       include: includeClient,
     });
-
-    const { hasAccesses, accesses } = extractAccessPayload(payload);
 
     let needsRefetch = false;
 
@@ -426,21 +486,83 @@ const ClientService = {
       needsRefetch = true;
     }
 
+    let afterTagNames = null;
+    if (shouldTrackTags) {
+      afterTagNames = await fetchClientTagNames(id);
+    }
+    const afterAccessCount = shouldTrackAccesses
+      ? await prisma.credential.count({ where: { clientId: id } })
+      : null;
+
     if (needsRefetch) {
       const updated = await prisma.client.findUnique({
         where: { id },
         include: includeClient,
       });
-      return normalizeClient(updated);
+      const result = normalizeClient(updated);
+      const after = await prisma.client.findUnique({ where: { id } });
+      const changes = diffObjects(before, after, { exclude: CLIENT_LOG_EXCLUDE_FIELDS });
+      if (shouldTrackTags && !arraysEqual(beforeTagNames || [], afterTagNames || [])) {
+        changes.tags = { from: beforeTagNames || [], to: afterTagNames || [] };
+      }
+      if (shouldTrackAccesses && beforeAccessCount !== afterAccessCount) {
+        changes.accessesCount = {
+          from: beforeAccessCount ?? 0,
+          to: afterAccessCount ?? 0,
+        };
+      }
+      if (Object.keys(changes).length) {
+        await safeLog({
+          entityType: 'client',
+          entityId: id,
+          action: 'updated',
+          changes,
+          ...actorMeta,
+        });
+      }
+      return result;
     }
 
-    return normalizeClient(client);
+    const result = normalizeClient(client);
+    const after = await prisma.client.findUnique({ where: { id } });
+    const changes = diffObjects(before, after, { exclude: CLIENT_LOG_EXCLUDE_FIELDS });
+    if (shouldTrackTags && !arraysEqual(beforeTagNames || [], afterTagNames || [])) {
+      changes.tags = { from: beforeTagNames || [], to: afterTagNames || [] };
+    }
+    if (shouldTrackAccesses && beforeAccessCount !== afterAccessCount) {
+      changes.accessesCount = {
+        from: beforeAccessCount ?? 0,
+        to: afterAccessCount ?? 0,
+      };
+    }
+    if (Object.keys(changes).length) {
+      await safeLog({
+        entityType: 'client',
+        entityId: id,
+        action: 'updated',
+        changes,
+        ...actorMeta,
+      });
+    }
+    return result;
   },
 
-  async deleteClient(id) {
+  async deleteClient(id, actor = {}) {
+    const actorMeta = normalizeActorMeta(actor);
+    const before = await prisma.client.findUnique({ where: { id } });
     await prisma.clientTag.deleteMany({ where: { clientId: id } });
     await prisma.credential.deleteMany({ where: { clientId: id } });
-    return prisma.client.delete({ where: { id } });
+    const removed = await prisma.client.delete({ where: { id } });
+
+    await safeLog({
+      entityType: 'client',
+      entityId: id,
+      action: 'deleted',
+      message: `Удалён клиент "${getClientLabel(before)}"`,
+      ...actorMeta,
+    });
+
+    return removed;
   },
 };
 
