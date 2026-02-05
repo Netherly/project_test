@@ -123,7 +123,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         render={({ field }) => (
           <div className="form-field">
             <label>В час</label>
-            <input type="number" {...field} min={0} step={0.01} placeholder="0.00" />
+            <input type="number" {...field} value={field.value || ''} min={0} step={0.01} placeholder="0.00" />
           </div>
         )}
       />
@@ -157,7 +157,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
                   <input
                     type="number"
                     {...restField} 
-                    value={value}
+                    value={value || ''}
                     onChange={onChange}
                     min={min}
                     max={max}

@@ -145,12 +145,12 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
               <TabsNav activeTab={activeTab} setActiveTab={setActiveTab} errors={groupErrors(errors)} isNew={isNew} />
 
-              <div className={`tab-content-container ${loadingData ? "loading-opacity" : ""}`}>
+              <div className={`tab-content-container`}>
                 {activeTab === "summary" && <SummaryTab employee={safeEmployee} />}
                 
                 {activeTab === "general" && (
                   <GeneralInfoTab 
-                    fieldsData={appData.fields}
+                    fieldsData={allFields}
                   />
                 )}
                 
@@ -161,17 +161,14 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 {activeTab === "finances" && (
                   <FinancesTab 
                     isNew={isNew} 
-                    employee={safeEmployee} 
-                    transactions={appData.transactions}
-                    assets={appData.assets}
+                    employee={safeEmployee}
                   />
                 )}
                 
                 {activeTab === "orders" && (
                   <OrdersTab 
                     isNew={isNew} 
-                    employee={safeEmployee} 
-                    orders={appData.orders}
+                    employee={safeEmployee}
                   />
                 )}
               </div>

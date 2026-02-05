@@ -7,8 +7,9 @@ import styles from "./ClientsPageHeader.module.css";
 // Вспомогательная функция, чтобы безопасно достать имя из строки или объекта
 const getName = (item) => {
   if (!item) return "";
-  if (typeof item === 'object') return item.name || "";
-  return item;
+  if (typeof item === 'string') return item;
+  if (typeof item === 'object') return item.name || item.code || item.value || "";
+  return String(item);
 };
 
 function MultiTagSelect({

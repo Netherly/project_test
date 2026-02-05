@@ -336,12 +336,15 @@ export default function ClientsPage() {
     dateTo,
   ]);
 
-  
   const currencyOptions = useMemo(
-    () =>
-      currencies.length
-        ? currencies
-        : Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean),
+    () => {
+      if (Array.isArray(currencies) && currencies.length > 0) {
+        return currencies.map(c => 
+          typeof c === 'string' ? c : (c?.name || c?.code || String(c))
+        ).filter(Boolean);
+      }
+      return Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean);
+    },
     [currencies, list]
   );
   const statusOptions = useMemo(
