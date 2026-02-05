@@ -32,6 +32,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const [formErrors, setFormErrors] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
+ 
   const [loadingData, setLoadingData] = useState(false);
   const [appData, setAppData] = useState({
     fields: { employeeFields: { country: [] }, executorFields: { currency: [] } },
@@ -47,6 +48,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     return () => clearTimeout(t);
   }, []);
 
+  
   useEffect(() => {
     let mounted = true;
 
@@ -136,7 +138,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     try {
       if (typeof onSave === "function") {
         const saved = await onSave(data);
-        // Обновляем форму с сохраненными данными
         if (saved) {
           reset({ status: "active", ...normalizeEmployee(saved) }, { keepValues: false });
         }
