@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { employeeSchema } from "./validationSchema";
+import { useFields } from "../../../context/FieldsContext";
 
 import EmployeeHeader from "./EmployeeHeader";
 import TabsNav from "./TabsNav";
@@ -14,10 +15,6 @@ import OrdersTab from "./OrdersTab";
 import ChatPanel from "../../Client/ClientModal/ChatPanel";
 
 import { normalizeEmployee } from "../../../api/employees";
-import { fetchFields, withDefaults } from "../../../api/fields";
-import { fetchTransactions } from "../../../api/transactions";
-import { fetchAssets } from "../../../api/assets";
-import { fetchOrders } from "../../../api/orders";
 
 import "../../../styles/EmployeeModal.css";
 
@@ -26,6 +23,7 @@ const toText = (value) => String(value ?? '').trim();
 export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const safeEmployee = useMemo(() => normalizeEmployee(employee ?? {}), [employee]);
   const isNew = !safeEmployee.id;
+  const { fields, loading: loadingFields } = useFields();
 
   const [activeTab, setActiveTab] = useState(isNew ? "general" : "summary");
   const [closing, setClosing] = useState(false);
@@ -50,56 +48,10 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
   
   useEffect(() => {
-    let mounted = true;
-
-    const loadAllData = async () => {
-      setLoadingData(true);
-      try {
-        const fieldsPromise = fetchFields().then(withDefaults).catch(() => ({}));
-
-        const promises = [fieldsPromise];
-
-        if (!isNew && safeEmployee?.id) {
-          const transactionsPromise = fetchTransactions({
-            page: 1,
-            pageSize: 1000,
-            employeeId: safeEmployee.id, 
-          }).catch(() => []);
-
-          const assetsPromise = fetchAssets().catch(() => []);
-
-          const ordersPromise = fetchOrders({ page: 1, limit: 1000 }).catch(() => []);
-
-          promises.push(transactionsPromise, assetsPromise, ordersPromise);
-        }
-
-        const [fieldsData, transactionsData, assetsData, ordersData] = await Promise.all(promises);
-
-        if (!mounted) return;
-
-        const cleanTransactions = Array.isArray(transactionsData?.items) ? transactionsData.items : (Array.isArray(transactionsData) ? transactionsData : []);
-        const cleanOrders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []);
-        const cleanAssets = Array.isArray(assetsData) ? assetsData : [];
-
-        setAppData({
-          fields: fieldsData || { employeeFields: { country: [] } },
-          transactions: cleanTransactions,
-          assets: cleanAssets,
-          orders: cleanOrders
-        });
-
-      } catch (error) {
-        console.error("Ошибка загрузки данных сотрудника:", error);
-      } finally {
-        if (mounted) setLoadingData(false);
-      }
-    };
-
-    loadAllData();
-
-    return () => { mounted = false; };
-  }, [isNew, safeEmployee?.id]);
-
+    if (fields) {
+      setAllFields(fields);
+    }
+  }, [fields]);
 
   const methods = useForm({
     resolver: yupResolver(employeeSchema),
