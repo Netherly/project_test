@@ -2,32 +2,27 @@ import React, { useEffect, useState, useRef } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import TextareaWithCounter from "../TextareaWithCounter";
 import "./InfoTab.css";
-import { FieldsAPI } from "../../../api/fields";
 
 const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
 
 export default function InfoTab({
   companies = [],
-  categoriesInit = [],
-  sourcesInit = [],
+  categories = [], 
+  sources = [], 
+  tagOptions = [],
+  loadingLists = false,
+  onAddCompany
 }) {
   const {
     control,
     formState: { errors },
   } = useFormContext();
 
-  const [categories, setCategories] = useState([]);
-  const [sources, setSources] = useState([]);
-  
-  const [tagOptions, setTagOptions] = useState([]);
   const [customTag, setCustomTag] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const tagInputRef = useRef(null);
   const tagDropdownRef = useRef(null);
 
-  const [loadingLists, setLoadingLists] = useState(true);
-
-  // --- Хелперы для тегов ---
   const handleTagInputChange = (e) => setCustomTag(e.target.value);
   const handleTagInputFocus = () => setShowTagDropdown(true);
 
@@ -67,52 +62,9 @@ export default function InfoTab({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // --- Загрузка данных ---
-  const normalizeStr = (s) => String(s ?? "").trim();
-  const extractNames = (arr) => {
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .map((x) =>
-        typeof x === "string"
-          ? normalizeStr(x)
-          : normalizeStr(x?.name ?? x?.label ?? x?.value ?? "")
-      )
-      .filter(Boolean);
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const clientFields = await FieldsAPI.getClient();
-        const apiCats = extractNames(clientFields?.category);
-        const apiSrcs = extractNames(clientFields?.source);
-        const apiTags = Array.isArray(clientFields?.tags) ? clientFields.tags : [];
-        const initCats = extractNames(categoriesInit);
-        const initSrcs = extractNames(sourcesInit);
-        
-        if (!mounted) return;
-        setCategories(apiCats.length ? apiCats : initCats);
-        setSources(apiSrcs.length ? apiSrcs : initSrcs);
-        setTagOptions(apiTags);
-      } catch (e) {
-        console.error("FieldsAPI.getClient failed:", e);
-        setCategories(extractNames(categoriesInit));
-        setSources(extractNames(sourcesInit));
-        setTagOptions([]);
-      } finally {
-        if (mounted) setLoadingLists(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   return (
     <div className="tab-section info-tab">
 
-      {/* Клиент (Имя) */}
       <Controller
         name="name"
         control={control}
@@ -129,7 +81,6 @@ export default function InfoTab({
         )}
       />
 
-      {/* Категория */}
       <Controller
         name="category"
         control={control}
@@ -153,7 +104,6 @@ export default function InfoTab({
         )}
       />
 
-      {/* Источник */}
       <Controller
         name="source"
         control={control}
@@ -175,7 +125,6 @@ export default function InfoTab({
         )}
       />
 
-      {/* Вводное описание */}
       <Controller
         name="intro_description"
         control={control}
@@ -197,7 +146,6 @@ export default function InfoTab({
         )}
       />
 
-      {/* Примечание */}
       <Controller
         name="note"
         control={control}
@@ -217,7 +165,6 @@ export default function InfoTab({
         )}
       />
 
-      {/* Теги клиента */}
       <Controller
         name="tags"
         control={control}
@@ -281,7 +228,6 @@ export default function InfoTab({
         }}
       />
 
-      {/* Компания */}
       <Controller
         name="company_id"
         control={control}

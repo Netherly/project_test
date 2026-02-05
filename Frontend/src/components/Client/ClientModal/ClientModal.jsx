@@ -38,7 +38,6 @@ export default function ClientModal({
   const [showImage, setShowImage] = useState(false);
   const [closing, setClosing] = useState(false);
   const [formErrors, setFormErrors] = useState(null);
-
   const formId = "client-main-form";
   const sampleLogs = [
     { timestamp: "2023-03-07T12:36", author: "Менеджеры", message: "Отримувач: …" },
@@ -49,7 +48,7 @@ export default function ClientModal({
 
   /* ---------- useForm ---------- */
   const methods = useForm({
-    resolver: yupResolver(clientSchema, { context: { isNew } }),
+    resolver: yupResolver(clientSchema),
     mode: "onChange",
     reValidateMode: "onChange",
     shouldUnregister: false,
@@ -91,9 +90,7 @@ export default function ClientModal({
     try {
       const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
       await onSave?.(payload);
-      // Сброс isDirty после успешного сохранения
-      reset(payload);
-      setFormErrors(null);
+      closeHandler();
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       console.error("saveClient failed:", e);
@@ -131,11 +128,7 @@ export default function ClientModal({
         {/* ─── левая панель ─── */}
         <div className="left-panel">
           <FormProvider {...methods}>
-            {/* ПРАВКА: Если isNew, передаем null вместо deleteHandler */}
-            <ClientHeader 
-              onClose={closeHandler} 
-              onDelete={isNew ? null : (onDelete ? deleteHandler : null)} 
-            />
+            <ClientHeader onClose={closeHandler} onDelete={onDelete ? deleteHandler : null} />
           </FormProvider>
 
           <TabsNav
@@ -176,21 +169,20 @@ export default function ClientModal({
               {activeTab === "accesses" && <AccessesTab />}
             </form>
           </FormProvider>
-          {isDirty && (
-            <div className="form-actions-bottom">
-              <button
-                className="cancel-order-btn"
-                type="button"
-                onClick={() => reset()}
-              >
-                Отменить
-              </button>
+          <div className="form-actions-bottom">
+            <button
+              className="cancel-order-btn"
+              type="button"
+              onClick={() => reset()}
+              disabled={!isDirty}
+            >
+              Отменить
+            </button>
 
-              <button className="save-order-btn" type="submit" form={formId}>
-                Сохранить
-              </button>
-            </div>
-          )}
+            <button className="save-order-btn" type="submit" form={formId}>
+              Сохранить
+            </button>
+          </div>
         </div>
 
         {/* ─── центр – чат ─── */}
