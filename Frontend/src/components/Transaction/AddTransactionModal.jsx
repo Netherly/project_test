@@ -48,16 +48,9 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
-    const defaultCategory = useMemo(() => {
-        if (financeFields?.articles && financeFields.articles.length > 0) {
-            return getArticleValue(financeFields.articles[0]);
-        }
-        return "";
-    }, [financeFields]);
-
     const initialFormData = useMemo(() => ({
         date: getCurrentDateTime(),
-        category: defaultCategory,
+        category: "",
         subcategory: "",
         description: "",
         account: "",
@@ -81,16 +74,10 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         sendLion: false,
         id: generateId("TRX_"),
         ...initialData,
-    }), [defaultCategory, initialData]);
+    }), [initialData]);
 
 
     const [formData, setFormData] = useState(initialFormData);
-
-    useEffect(() => {
-        if (!formData.category && defaultCategory) {
-            setFormData(prev => ({ ...prev, category: defaultCategory }));
-        }
-    }, [defaultCategory]);
 
     useEffect(() => {
         setShowOrderBlock(Boolean(formData.orderId));
@@ -512,7 +499,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             required
                             className="form-input1"
                         >
-                            <option value="" disabled>Выберите статью</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {financeFields?.articles
                                 ?.map((article) => ({
                                     id: article?.id,
@@ -540,7 +527,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                 onChange={handleChange}
                                 className="form-input1"
                             >
-                                <option value="">Выберите подстатью</option>
+                                <option value="" disabled hidden>Не выбрано</option>
                                 {availableSubcategories
                                     .map((sub) => ({
                                         id: sub?.id,
@@ -584,7 +571,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             required
                             className="form-input1"
                         >
-                            <option value="">Выберите счет</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {assets?.map((acc) => (
                                 <option key={acc.id} value={acc.id}>{acc.accountName}</option>
                             ))}
@@ -602,6 +589,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             className="form-input1"
                             disabled={showDestinationAccountsBlock} 
                         >
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="Зачисление">Зачисление</option>
                             <option value="Списание">Списание</option>
                         </select>
@@ -675,7 +663,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                                 required
                                                 className="form-input1"
                                             >
-                                                <option value="">Выберите счет</option>
+                                                <option value="" disabled hidden>Не выбрано</option>
                                                 {assets?.map((acc) => (
                                                     <option key={`dest-acc-${destAcc.id}-${acc.id}`} value={acc.id}>{acc.accountName}</option>
                                                 ))}
@@ -692,6 +680,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                         onChange={(e) => handleDestinationAccountChange(e, destAcc.id)}
                                         className="form-input1"
                                     >
+                                        <option value="" disabled hidden>Не выбрано</option>
                                         <option value="Зачисление">Зачисление</option>
                                         <option value="Списание">Списание</option>
                                     </select>
@@ -764,7 +753,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             onChange={handleChange}
                             className="form-input1"
                         >
-                            <option value="">Выберите контрагента</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {counterparties.map((cp) => {
                                 const typeLabel = cp.type === "employee" ? "сотрудник" : "клиент";
                                 return (
@@ -801,7 +790,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             onChange={handleChange}
                             className="form-input1"
                         >
-                            <option value="">Выберите номер заказа</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {orders.map((order) => {
                                 const orderLabel = order.numberOrder ?? order.orderSequence ?? order.id;
                                 const clientLabel = order.clientName || order.name;

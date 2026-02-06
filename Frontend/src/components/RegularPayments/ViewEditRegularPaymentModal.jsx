@@ -193,6 +193,7 @@ const ViewEditRegularPaymentModal = ({
                     <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
                         <select id="category" name="category" value={formData.category} onChange={handleChange} required className="form-input1">
+                            <option value="" disabled hidden>Не выбрано</option>
                             {financeFields?.articles
                                 ?.map((article, index) => ({
                                     key: article?.id || index,
@@ -212,7 +213,7 @@ const ViewEditRegularPaymentModal = ({
                         <div className="form-row">
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
                             <select id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleChange} className="form-input1">
-                                <option value="">Выберите подстатью</option>
+                                <option value="" disabled hidden>Не выбрано</option>
                             {availableSubcategories
                                 .map((sub, index) => ({
                                     key: sub?.id || index,
@@ -238,6 +239,7 @@ const ViewEditRegularPaymentModal = ({
                     <div className="form-row">
                         <label htmlFor="account" className="form-label">Счет ({formData.accountCurrency})</label>
                         <select id="account" name="account" value={formData.account} onChange={handleChange} required className="form-input1">
+                            <option value="" disabled hidden>Не выбрано</option>
                             {assets?.map((acc) => (
                                 <option key={acc.id} value={acc.id}>{acc.accountName}</option>
                             ))}
@@ -248,6 +250,7 @@ const ViewEditRegularPaymentModal = ({
                     <div className="form-row">
                         <label htmlFor="operation" className="form-label">Операция</label>
                         <select id="operation" name="operation" value={formData.operation} onChange={handleChange} required className="form-input1">
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="Списание">Списание</option>
                             <option value="Зачисление">Зачисление</option>
                         </select>
@@ -264,6 +267,7 @@ const ViewEditRegularPaymentModal = ({
                     <div className="form-row">
                         <label htmlFor="period" className="form-label">Период</label>
                         <select id="period" name="period" value={formData.period} onChange={handleChange} required className="form-input1">
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="Ежедневно">Ежедневно</option>
                             <option value="Еженедельно">Еженедельно</option>
                             <option value="Ежемесячно">Ежемесячно</option>
@@ -336,6 +340,7 @@ const ViewEditRegularPaymentModal = ({
                     <div className="form-row">
                         <label htmlFor="status" className="form-label">Статус</label>
                         <select id="status" name="status" value={formData.status} onChange={handleChange} required className="form-input1">
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="Активен">Активен</option>
                             <option value="На паузе">На паузе</option>
                         </select>

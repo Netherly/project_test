@@ -248,7 +248,7 @@ const AddLogEntryForm = ({
                 required
                 className={formErrors.orderNumber ? "input-error" : ""}
               >
-                <option value="">Выберите заказ</option>
+                <option value="" disabled hidden>Не выбрано</option>
 
                 {activeOrders.map((order) => (
                   <option key={order.id} value={order.id}>
@@ -293,7 +293,7 @@ const AddLogEntryForm = ({
                 required
                 className={formErrors.executorRole ? "input-error" : ""}
               >
-                <option value="">Выберите исполнителя</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {employees.map((employee) => (
                   <option
                     key={employee.id || employee.fullName || employee.name}
@@ -315,7 +315,7 @@ const AddLogEntryForm = ({
                 required
                 className={formErrors.role ? "input-error" : ""}
               >
-                <option value="">Выберите роль</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {availableRoles.map((roleOption) => (
                   <option key={roleOption} value={roleOption}>
                     {roleOption}
@@ -392,6 +392,7 @@ const AddLogEntryForm = ({
                 value={formData.adminApproved}
                 onChange={handleChange}
               >
+                <option value="" disabled hidden>Не выбрано</option>
                 <option value="Ожидает">Ожидает</option>
                 <option value="Принято">Принято</option>
                 <option value="Время трекера">Время трекера</option>

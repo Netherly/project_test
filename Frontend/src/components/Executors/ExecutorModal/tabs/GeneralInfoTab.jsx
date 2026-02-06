@@ -64,7 +64,7 @@ export default function GeneralInfoTab({ orders, fields }) {
           <div className="form-field">
             <label>Номер заказа</label>
             <select {...field} className={errors.orderId ? 'input-error' : ''}>
-              <option value="" disabled>Выберите заказ</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {orders.map((order) => {
                 const label = order.orderSequence ?? order.numberOrder ?? order.id;
                 return (
@@ -86,7 +86,7 @@ export default function GeneralInfoTab({ orders, fields }) {
           <div className="form-field">
             <label>Исполнитель</label>
             <select {...field} className={errors.performer ? 'input-error' : ''}>
-              <option value="" disabled>Выберите сотрудника</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {fields?.employees?.map((employee) => (
                 <option key={employee.id} value={employee.fullName}>{employee.fullName}</option>
               ))}
@@ -103,7 +103,7 @@ export default function GeneralInfoTab({ orders, fields }) {
           <div className="form-field">
             <label>Роль</label>
             <select {...field} className={errors.role ? 'input-error' : ''}>
-              <option value="" disabled>Выберите роль</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {fields?.role?.map((role) => (
                 <option key={role.id} value={role.value}>{role.value}</option>
               ))}
@@ -132,7 +132,7 @@ export default function GeneralInfoTab({ orders, fields }) {
               <div className="form-field">
                   <label>Валюта</label>
                   <select {...field} className={errors.currency ? 'input-error' : ''}>
-                      <option value="" disabled>Выберите валюту</option>
+                      <option value="" disabled hidden>Не выбрано</option>
                       {fields?.currency?.map((item, index) => {
                           const val = item.value || item; 
                           const key = item.id || index;

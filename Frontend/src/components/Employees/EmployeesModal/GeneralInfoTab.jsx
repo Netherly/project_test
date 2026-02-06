@@ -70,6 +70,7 @@ export default function GeneralInfoTab({ fieldsData }) {
           control={control}
           render={({ field }) => (
             <select {...field}>
+              <option value="" disabled hidden>Не выбрано</option>
               <option value="active">Работает</option>
               <option value="inactive">Не работает</option>
               <option value="pending">Оформляется</option>
@@ -85,7 +86,7 @@ export default function GeneralInfoTab({ fieldsData }) {
           control={control}
           render={({ field }) => (
             <select {...field} className={errors.countryId ? "input-error" : ""}>
-              <option value="" disabled>Выберите страну</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {countryOptions.map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label}
@@ -164,7 +165,7 @@ export default function GeneralInfoTab({ fieldsData }) {
           control={control}
           render={({ field }) => (
             <select {...field}>
-              <option value="" disabled>Выберите валюту</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {Array.isArray(currencies) && currencies.length > 0 ? (
                 currencies.map((currency) => {
                   const currencyCode = typeof currency === 'string' ? currency : String(currency || '');

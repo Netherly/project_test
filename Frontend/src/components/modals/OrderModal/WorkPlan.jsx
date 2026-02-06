@@ -183,9 +183,7 @@ const WorkPlan = ({ control, orderFields }) => {
           control={control}
           render={({ field }) => (
             <select {...field} className="custom-content-input">
-              <option value="" disabled>
-                Выберите проект
-              </option>
+              <option value="" disabled hidden>Не выбрано</option>
               {(projectOptions.length ? projectOptions : fallbackProjects).map((project, index) => (
                 <option key={index} value={project}>
                   {project}
@@ -218,7 +216,7 @@ const WorkPlan = ({ control, orderFields }) => {
           control={control}
           render={({ field }) => (
             <select {...field} className="custom-content-input">
-              <option value="">Не выбрано</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {readySolutions.length > 0 ? (
                 readySolutions.map((item) => (
                   <option key={item.id || item.value} value={item.value ?? item.name ?? item}>

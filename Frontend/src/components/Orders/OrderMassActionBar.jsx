@@ -23,7 +23,7 @@ const OrderMassActionBar = ({ selectedCount, onClose, stages, onMassUpdate }) =>
                     onChange={(e) => setSelectedStage(e.target.value)}
                     style={{ minWidth: '200px' }}
                 >
-                    <option value="">Переместить в этап...</option>
+                    <option value="" disabled hidden>Не выбрано</option>
                     {stages.map(stage => (
                         <option key={stage} value={stage}>{stage}</option>
                     ))}

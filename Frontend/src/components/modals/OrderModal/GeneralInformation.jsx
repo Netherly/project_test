@@ -71,7 +71,7 @@ const GeneralInformation = ({ control, orderFields }) => {
                     control={control}
                     render={({ field }) => (
                         <select className='custom-content-input' {...field}>
-                            <option value="">Выбрать</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {urgencyOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
@@ -120,7 +120,7 @@ const GeneralInformation = ({ control, orderFields }) => {
                     control={control}
                     render={({ field }) => (
                         <select className='custom-content-input' {...field}>
-                            <option value="">Выбрать интервал</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {orderFields?.intervals?.map((interval, index) => {
                                 const value = interval?.intervalValue ?? interval?.value ?? "";
                                 if (!value) return null;
@@ -148,11 +148,7 @@ const GeneralInformation = ({ control, orderFields }) => {
                             
                             disabled={!selectedInterval || availableOrderTypes.length === 0}
                         >
-                            <option value="">
-                                {!selectedInterval
-                                    ? "Сначала выберите интервал"
-                                    : "Выберите тип заказа"}
-                            </option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {availableOrderTypes.map((type, index) => (
                                 <option key={index} value={type.categoryValue ?? type.value ?? ""}>
                                     {type.categoryValue ?? type.value ?? ""}
@@ -171,7 +167,7 @@ const GeneralInformation = ({ control, orderFields }) => {
                     control={control}
                     render={({ field }) => (
                         <select className='custom-content-input' {...field}>
-                            <option value="">Выбрать</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {statusOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
@@ -186,7 +182,7 @@ const GeneralInformation = ({ control, orderFields }) => {
                     control={control}
                     render={({ field }) => (
                         <select className='custom-content-input' {...field}>
-                            <option value="">Выбрать</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {closeReasonOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}

@@ -471,7 +471,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             required
                             className="form-input1"
                         >
-                            <option value="" disabled>Выберите статью</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             
                             {financeFields?.articles
                                 ?.map((article) => ({
@@ -501,7 +501,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 onChange={handleChange}
                                 className="form-input1"
                             >
-                                <option value="">Выберите подстатью</option>
+                                <option value="" disabled hidden>Не выбрано</option>
                                 {availableSubcategories
                                     .map((sub) => ({
                                         id: sub?.id,
@@ -547,7 +547,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                             required
                             className="form-input1"
                         >
-                            <option value="">Выберите счет</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {assets?.map((acc) => (
                                 <option key={acc.id} value={acc.id}>{acc.accountName}</option>
                             ))}
@@ -576,6 +576,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 className="form-input1"
                                 disabled={showSecondAccountBlock}
                             >
+                                <option value="" disabled hidden>Не выбрано</option>
                                 <option value="Зачисление">Зачисление</option>
                                 <option value="Списание">Списание</option>
                             </select>
@@ -661,7 +662,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 onChange={handleChange}
                                 className="form-input1"
                             >
-                                <option value="">Выберите контрагента</option>
+                                <option value="" disabled hidden>Не выбрано</option>
                                 {counterparties.map((cp) => {
                                     const typeLabel = cp.type === "employee" ? "сотрудник" : "клиент";
                                     return (
@@ -698,7 +699,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 onChange={handleChange}
                                 className="form-input1"
                             >
-                                <option value="">Выберите номер заказа</option>
+                                <option value="" disabled hidden>Не выбрано</option>
                                 {orders.map((order) => {
                                     const orderLabel = order.numberOrder ?? order.orderSequence ?? order.id;
                                     const clientLabel = order.clientName || order.name;
