@@ -93,7 +93,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
             <label>Валюта</label>
             <div className="select-plus">
               <select {...field} className={errors.currency ? 'input-error' : ''}>
-                <option value="" disabled>-- выбрать --</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {currencyList.map(cur => (
                   <option key={cur} value={cur}>{cur}</option>
                 ))}
@@ -226,7 +226,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
               onChange={handleReferrerChange(field, 'referrer_name')}
               className={errors.referrer_id ? 'input-error' : ''}
             >
-              <option value="" disabled>-- выбрать --</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {referrers.map(r => (
                 <option key={r.id} value={r.id}>{r.label || r.name}</option>
               ))}
@@ -257,7 +257,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           <div className="form-field">
             <label>Менеджер</label>
             <select {...field}>
-              <option value="" disabled>-- выбрать --</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {employees.map(e => (
                 <option key={e.id} value={e.id}>{e.full_name}</option>
               ))}

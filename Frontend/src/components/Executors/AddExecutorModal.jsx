@@ -116,7 +116,7 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
                                         onChange={handleChange}
                                         required
                                         >
-                                        <option value="">Выберите заказ</option>
+                                        <option value="" disabled hidden>Не выбрано</option>
                                         {orders.map((order) => (
                                             <option key={order.id} value={order.id}>
                                                 Заказ №{order.id}
@@ -134,7 +134,7 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
                                     className="form-input"
                                     required
                                 >
-                                    <option value="" disabled>Выберите сотрудника</option>
+                                    <option value="" disabled hidden>Не выбрано</option>
                                     {fields?.employees?.map((employee) => (
                                         <option key={employee.id} value={employee.fullName}>
                                             {employee.fullName}
@@ -152,7 +152,7 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
                                     className="form-input"
                                     required
                                 >
-                                    <option value="" disabled>Выберите роль</option>
+                                    <option value="" disabled hidden>Не выбрано</option>
                                     {fields?.role?.map((role, index) => (
                                         <option key={index} value={role}>{role}</option>
                                     ))}
@@ -201,7 +201,7 @@ const AddExecutorModal = ({ onAdd, onClose, fields, orders = [] }) => {
                                     className="form-input"
                                     required
                                 >
-                                    <option value="" disabled>Выберите валюту</option>
+                                    <option value="" disabled hidden>Не выбрано</option>
                                     {fields?.currency?.map((item, index) => (
                                         <option key={index} value={item}>{item}</option>
                                     ))}

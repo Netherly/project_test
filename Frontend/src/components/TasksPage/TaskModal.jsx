@@ -228,7 +228,7 @@ const TaskModal = ({ isOpen, onClose, onSave }) => {
                             className="task-modal-form-select"
                             required
                         >
-                            <option value="">Выберите исполнителя</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {executorOptions.map(option => (
                                 <option key={option} value={option}>{option}</option>
                             ))}
