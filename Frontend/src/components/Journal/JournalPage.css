@@ -752,9 +752,8 @@
 
 .journal-view-toggle-buttons {
     display: flex;
-    gap: 0; 
-    padding: 0 20px;
-    border-right: 1px solid var(--border--color); 
+    gap: 5px; 
+    padding: 0 15px;
     height: 100%;
     align-items: center;
 }
@@ -785,30 +784,6 @@
 .journal-view-mode-button.active {
     background-color: #478cff;
     color: white;
-}
-
-
-.journal-view-mode-button:first-child {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-
-.journal-view-mode-button:first-child.active {
-    border-top-left-radius: 6px;
-    border-bottom-left-radius: 6px;
-}
-
-
-.journal-view-mode-button:last-child {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-
-.journal-view-mode-button:last-child.active {
-    border-top-right-radius: 6px;
-    border-bottom-right-radius: 6px;
 }
 
 

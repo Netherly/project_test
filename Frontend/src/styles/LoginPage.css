@@ -488,7 +488,6 @@ input::-ms-clear {
     position: relative;
     flex-basis: 70%; 
     width: 100%;      
-    
     display: flex;
     align-items: center;
 }
@@ -502,42 +501,40 @@ input::-ms-clear {
 
 .password-input-wrapper input {
     width: 100%;
-    padding-right: 35px !important; 
+    flex-basis: 100%; 
+    padding-right: 40px !important;
     box-sizing: border-box;
 }
 
 
 .eye-toggle-btn {
     position: absolute;
-    right: 0;
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
+    
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 5px;
+    padding: 4px;
     color: var(--text-color);
-    opacity: 0.7;
-    transition: opacity 0.2s;
-    z-index: 2; 
+    opacity: 0.5;
+    transition: opacity 0.2s, color 0.2s;
+    z-index: 5; 
     display: flex;
     align-items: center;
+    justify-content: center;
     margin-top: 0 !important;
+}
+
+.eye-toggle-btn:hover {
+    opacity: 1;
+    color: #fff;
 }
 
 
 .login-eye {
     right: 10px;
-}
-
-
-.eye-toggle-btn svg {
-    display: block;
-    filter: brightness(0) invert(1);
-}
-
-.eye-toggle-btn:hover {
-    opacity: 1;
 }
 
 .error-message {

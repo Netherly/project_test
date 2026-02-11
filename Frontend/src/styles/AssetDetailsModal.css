@@ -439,7 +439,7 @@
 
 .remove-requisite-icon-button {
   color: #ff5252;
-  margin-left: 5px;
+  margin-left: 20px;
 }
 .remove-requisite-icon-button:hover {
   background-color: rgba(255, 82, 82, 0.15);

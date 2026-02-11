@@ -36,7 +36,7 @@ import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
 const MAX_IMAGE_BYTES = 500 * 1024;
-const ORDER_STORAGE_KEY = "crm_field_orders_v1";
+const ORDER_STORAGE_KEY = "crm_field_orders_v2";
 
 const safeFileUrl = (u) => {
   if (!u) return "";
@@ -67,7 +67,7 @@ const initialValues = {
     statuses: [], closeReasons: [], projects: [], tags: [], techTags: [], taskTags: [], discountReason: [], minOrderAmount: [], readySolution: [],
   },
   executorFields: { role: [] },
-  clientFields: { source: [], category: [], country: [], tags: [] },
+  clientFields: { source: [], category: [], country: [], tags: [], business: [] },
   companyFields: { tags: [] },
   employeeFields: { country: [], tags: [] },
   assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
@@ -85,7 +85,7 @@ const initialFieldOrders = {
   generalFields: ["currency", "country", "businessLine"],
   orderFields: ["intervals", "categories", "statuses", "closeReasons", "projects", "discountReason", "minOrderAmount", "readySolution", "tags", "techTags", "taskTags"],
   executorFields: ["role"],
-  clientFields: ["category", "source", "tags"],
+  clientFields: ["category", "source", "business", "tags"],
   companyFields: ["tags"],
   employeeFields: ["tags"],
   assetsFields: ["type", "paymentSystem", "cardDesigns"],
@@ -1546,6 +1546,22 @@ function FieldsPage() {
                 onCommit={(index) => handleStringItemBlur("clientFields", "source", index)}
                 onReorder={(newItems) => handleInputChange("clientFields", "source", newItems)}
                 placeholder="Введите источник"
+                showHidden={showHidden}
+                isDragEnabled={isDragEnabled}
+              />
+            </div>
+          ),
+          business: (
+            <div className="field-row">
+              <label className="field-label">Вид деятельности</label>
+              <EditableList
+                items={selectedValues.clientFields.business || []}
+                onChange={(index, val) => handleStringItemChange("clientFields", "business", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "business", index)}
+                onAdd={() => handleStringItemAdd("clientFields", "business")}
+                onCommit={(index) => handleStringItemBlur("clientFields", "business", index)}
+                onReorder={(newItems) => handleInputChange("clientFields", "business", newItems)}
+                placeholder="Введите вид бизнеса"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
               />

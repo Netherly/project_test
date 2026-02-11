@@ -93,6 +93,7 @@ select option:disabled {
 }
 
 
+
 .actions-panel {
   flex: 0 0 300px; 
   display: flex;
@@ -534,4 +535,46 @@ select option:disabled {
 .employee-modal input,
 .employee-modal textarea {
   caret-color: #fff;
+}
+
+
+.input-with-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-with-icon-wrapper input {
+  padding-right: 80px;
+}
+
+.input-icons-group {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.icon-action-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #a0a0b0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.icon-action-btn:hover {
+  color: #fff;
+}
+
+.icon-action-btn:disabled {
+  color: #555;
+  cursor: not-allowed;
 }

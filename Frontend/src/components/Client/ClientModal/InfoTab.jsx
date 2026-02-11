@@ -7,6 +7,7 @@ const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
 
 export default function InfoTab({
   companies = [],
+  businesses = [],
   categories = [], 
   sources = [], 
   tagOptions = [],
@@ -246,6 +247,27 @@ export default function InfoTab({
             {errors.company_id && (
               <p className="error grid-error">{errors.company_id.message}</p>
             )}
+          </div>
+        )}
+      />
+
+      <Controller
+        name="business"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Вид деятельности</label>
+            <select
+              {...field}
+              disabled={loadingLists}
+              className={errors.business ? "input-error" : ""}
+            >
+              <option value="" disabled>{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
+              {businesses.map((b, i) => (
+                <option key={`${b}-${i}`} value={b}>{b}</option>
+              ))}
+            </select>
+            {errors.business && <p className="error grid-error">{errors.business.message}</p>}
           </div>
         )}
       />

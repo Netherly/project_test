@@ -1,9 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { httpPost, httpPut } from '../../../api/http';
+import { Plus, ExternalLink, Copy, LogOut, Link2Off } from 'lucide-react';
 
-export default function ContactsTab({ isNew, employeeId }) {
+export default function ContactsTab({ isNew, employeeId, fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
+  
+  
+  const countries = Array.isArray(fieldsData?.employeeFields?.country) ? fieldsData.employeeFields.country : [];
+
+  const countryOptions = useMemo(() => {
+    return countries
+      .map((item) => {
+        if (typeof item === "string") {
+          const name = item.trim();
+          return name ? { value: name, label: name } : null;
+        }
+        const label = String(item?.name ?? item?.title ?? item?.value ?? item?.iso3 ?? item?.iso2 ?? "").trim();
+        const value = String(item?.id ?? label).trim();
+        return label ? { value, label } : null;
+      })
+      .filter(Boolean);
+  }, [countries]);
+
+  const currentCountry = useWatch({ control, name: "country" });
+  const currentCountryId = useWatch({ control, name: "countryId" });
+
+  useEffect(() => {
+    if (!countryOptions.length || !currentCountry) return;
+    const hasCurrentId = countryOptions.some((opt) => opt.value === currentCountryId);
+    if (!hasCurrentId) {
+      const match = countryOptions.find((opt) => opt.label === currentCountry);
+      if (match) setValue("countryId", match.value, { shouldDirty: false });
+    }
+  }, [countryOptions, currentCountry, currentCountryId, setValue]);
+ 
+
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [linkError, setLinkError] = useState('');
   const [copyState, setCopyState] = useState('');
@@ -128,6 +160,95 @@ export default function ContactsTab({ isNew, employeeId }) {
 
   return (
     <div className="tab-section">
+      
+      
+      
+      <div className="form-field">
+        <label>Страна</label>
+        <Controller
+          name="countryId"
+          control={control}
+          render={({ field }) => (
+            <select {...field} className={errors.countryId ? "input-error" : ""}>
+              <option value="" disabled>Выберите страну</option>
+              {countryOptions.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          )}
+        />
+        {errors.countryId && <p className="error">{errors.countryId.message}</p>}
+      </div>
+
+      
+      <div className="form-field">
+        <label>Статус</label>
+        <Controller
+          name="status"
+          control={control}
+          render={({ field }) => (
+            <select {...field}>
+              <option value="active">Работает</option>
+              <option value="inactive">Не работает</option>
+              <option value="pending">Оформляется</option>
+            </select>
+          )}
+        />
+      </div>
+
+      
+      <Controller
+        name="fullName"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Сотрудник ФИО</label>
+            <input
+              {...field}
+              placeholder="Введите ФИО"
+              className={errors.fullName ? "input-error" : ""}
+            />
+            {errors.fullName && <p className="error">{errors.fullName.message}</p>}
+          </div>
+        )}
+      />
+
+      
+      <Controller
+        name="login"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Логин</label>
+            <input
+              {...field}
+              placeholder="Введите логин"
+              className={errors.login ? "input-error" : ""}
+            />
+            {errors.login && <p className="error">{errors.login.message}</p>}
+          </div>
+        )}
+      />
+
+      <Controller
+        name="password"
+        control={control}
+        render={({ field }) => (
+          <div className="form-field">
+            <label>Пароль</label>
+            <input
+              {...field}
+              type="password"
+              placeholder="Введите пароль"
+              className={errors.password ? "input-error" : ""}
+            />
+            {errors.password && <p className="error">{errors.password.message}</p>}
+          </div>
+        )}
+      />
+
       <Controller
         name="birthDate"
         control={control}
@@ -196,7 +317,6 @@ export default function ContactsTab({ isNew, employeeId }) {
       
       <fieldset className="form-fieldset">
         <div className="grid-2-col">
-          {/* Исправлено: telegram.dateTime -> telegramDateTime */}
           <Controller
             name="telegramDateTime"
             control={control}
@@ -215,7 +335,6 @@ export default function ContactsTab({ isNew, employeeId }) {
             )}
           />
           
-          {/* Исправлено: telegram.id -> telegramId */}
           <Controller
             name="telegramId"
             control={control}
@@ -227,7 +346,6 @@ export default function ContactsTab({ isNew, employeeId }) {
             )}
           />
           
-          {/* Исправлено: telegram.name -> telegramName */}
           <Controller
             name="telegramName"
             control={control}
@@ -239,7 +357,6 @@ export default function ContactsTab({ isNew, employeeId }) {
             )}
           />
           
-          {/* Исправлено: telegram.nickname -> telegramNickname */}
           <Controller
             name="telegramNickname"
             control={control}
@@ -251,39 +368,52 @@ export default function ContactsTab({ isNew, employeeId }) {
             )}
           />
           
-          {/* Исправлено: telegram.bindingLink -> telegramBindingLink */}
-          <Controller
+         <Controller
             name="telegramBindingLink" 
             control={control}
             render={({ field }) => (
               <div className="form-field">
                 <label>Ссылка на привязку</label>
-                <div className="input-with-action">
-                  <input {...field} placeholder="Ссылка..." readOnly />
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleGenerateLink}
-                    disabled={isGeneratingLink}
-                  >
-                    {isGeneratingLink ? 'Генерация...' : 'Создать'}
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => openLink(field.value)}
-                    disabled={!field.value}
-                  >
-                    Открыть
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => copyLink(field.value)}
-                    disabled={!field.value}
-                  >
-                    Скопировать
-                  </button>
+                <div className="input-with-icon-wrapper">
+                  <input 
+                    {...field} 
+                    placeholder="Ссылка..." 
+                    readOnly 
+                  />
+                  <div className="input-icons-group">
+                    {/* Кнопка Создать */}
+                    <button
+                      type="button"
+                      className="icon-action-btn"
+                      onClick={handleGenerateLink}
+                      disabled={isGeneratingLink || field.value} // Блокируем если уже есть ссылка
+                      title="Создать ссылку"
+                    >
+                      <Plus size={18} />
+                    </button>
+
+                    {/* Кнопка Открыть */}
+                    <button
+                      type="button"
+                      className="icon-action-btn"
+                      onClick={() => openLink(field.value)}
+                      disabled={!field.value}
+                      title="Открыть ссылку"
+                    >
+                      <ExternalLink size={18} />
+                    </button>
+
+                    {/* Кнопка Скопировать */}
+                    <button
+                      type="button"
+                      className="icon-action-btn"
+                      onClick={() => copyLink(field.value)}
+                      disabled={!field.value}
+                      title="Скопировать"
+                    >
+                      <Copy size={18} />
+                    </button>
+                  </div>
                 </div>
                 {copyState && <p className="hint">{copyState}</p>}
                 {linkError && <p className="error">{linkError}</p>}
@@ -291,30 +421,42 @@ export default function ContactsTab({ isNew, employeeId }) {
             )}
           />
           
+          {/* НОВОЕ ПОЛЕ: Ссылка на чат */}
           <Controller
             name="chatLink"
             control={control}
             render={({ field }) => (
               <div className="form-field">
                 <label>Ссылка на чат</label>
-                <div className="input-with-action">
-                  <input {...field} placeholder="https://..." readOnly />
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => openLink(field.value)}
-                    disabled={!field.value}
-                  >
-                    Открыть
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleUnlinkTelegram}
-                    disabled={!isTelegramLinked || isUnlinking}
-                  >
-                    {isUnlinking ? 'Выходим...' : 'Выйти'}
-                  </button>
+                <div className="input-with-icon-wrapper">
+                  <input 
+                    {...field} 
+                    placeholder="https://..." 
+                    readOnly 
+                  />
+                  <div className="input-icons-group">
+                    {/* Кнопка Открыть */}
+                    <button
+                      type="button"
+                      className="icon-action-btn"
+                      onClick={() => openLink(field.value)}
+                      disabled={!field.value}
+                      title="Открыть чат"
+                    >
+                      <ExternalLink size={18} />
+                    </button>
+
+                    {/* Кнопка Выйти (Отвязать) */}
+                    <button
+                      type="button"
+                      className="icon-action-btn"
+                      onClick={handleUnlinkTelegram}
+                      disabled={!isTelegramLinked || isUnlinking}
+                      title="Отвязать Telegram"
+                    >
+                      <Link2Off size={18} color="#ff6b6b" /> {/* Красная иконка для опасного действия */}
+                    </button>
+                  </div>
                 </div>
                 {unlinkState && <p className="hint">{unlinkState}</p>}
                 {unlinkError && <p className="error">{unlinkError}</p>}

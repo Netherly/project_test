@@ -202,7 +202,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                   />
                 )}
                 
-                {activeTab === "contacts" && <ContactsTab isNew={isNew} />}
+                {activeTab === "contacts" && <ContactsTab isNew={isNew} employeeId={safeEmployee.id} fieldsData={appData.fields} />}
                 
                 {activeTab === "requisites" && <RequisitesTab />}
                 
