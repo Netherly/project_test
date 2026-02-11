@@ -403,6 +403,7 @@ function FixesModal({ fix, onClose, onSave, onDelete }) {
                             onChange={handleChange}
                             className="fixes-modal-form-input"
                         >
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="В работе">В работе</option>
                             <option value="Исправлено">Исправлено</option>
                         </select>
@@ -435,6 +436,7 @@ function FixesModal({ fix, onClose, onSave, onDelete }) {
                             onChange={handleChange}
                             className="fixes-modal-form-input"
                         >
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="Фронтенд">Фронтенд</option>
                             <option value="Бэкенд">Бэкенд</option>
                         </select>

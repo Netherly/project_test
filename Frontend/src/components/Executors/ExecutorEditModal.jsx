@@ -122,7 +122,7 @@ const ExecutorEditModal = ({ order, onUpdate, onClose, onDelete, onDuplicate, fi
                                         onChange={handleChange}
                                         required
                                         >
-                                        <option value="">Выберите заказ</option>
+                                        <option value="" disabled hidden>Не выбрано</option>
                                         {orders.map((order) => (
                                             <option key={order.id} value={order.id}>
                                                 Заказ №{order.id}

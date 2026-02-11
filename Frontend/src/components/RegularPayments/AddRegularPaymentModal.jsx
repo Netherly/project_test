@@ -60,21 +60,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
         setFormData(prev => ({ ...prev, subcategory: "" }));
     }, [formData.category]);
 
-    useEffect(() => {
-        if (hasUnsavedChanges) return;
-        setFormData((prev) => {
-            const next = { ...prev };
-            if (!prev.category && financeFields?.articles?.[0]) {
-                next.category = getArticleValue(financeFields.articles[0]);
-            }
-            if (!prev.account && assets?.[0]?.id) {
-                next.account = assets[0].id;
-                next.accountCurrency = assets[0]?.currency || prev.accountCurrency || "UAH";
-            }
-            return next;
-        });
-    }, [assets, financeFields, hasUnsavedChanges]);
-
     const handleChange = (e) => {
         const { name, value } = e.target;
         let newFormData = { ...formData, [name]: value };
@@ -179,7 +164,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                      <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
                         <select id="category" name="category" value={formData.category} onChange={handleChange} required className="form-input1">
-                            <option value="" disabled>Выберите статью</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {financeFields?.articles
                                 ?.map((article, index) => ({
                                     key: article?.id || index,
@@ -199,7 +184,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                         <div className="form-row">
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
                             <select id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleChange} className="form-input1">
-                                <option value="">Выберите подстатью</option>
+                                <option value="" disabled hidden>Не выбрано</option>
                             {availableSubcategories
                                 .map((sub, index) => ({
                                     key: sub?.id || index,
@@ -227,7 +212,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                             Счет {formData.accountCurrency && `(${formData.accountCurrency})`}
                         </label>
                         <select id="account" name="account" value={formData.account} onChange={handleChange} required className="form-input1">
-                            <option value="">Выберите счет</option>
+                            <option value="" disabled hidden>Не выбрано</option>
                             {assets?.map((acc) => (
                                 <option key={acc.id} value={acc.id}>{acc.accountName}</option>
                             ))}
@@ -238,6 +223,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                     <div className="form-row">
                         <label htmlFor="operation" className="form-label">Операция</label>
                         <select id="operation" name="operation" value={formData.operation} onChange={handleChange} required className="form-input1">
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="Списание">Списание</option>
                             <option value="Зачисление">Зачисление</option>
                         </select>
@@ -254,6 +240,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                     <div className="form-row">
                         <label htmlFor="period" className="form-label">Период</label>
                         <select id="period" name="period" value={formData.period} onChange={handleChange} required className="form-input1">
+                            <option value="" disabled hidden>Не выбрано</option>
                             <option value="Ежедневно">Ежедневно</option>
                             <option value="Еженедельно">Еженедельно</option>
                             <option value="Ежемесячно">Ежемесячно</option>

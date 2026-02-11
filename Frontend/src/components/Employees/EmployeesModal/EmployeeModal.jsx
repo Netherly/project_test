@@ -32,7 +32,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const [formErrors, setFormErrors] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
 
- 
   const [loadingData, setLoadingData] = useState(false);
   const [appData, setAppData] = useState({
     fields: { employeeFields: { country: [] }, executorFields: { currency: [] } },
@@ -48,7 +47,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     return () => clearTimeout(t);
   }, []);
 
-  
   useEffect(() => {
     let mounted = true;
 
@@ -137,24 +135,12 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const submitHandler = async (data) => {
     try {
       if (typeof onSave === "function") {
-        const saved = await onSave(data);
-        if (saved) {
-          reset({ status: "active", ...normalizeEmployee(saved) }, { keepValues: false });
-        }
-        setFormErrors(null);
+        await onSave(data);
       }
+      closeHandler();
     } catch (e) {
-      const raw = e?.message || "Ошибка сохранения";
-      let msg = raw;
-      const jsonMatch = raw.match(/(\{.*\})/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[1]);
-          if (parsed?.error) msg = parsed.error;
-        } catch {}
-      }
-      setFormErrors({ submit: [msg] });
-      console.error("Ошибка сохранения сотрудника:", e);
+      setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
+      alert(e?.message || "Не удалось сохранить сотрудника");
     }
   };
 
@@ -228,9 +214,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
           {isDirty && (
             <div className="employee-modal-actions">
-              {formErrors?.submit?.length ? (
-                <div className="form-submit-error error">{formErrors.submit[0]}</div>
-              ) : null}
               <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
                 Сбросить
               </button>

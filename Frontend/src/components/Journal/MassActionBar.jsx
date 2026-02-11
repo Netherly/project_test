@@ -48,7 +48,7 @@ const MassActionBar = ({ selectedCount, onClose, employees, availableRoles, onMa
 
             <div className="journal-mass-action-controls">
                 <select value={adminApproval} onChange={(e) => setAdminApproval(e.target.value)}>
-                    <option value="">Одобрение администратора</option>
+                    <option value="" disabled hidden>Не выбрано</option>
                     <option value="Ожидает">Ожидает</option>
                     <option value="Принято">Принято</option>
                     <option value="Время трекера">Время трекера</option>
@@ -57,14 +57,14 @@ const MassActionBar = ({ selectedCount, onClose, employees, availableRoles, onMa
                 </select>
 
                 <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
-                    <option value="">Изменить роль</option>
+                    <option value="" disabled hidden>Не выбрано</option>
                     {availableRoles.map(role => (
                         <option key={role} value={role}>{role}</option>
                     ))}
                 </select>
 
                 <select value={selectedExecutor} onChange={(e) => setSelectedExecutor(e.target.value)}>
-                    <option value="">Изменить исполнителя</option>
+                    <option value="" disabled hidden>Не выбрано</option>
                     {employees.map(emp => (
                         <option key={emp.id} value={emp.fullName}>{emp.fullName}</option>
                     ))}

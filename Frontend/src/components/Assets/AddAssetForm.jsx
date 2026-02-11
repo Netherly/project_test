@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import "../../styles/AddAssetForm.css";
 import { Plus, X } from "lucide-react";
 import ConfirmationModal from "../modals/confirm/ConfirmationModal";
@@ -24,34 +24,6 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
     employeeId: "",
     requisites: [{ label: "", value: "" }],
   });
-
-  useEffect(() => {
-    setFormData((prev) => {
-      const next = { ...prev };
-
-      if ((!prev.currency || prev.currency === "") && generalFields.currency?.[0]) {
-        const first = generalFields.currency[0];
-        next.currency = first?.value || "";
-      }
-
-      if ((!prev.type || prev.type === "") && assetsFields.type?.[0]) {
-        const first = assetsFields.type[0];
-        next.type = first?.value || "";
-      }
-
-      if ((!prev.paymentSystem || prev.paymentSystem === "") && assetsFields.paymentSystem?.[0]) {
-        const first = assetsFields.paymentSystem[0];
-        next.paymentSystem = first?.value || "";
-      }
-
-      if ((!prev.design || prev.design === "") && assetsFields.cardDesigns?.[0]) {
-        const first = assetsFields.cardDesigns[0];
-        next.design = first?.id || "";
-      }
-
-      return next;
-    });
-  }, [assetsFields, generalFields]);
 
   const handleFormChange = () => {
     if (!hasUnsavedChanges) setHasUnsavedChanges(true);
@@ -187,8 +159,8 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 className="form-input1"
                 disabled={isLoading}
               >
-                <option value="" disabled>
-                  Выберите валюту
+                <option value="" disabled hidden>
+                  Не выбрано
                 </option>
                 {(generalFields.currency || []).map((item, index) => {
                   const val = item?.value ?? item;
@@ -230,8 +202,8 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 className="form-input1"
                 disabled={isLoading}
               >
-                <option value="" disabled>
-                  Выберите тип
+                <option value="" disabled hidden>
+                  Не выбрано
                 </option>
                 {(assetsFields.type || []).map((item, index) => {
                   const val = item?.value ?? item;
@@ -256,7 +228,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 className="form-input1"
                 disabled={isLoading}
               >
-                <option value="">Не выбрано</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {(assetsFields.paymentSystem || []).map((item, index) => {
                   const val = item?.value ?? item;
                   return (
@@ -280,7 +252,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 className="form-input1"
                 disabled={isLoading}
               >
-                <option value="">Не выбрано</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {(assetsFields.cardDesigns || []).map((design, index) => (
                   <option key={design?.id || index} value={design?.id}>
                     {design?.name}
@@ -301,7 +273,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 className="form-input1"
                 disabled={isLoading}
               >
-                <option value="">Не выбрано</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {employees?.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.fullName || emp.full_name || emp.name || emp.id}

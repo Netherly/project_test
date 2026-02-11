@@ -7,8 +7,9 @@ import styles from "./ClientsPageHeader.module.css";
 // Вспомогательная функция, чтобы безопасно достать имя из строки или объекта
 const getName = (item) => {
   if (!item) return "";
-  if (typeof item === 'object') return item.name || "";
-  return item;
+  if (typeof item === 'string') return item;
+  if (typeof item === 'object') return item.name || item.code || item.value || "";
+  return String(item);
 };
 
 function MultiTagSelect({
@@ -330,7 +331,7 @@ export default function ClientsPageHeader({
             <div className={styles.searchFieldGroup}>
               <label>Валюта</label>
               <select value={filters.currency} onChange={handleChange("currency")}>
-                <option value="">Все валюты</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {/* ИСПРАВЛЕНО: Безопасный рендеринг объектов */}
                 {currencyOptions.map((cur, idx) => {
                     const name = getName(cur);
@@ -349,7 +350,7 @@ export default function ClientsPageHeader({
             <div className={styles.searchFieldGroup}>
               <label>Статус</label>
               <select value={filters.status} onChange={handleChange("status")}>
-                <option value="">Все статусы</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {/* ИСПРАВЛЕНО */}
                 {statusOptions.map((st, idx) => {
                     const name = getName(st);
@@ -385,7 +386,7 @@ export default function ClientsPageHeader({
             <div className={styles.searchFieldGroup}>
               <label>Источник</label>
               <select value={filters.source} onChange={handleChange("source")}>
-                <option value="">Все источники</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {/* ИСПРАВЛЕНО */}
                 {sourceOptions.map((s, idx) => {
                     const name = getName(s);
@@ -404,7 +405,7 @@ export default function ClientsPageHeader({
             <div className={styles.searchFieldGroup}>
               <label>Категория</label>
               <select value={filters.category} onChange={handleChange("category")}>
-                <option value="">Все категории</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {categoryOptions.map((c, idx) => {
                     const name = getName(c);
                     return <option key={name || idx} value={name}>{name}</option>
@@ -422,7 +423,7 @@ export default function ClientsPageHeader({
             <div className={styles.searchFieldGroup}>
               <label>Страна</label>
               <select value={filters.country} onChange={handleChange("country")}>
-                <option value="">Все страны</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {/* ИСПРАВЛЕНО */}
                 {countryOptions.map((c, idx) => {
                     const name = getName(c);
@@ -441,7 +442,7 @@ export default function ClientsPageHeader({
             <div className={styles.searchFieldGroup}>
               <label>Есть доля?</label>
               <select value={filters.share} onChange={handleChange("share")}>
-                <option value="">Любое</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 <option value="yes">Да</option>
                 <option value="no">Нет</option>
               </select>

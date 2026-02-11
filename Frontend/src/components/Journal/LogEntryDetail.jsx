@@ -429,7 +429,7 @@ const LogEntryDetail = ({
                 required
                 className={`form-input ${formErrors.orderNumber ? "input-error" : ""}`}
               >
-                <option value="">Выберите заказ</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {activeOrders.map((order) => (
                   <option key={order.id} value={order.id}>
                     Заказ №{order.label}
@@ -474,7 +474,7 @@ const LogEntryDetail = ({
                 required
                 className={`form-input ${formErrors.executorRole ? "input-error" : ""}`}
               >
-                <option value="">Выберите исполнителя</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {employees.map((employee) => (
                   <option
                     key={employee.id || employee.fullName || employee.name}
@@ -498,7 +498,7 @@ const LogEntryDetail = ({
                 required
                 className={`form-input ${formErrors.role ? "input-error" : ""}`}
               >
-                <option value="">Выберите роль</option>
+                <option value="" disabled hidden>Не выбрано</option>
                 {availableRoles.map((roleOption) => (
                   <option key={roleOption} value={roleOption}>
                     {roleOption}

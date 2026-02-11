@@ -543,6 +543,7 @@ function Profile() {
                                     onChange={(e) => handleChange("currency", e.target.value)}
                                     className="profile-select-input"
                                 >
+                                    <option value="" disabled hidden>Не выбрано</option>
                                     <option>UAH</option>
                                     <option>RUB</option>
                                     <option>USD</option>
@@ -627,6 +628,7 @@ function Profile() {
                                         onChange={(e) => handleChange("crmLanguage", e.target.value)}
                                         className="profile-select-input profile-crm-control"
                                     >
+                                        <option value="" disabled hidden>Не выбрано</option>
                                         <option value="ua">Українська</option>
                                         <option value="ru">Русский</option>
                                         <option value="en">English</option>

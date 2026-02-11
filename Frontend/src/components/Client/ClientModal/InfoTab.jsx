@@ -93,7 +93,7 @@ export default function InfoTab({
               disabled={loadingLists}
               className={errors.category ? "input-error" : ""}
             >
-              <option value="" disabled>{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {categories.map((c, i) => (
                 <option key={`${c}-${i}`} value={c}>{c}</option>
               ))}
@@ -116,7 +116,7 @@ export default function InfoTab({
               disabled={loadingLists}
               className={errors.source ? "input-error" : ""}
             >
-              <option value="" disabled>{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {sources.map((s, i) => (
                 <option key={`${s}-${i}`} value={s}>{s}</option>
               ))}
@@ -239,7 +239,7 @@ export default function InfoTab({
               {...field}
               className={errors.company_id ? "input-error" : ""}
             >
-              <option value="" disabled>-- выбрать --</option>
+              <option value="" disabled hidden>Не выбрано</option>
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

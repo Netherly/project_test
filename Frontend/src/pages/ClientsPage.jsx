@@ -2,13 +2,13 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
+import { useFields } from "../context/FieldsContext";
 import "../styles/ClientsPage.css";
 import {
   fetchClients,
   saveClient as saveClientApi,
   deleteClient as deleteClientApi,
 } from "../api/clients";
-import { fetchFields } from "../api/fields";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 
@@ -82,27 +82,11 @@ const Ellipsis = ({ value }) => {
 
 const normalizeStr = (value) => String(value ?? "").trim();
 const uniqueList = (arr) => Array.from(new Set(arr));
-const extractValues = (items, { preferCode = false } = {}) => {
-  const list = Array.isArray(items) ? items : [];
-  const values = list
-    .map((item) => {
-      if (typeof item === "string") return normalizeStr(item);
-      if (!item || typeof item !== "object") return "";
-      if (preferCode) return normalizeStr(item.code ?? item.value ?? item.name);
-      return normalizeStr(item.name ?? item.value ?? item.code);
-    })
-    .filter(Boolean);
-  return uniqueList(values);
-};
 
-export default function ClientsPage({
-  companies = [],
-  employees = [],
-  referrers = [],
-  countries = [],
-  currencies = [],
-}) {
+export default function ClientsPage() {
   const navigate = useNavigate();
+  const { clientCountries = [], currencies = [], clientCategories = [], clientSources = [] } = useFields();
+  
   /* === фильтры === */
   const [search, setSearch] = useState("");
   const [currencyFilter, setCurrencyFilter] = useState("");
@@ -119,11 +103,8 @@ export default function ClientsPage({
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState([]);
   const [error, setError] = useState("");
-  const [countriesList, setCountriesList] = useState(countries);
-  const [currenciesList, setCurrenciesList] = useState(currencies);
-  const [categoriesList, setCategoriesList] = useState([]);
-  const [companiesList, setCompaniesList] = useState(companies);
-  const [employeesList, setEmployeesList] = useState(employees);
+  const [companiesList, setCompaniesList] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
 
   
   const referrerOptions = useMemo(() => {
@@ -147,12 +128,8 @@ export default function ClientsPage({
       addItem(c?.id, name, name ? `${name} (клиент)` : "");
     });
 
-    if (!items.length && referrers.length) {
-      referrers.forEach((r) => addItem(r?.id, r?.name, r?.name));
-    }
-
     return items.sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  }, [employeesList, list, referrers]);
+  }, [employeesList, list]);
 
   const referrerById = useMemo(
     () => new Map(referrerOptions.map((r) => [String(r.id), r.name])),
@@ -171,31 +148,6 @@ export default function ClientsPage({
         client.referrer_first_name || referrerById.get(refFirstId) || "",
     };
   };
-
-  
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const data = await fetchFields();
-        if (!mounted) return;
-        const nextCountries = extractValues(data?.clientFields?.country);
-        const nextCurrencies = extractValues(
-          data?.generalFields?.currency ?? data?.clientFields?.currency,
-          { preferCode: true }
-        );
-        const nextCategories = extractValues(data?.clientFields?.category);
-        if (nextCountries.length) setCountriesList(nextCountries);
-        if (nextCurrencies.length) setCurrenciesList(nextCurrencies);
-        if (nextCategories.length) setCategoriesList(nextCategories);
-      } catch (e) {
-        console.error("fetchFields (clients) failed:", e);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -384,13 +336,16 @@ export default function ClientsPage({
     dateTo,
   ]);
 
-  
   const currencyOptions = useMemo(
-    () =>
-      currenciesList.length
-        ? currenciesList
-        : Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean),
-    [currenciesList, list]
+    () => {
+      if (Array.isArray(currencies) && currencies.length > 0) {
+        return currencies.map(c => 
+          typeof c === 'string' ? c : (c?.name || c?.code || String(c))
+        ).filter(Boolean);
+      }
+      return Array.from(new Set(list.map((c) => c.currency?.name || c.currency))).filter(Boolean);
+    },
+    [currencies, list]
   );
   const statusOptions = useMemo(
     () => Array.from(new Set(list.map((c) => c.status))).filter(Boolean),
@@ -406,12 +361,12 @@ export default function ClientsPage({
     [list]
   );
   const categoryOptions = useMemo(
-    () => (categoriesList.length ? categoriesList : []),
-    [categoriesList]
+    () => (clientCategories.length ? clientCategories : []),
+    [clientCategories]
   );
   const countryOptions = useMemo(
-    () => (countriesList.length ? countriesList : []),
-    [countriesList]
+    () => (clientCountries.length ? clientCountries : []),
+    [clientCountries]
   );
 
   const headers = [
@@ -563,7 +518,7 @@ export default function ClientsPage({
       return created;
     };
 
-    (categoriesList || [])
+    (clientCategories || [])
       .map(normalizeCategoryName)
       .filter(Boolean)
       .forEach((name) => {
@@ -583,7 +538,7 @@ export default function ClientsPage({
     }));
     items.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ru"));
     return items;
-  }, [filteredRows, categoriesList]);
+  }, [filteredRows, clientCategories]);
 
   useEffect(() => {
     if (!groupedClients.length) return;

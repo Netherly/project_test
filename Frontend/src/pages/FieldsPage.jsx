@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
+import { useFields } from "../context/FieldsContext";
 import "../styles/Fields.css";
 
 import {
@@ -835,6 +836,8 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
 
 
 function FieldsPage() {
+  const { refreshFields } = useFields(); 
+  
   const [selectedValues, setSelectedValues] = useState(initialValues);
   const [savedValues, setSavedValues] = useState(initialValues);
   const [hasChanges, setHasChanges] = useState(false);
@@ -944,6 +947,9 @@ function FieldsPage() {
       setSavedValues(nextSavedValues); 
       setHasChanges(false);
       setOpenDropdowns({});
+
+      await refreshFields();
+
       if (pendingTab) {
         setActiveTab(pendingTab);
         setPendingTab(null);

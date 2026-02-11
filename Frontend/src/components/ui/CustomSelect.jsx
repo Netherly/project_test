@@ -14,7 +14,7 @@ const CustomSelect = ({ name, label, options, value, onChange }) => {
         value={value || ""}
         onChange={onChange}
       >
-        <option value="">Выбрать</option>
+        <option value="" disabled hidden>Не выбрано</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

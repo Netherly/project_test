@@ -117,27 +117,6 @@ const AssetDetailsModal = ({
     return filtered.slice(0, 5);
   }, [transactions, asset]);
 
-  useEffect(() => {
-    if (!asset) return;
-    setEditableAsset((prev) => {
-      const next = getInitialState(asset);
-      const existingEmployeeId =
-        next.employeeId || prev.employeeId || asset.employeeId;
-      if (!existingEmployeeId && next.employee && employees?.length) {
-        const match = employees.find(
-          (emp) =>
-            emp.fullName === next.employee || emp.full_name === next.employee
-        );
-        if (match) next.employeeId = match.id;
-      } else if (existingEmployeeId) {
-        next.employeeId = existingEmployeeId;
-      }
-      if (!next.employee && next.employeeName) {
-        next.employee = next.employeeName;
-      }
-      return next;
-    });
-  }, [asset, employees]);
 
   useEffect(() => {
     try {
@@ -413,6 +392,7 @@ const AssetDetailsModal = ({
                   onChange={handleChange}
                   className="form-input1"
                 >
+                  <option value="" disabled hidden>Не выбрано</option>
                   {fields?.generalFields?.currency?.map((item, index) => {
                     const val = item?.value ?? item;
                     return (
@@ -449,6 +429,7 @@ const AssetDetailsModal = ({
                   onChange={handleChange}
                   className="form-input1"
                 >
+                  <option value="" disabled hidden>Не выбрано</option>
                   {fields?.assetsFields?.type?.map((item, index) => {
                     const val = item?.value ?? item;
                     return (
@@ -470,7 +451,7 @@ const AssetDetailsModal = ({
                   onChange={handleChange}
                   className="form-input1"
                 >
-                  <option value="">Не выбрано</option>
+                  <option value="" disabled hidden>Не выбрано</option>
                   {fields?.assetsFields?.paymentSystem?.map((item, index) => {
                     const val = item?.value ?? item;
                     return (
@@ -492,7 +473,7 @@ const AssetDetailsModal = ({
                   onChange={handleChange}
                   className="form-input1"
                 >
-                  <option value="">Не выбрано</option>
+                  <option value="" disabled hidden>Не выбрано</option>
                   {fields?.assetsFields?.cardDesigns?.map((design, index) => (
                     <option key={design?.id || index} value={design?.id}>
                       {design?.name}
@@ -511,7 +492,7 @@ const AssetDetailsModal = ({
                   onChange={handleChange}
                   className="form-input1"
                 >
-                  <option value="">Не выбрано</option>
+                  <option value="" disabled hidden>Не выбрано</option>
                   {employees?.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.fullName || emp.full_name || emp.name || emp.id}
@@ -531,6 +512,7 @@ const AssetDetailsModal = ({
                   onChange={handleChange}
                   className="form-input1"
                 >
+                  <option value="" disabled hidden>Не выбрано</option>
                   <option value="Активен">Активен</option>
                   <option value="Неактивен">Неактивен</option>
                 </select>
