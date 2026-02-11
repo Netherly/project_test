@@ -502,7 +502,8 @@
 .add-category-btn {
     background-color: transparent;
     color: #fff;
-    padding: 10px 20px;
+    padding: 10px 10px;
+    margin-left: -12px;
     border: none;
     border-radius: 6px;
     font-size: 14px;
@@ -774,6 +775,67 @@
     border-radius: 4px;
 }
 
+
+
+
+.sortable-field-row {
+    position: relative;
+    display: flex;
+    align-items: stretch; 
+    border-radius: 8px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    padding: 8px 0; 
+    border: 1px solid transparent; 
+}
+
+
+.sortable-field-row.dragging {
+    opacity: 1 !important;
+    z-index: 9999;
+    cursor: grabbing;
+}
+
+.row-drag-handle-container {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.row-drag-handle {
+    cursor: grab;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.row-drag-handle:hover {
+    color: #fff;
+    background-color: rgba(255,255,255,0.05);
+}
+
+.sortable-field-row.dragging .row-drag-handle {
+    cursor: grabbing;
+    color: #4a90e2; 
+}
+
+
+.row-content-wrapper {
+    flex-grow: 1;
+    min-width: 0; 
+}
+
+.sortable-row[data-dragging="true"] {
+    background: transparent;
+}
+
+.fields-vertical-grid {
+    transition: padding-left 0.3s ease;
+}
 
 @media (max-width: 1200px) {
     .main-content-wrapper {

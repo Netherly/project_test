@@ -24,20 +24,20 @@ import {
   fetchFields, 
   saveFields, 
   fetchInactiveFields,
-  withDefaults,       
-  serializeForSave,   
-  rid,                
+  withDefaults,        
+  serializeForSave,    
+  rid,                  
   tidy,
   isHex,
-  clone               
+  clone                
 } from "../api/fields.js"; 
 import { fileUrl } from "../api/http";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
-
 const MAX_IMAGE_BYTES = 500 * 1024;
+const ORDER_STORAGE_KEY = "crm_field_orders_v2";
 
 const safeFileUrl = (u) => {
   if (!u) return "";
@@ -58,7 +58,6 @@ const tabsConfig = [
   { key: "employeeFields", label: "Сотрудники" },
   { key: "assetsFields", label: "Активы" },
   { key: "financeFields", label: "Транзакции" },
-
 ];
 
 const initialValues = {
@@ -69,7 +68,7 @@ const initialValues = {
     statuses: [], closeReasons: [], projects: [], tags: [], techTags: [], taskTags: [], discountReason: [], minOrderAmount: [], readySolution: [],
   },
   executorFields: { role: [] },
-  clientFields: { source: [], category: [], country: [], tags: [] },
+  clientFields: { source: [], category: [], country: [], tags: [], business: [] },
   companyFields: { tags: [] },
   employeeFields: { country: [], tags: [] },
   assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
@@ -81,6 +80,60 @@ const initialValues = {
   sundryFields:{ typeWork: [] },
   taskFields: { tags: [] },
   miscFields: { businessLine: [] }
+};
+
+const initialFieldOrders = {
+  generalFields: ["currency", "country", "businessLine"],
+  orderFields: ["intervals", "categories", "statuses", "closeReasons", "projects", "discountReason", "minOrderAmount", "readySolution", "tags", "techTags", "taskTags"],
+  executorFields: ["role"],
+  clientFields: ["category", "source", "business", "tags"],
+  companyFields: ["tags"],
+  employeeFields: ["tags"],
+  assetsFields: ["type", "paymentSystem", "cardDesigns"],
+  financeFields: ["articles", "subcategory", "subarticles"],
+  sundryFields: ["typeWork"],
+  taskFields: ["tags"],
+};
+
+const SortableFieldRow = ({ id, children, isDragEnabled }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id, disabled: !isDragEnabled });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 9999 : 'auto',
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={`sortable-field-row ${isDragging ? 'dragging' : ''}`}
+    >
+      {isDragEnabled && (
+        <div className="row-drag-handle-container">
+          <div 
+            {...attributes} 
+            {...listeners} 
+            className="row-drag-handle"
+            title="Перетащить категорию"
+          >
+            <GripVertical size={20} />
+          </div>
+        </div>
+      )}
+      <div className="row-content-wrapper">
+        {children}
+      </div>
+    </div>
+  );
 };
 
 const SortableItem = ({ id, children, disabled, showHandle }) => {
@@ -121,11 +174,11 @@ const SortableItem = ({ id, children, disabled, showHandle }) => {
 
 const EditableList = ({
   items = [],
-  onChange,       
+  onChange,        
   onToggleDelete,
   onAdd,
   onCommit,
-  onReorder,      
+  onReorder,       
   placeholder,
   showHidden,
   isDragEnabled
@@ -198,7 +251,7 @@ const EditableList = ({
 
 const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
   const nameRefs = useRef([]);
-  
+   
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -256,7 +309,7 @@ const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
     const val = tags[idx]?.color;
     upd(id, { color: isHex(val) ? val : "#ffffff" });
   };
-  
+   
   const copyColor = (color) => {
     navigator.clipboard.writeText(color).catch(console.error);
   };
@@ -409,7 +462,7 @@ const CategoryFields = ({
 }) => {
   const visibleItems = useMemo(
     () => categories.map((item, index) => ({ ...item, originalIndex: index }))
-               .filter(item => !item.isDeleted || showHidden),
+                .filter(item => !item.isDeleted || showHidden),
     [categories, showHidden]
   );
 
@@ -485,10 +538,10 @@ const CategoryFields = ({
 const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArticle, onToggleDelete, showHidden }) => {
   const visibleItems = useMemo(
     () => articles.map((item, index) => ({ ...item, originalIndex: index }))
-               .filter(item => !item.isDeleted || showHidden),
+                .filter(item => !item.isDeleted || showHidden),
     [articles, showHidden]
   );
-  
+   
   return (
     <div className="field-row">
       <label className="field-label">Статья</label>
@@ -543,10 +596,10 @@ const SubarticleFields = ({
 }) => {
   const visibleItems = useMemo(
     () => subarticles.map((item, index) => ({ ...item, originalIndex: index }))
-                           .filter(item => !item.isDeleted || showHidden),
+                       .filter(item => !item.isDeleted || showHidden),
     [subarticles, showHidden]
   );
-  
+   
   return (
     <div className="field-row article-field">
       <label className="field-label">Подстатья</label>
@@ -629,7 +682,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
 
   const visibleItems = useMemo(
     () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index }))
-                             .filter(item => !item.isDeleted || showHidden),
+                     .filter(item => !item.isDeleted || showHidden),
     [cardDesigns, showHidden]
   );
 
@@ -673,8 +726,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
     reader.readAsDataURL(file);
     event.target.value = "";
   };
-
-  
+   
   const handleRemoveImage = (e, index) => {
     e.stopPropagation();
     const next = ensureDesign(cardDesigns, index);
@@ -728,7 +780,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
                       style={{ position: 'relative' }} 
                     >
                       <img src={safeFileUrl(design.url)} alt={design.name || "design"} className="card-design-image" />
-                      
+                       
                       {!design.isDeleted && (
                         <button 
                           type="button"
@@ -798,12 +850,33 @@ function FieldsPage() {
   const [inactiveLoaded, setInactiveLoaded] = useState(false);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(false);
+  
+  const loadSavedOrders = () => {
+    try {
+      const saved = localStorage.getItem(ORDER_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...initialFieldOrders, ...parsed };
+      }
+    } catch (e) {
+      console.error("Failed to load field orders", e);
+    }
+    return initialFieldOrders;
+  };
+
+  const [fieldOrders, setFieldOrders] = useState(loadSavedOrders);
+  const [savedFieldOrders, setSavedFieldOrders] = useState(loadSavedOrders);
 
   const [modal, setModal] = useState({
     open: false, title: "", message: "", confirmText: "OK", cancelText: "Отмена", onConfirm: null, onCancel: null,
   });
 
   const containerRef = useRef(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const openErrorModal = (title, message) => {
     setModal({
@@ -821,9 +894,15 @@ function FieldsPage() {
     });
   };
 
+  const checkChanges = (newValues, newOrders) => {
+    const isValuesChanged = JSON.stringify(newValues) !== JSON.stringify(savedValues);
+    const isOrdersChanged = JSON.stringify(newOrders) !== JSON.stringify(savedFieldOrders);
+    setHasChanges(isValuesChanged || isOrdersChanged);
+  };
+
   const applyAndCheck = (next) => {
     setSelectedValues(next);
-    setHasChanges(JSON.stringify(next) !== JSON.stringify(savedValues));
+    checkChanges(next, fieldOrders);
   };
 
   useEffect(() => {
@@ -859,6 +938,10 @@ function FieldsPage() {
     try {
       const payload = serializeForSave(selectedValues);
       await saveFields(payload);
+      
+      localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
+      setSavedFieldOrders(fieldOrders);
+
       const nextSavedValues = clone(selectedValues); 
       setSelectedValues(nextSavedValues);
       setSavedValues(nextSavedValues); 
@@ -880,6 +963,7 @@ function FieldsPage() {
 
   const handleCancelAll = () => {
     setSelectedValues(savedValues);
+    setFieldOrders(savedFieldOrders);
     setHasChanges(false);
     setOpenDropdowns({});
     setShowHidden(false);
@@ -900,6 +984,7 @@ function FieldsPage() {
       onSave: handleSave,
       onDiscard: () => {
         setSelectedValues(savedValues);
+        setFieldOrders(savedFieldOrders);
         setHasChanges(false);
         setActiveTab(tabKey);
         setPendingTab(null);
@@ -1183,15 +1268,38 @@ function FieldsPage() {
     setOpenDropdowns((prev) => ({ [key]: !prev[key] }));
   };
 
+  const handleSectionDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setFieldOrders((prevOrders) => {
+        const currentOrder = prevOrders[activeTab] || [];
+        const oldIndex = currentOrder.indexOf(active.id);
+        const newIndex = currentOrder.indexOf(over.id);
+        
+        const newOrderList = arrayMove(currentOrder, oldIndex, newIndex);
+        const newOrders = {
+          ...prevOrders,
+          [activeTab]: newOrderList,
+        };
+        
+        checkChanges(selectedValues, newOrders);
+        return newOrders;
+      });
+    }
+  };
+
   const intervalsOptions = useMemo(() => (selectedValues.orderFields.intervals || []).filter(i => !i.isDeleted).map((i) => tidy(i.intervalValue)).filter(Boolean), [selectedValues.orderFields.intervals]);
   const articleOptions = useMemo(() => (selectedValues.financeFields.articles || []).filter(a => !a.isDeleted).map((a) => tidy(a.articleValue)).filter(Boolean), [selectedValues.financeFields.articles]);
   const subcategoryOptions = useMemo(() => (selectedValues.financeFields.subcategory || []).filter(sc => !sc.isDeleted).map(sc => sc.value).filter(Boolean), [selectedValues.financeFields.subcategory]);
 
   const renderActiveTabFields = () => {
+    const currentOrder = fieldOrders[activeTab] || [];
+    let componentsMap = {};
+
     switch (activeTab) {
       case "generalFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          currency: (
             <div className="field-row">
               <label className="field-label">Валюта</label>
               <EditableList
@@ -1206,6 +1314,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          country: (
             <div className="field-row">
               <label className="field-label">Страна</label>
               <EditableList
@@ -1220,6 +1330,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          businessLine: (
             <div className="field-row">
               <label className="field-label">Направление бизнеса</label>
               <EditableList
@@ -1230,14 +1342,16 @@ function FieldsPage() {
                 onCommit={(index) => handleStringItemBlur("generalFields", "businessLine", index)}
                 placeholder="Введите направление"
                 showHidden={showHidden}
+                isDragEnabled={isDragEnabled}
               />
             </div>
-          </div>
-        );
+          )
+        };
+        break;
 
       case "orderFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          intervals: (
             <IntervalFields
               intervals={selectedValues.orderFields.intervals || []}
               onIntervalChange={updateIntervalValue} 
@@ -1248,6 +1362,8 @@ function FieldsPage() {
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
+          ),
+          categories: (
             <CategoryFields
               categories={selectedValues.orderFields.categories || []}
               onCategoryChange={updateCategoryValue}
@@ -1259,6 +1375,8 @@ function FieldsPage() {
               availableIntervals={intervalsOptions}
               showHidden={showHidden}
             />
+          ),
+          statuses: (
             <div className="field-row">
               <label className="field-label">Статусы заказа</label>
               <EditableList
@@ -1273,6 +1391,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          closeReasons: (
             <div className="field-row">
               <label className="field-label">Причины закрытия</label>
               <EditableList
@@ -1287,6 +1407,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          projects: (
             <div className="field-row">
               <label className="field-label">Проекты</label>
               <EditableList
@@ -1301,6 +1423,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          discountReason: (
             <div className="field-row">
               <label className="field-label">Причина скидки</label>
               <EditableList
@@ -1315,6 +1439,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          minOrderAmount: (
             <div className="field-row">
               <label className="field-label">Минимальная сумма</label>
               <EditableList
@@ -1329,6 +1455,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          readySolution: (
             <div className="field-row">
               <label className="field-label">Готовое решение</label>
               <EditableList
@@ -1343,6 +1471,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          tags: (
             <TagList
               title="Теги заказа"
               tags={selectedValues.orderFields.tags || []}
@@ -1350,6 +1480,8 @@ function FieldsPage() {
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
+          ),
+          techTags: (
             <TagList
               title="Теги технологий"
               tags={selectedValues.orderFields.techTags || []}
@@ -1357,6 +1489,8 @@ function FieldsPage() {
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
+          ),
+          taskTags: (
             <TagList
               title="Теги задач"
               tags={selectedValues.orderFields.taskTags || []}
@@ -1364,12 +1498,13 @@ function FieldsPage() {
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
-          </div>
-        );
+          )
+        };
+        break;
 
       case "executorFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          role: (
             <div className="field-row">
               <label className="field-label">Роль</label>
               <EditableList
@@ -1384,12 +1519,13 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
-          </div>
-        );
+          )
+        };
+        break;
 
       case "clientFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          category: (
             <div className="field-row">
               <label className="field-label">Категория</label>
               <EditableList
@@ -1404,6 +1540,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          source: (
             <div className="field-row">
               <label className="field-label">Источник</label>
               <EditableList
@@ -1418,6 +1556,24 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          business: (
+            <div className="field-row">
+              <label className="field-label">Вид деятельности</label>
+              <EditableList
+                items={selectedValues.clientFields.business || []}
+                onChange={(index, val) => handleStringItemChange("clientFields", "business", index, val)}
+                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "business", index)}
+                onAdd={() => handleStringItemAdd("clientFields", "business")}
+                onCommit={(index) => handleStringItemBlur("clientFields", "business", index)}
+                onReorder={(newItems) => handleInputChange("clientFields", "business", newItems)}
+                placeholder="Введите вид бизнеса"
+                showHidden={showHidden}
+                isDragEnabled={isDragEnabled}
+              />
+            </div>
+          ),
+          tags: (
             <TagList
               title="Теги клиента"
               tags={selectedValues.clientFields.tags || []}
@@ -1425,12 +1581,13 @@ function FieldsPage() {
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
-          </div>
-        );
+          )
+        };
+        break;
 
       case "companyFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          tags: (
             <div className="field-row">
               <TagList
                 title="Теги компании"
@@ -1440,12 +1597,13 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
-          </div>
-        );
+          )
+        };
+        break;
 
       case "employeeFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          tags: (
             <TagList
               title="Теги сотрудника"
               tags={selectedValues.employeeFields.tags || []}
@@ -1453,12 +1611,13 @@ function FieldsPage() {
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
-          </div>
-        );
+          )
+        };
+        break;
 
       case "assetsFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          type: (
             <div className="field-row">
               <label className="field-label">Тип</label>
               <EditableList
@@ -1473,6 +1632,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          paymentSystem: (
             <div className="field-row">
               <label className="field-label">Платежная система</label>
               <EditableList
@@ -1487,6 +1648,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          cardDesigns: (
             <div className="field-row">
               <label className="field-label">Дизайн карты</label>
               <CardDesignUpload
@@ -1497,12 +1660,13 @@ function FieldsPage() {
                 showHidden={showHidden}
               />
             </div>
-          </div>
-        );
+          )
+        };
+        break;
 
       case "financeFields":
-        return (
-          <div className="fields-vertical-grid">
+        componentsMap = {
+          articles: (
             <ArticleFields
               articles={selectedValues.financeFields?.articles || []}
               onArticleChange={updateArticleValue}
@@ -1511,6 +1675,8 @@ function FieldsPage() {
               onToggleDelete={toggleDeleteArticle}
               showHidden={showHidden}
             />
+          ),
+          subcategory: (
             <div className="field-row">
               <label className="field-label">Подкатегория</label>
               <EditableList
@@ -1525,6 +1691,8 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
+          ),
+          subarticles: (
             <SubarticleFields
               subarticles={selectedValues.financeFields?.subarticles || []}
               onSubarticleChange={updateSubarticleValue}
@@ -1537,12 +1705,14 @@ function FieldsPage() {
               availableSubcategories={subcategoryOptions} 
               showHidden={showHidden}
             />
-          </div>
-        );
+          )
+        };
+        break;
 
       case "sundryFields":
-        return(
-          <div className="field-row">
+        componentsMap = {
+          typeWork: (
+            <div className="field-row">
               <label className="field-label">Тип работы</label>
               <EditableList
                 items={selectedValues.sundryFields?.typeWork || []} 
@@ -1556,26 +1726,46 @@ function FieldsPage() {
                 isDragEnabled={isDragEnabled}
               />
             </div>
-        );
+          )
+        };
+        break;
         
       case "taskFields": 
-        return(
-          <div className="field-row">
-            <TagList
-              title="Теги задач"
-              tags={selectedValues.taskFields?.tags || []}
-              onChange={(v) => handleInputChange("taskFields", "tags", v)}
-              showHidden={showHidden}
-              isDragEnabled={isDragEnabled}
-            />
-          </div>
-        );
-
-
+        componentsMap = {
+          tags: (
+            <div className="field-row">
+              <TagList
+                title="Теги задач"
+                tags={selectedValues.taskFields?.tags || []}
+                onChange={(v) => handleInputChange("taskFields", "tags", v)}
+                showHidden={showHidden}
+                isDragEnabled={isDragEnabled}
+              />
+            </div>
+          )
+        };
+        break;
 
       default:
         return null;
     }
+
+    return (
+      <div className="fields-vertical-grid" style={{ transition: 'padding 0.2s' }}>
+         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+          <SortableContext items={currentOrder} strategy={verticalListSortingStrategy}>
+            {currentOrder.map((key) => {
+              if (!componentsMap[key]) return null;
+              return (
+                <SortableFieldRow key={key} id={key} isDragEnabled={isDragEnabled}>
+                  {componentsMap[key]}
+                </SortableFieldRow>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
+      </div>
+    );
   };
 
   return (

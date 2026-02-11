@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../styles/LoginPage.css";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import { api } from "../api/api";
+import { Eye, EyeOff } from "lucide-react";
 
 function LoginPage() {
   const [login, setLogin] = useState("");
@@ -11,7 +12,6 @@ function LoginPage() {
   const [registerError, setRegisterError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   const [showRegister, setShowRegister] = useState(false);
@@ -22,7 +22,6 @@ function LoginPage() {
 
   const [usernameFocused, setUsernameFocused] = useState(false);
 
-  
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
@@ -222,21 +221,6 @@ function LoginPage() {
   };
 
   const getInputClassName = (name) => (regErrors[name] ? "input-error" : "");
-
-  
-  const EyeIcon = ({ visible }) =>
-    visible ? (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    ) : (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-      </svg>
-    );
-
   return (
     <div className="login-page">
       <div className="login-window">
@@ -254,7 +238,6 @@ function LoginPage() {
               autoComplete="username"
             />
 
-            
             <div className="password-input-wrapper login-wrapper">
               <input
                 type={showLoginPassword ? "text" : "password"}
@@ -272,7 +255,7 @@ function LoginPage() {
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
                 >
-                  <EyeIcon visible={showLoginPassword} />
+                  {showLoginPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               )}
             </div>
@@ -421,7 +404,7 @@ function LoginPage() {
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => setShowRegPassword(!showRegPassword)}
                       >
-                        <EyeIcon visible={showRegPassword} />
+                        {showRegPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     )}
                   </div>
@@ -430,7 +413,7 @@ function LoginPage() {
 
                 <div className="form-register-group">
                   <label htmlFor="confirmPassword">Повтор</label>
-                 
+                  
                   <div className="password-input-wrapper">
                     <input
                       type={showRegConfirmPassword ? "text" : "password"}
@@ -448,7 +431,7 @@ function LoginPage() {
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
                       >
-                        <EyeIcon visible={showRegConfirmPassword} />
+                        {showRegConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
                     )}
                   </div>
