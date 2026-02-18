@@ -381,18 +381,17 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
                     readOnly 
                   />
                   <div className="input-icons-group">
-                    {/* Кнопка Создать */}
                     <button
                       type="button"
                       className="icon-action-btn"
                       onClick={handleGenerateLink}
-                      disabled={isGeneratingLink || field.value} // Блокируем если уже есть ссылка
+                      disabled={isGeneratingLink || field.value} 
                       title="Создать ссылку"
                     >
                       <Plus size={18} />
                     </button>
 
-                    {/* Кнопка Открыть */}
+                    
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -403,7 +402,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
                       <ExternalLink size={18} />
                     </button>
 
-                    {/* Кнопка Скопировать */}
+                    
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -421,7 +420,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
             )}
           />
           
-          {/* НОВОЕ ПОЛЕ: Ссылка на чат */}
+          
           <Controller
             name="chatLink"
             control={control}
@@ -435,7 +434,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
                     readOnly 
                   />
                   <div className="input-icons-group">
-                    {/* Кнопка Открыть */}
+                    
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -446,7 +445,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
                       <ExternalLink size={18} />
                     </button>
 
-                    {/* Кнопка Выйти (Отвязать) */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -454,7 +452,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
                       disabled={!isTelegramLinked || isUnlinking}
                       title="Отвязать Telegram"
                     >
-                      <Link2Off size={18} color="#ff6b6b" /> {/* Красная иконка для опасного действия */}
+                      <Link2Off size={18} color="#ff6b6b" /> 
                     </button>
                   </div>
                 </div>
