@@ -300,7 +300,7 @@ jobs:
             umask 027
             mv -f backend.env "${{ env.BACKEND_TARGET_DIR }}/.env"
             chmod 640 "${{ env.BACKEND_TARGET_DIR }}/.env"
-            chown deploy:deploy "${{ env.BACKEND_TARGET_DIR }}/.env"
+            chown "$(id -un)":"$(id -gn)" "${{ env.BACKEND_TARGET_DIR }}/.env"
 
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
@@ -320,7 +320,7 @@ jobs:
               sudo npm i -g pm2
             fi
 
-      - name: Install backend deps, prisma migrate, restart pm2 (as deploy)
+      - name: Install backend deps, prisma migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -331,34 +331,40 @@ jobs:
           envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
-            chown -R deploy:deploy "/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            chown -R "$(id -un)":"$(id -gn)" "/var/www/${{ env.BACKEND_TARGET_DIR }}"
 
-            sudo -iu deploy bash -lc "cd /var/www/${{ env.BACKEND_TARGET_DIR }} && \
-              export HUSKY=0 && export NODE_ENV=production && \
-              echo 'Checking DB readiness (127.0.0.1:5432)...' && \
-              if command -v pg_isready >/dev/null 2>&1; then \
-                for i in {1..20}; do \
-                  pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break; \
-                  echo \"Waiting for DB... (\$i/20)\"; sleep 2; \
-                done; \
-                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1); \
-              else \
-                echo 'pg_isready not found, skipping DB readiness check'; \
-              fi && \
-              npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund && \
-              npx prisma generate && \
-              if [ -d prisma/migrations ] && [ \"\$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)\" -gt 0 ]; then \
-                echo 'Running prisma migrate deploy...' && npx prisma migrate deploy; \
-              else \
-                echo 'No migrations found. Running prisma db push...' && \
-                if [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'yes' ] || [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'true' ]; then \
-                  npx prisma db push --accept-data-loss; \
-                else \
-                  npx prisma db push; \
-                fi; \
-              fi && \
-              (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start) && \
-              pm2 save"
+            cd "/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            export HUSKY=0
+            export NODE_ENV=production
+
+            echo 'Checking DB readiness (127.0.0.1:5432)...'
+            if command -v pg_isready >/dev/null 2>&1; then
+              for i in {1..20}; do
+                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break
+                echo "Waiting for DB... ($i/20)"
+                sleep 2
+              done
+              pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1)
+            else
+              echo 'pg_isready not found, skipping DB readiness check'
+            fi
+
+            npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
+            npx prisma generate
+            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
+              echo 'Running prisma migrate deploy...'
+              npx prisma migrate deploy
+            else
+              echo 'No migrations found. Running prisma db push...'
+              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'yes' ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'true' ]; then
+                npx prisma db push --accept-data-loss
+              else
+                npx prisma db push
+              fi
+            fi
+
+            (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start)
+            pm2 save
 
       - name: Backend health check (follow redirects)
         uses: appleboy/ssh-action@v1.0.3
