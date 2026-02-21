@@ -6,10 +6,32 @@ const app = express();
 
 const routes = require('./routes/index');
 
-app.use(cors({
-   origin: ['http://gsse.work', 'https://gsse.work', 'http://localhost:5173'],
-  credentials: true
-}));
+function parseCorsOrigins(raw) {
+  const fromEnv = String(raw || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (fromEnv.length > 0) {
+    return fromEnv;
+  }
+
+  return ['http://localhost:5173', 'http://127.0.0.1:5173'];
+}
+
+const allowedOrigins = parseCorsOrigins(process.env.CORS_ORIGINS);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // curl/health checks/server-to-server requests can have no Origin header.
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked origin: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 
 
 app.set('json replacer', (key, value) => (typeof value === 'bigint' ? value.toString() : value));

@@ -1,0 +1,384 @@
+name: deploy-crm-test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: deploy-crm-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: test
+    env:
+      FRONTEND_TARGET_DIR: crm-frontend-test
+      BACKEND_TARGET_DIR: crm-backend-test
+      PM2_APP_NAME: crm-backend-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect frontend/backend dirs
+        run: |
+          set -e
+          if [ -d Frontend ]; then echo "FE_DIR=Frontend" >> "$GITHUB_ENV"; else echo "FE_DIR=frontend" >> "$GITHUB_ENV"; fi
+          if [ -d Backend  ]; then echo "BE_DIR=Backend"  >> "$GITHUB_ENV"; else echo "BE_DIR=backend"  >> "$GITHUB_ENV"; fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ secrets.NODE_VERSION || '20' }}
+
+      # ---------- FRONTEND ----------
+      - name: Write frontend env files (normalize)
+        working-directory: ./${{ env.FE_DIR }}
+        env:
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
+        run: |
+          set -e
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          data = os.environ.get("FRONTEND_ENV", "")
+          data = data.replace("\r\n", "\n").replace("\r", "\n")
+
+          if not data.strip():
+              raise SystemExit("FRONTEND_ENV is empty")
+
+          env_prod = Path(".env.production")
+          env_prod.write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+
+          # fallback
+          Path(".env").write_text(env_prod.read_text(encoding="utf-8"), encoding="utf-8")
+          PY
+
+      - name: Remove other env files
+        working-directory: ./${{ env.FE_DIR }}
+        run: |
+          set -e
+          rm -f .env.local .env.development .env.development.local .env.production.local || true
+
+      - name: Validate & export VITE_API_URL
+        working-directory: ./${{ env.FE_DIR }}
+        run: |
+          set -e
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import re
+          from pathlib import Path
+
+          text = Path(".env.production").read_text(encoding="utf-8")
+          m = re.search(r"^VITE_API_URL=(.*)$", text, flags=re.MULTILINE)
+          if not m:
+              raise SystemExit("VITE_API_URL is missing in FRONTEND_ENV")
+
+          url = m.group(1).strip().replace("\r", "")
+          if (url.startswith('"') and url.endswith('"')) or (url.startswith("'") and url.endswith("'")):
+              url = url[1:-1].strip()
+
+          url = url.rstrip("/")
+          if not url:
+              raise SystemExit("VITE_API_URL is empty after normalization")
+
+          print(f"VITE_API_URL={url}")
+          PY
+
+      - name: Validate frontend env contract
+        env:
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+        run: |
+          set -e
+          URL="${VITE_API_URL//$'\r'/}"
+          URL="${URL%/}"
+          if [ "$URL" != "/api" ]; then
+            echo "FRONTEND_ENV must contain VITE_API_URL=/api (got '$URL')." >&2
+            exit 1
+          fi
+
+      - name: Install & Build frontend
+        working-directory: ./${{ env.FE_DIR }}
+        env:
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+        run: |
+          set -e
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          npm run build -- --mode production || npm run build || npm run build:prod
+
+      - name: Detect FE_OUT
+        run: |
+          set -e
+          FE_DIR="${{ env.FE_DIR }}"
+          if [ -d "$FE_DIR/dist" ]; then
+            FE_OUT="dist"
+          elif [ -d "$FE_DIR/build" ]; then
+            FE_OUT="build"
+          else
+            echo "Build dir not found (expected dist/ or build/)" >&2
+            exit 1
+          fi
+
+          echo "FE_OUT=$FE_OUT" >> "$GITHUB_ENV"
+          echo "FE_DIR=$FE_DIR" >> "$GITHUB_ENV"
+
+          test -d "$FE_DIR/$FE_OUT"
+
+      - name: Fail if bundle contains bad base url
+        env:
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+        run: |
+          set -e
+          OUT="${{ env.FE_DIR }}/${{ env.FE_OUT }}"
+          URL="${VITE_API_URL//$'\r'/}"
+          URL="${URL%/}"
+
+          if grep -RIn --no-messages "/undefined/" "$OUT" >/dev/null ; then
+            echo "Bundle contains '/undefined/'. Check VITE_API_URL!" >&2
+            exit 1
+          fi
+
+          if [ -z "$URL" ]; then
+            echo "VITE_API_URL is missing." >&2
+            exit 1
+          fi
+
+      - name: Pack frontend build
+        run: |
+          set -e
+          tar -C "${{ env.FE_DIR }}" -czf frontend.tgz "${{ env.FE_OUT }}"
+
+      - name: Upload frontend archive
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "frontend.tgz"
+          target: "/var/www"
+          overwrite: true
+
+      - name: Unpack frontend on server (atomic)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            cd /var/www
+            mkdir -p "${{ env.FRONTEND_TARGET_DIR }}" .releases
+            rm -rf .releases/frontend_new
+            mkdir -p .releases/frontend_new
+            tar -xzf frontend.tgz -C .releases/frontend_new
+            if [ -d ".releases/frontend_new/${{ env.FE_OUT }}" ]; then
+              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "${{ env.FRONTEND_TARGET_DIR }}/"
+            else
+              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/" "${{ env.FRONTEND_TARGET_DIR }}/"
+            fi
+            rm -f frontend.tgz
+
+      # ---------- BACKEND ----------
+      - name: Pack backend source
+        run: |
+          set -e
+          EXCLUDES=(
+            --exclude="${{ env.BE_DIR }}/node_modules"
+            --exclude="${{ env.BE_DIR }}/.git"
+            --exclude="${{ env.BE_DIR }}/.github"
+            --exclude="${{ env.BE_DIR }}/.env*"
+          )
+          tar -czf backend.tgz "${EXCLUDES[@]}" "${{ env.BE_DIR }}"
+
+      - name: Upload backend archive
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "backend.tgz"
+          target: "/var/www"
+          overwrite: true
+
+      - name: Unpack backend on server (atomic)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            cd /var/www
+            mkdir -p "${{ env.BACKEND_TARGET_DIR }}" .releases
+            rm -rf .releases/backend_new
+            mkdir -p .releases/backend_new
+            tar -xzf backend.tgz -C .releases/backend_new
+            if [ -d ".releases/backend_new/backend" ]; then
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+            elif [ -d ".releases/backend_new/Backend" ]; then
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+            else
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/" "${{ env.BACKEND_TARGET_DIR }}/"
+            fi
+            rm -f backend.tgz
+
+      - name: Prepare backend .env file
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+        run: |
+          set -e
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          data = os.environ.get("BACKEND_ENV", "")
+          data = data.replace("\r\n", "\n").replace("\r", "\n")
+
+          if not data.strip():
+              raise SystemExit("BACKEND_ENV is empty")
+
+          required = {
+              "PORT",
+              "NODE_ENV",
+              "DATABASE_URL",
+              "JWT_SECRET",
+              "JWT_REFRESH_SECRET",
+              "CORS_ORIGINS",
+              "BOT_DISABLED",
+          }
+
+          keys = set()
+          for line in data.split("\n"):
+              line = line.strip()
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              keys.add(line.split("=", 1)[0].strip())
+
+          missing = sorted(required - keys)
+          if missing:
+              raise SystemExit(f"BACKEND_ENV missing keys: {', '.join(missing)}")
+
+          Path("backend.env").write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload backend env file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "backend.env"
+          target: "/var/www"
+          overwrite: true
+
+      - name: Move backend .env into place (chmod 640)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            cd /var/www
+            test -f backend.env
+            mkdir -p "${{ env.BACKEND_TARGET_DIR }}"
+            umask 027
+            mv -f backend.env "${{ env.BACKEND_TARGET_DIR }}/.env"
+            chmod 640 "${{ env.BACKEND_TARGET_DIR }}/.env"
+
+      - name: Install Node and pm2 on server if missing
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            if ! command -v node >/dev/null 2>&1; then
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+            if ! command -v pm2 >/dev/null 2>&1; then
+              sudo npm i -g pm2
+            fi
+
+      - name: Install backend deps, prisma migrate, restart pm2 (as deploy)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: PRISMA_ACCEPT_DATA_LOSS
+          script: |
+            set -e
+
+            sudo -iu deploy bash -lc "cd /var/www/${{ env.BACKEND_TARGET_DIR }} && \
+              export HUSKY=0 && export NODE_ENV=production && \
+              echo 'Checking DB readiness (127.0.0.1:5432)...' && \
+              if command -v pg_isready >/dev/null 2>&1; then \
+                for i in {1..20}; do \
+                  pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break; \
+                  echo \"Waiting for DB... (\$i/20)\"; sleep 2; \
+                done; \
+                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1); \
+              else \
+                echo 'pg_isready not found, skipping DB readiness check'; \
+              fi && \
+              npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund && \
+              npx prisma generate && \
+              if [ -d prisma/migrations ] && [ \"\$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)\" -gt 0 ]; then \
+                echo 'Running prisma migrate deploy...' && npx prisma migrate deploy; \
+              else \
+                echo 'No migrations found. Running prisma db push...' && \
+                if [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'yes' ] || [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'true' ]; then \
+                  npx prisma db push --accept-data-loss; \
+                else \
+                  npx prisma db push; \
+                fi; \
+              fi && \
+              (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start) && \
+              pm2 save"
+
+      - name: Backend health check (follow redirects)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN }}"
+
+            for i in {1..20}; do
+              code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)
+              if [ "$code" = "200" ]; then
+                echo "Backend health: OK"
+                exit 0
+              fi
+              echo "Waiting for backend... ($i/20) code=$code"
+              sleep 3
+            done
+
+            echo "Backend health check FAILED"
+            exit 1
