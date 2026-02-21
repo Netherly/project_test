@@ -300,6 +300,7 @@ jobs:
             umask 027
             mv -f backend.env "${{ env.BACKEND_TARGET_DIR }}/.env"
             chmod 640 "${{ env.BACKEND_TARGET_DIR }}/.env"
+            chown deploy:deploy "${{ env.BACKEND_TARGET_DIR }}/.env"
 
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
@@ -330,6 +331,7 @@ jobs:
           envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
+            chown -R deploy:deploy "/var/www/${{ env.BACKEND_TARGET_DIR }}"
 
             sudo -iu deploy bash -lc "cd /var/www/${{ env.BACKEND_TARGET_DIR }} && \
               export HUSKY=0 && export NODE_ENV=production && \
