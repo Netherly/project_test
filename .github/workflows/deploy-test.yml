@@ -288,6 +288,26 @@ jobs:
                   out_lines.append("")
               out_lines.append(f"PUBLIC_BOT_NAME={forced_bot_name}")
 
+          def upsert_env(lines, key, value):
+              prefix = f"{key}="
+              updated = []
+              found = False
+              for raw in lines:
+                  if raw.strip().startswith(prefix):
+                      updated.append(f"{key}={value}")
+                      found = True
+                  else:
+                      updated.append(raw)
+              if not found:
+                  if updated and updated[-1].strip():
+                      updated.append("")
+                  updated.append(f"{key}={value}")
+              return updated
+
+          out_lines = upsert_env(out_lines, "TEST_GATE_PASSWORD", "GsseTestGate_2026!")
+          out_lines = upsert_env(out_lines, "TEST_GATE_SECRET", "7f75bd9175e24a6b9f9f60b5bcf12cfe3c2cccf7fa3c6e563dfab9465c4c0d46")
+          out_lines = upsert_env(out_lines, "TEST_GATE_COOKIE_TTL_DAYS", "7")
+
           normalized = "\n".join(out_lines).rstrip("\n") + "\n"
           Path("backend.env").write_text(normalized, encoding="utf-8")
           PY
