@@ -46,6 +46,8 @@ const isTokenValid = (token) => {
 
 export default function App() {
   const [authReady, setAuthReady] = useState(false);
+  const currentToken = localStorage.getItem('token');
+  const isAuthenticated = Boolean(currentToken && isTokenValid(currentToken));
 
   useEffect(() => {
     let active = true;
@@ -114,7 +116,7 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <TransactionsProvider>
+      <TransactionsProvider authReady={authReady} isAuthenticated={isAuthenticated}>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginRoute />} />
