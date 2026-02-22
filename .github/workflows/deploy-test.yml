@@ -269,7 +269,27 @@ jobs:
           if missing:
               raise SystemExit(f"BACKEND_ENV missing keys: {', '.join(missing)}")
 
-          Path("backend.env").write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+          # Force test bot username for this environment even if BACKEND_ENV secret
+          # doesn't contain PUBLIC_BOT_NAME (or contains a production value).
+          forced_bot_name = "gameboticBot"
+          out_lines = []
+          found_public_bot = False
+
+          for raw_line in data.split("\n"):
+              stripped = raw_line.strip()
+              if stripped.startswith("PUBLIC_BOT_NAME="):
+                  out_lines.append(f"PUBLIC_BOT_NAME={forced_bot_name}")
+                  found_public_bot = True
+              else:
+                  out_lines.append(raw_line)
+
+          if not found_public_bot:
+              if out_lines and out_lines[-1].strip():
+                  out_lines.append("")
+              out_lines.append(f"PUBLIC_BOT_NAME={forced_bot_name}")
+
+          normalized = "\n".join(out_lines).rstrip("\n") + "\n"
+          Path("backend.env").write_text(normalized, encoding="utf-8")
           PY
 
       - name: Upload backend env file
