@@ -3,7 +3,7 @@ name: deploy-crm-test
 on:
   workflow_dispatch:
   push:
-    branches: [develop]
+    branches: [develope]
 
 concurrency:
   group: deploy-crm-test-${{ github.ref }}
