@@ -30,8 +30,6 @@ export default function GeneralInfoTab({ fieldsData }) {
     setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
   }, [fields]);
 
-  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
-
   return (
     <div className="tab-section">
 
