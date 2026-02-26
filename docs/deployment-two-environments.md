@@ -22,7 +22,7 @@ Both workflows require these secrets in each environment:
 - `BACKEND_ENV`
 - optional: `NODE_VERSION`
 
-Important: workflows run backend restart as Linux user `deploy` (`sudo -iu deploy ...`).
+Important: workflows run backend commands as the SSH user from `VPS_USER` (for your setup, use `root`).
 
 ## 2. Required env contracts
 
@@ -55,7 +55,7 @@ Use separate `DATABASE_URL` and Telegram token for `prod` and `test`.
 sudo mkdir -p /var/www/crm-frontend-prod /var/www/crm-frontend-test
 sudo mkdir -p /var/www/crm-backend-prod /var/www/crm-backend-test
 sudo mkdir -p /var/www/.releases
-sudo chown -R deploy:deploy /var/www
+sudo chown -R root:root /var/www
 ```
 
 2. Create test Basic Auth file:

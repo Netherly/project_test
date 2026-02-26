@@ -6,10 +6,10 @@ set -euo pipefail
 #   PROD_DOMAIN
 #   TEST_DOMAIN
 # Optional env vars:
-#   DEPLOY_USER (default: deploy)
+#   DEPLOY_USER (default: root)
 #   TEST_BASIC_AUTH_USER (default: test)
 
-DEPLOY_USER="${DEPLOY_USER:-deploy}"
+DEPLOY_USER="${DEPLOY_USER:-root}"
 TEST_BASIC_AUTH_USER="${TEST_BASIC_AUTH_USER:-test}"
 
 if [[ -z "${PROD_DOMAIN:-}" || -z "${TEST_DOMAIN:-}" ]]; then

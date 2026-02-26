@@ -3,7 +3,7 @@ name: deploy-crm-test
 on:
   workflow_dispatch:
   push:
-    branches: [develop]
+    branches: [develope]
 
 concurrency:
   group: deploy-crm-test-${{ github.ref }}
@@ -269,7 +269,47 @@ jobs:
           if missing:
               raise SystemExit(f"BACKEND_ENV missing keys: {', '.join(missing)}")
 
-          Path("backend.env").write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+          # Force test bot username for this environment even if BACKEND_ENV secret
+          # doesn't contain PUBLIC_BOT_NAME (or contains a production value).
+          forced_bot_name = "gameboticBot"
+          out_lines = []
+          found_public_bot = False
+
+          for raw_line in data.split("\n"):
+              stripped = raw_line.strip()
+              if stripped.startswith("PUBLIC_BOT_NAME="):
+                  out_lines.append(f"PUBLIC_BOT_NAME={forced_bot_name}")
+                  found_public_bot = True
+              else:
+                  out_lines.append(raw_line)
+
+          if not found_public_bot:
+              if out_lines and out_lines[-1].strip():
+                  out_lines.append("")
+              out_lines.append(f"PUBLIC_BOT_NAME={forced_bot_name}")
+
+          def upsert_env(lines, key, value):
+              prefix = f"{key}="
+              updated = []
+              found = False
+              for raw in lines:
+                  if raw.strip().startswith(prefix):
+                      updated.append(f"{key}={value}")
+                      found = True
+                  else:
+                      updated.append(raw)
+              if not found:
+                  if updated and updated[-1].strip():
+                      updated.append("")
+                  updated.append(f"{key}={value}")
+              return updated
+
+          out_lines = upsert_env(out_lines, "TEST_GATE_PASSWORD", "GsseTestGate_2026!")
+          out_lines = upsert_env(out_lines, "TEST_GATE_SECRET", "7f75bd9175e24a6b9f9f60b5bcf12cfe3c2cccf7fa3c6e563dfab9465c4c0d46")
+          out_lines = upsert_env(out_lines, "TEST_GATE_COOKIE_TTL_DAYS", "7")
+
+          normalized = "\n".join(out_lines).rstrip("\n") + "\n"
+          Path("backend.env").write_text(normalized, encoding="utf-8")
           PY
 
       - name: Upload backend env file
@@ -300,7 +340,7 @@ jobs:
             umask 027
             mv -f backend.env "${{ env.BACKEND_TARGET_DIR }}/.env"
             chmod 640 "${{ env.BACKEND_TARGET_DIR }}/.env"
-            chown deploy:deploy "${{ env.BACKEND_TARGET_DIR }}/.env"
+            chown "$(id -un)":"$(id -gn)" "${{ env.BACKEND_TARGET_DIR }}/.env"
 
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
@@ -320,7 +360,7 @@ jobs:
               sudo npm i -g pm2
             fi
 
-      - name: Install backend deps, prisma migrate, restart pm2 (as deploy)
+      - name: Install backend deps, prisma migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -331,34 +371,40 @@ jobs:
           envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
-            chown -R deploy:deploy "/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            chown -R "$(id -un)":"$(id -gn)" "/var/www/${{ env.BACKEND_TARGET_DIR }}"
 
-            sudo -iu deploy bash -lc "cd /var/www/${{ env.BACKEND_TARGET_DIR }} && \
-              export HUSKY=0 && export NODE_ENV=production && \
-              echo 'Checking DB readiness (127.0.0.1:5432)...' && \
-              if command -v pg_isready >/dev/null 2>&1; then \
-                for i in {1..20}; do \
-                  pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break; \
-                  echo \"Waiting for DB... (\$i/20)\"; sleep 2; \
-                done; \
-                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1); \
-              else \
-                echo 'pg_isready not found, skipping DB readiness check'; \
-              fi && \
-              npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund && \
-              npx prisma generate && \
-              if [ -d prisma/migrations ] && [ \"\$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)\" -gt 0 ]; then \
-                echo 'Running prisma migrate deploy...' && npx prisma migrate deploy; \
-              else \
-                echo 'No migrations found. Running prisma db push...' && \
-                if [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'yes' ] || [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'true' ]; then \
-                  npx prisma db push --accept-data-loss; \
-                else \
-                  npx prisma db push; \
-                fi; \
-              fi && \
-              (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start) && \
-              pm2 save"
+            cd "/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            export HUSKY=0
+            export NODE_ENV=production
+
+            echo 'Checking DB readiness (127.0.0.1:5432)...'
+            if command -v pg_isready >/dev/null 2>&1; then
+              for i in {1..20}; do
+                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break
+                echo "Waiting for DB... ($i/20)"
+                sleep 2
+              done
+              pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1)
+            else
+              echo 'pg_isready not found, skipping DB readiness check'
+            fi
+
+            npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
+            npx prisma generate
+            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
+              echo 'Running prisma migrate deploy...'
+              npx prisma migrate deploy
+            else
+              echo 'No migrations found. Running prisma db push...'
+              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'yes' ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'true' ]; then
+                npx prisma db push --accept-data-loss
+              else
+                npx prisma db push
+              fi
+            fi
+
+            (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start)
+            pm2 save
 
       - name: Backend health check (follow redirects)
         uses: appleboy/ssh-action@v1.0.3

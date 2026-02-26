@@ -3,6 +3,7 @@ import "./AccessModal.css";
 import ThreeStateToggle from "./ThreeStateToggle.jsx";
 import ConfirmationModal from "../modals/confirm/ConfirmationModal.jsx";
 import { ModulePermissionStatus } from './AccessSettingsPage.jsx';
+import { persistAccessControlFromLocalCache } from "../../api/access-control.js";
 import { Plus, X, Lock, LockOpen, Trash2 } from 'lucide-react';
 import {
     modules,
@@ -226,6 +227,9 @@ const AccessModal = ({
             if (isGeneralMode) {
                 localStorage.setItem('access-roles', JSON.stringify(roles));
                 setOriginalRoles(JSON.parse(JSON.stringify(roles)));
+                persistAccessControlFromLocalCache().catch((e) => {
+                    console.error('Ошибка сохранения доступов в БД:', e);
+                });
             } else {
                 if (selectedEmployee && onEmployeeRoleChange) {
                     const allEmployees = JSON.parse(localStorage.getItem('employees') || '[]');
@@ -240,7 +244,7 @@ const AccessModal = ({
                     const rolesToKeep = allRoles.filter(role => !unusedCustomRoles.some(unused => unused.id === role.id));
 
                     let finalRoles = [...rolesToKeep];
-                    if (selectedRoleForEmployee.startsWith('custom_') && hasChanges) {
+                    if (String(selectedRoleForEmployee || '').startsWith('custom_') && hasChanges) {
                         const updatedRole = roles.find(r => r.id === selectedRoleForEmployee);
                         if(updatedRole) {
                            finalRoles = finalRoles.map(r => r.id === selectedRoleForEmployee ? updatedRole : r);
