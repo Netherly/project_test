@@ -11,13 +11,15 @@ export const useFields = () => {
   return context;
 };
 
-export const FieldsProvider = ({ children }) => {
+export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
   const [fields, setFields] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Загрузка полей
   useEffect(() => {
+    if (!authReady || !isAuthenticated) return;
+
     const loadFields = async () => {
       try {
         setLoading(true);
@@ -34,7 +36,7 @@ export const FieldsProvider = ({ children }) => {
     };
 
     loadFields();
-  }, []);
+  }, [authReady, isAuthenticated]);
 
   // ручная обнова полей
   const refreshFields = async () => {

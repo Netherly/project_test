@@ -7,7 +7,7 @@ export default function GeneralInfoTab({ fieldsData }) {
   const { fields, loading: fieldsLoading } = useFields();
   const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
-  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
+  const mainCurrencyValue = useWatch({ control, name: "mainCurrency" });
   const currentCountryId = useWatch({ control, name: "countryId" });
   const currentCountry = useWatch({ control, name: "country" });
 
@@ -29,8 +29,6 @@ export default function GeneralInfoTab({ fieldsData }) {
       .filter(Boolean);
     setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
   }, [fields]);
-
-  const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
 
   return (
     <div className="tab-section">
@@ -121,7 +119,7 @@ export default function GeneralInfoTab({ fieldsData }) {
             return (
               <div
                 key={code}
-                className={`currency-row ${selectedMainCurrency === code ? "selected" : ""}`}
+                className={`currency-row ${mainCurrencyValue === code ? "selected" : ""}`}
               >
                 <span className="currency-label">
                   {code.toUpperCase()}

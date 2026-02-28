@@ -19,7 +19,9 @@ async function createLinkToken(req, res, next) {
       data: { code, employeeId, expiresAt: minutesFromNow(60) },
     });
 
-    const botName = process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot';
+    const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
+      .trim()
+      .replace(/^@/, '');
     const link = `https://t.me/${botName}?start=${ticket.code}`;
 
     return res.json({ link, code: ticket.code, ttlMinutes: 60 });
