@@ -307,6 +307,11 @@ jobs:
           out_lines = upsert_env(out_lines, "TEST_GATE_PASSWORD", "GsseTestGate_2026!")
           out_lines = upsert_env(out_lines, "TEST_GATE_SECRET", "7f75bd9175e24a6b9f9f60b5bcf12cfe3c2cccf7fa3c6e563dfab9465c4c0d46")
           out_lines = upsert_env(out_lines, "TEST_GATE_COOKIE_TTL_DAYS", "7")
+          out_lines = upsert_env(out_lines, "TEST_DEFAULT_ADMIN_ENABLED", "true")
+          out_lines = upsert_env(out_lines, "ADMIN_LOGIN", "admin")
+          out_lines = upsert_env(out_lines, "ADMIN_PASSWORD", "123456")
+          out_lines = upsert_env(out_lines, "ADMIN_NAME", "Test Admin")
+          out_lines = upsert_env(out_lines, "ADMIN_EMAIL", "admin-test@gsse.dev")
 
           normalized = "\n".join(out_lines).rstrip("\n") + "\n"
           Path("backend.env").write_text(normalized, encoding="utf-8")
@@ -402,6 +407,9 @@ jobs:
                 npx prisma db push
               fi
             fi
+
+            echo 'Running seed for test default admin...'
+            npm run seed
 
             (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start)
             pm2 save
