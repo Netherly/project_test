@@ -1,4 +1,4 @@
-name: deploy-crm
+name: deploy-crm-prod
 
 on:
   workflow_dispatch:
@@ -6,13 +6,18 @@ on:
     branches: [main]
 
 concurrency:
-  group: deploy-crm-${{ github.ref }}
+  group: deploy-crm-prod-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    environment: prod
+    env:
+      FRONTEND_TARGET_DIR: crm-frontend-prod
+      BACKEND_TARGET_DIR: crm-backend-prod
+      PM2_APP_NAME: crm-backend-prod
 
     steps:
       - name: Checkout
@@ -83,6 +88,18 @@ jobs:
           print(f"VITE_API_URL={url}")
           PY
 
+      - name: Validate frontend env contract
+        env:
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+        run: |
+          set -e
+          URL="${VITE_API_URL//$'\r'/}"
+          URL="${URL%/}"
+          if [ "$URL" != "/api" ]; then
+            echo "FRONTEND_ENV must contain VITE_API_URL=/api (got '$URL')." >&2
+            exit 1
+          fi
+
       - name: Install & Build frontend
         working-directory: ./${{ env.FE_DIR }}
         env:
@@ -90,7 +107,7 @@ jobs:
         run: |
           set -e
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
-          npm run build -- --mode production || npm run build || npm run build:prod
+          npm run build -- --mode production || npm run build
 
       - name: Detect FE_OUT
         run: |
@@ -129,17 +146,6 @@ jobs:
             exit 1
           fi
 
-          if echo "$URL" | grep -Eqi '(localhost|127\.0\.0\.1)'; then
-            echo "VITE_API_URL points to localhost. Fix FRONTEND_ENV." >&2
-            exit 1
-          fi
-
-          if ! grep -RInF --no-messages "$URL" "$OUT" >/dev/null && \
-             ! grep -RInF --no-messages "${URL}/" "$OUT" >/dev/null; then
-            echo "Bundle does not contain VITE_API_URL ($URL). Check env injection/build or frontend code." >&2
-            exit 1
-          fi
-
       - name: Pack frontend build
         run: |
           set -e
@@ -168,14 +174,14 @@ jobs:
           script: |
             set -e
             cd /var/www
-            mkdir -p crm-frontend .releases
+            mkdir -p "${{ env.FRONTEND_TARGET_DIR }}" .releases
             rm -rf .releases/frontend_new
             mkdir -p .releases/frontend_new
             tar -xzf frontend.tgz -C .releases/frontend_new
             if [ -d ".releases/frontend_new/${{ env.FE_OUT }}" ]; then
-              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "crm-frontend/"
+              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "${{ env.FRONTEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/" "crm-frontend/"
+              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/" "${{ env.FRONTEND_TARGET_DIR }}/"
             fi
             rm -f frontend.tgz
 
@@ -214,16 +220,16 @@ jobs:
           script: |
             set -e
             cd /var/www
-            mkdir -p crm-backend .releases
+            mkdir -p "${{ env.BACKEND_TARGET_DIR }}" .releases
             rm -rf .releases/backend_new
             mkdir -p .releases/backend_new
             tar -xzf backend.tgz -C .releases/backend_new
             if [ -d ".releases/backend_new/backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/backend/" "crm-backend/"
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             elif [ -d ".releases/backend_new/Backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/Backend/" "crm-backend/"
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/" "crm-backend/"
+              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/" "${{ env.BACKEND_TARGET_DIR }}/"
             fi
             rm -f backend.tgz
 
@@ -241,6 +247,27 @@ jobs:
 
           if not data.strip():
               raise SystemExit("BACKEND_ENV is empty")
+
+          required = {
+              "PORT",
+              "NODE_ENV",
+              "DATABASE_URL",
+              "JWT_SECRET",
+              "JWT_REFRESH_SECRET",
+              "CORS_ORIGINS",
+              "BOT_DISABLED",
+          }
+
+          keys = set()
+          for line in data.split("\n"):
+              line = line.strip()
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              keys.add(line.split("=", 1)[0].strip())
+
+          missing = sorted(required - keys)
+          if missing:
+              raise SystemExit(f"BACKEND_ENV missing keys: {', '.join(missing)}")
 
           Path("backend.env").write_text(data.rstrip("\n") + "\n", encoding="utf-8")
           PY
@@ -269,10 +296,11 @@ jobs:
             set -e
             cd /var/www
             test -f backend.env
-            mkdir -p crm-backend
+            mkdir -p "${{ env.BACKEND_TARGET_DIR }}"
             umask 027
-            mv -f backend.env crm-backend/.env
-            chmod 640 crm-backend/.env
+            mv -f backend.env "${{ env.BACKEND_TARGET_DIR }}/.env"
+            chmod 640 "${{ env.BACKEND_TARGET_DIR }}/.env"
+            chown "$(id -un)":"$(id -gn)" "${{ env.BACKEND_TARGET_DIR }}/.env"
 
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
@@ -292,8 +320,7 @@ jobs:
               sudo npm i -g pm2
             fi
 
-      # 🔥 ВАЖНО: pm2 у тебя живёт у пользователя deploy — запускаем всё под ним
-      - name: Install backend deps, prisma migrate, restart pm2 (as deploy)
+      - name: Install backend deps, prisma migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -304,35 +331,41 @@ jobs:
           envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
+            chown -R "$(id -un)":"$(id -gn)" "/var/www/${{ env.BACKEND_TARGET_DIR }}"
 
-            sudo -iu deploy bash -lc "cd /var/www/crm-backend && \
-              export HUSKY=0 && export NODE_ENV=production && \
-              echo 'Checking DB readiness (127.0.0.1:5432)...' && \
-              if command -v pg_isready >/dev/null 2>&1; then \
-                for i in {1..20}; do \
-                  pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break; \
-                  echo \"Waiting for DB... (\$i/20)\"; sleep 2; \
-                done; \
-                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1); \
-              else \
-                echo 'pg_isready not found, skipping DB readiness check'; \
-              fi && \
-              npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund && \
-              npx prisma generate && \
-              if [ -d prisma/migrations ] && [ \"\$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)\" -gt 0 ]; then \
-                echo 'Running prisma migrate deploy...' && npx prisma migrate deploy; \
-              else \
-                echo 'No migrations found. Running prisma db push...' && \
-                if [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'yes' ] || [ \"${PRISMA_ACCEPT_DATA_LOSS}\" = 'true' ]; then \
-                  npx prisma db push --accept-data-loss; \
-                else \
-                  npx prisma db push; \
-                fi; \
-              fi && \
-              (pm2 reload crm-backend || pm2 start npm --name crm-backend -- run start) && \
-              pm2 save"
+            cd "/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            export HUSKY=0
+            export NODE_ENV=production
 
-      # ✅ HEALTH CHECK: 301 — это нормально. Следуем редиректу (-L) и проверяем 200.
+            echo 'Checking DB readiness (127.0.0.1:5432)...'
+            if command -v pg_isready >/dev/null 2>&1; then
+              for i in {1..20}; do
+                pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 && echo 'DB is ready' && break
+                echo "Waiting for DB... ($i/20)"
+                sleep 2
+              done
+              pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1 || (echo 'DB is NOT reachable' && exit 1)
+            else
+              echo 'pg_isready not found, skipping DB readiness check'
+            fi
+
+            npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
+            npx prisma generate
+            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
+              echo 'Running prisma migrate deploy...'
+              npx prisma migrate deploy
+            else
+              echo 'No migrations found. Running prisma db push...'
+              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'yes' ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'true' ]; then
+                npx prisma db push --accept-data-loss
+              else
+                npx prisma db push
+              fi
+            fi
+
+            (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start)
+            pm2 save
+
       - name: Backend health check (follow redirects)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -343,7 +376,7 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             set -e
-            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN || 'gsse.work' }}"
+            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN }}"
 
             for i in {1..20}; do
               code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)

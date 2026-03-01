@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { FieldsProvider } from './context/FieldsContext';
 import { TransactionsProvider } from './context/TransactionsContext';
 import { api } from './api/api';
 
@@ -46,6 +47,8 @@ const isTokenValid = (token) => {
 
 export default function App() {
   const [authReady, setAuthReady] = useState(false);
+  const currentToken = localStorage.getItem('token');
+  const isAuthenticated = Boolean(currentToken && isTokenValid(currentToken));
 
   useEffect(() => {
     let active = true;
@@ -114,8 +117,9 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <TransactionsProvider>
-        <Routes>
+      <FieldsProvider authReady={authReady} isAuthenticated={isAuthenticated}>
+        <TransactionsProvider authReady={authReady} isAuthenticated={isAuthenticated}>
+          <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginRoute />} />
           <Route path="/dashboard" element={<ProtectedRoute element={<HomePage />} />} />
@@ -152,8 +156,9 @@ export default function App() {
           />
           {/* fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </TransactionsProvider>
+          </Routes>
+        </TransactionsProvider>
+      </FieldsProvider>
     </ThemeProvider>
   );
 }

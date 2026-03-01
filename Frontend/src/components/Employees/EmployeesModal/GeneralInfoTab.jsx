@@ -20,7 +20,7 @@ export default function GeneralInfoTab({ fieldsData, onAddNewField }) {
       .map((s) => String(s || "").trim().toLowerCase())
       .filter(Boolean);
     setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
-  }, [fieldsData]);
+  }, [fields]);
 
   return (
     <div className="tab-section">
