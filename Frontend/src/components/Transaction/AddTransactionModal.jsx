@@ -3,7 +3,6 @@ import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Plus, X } from 'lucide-react';
 import { createTransaction } from '../../api/transactions';
-import CreatableSelect from "../../components/Client/ClientModal/CreatableSelect"; 
 
 const getArticleValue = (article) =>
     String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
@@ -37,7 +36,7 @@ const generateId = (prefix) => {
     return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
 
-const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialData = {}, orders = [], counterparties = [], onAddNewField }) => {
+const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialData = {}, orders = [], counterparties = [] }) => {
 
     const getCurrentDateTime = () => {
         const now = new Date();
@@ -461,24 +460,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         }
     };
 
-
-    const articleOptions = useMemo(() => {
-        const list = financeFields?.articles
-            ?.filter(a => !a.isDeleted)
-            ?.map(getArticleValue)
-            .filter(Boolean) || [];
-        if (!list.includes("Смена счета")) {
-            list.push("Смена счета");
-        }
-        return list;
-    }, [financeFields]);
-
-
-    const subcategoryOptions = useMemo(() => {
-        return availableSubcategories.filter(s => !s.isDeleted).map(getSubarticleValue).filter(Boolean);
-    }, [availableSubcategories]);
-
-
     return (
         <div className="add-transaction-overlay" onClick={handleOverlayClose}>
             <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
@@ -492,7 +473,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                 </div>
 
                 <form onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
-                    
+                    {/* ... (Форма осталась прежней, логика внутри исправлена в handleSubmit) ... */}
                     <div className="form-row">
                          <label htmlFor="date" className="form-label">
                              Дата и время
@@ -510,31 +491,57 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
 
                     <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
-                        <CreatableSelect
+                        <select
+                            id="category"
+                            name="category"
                             value={formData.category}
-                            onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
-                            options={articleOptions}
-                            placeholder="Выберите или введите статью..."
-                            onAdd={(val) => onAddNewField && onAddNewField("financeFields", "articles", val)}
-                        />
+                            onChange={handleChange}
+                            required
+                            className="form-input1"
+                        >
+                            <option value="" disabled hidden>Не выбрано</option>
+                            {financeFields?.articles
+                                ?.map((article) => ({
+                                    id: article?.id,
+                                    value: getArticleValue(article),
+                                }))
+                                .filter((article) => article.value)
+                                .map((article) => (
+                                    <option key={article.id || article.value} value={article.value}>
+                                        {article.value}
+                                    </option>
+                                ))}
+                            {!financeFields?.articles?.some((a) => getArticleValue(a) === "Смена счета") && (
+                                <option value="Смена счета">Смена счета</option>
+                            )}
+                        </select>
                     </div>
 
-                    {availableSubcategories.length > 0 || formData.category ? (
+                    {availableSubcategories.length > 0 && (
                         <div className="form-row">
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
-                            <CreatableSelect
+                            <select
+                                id="subcategory"
+                                name="subcategory"
                                 value={formData.subcategory}
-                                onChange={(val) => handleChange({ target: { name: 'subcategory', value: val } })}
-                                options={subcategoryOptions}
-                                placeholder="Выберите или введите подстатью..."
-                                disabled={!formData.category}
-                                onAdd={(val) => {
-                                    if (!formData.category) return alert("Сначала выберите статью!");
-                                    onAddNewField && onAddNewField("financeFields", "subarticles", val, { subarticleInterval: formData.category });
-                                }}
-                            />
+                                onChange={handleChange}
+                                className="form-input1"
+                            >
+                                <option value="" disabled hidden>Не выбрано</option>
+                                {availableSubcategories
+                                    .map((sub) => ({
+                                        id: sub?.id,
+                                        value: getSubarticleValue(sub),
+                                    }))
+                                    .filter((sub) => sub.value)
+                                    .map((sub, index) => (
+                                        <option key={sub.id || index} value={sub.value}>
+                                            {sub.value}
+                                        </option>
+                                    ))}
+                            </select>
                         </div>
-                    ) : null}
+                    )}
 
                     <div className="form-row">
                         <label htmlFor="description" className="form-label">
@@ -663,6 +670,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                                             </select>
                                     </div>
                                 </div>
+                                {/* ... остальные поля смены счета ... */}
                                 <div className="form-row">
                                     <label htmlFor={`dest-operation-${destAcc.id}`} className="form-label">Операция</label>
                                     <select

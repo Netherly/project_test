@@ -1,19 +1,23 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import TextareaWithCounter from "../TextareaWithCounter";
-import CreatableSelect from "./CreatableSelect"; 
+import "./InfoTab.css";
+
+const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
 
 export default function InfoTab({
   companies = [],
   businesses = [],
   categories = [], 
   sources = [], 
-  loadingLists = false,
-  onAddCompany,
   tagOptions = [],
-  onAddNewField 
+  loadingLists = false,
+  onAddCompany
 }) {
-  const { control, formState: { errors } } = useFormContext();
+  const {
+    control,
+    formState: { errors },
+  } = useFormContext();
 
   const [customTag, setCustomTag] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
@@ -46,7 +50,12 @@ export default function InfoTab({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (tagInputRef.current && !tagInputRef.current.contains(event.target) && tagDropdownRef.current && !tagDropdownRef.current.contains(event.target)) {
+      if (
+        tagInputRef.current && 
+        !tagInputRef.current.contains(event.target) && 
+        tagDropdownRef.current && 
+        !tagDropdownRef.current.contains(event.target)
+      ) {
           setShowTagDropdown(false);
       }
     };
@@ -56,13 +65,18 @@ export default function InfoTab({
 
   return (
     <div className="tab-section info-tab">
+
       <Controller
         name="name"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Клиент<span className="req">*</span></label>
-            <input {...field} placeholder="Клиент" className={errors.name ? "input-error" : ""} />
+            <input
+              {...field}
+              placeholder="Клиент"
+              className={errors.name ? "input-error" : ""}
+            />
             {errors.name && <p className="error grid-error">{errors.name.message}</p>}
           </div>
         )}
@@ -74,16 +88,19 @@ export default function InfoTab({
         render={({ field }) => (
           <div className="form-field">
             <label>Категория<span className="req">*</span></label>
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={categories}
-              placeholder="Выберите или введите..."
+            <select
+              {...field}
               disabled={loadingLists}
-              error={!!errors.category}
-              onAdd={(val) => onAddNewField("clientFields", "category", val)}
-            />
-            {errors.category && <p className="error grid-error">{errors.category.message}</p>}
+              className={errors.category ? "input-error" : ""}
+            >
+              <option value="" disabled hidden>Не выбрано</option>
+              {categories.map((c, i) => (
+                <option key={`${c}-${i}`} value={c}>{c}</option>
+              ))}
+            </select>
+            {errors.category && (
+              <p className="error grid-error">{errors.category.message}</p>
+            )}
           </div>
         )}
       />
@@ -94,15 +111,16 @@ export default function InfoTab({
         render={({ field }) => (
           <div className="form-field">
             <label>Источник<span className="req">*</span></label>
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={sources}
-              placeholder="Выберите или введите..."
+            <select
+              {...field}
               disabled={loadingLists}
-              error={!!errors.source}
-              onAdd={(val) => onAddNewField("clientFields", "source", val)}
-            />
+              className={errors.source ? "input-error" : ""}
+            >
+              <option value="" disabled hidden>Не выбрано</option>
+              {sources.map((s, i) => (
+                <option key={`${s}-${i}`} value={s}>{s}</option>
+              ))}
+            </select>
             {errors.source && <p className="error grid-error">{errors.source.message}</p>}
           </div>
         )}
@@ -122,7 +140,9 @@ export default function InfoTab({
               className={errors.intro_description ? "input-error" : ""}
               warningThreshold={0.8}
             />
-            {errors.intro_description && <p className="error grid-error">{errors.intro_description.message}</p>}
+            {errors.intro_description && (
+              <p className="error grid-error">{errors.intro_description.message}</p>
+            )}
           </div>
         )}
       />
@@ -151,11 +171,13 @@ export default function InfoTab({
         control={control}
         render={({ field: { onChange, value: currentTagsValue } }) => {
            const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
-           const suggestions = tagOptions.map(t => typeof t === 'object' ? t.name : t);
+           const suggestions = [...defaultTags, ...(tagOptions.map(t => typeof t === 'object' ? t.name : t))];
            const uniqueSuggestions = Array.from(new Set(suggestions));
            
            const filteredTags = uniqueSuggestions.filter(
-              tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !currentTags.find(t => t.name === tagString)
+              tagString => 
+                tagString.toLowerCase().includes(customTag.toLowerCase()) && 
+                !currentTags.find(t => t.name === tagString)
            );
 
            return (
@@ -177,10 +199,14 @@ export default function InfoTab({
                       {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
                           <div className="tag-dropdown" ref={tagDropdownRef}>
                               {filteredTags.map(tag => (
-                                  <div key={tag} className="tag-dropdown-item" onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}>{tag}</div>
+                                  <div key={tag} className="tag-dropdown-item" onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}>
+                                      {tag}
+                                  </div>
                               ))}
                               {customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
-                                  <div className="tag-dropdown-item" onClick={() => handleTagSelect(customTag.trim(), onChange, currentTagsValue)}>Добавить: "{customTag.trim()}"</div>
+                                  <div className="tag-dropdown-item" onClick={() => handleTagSelect(customTag.trim(), onChange, currentTagsValue)}>
+                                      Добавить: "{customTag.trim()}"
+                                  </div>
                               )}
                           </div>
                       )}
@@ -190,7 +216,10 @@ export default function InfoTab({
                     {currentTags.map((tag, index) => (
                         <span key={tag.id || index} className="tag-chip-item">
                             {tag.name} 
-                            <span className="remove-tag-icon" onClick={() => handleTagRemove(tag, onChange, currentTagsValue)}>×</span>
+                            <span 
+                              className="remove-tag-icon" 
+                              onClick={() => handleTagRemove(tag, onChange, currentTagsValue)}
+                            >×</span>
                         </span>
                     ))}
                   </div>
@@ -206,13 +235,18 @@ export default function InfoTab({
         render={({ field }) => (
           <div className="form-field">
             <label>Компания</label>
-            <select {...field} value={field.value || ""} autoComplete="off" className={errors.company_id ? "input-error" : ""}>
-              <option value="" disabled hidden></option>
+            <select
+              {...field}
+              className={errors.company_id ? "input-error" : ""}
+            >
+              <option value="" disabled hidden>Не выбрано</option>
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            {errors.company_id && <p className="error grid-error">{errors.company_id.message}</p>}
+            {errors.company_id && (
+              <p className="error grid-error">{errors.company_id.message}</p>
+            )}
           </div>
         )}
       />
@@ -223,15 +257,16 @@ export default function InfoTab({
         render={({ field }) => (
           <div className="form-field">
             <label>Вид деятельности</label>
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={businesses}
-              placeholder="Выберите или введите..."
+            <select
+              {...field}
               disabled={loadingLists}
-              error={!!errors.business}
-              onAdd={(val) => onAddNewField("clientFields", "business", val)}
-            />
+              className={errors.business ? "input-error" : ""}
+            >
+              <option value="" disabled>{loadingLists ? "Загрузка..." : "-- выбрать --"}</option>
+              {businesses.map((b, i) => (
+                <option key={`${b}-${i}`} value={b}>{b}</option>
+              ))}
+            </select>
             {errors.business && <p className="error grid-error">{errors.business.message}</p>}
           </div>
         )}

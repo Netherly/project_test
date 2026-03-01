@@ -6,18 +6,29 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import ExecutorCard from "./ExecutorCard.jsx";
 import "../../styles/ExecutorsPage.css";
 import * as executorService from "./executorService.jsx";
-import { fetchFields, withDefaults, saveFields, serializeForSave, rid } from "../../api/fields";
+import FormattedDate from "../FormattedDate.jsx";
+import { fetchFields, withDefaults } from "../../api/fields";
 import { fetchOrders, updateOrder } from "../../api/orders";
 import { fetchTransactions } from "../../api/transactions";
 import { fetchEmployees } from "../../api/employees";
-import { useFields } from "../../context/FieldsContext"; 
 
+/* ------------------------- helpers ------------------------- */
 
+// Собираем journalEntries из workLog заказов (чтобы работало без отдельного API журнала)
 const buildJournalEntriesFromOrders = (orders = []) => {
   const entries = [];
+
   orders.forEach((order) => {
-    const workLog = order?.workLog ?? order?.work_log ?? order?.meta?.workLog ?? order?.meta?.work_log ?? order?.meta?.worklog ?? [];
+    const workLog =
+      order?.workLog ??
+      order?.work_log ??
+      order?.meta?.workLog ??
+      order?.meta?.work_log ??
+      order?.meta?.worklog ??
+      [];
+
     if (!Array.isArray(workLog)) return;
+
     const orderNumber = order.orderSequence ?? order.numberOrder ?? order.id;
 
     workLog.forEach((entry, idx) => {
@@ -37,17 +48,57 @@ const buildJournalEntriesFromOrders = (orders = []) => {
       });
     });
   });
+
   return entries;
 };
 
 const safeJsonParse = (raw, fallback) => {
-  try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
+  try {
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
 };
 
-const getOrders = () => { try { const saved = localStorage.getItem("ordersData"); return saved ? JSON.parse(saved) : []; } catch { return []; } };
-const getJournalEntries = () => { try { const saved = localStorage.getItem("journalEntries"); return saved ? JSON.parse(saved) : []; } catch { return []; } };
-const getTransactions = () => { try { const saved = localStorage.getItem("transactionsData"); return saved ? JSON.parse(saved) : []; } catch { return []; } };
-const getAssets = () => { try { const saved = localStorage.getItem("assetsData"); return saved ? JSON.parse(saved) : []; } catch { return []; } };
+const getOrders = () => {
+  try {
+    const saved = localStorage.getItem("ordersData");
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.error("Ошибка при чтении заказов из localStorage:", error);
+    return [];
+  }
+};
+
+const getJournalEntries = () => {
+  try {
+    const saved = localStorage.getItem("journalEntries");
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.error("Ошибка при чтении журнала из localStorage:", error);
+    return [];
+  }
+};
+
+const getTransactions = () => {
+  try {
+    const saved = localStorage.getItem("transactionsData");
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.error("Ошибка при чтении транзакций из localStorage:", error);
+    return [];
+  }
+};
+
+const getAssets = () => {
+  try {
+    const saved = localStorage.getItem("assetsData");
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.error("Ошибка при чтении активов из localStorage:", error);
+    return [];
+  }
+};
 
 const parseHoursToSeconds = (timeStr) => {
   if (typeof timeStr !== "string" || !timeStr) return 0;
@@ -73,12 +124,16 @@ const formatDate = (dateString) => {
   return `${day}.${month}.${year}`;
 };
 
+/* ------------------------- component ------------------------- */
+
 const ExecutorsPage = () => {
   const navigate = useNavigate();
   const { executorId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // старое локальное состояние из executorService — оставляем, чтобы ничего не ломать
   const [executors, setExecutors] = useState(executorService.getExecutors());
+
   const [userSettings, setUserSettings] = useState({ currency: "₴" });
 
   const [activeEmployees, setActiveEmployees] = useState([]);
@@ -87,90 +142,78 @@ const ExecutorsPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [assets, setAssets] = useState([]);
 
-
-  const [localFieldOptions, setLocalFieldOptions] = useState({ currency: [], role: [] });
-  const { refreshFields } = useFields();
+  const [fields, setFields] = useState({ currency: [], role: [] });
 
   const viewMode = searchParams.get("view") || "card";
-  const setViewMode = (mode) => setSearchParams({ view: mode });
+  const setViewMode = (mode) => {
+    setSearchParams({ view: mode });
+  };
 
-  const handleNavigateToOrder = (orderId) => navigate(`/orders/${orderId}`);
+  const handleNavigateToOrder = (orderId) => {
+    navigate(`/orders/${orderId}`);
+  };
 
   const generateId = () => `perf_${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
 
-
-  const loadFields = async () => {
-    try {
-      const rawFields = await fetchFields();
-      const allFields = withDefaults(rawFields);
-      setLocalFieldOptions({
-        currency: (allFields.generalFields?.currency || []).filter(i => !i.isDeleted).map(i => i.value),
-        role: (allFields.executorFields?.role || []).filter(i => !i.isDeleted).map(i => i.value),
-      });
-    } catch (err) {
-      console.error("Failed to load fields from API", err);
-    }
-  };
-
-  
-  const handleAddNewField = async (group, fieldName, newValue) => {
-    try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find(item => item.value && item.value.toLowerCase() === newValue.toLowerCase());
-
-      if (!exists) {
-        list.push({ id: rid(), value: newValue, isDeleted: false });
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-        await saveFields(payload);
-        
-        await loadFields();
-        if (refreshFields) await refreshFields();
-      }
-    } catch (e) {
-      console.error("Ошибка при сохранении нового поля в БД:", e);
-    }
-  };
-
   useEffect(() => {
+    // 1) Быстрый старт: поднимаем данные из localStorage (вторая версия)
     setOrders(getOrders());
     setJournalEntries(getJournalEntries());
     setTransactions(getTransactions());
     setAssets(getAssets());
 
+    // 2) Далее подтягиваем актуальное с API (первая версия)
     const loadOrders = async () => {
       try {
         const response = await fetchOrders({ page: 1, limit: 1000 });
         const list = Array.isArray(response?.orders) ? response.orders : [];
+
+        // фильтруем LEAD, сортируем стабильно
         const filtered = list.filter((order) => String(order.stage) !== "LEAD");
         const sorted = filtered.slice().sort((a, b) => {
           const aSeq = a?.orderSequence ?? Number.POSITIVE_INFINITY;
           const bSeq = b?.orderSequence ?? Number.POSITIVE_INFINITY;
           if (aSeq !== bSeq) return aSeq - bSeq;
-          return String(a?.numberOrder ?? a?.id ?? "").localeCompare(String(b?.numberOrder ?? b?.id ?? ""));
+          return String(a?.numberOrder ?? a?.id ?? "").localeCompare(
+            String(b?.numberOrder ?? b?.id ?? "")
+          );
         });
 
         setOrders(sorted);
+
+        // journalEntries строим из workLog
         const built = buildJournalEntriesFromOrders(sorted);
         setJournalEntries(built);
+
         localStorage.setItem("ordersData", JSON.stringify(sorted));
         localStorage.setItem("journalEntries", JSON.stringify(built));
       } catch (error) {
         console.error("Ошибка при загрузке заказов с сервера:", error);
+
+        // fallback localStorage
+        const fallbackOrders = getOrders();
+        setOrders(fallbackOrders);
+
+        const built = buildJournalEntriesFromOrders(fallbackOrders);
+        setJournalEntries(built);
+        localStorage.setItem("journalEntries", JSON.stringify(built));
       }
     };
 
     const loadTransactions = async () => {
       try {
         const response = await fetchTransactions({ page: 1, pageSize: 1000 });
-        const items = Array.isArray(response?.items) ? response.items : Array.isArray(response) ? response : [];
+        const items = Array.isArray(response?.items)
+          ? response.items
+          : Array.isArray(response)
+          ? response
+          : [];
+
         setTransactions(items);
         localStorage.setItem("transactionsData", JSON.stringify(items));
       } catch (error) {
         console.error("Ошибка при загрузке транзакций:", error);
+        setTransactions(getTransactions());
       }
     };
 
@@ -186,6 +229,30 @@ const ExecutorsPage = () => {
       }
     };
 
+    const loadFields = async () => {
+      try {
+        const rawFields = await fetchFields();
+        const allFields = withDefaults(rawFields);
+
+        setFields({
+          currency: allFields.generalFields?.currency || [],
+          role: allFields.executorFields?.role || [],
+        });
+
+        localStorage.setItem("fieldsData", JSON.stringify(allFields));
+      } catch (err) {
+        console.error("Failed to load fields from API", err);
+
+        const savedFields = safeJsonParse(localStorage.getItem("fieldsData"), null);
+        if (savedFields) {
+          setFields({
+            currency: savedFields.generalFields?.currency || [],
+            role: savedFields.executorFields?.role || [],
+          });
+        }
+      }
+    };
+
     loadFields();
     loadOrders();
     loadTransactions();
@@ -198,22 +265,37 @@ const ExecutorsPage = () => {
         ? order.performers.map((performer) => ({
             ...performer,
             orderId: order.id,
+
+            // ✅ объединяем две версии: порядок/номер заказа
             orderNumber: order.orderSequence ?? order.numberOrder ?? order.id,
+
+            // ✅ объединяем две версии: имя заказа и клиент
             orderName: order.name || order.title || "Название заказа отсутствует",
-            order_main_client: order.clientName || order.orderMainClient || order.order_main_client || "Не заполнено",
+            order_main_client:
+              order.clientName ||
+              order.orderMainClient ||
+              order.order_main_client ||
+              "Не заполнено",
+
             orderDescription: order.orderDescription,
           }))
         : []
     );
 
     return allPerformers.map((performer) => {
+      // ✅ здесь логика сохранена как была в исходнике:
+      // journalEntries хранят executorRole (в worklog) и сравнение идет с performer.performer
       const relevantEntries = journalEntries.filter(
         (entry) =>
           entry.executorRole === performer.performer &&
           String(entry.orderNumber) === String(performer.orderNumber)
       );
 
-      const totalSecondsWorked = relevantEntries.reduce((total, entry) => total + parseHoursToSeconds(entry.hours), 0);
+      const totalSecondsWorked = relevantEntries.reduce(
+        (total, entry) => total + parseHoursToSeconds(entry.hours),
+        0
+      );
+
       const totalHoursDecimal = totalSecondsWorked / 3600;
       const paymentDue = totalHoursDecimal * (performer.hourlyRate || 0);
 
@@ -238,6 +320,12 @@ const ExecutorsPage = () => {
     return acc;
   }, {});
 
+  const formFields = {
+    employees: activeEmployees,
+    role: fields.role,
+    currency: fields.currency,
+  };
+
   const handleOpenModal = (executor) => {
     if (!executor || !executor.id) {
       navigate("/executors/new");
@@ -247,13 +335,26 @@ const ExecutorsPage = () => {
   };
 
   const closeModal = () => {
-    navigate({ pathname: "/executors", search: searchParams.toString() });
+    navigate({
+      pathname: "/executors",
+      search: searchParams.toString(),
+    });
   };
 
+  /**
+   * ✅ Сохранение/удаление:
+   * объединяем обе версии:
+   * - корректно находим orderId (orderId/orderNumber)
+   * - сохраняем employeeId по fullName
+   * - шлём updateOrder на сервер (если доступно), но UI обновляем сразу
+   */
   const handleSaveExecutor = async (executorData) => {
     const isNew = !executorData.id;
+
     const orderId = executorData.orderId || executorData.orderNumber;
-    const performerEmployee = activeEmployees.find((emp) => String(emp.fullName) === String(executorData.performer));
+    const performerEmployee = activeEmployees.find(
+      (emp) => String(emp.fullName) === String(executorData.performer)
+    );
 
     const updatedOrders = orders.map((order) => {
       if (String(order.id) !== String(orderId) && String(order.orderSequence ?? order.numberOrder ?? order.id) !== String(orderId)) {
@@ -288,11 +389,15 @@ const ExecutorsPage = () => {
         );
       }
 
+      // Пытаемся синхронизировать с сервером, но не блокируем UI
       try {
-        updateOrder(order.id, { performers: updatedPerformers }).catch((error) => console.error(error));
+        updateOrder(order.id, { performers: updatedPerformers }).catch((error) => {
+          console.error("Ошибка сохранения исполнителя в заказе:", error);
+        });
       } catch (error) {
         console.error("Ошибка сохранения исполнителя в заказе:", error);
       }
+
       return { ...order, performers: updatedPerformers };
     });
 
@@ -308,12 +413,19 @@ const ExecutorsPage = () => {
       if (String(order.id) !== String(orderId) && String(order.orderSequence ?? order.numberOrder ?? order.id) !== String(orderId)) {
         return order;
       }
-      const updatedPerformers = (order.performers || []).filter((p) => String(p.id) !== String(executorToDelete.id));
+
+      const updatedPerformers = (order.performers || []).filter(
+        (p) => String(p.id) !== String(executorToDelete.id)
+      );
+
       try {
-        updateOrder(order.id, { performers: updatedPerformers }).catch((error) => console.error(error));
+        updateOrder(order.id, { performers: updatedPerformers }).catch((error) => {
+          console.error("Ошибка удаления исполнителя из заказа:", error);
+        });
       } catch (error) {
         console.error("Ошибка удаления исполнителя из заказа:", error);
       }
+
       return { ...order, performers: updatedPerformers };
     });
 
@@ -332,13 +444,41 @@ const ExecutorsPage = () => {
               <PageHeaderIcon pageName={"Исполнители"} />
               Исполнители
             </h1>
+
             <div className="view-mode-buttons">
-              <button className={`view-mode-button ${viewMode === "card" ? "active" : ""}`} onClick={() => setViewMode("card")}>&#x25A3;</button>
-              <button className={`view-mode-button ${viewMode === "table" ? "active" : ""}`} onClick={() => setViewMode("table")}>&#x2261;</button>
+              <button
+                className={`view-mode-button ${viewMode === "card" ? "active" : ""}`}
+                onClick={() => setViewMode("card")}
+                title="Карточный вид"
+              >
+                &#x25A3;
+              </button>
+              <button
+                className={`view-mode-button ${viewMode === "table" ? "active" : ""}`}
+                onClick={() => setViewMode("table")}
+                title="Табличный вид"
+              >
+                &#x2261;
+              </button>
             </div>
+
             <div className="add-executor-wrapper">
               <button className="add-executor-button" onClick={() => handleOpenModal(null)}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-plus-icon lucide-plus"
+                >
+                  <path d="M5 12h14" />
+                  <path d="M12 5v14" />
+                </svg>
                 Добавить
               </button>
             </div>
@@ -372,6 +512,7 @@ const ExecutorsPage = () => {
                     <tr className="table-spacer-row">
                       <td colSpan={16}></td>
                     </tr>
+
                     {enrichedExecutors.map((executor) => (
                       <tr
                         key={executor.id}
@@ -410,6 +551,7 @@ const ExecutorsPage = () => {
                 </table>
               </div>
             )}
+
             {viewMode === "card" && (
               <div className="executors-cards-container">
                 {Object.entries(executorsByPerformer).map(([performerName, performerOrders]) => (
@@ -443,10 +585,7 @@ const ExecutorsPage = () => {
               journalEntries={journalEntries}
               transactions={transactions}
               orders={orders}
-              employees={activeEmployees} 
-              roleOptions={localFieldOptions.role}         
-              currencyOptions={localFieldOptions.currency} 
-              onAddNewField={handleAddNewField}            
+              fields={formFields}
             />
           )}
         </div>

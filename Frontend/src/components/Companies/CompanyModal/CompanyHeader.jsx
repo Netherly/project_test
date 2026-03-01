@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import defaultAvatar from '../../../assets/avatar-placeholder.svg'; 
@@ -6,8 +8,9 @@ import defaultAvatar from '../../../assets/avatar-placeholder.svg';
 import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
 import { Trash2 } from 'lucide-react';
 
+const defaultTags = ["VIP", "Партнер", "Проблема", "Лид"]; 
 
-export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [] }) {
+export default function CompanyHeader({ onClose, onDelete, isNew }) {
     const { watch, control } = useFormContext();
 
     
@@ -48,7 +51,7 @@ export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [
         fieldOnChange(currentTags.filter(tag => tag.name !== tagToRemove.name));
     };
 
-    const filteredTags = tagOptions.filter(
+    const filteredTags = defaultTags.filter(
         tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && 
                      (!watchedTags || !watchedTags.find(t => t.name === tagString))
     );
@@ -113,14 +116,14 @@ export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [
                                             onFocus={handleTagInputFocus}
                                             autoComplete="off"
                                         />
-                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !tagOptions.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
                                             <div className={styles.tagDropdown} ref={tagDropdownRef}>
                                                 {filteredTags.map(tag => (
                                                     <div key={tag} className={styles.tagDropdownItem} onClick={() => handleTagSelect(tag, onChange)}>
                                                         {tag}
                                                     </div>
                                                 ))}
-                                                {customTag.trim() && !tagOptions.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                                {customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
                                                     <div className={styles.tagDropdownItem} onClick={() => handleTagSelect(customTag.trim(), onChange)}>
                                                         Добавить: "{customTag.trim()}"
                                                     </div>
