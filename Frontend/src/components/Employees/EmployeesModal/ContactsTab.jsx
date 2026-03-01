@@ -2,28 +2,39 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { httpPost, httpPut } from '../../../api/http';
 import { Plus, ExternalLink, Copy, LogOut, Link2Off } from 'lucide-react';
-import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
 
-export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewField }) {
+export default function ContactsTab({ isNew, employeeId, fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
   
-  const countries = Array.isArray(fieldsData?.generalFields?.country) ? fieldsData.generalFields.country : [];
+  
+  const countries = Array.isArray(fieldsData?.employeeFields?.country) ? fieldsData.employeeFields.country : [];
 
   const countryOptions = useMemo(() => {
     return countries
-      .filter(item => !item.isDeleted)
       .map((item) => {
         if (typeof item === "string") {
           const name = item.trim();
-          return name ? name : null;
+          return name ? { value: name, label: name } : null;
         }
-        const label = String(item?.value ?? item?.name ?? "").trim();
-        return label ? label : null;
+        const label = String(item?.name ?? item?.title ?? item?.value ?? item?.iso3 ?? item?.iso2 ?? "").trim();
+        const value = String(item?.id ?? label).trim();
+        return label ? { value, label } : null;
       })
       .filter(Boolean);
   }, [countries]);
 
+  const currentCountry = useWatch({ control, name: "country" });
   const currentCountryId = useWatch({ control, name: "countryId" });
+
+  useEffect(() => {
+    if (!countryOptions.length || !currentCountry) return;
+    const hasCurrentId = countryOptions.some((opt) => opt.value === currentCountryId);
+    if (!hasCurrentId) {
+      const match = countryOptions.find((opt) => opt.label === currentCountry);
+      if (match) setValue("countryId", match.value, { shouldDirty: false });
+    }
+  }, [countryOptions, currentCountry, currentCountryId, setValue]);
+ 
 
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [linkError, setLinkError] = useState('');
@@ -150,27 +161,28 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
   return (
     <div className="tab-section">
       
+      
+      
       <div className="form-field">
         <label>Страна</label>
         <Controller
-          name="countryId" 
+          name="countryId"
           control={control}
           render={({ field }) => (
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={countryOptions}
-              placeholder="Выберите или введите..."
-              error={!!errors.countryId}
-              onAdd={(val) => {
-                if (onAddNewField) onAddNewField("generalFields", "country", val);
-              }}
-            />
+            <select {...field} className={errors.countryId ? "input-error" : ""}>
+              <option value="" disabled>Выберите страну</option>
+              {countryOptions.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           )}
         />
         {errors.countryId && <p className="error">{errors.countryId.message}</p>}
       </div>
 
+      
       <div className="form-field">
         <label>Статус</label>
         <Controller
@@ -186,6 +198,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
         />
       </div>
 
+      
       <Controller
         name="fullName"
         control={control}
@@ -202,6 +215,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
         )}
       />
 
+      
       <Controller
         name="login"
         control={control}
@@ -367,16 +381,18 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                     readOnly 
                   />
                   <div className="input-icons-group">
+                    {/* Кнопка Создать */}
                     <button
                       type="button"
                       className="icon-action-btn"
                       onClick={handleGenerateLink}
-                      disabled={isGeneratingLink || field.value} 
+                      disabled={isGeneratingLink || field.value} // Блокируем если уже есть ссылка
                       title="Создать ссылку"
                     >
                       <Plus size={18} />
                     </button>
 
+                    {/* Кнопка Открыть */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -387,6 +403,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                       <ExternalLink size={18} />
                     </button>
 
+                    {/* Кнопка Скопировать */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -404,6 +421,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
             )}
           />
           
+          {/* НОВОЕ ПОЛЕ: Ссылка на чат */}
           <Controller
             name="chatLink"
             control={control}
@@ -417,6 +435,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                     readOnly 
                   />
                   <div className="input-icons-group">
+                    {/* Кнопка Открыть */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -427,6 +446,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                       <ExternalLink size={18} />
                     </button>
 
+                    {/* Кнопка Выйти (Отвязать) */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -434,7 +454,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                       disabled={!isTelegramLinked || isUnlinking}
                       title="Отвязать Telegram"
                     >
-                      <Link2Off size={18} color="#ff6b6b" /> 
+                      <Link2Off size={18} color="#ff6b6b" /> {/* Красная иконка для опасного действия */}
                     </button>
                   </div>
                 </div>

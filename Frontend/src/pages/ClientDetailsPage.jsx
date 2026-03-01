@@ -26,9 +26,7 @@ export default function ClientDetailsPage() {
   const [error, setError] = useState("");
   const [companiesList, setCompaniesList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
-  const [referrerOptions, setReferrerOptions] = useState([]); 
-
-  
+  const [referrerOptions, setReferrerOptions] = useState([]);
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -51,7 +49,6 @@ export default function ClientDetailsPage() {
     };
   }, []);
 
-  
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -68,8 +65,13 @@ export default function ClientDetailsPage() {
     };
   }, []);
 
-  
   useEffect(() => {
+    if (!clientId || clientId === "new") {
+      setClient({});
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
     (async () => {
       setLoading(true);
@@ -78,19 +80,11 @@ export default function ClientDetailsPage() {
         const data = await fetchClients();
         if (!mounted) return;
         const normalized = Array.isArray(data) ? data.map(withReferrerNames) : [];
-        
-        
-        setReferrerOptions(normalized); 
-
-        if (!clientId || clientId === "new") {
-          setClient({});
+        const found = normalized.find((c) => c.id === clientId);
+        if (found) {
+          setClient(found);
         } else {
-          const found = normalized.find((c) => c.id === clientId);
-          if (found) {
-            setClient(found);
-          } else {
-            setError("Клиент не найден");
-          }
+          setError("Клиент не найден");
         }
       } catch (e) {
         console.error("fetchClients failed:", e);
@@ -110,6 +104,13 @@ export default function ClientDetailsPage() {
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
+      const savedCategory = saved?.category?.name || saved?.category;
+      if (savedCategory) {
+        setCategoriesList((prev) => {
+          const listSafe = Array.isArray(prev) ? prev : [];
+          return Array.from(new Set([...listSafe, savedCategory]));
+        });
+      }
       setClient(saved);
       return saved;
     } catch (e) {

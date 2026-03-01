@@ -1,13 +1,14 @@
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import CreatableSelect from "./CreatableSelect";
 import './ContactsTab.css';
 
-export default function ContactsTab({ countries = [], openImage, onAddNewField }) {
+
+export default function ContactsTab({ countries = [], openImage }) {
   const { control, formState: { errors } } = useFormContext();
 
   return (
     <div className="tab-section contacts-tab">
+      {/* ---------- ФИО ---------- */}
       <Controller
         name="full_name"
         control={control}
@@ -20,6 +21,7 @@ export default function ContactsTab({ countries = [], openImage, onAddNewField }
         )}
       />
 
+      {/* ---------- Телефон ---------- */}
       <Controller
         name="phone"
         control={control}
@@ -40,37 +42,42 @@ export default function ContactsTab({ countries = [], openImage, onAddNewField }
         )}
       />
 
+      {/* ---------- Email ---------- */}
       <Controller
         name="email"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Почта<span className="req">*</span></label>
-            <input {...field} placeholder="user@example.com" className={errors.email ? 'input-error' : ''} />
+            <input
+              {...field}
+              placeholder="user@example.com"
+              className={errors.email ? 'input-error' : ''}
+            />
             {errors.email && <p className="error">{errors.email.message}</p>}
           </div>
         )}
       />
 
+      {/* ---------- Страна ---------- */}
       <Controller
         name="country"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Страна<span className="req">*</span></label>
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={countries}
-              placeholder="Выберите или введите..."
-              error={!!errors.country}
-              onAdd={(val) => onAddNewField("generalFields", "country", val)}
-            />
+            <select {...field} className={errors.country ? 'input-error' : ''}>
+              <option value="" disabled hidden>Не выбрано</option>
+              {countries.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
             {errors.country && <p className="error">{errors.country.message}</p>}
           </div>
         )}
       />
 
+      {/* ---------- Город ---------- */}
       <Controller
         name="city"
         control={control}
@@ -82,6 +89,7 @@ export default function ContactsTab({ countries = [], openImage, onAddNewField }
         )}
       />
 
+      
       <Controller
         name="messenger_name"
         control={control}
@@ -93,6 +101,7 @@ export default function ContactsTab({ countries = [], openImage, onAddNewField }
         )}
       />
 
+      {/* ---------- Ссылка на чат ---------- */}
       <Controller
         name="chat_link"
         control={control}
@@ -104,6 +113,7 @@ export default function ContactsTab({ countries = [], openImage, onAddNewField }
         )}
       />
 
+      {/* ---------- Ссылка на папку ---------- */}
       <Controller
         name="folder_link"
         control={control}
@@ -115,6 +125,7 @@ export default function ContactsTab({ countries = [], openImage, onAddNewField }
         )}
       />
 
+      {/* ---------- Ссылка на фото ---------- */}
       <Controller
         name="photo_link"
         control={control}

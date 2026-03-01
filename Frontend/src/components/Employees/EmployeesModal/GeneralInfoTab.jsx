@@ -1,21 +1,29 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
-import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
+import { useFields } from "../../../context/FieldsContext";
 
-export default function GeneralInfoTab({ fieldsData, onAddNewField }) {
+export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
+  const { fields, loading: fieldsLoading } = useFields();
+  const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
   const selectedMainCurrency = useWatch({ control, name: "mainCurrency" });
+  const currentCountryId = useWatch({ control, name: "countryId" });
+  const currentCountry = useWatch({ control, name: "country" });
 
   useEffect(() => {
-    if (!fieldsData) return;
+    if (!fields) return;
 
-    const loadedCurrencies = Array.isArray(fieldsData?.generalFields?.currency) 
-      ? fieldsData.generalFields.currency 
+    const loadedCountries = Array.isArray(fields?.employeeFields?.country) 
+      ? fields.employeeFields.country 
+      : [];
+    setCountries(loadedCountries);
+
+    const loadedCurrencies = Array.isArray(fields?.generalFields?.currency) 
+      ? fields.generalFields.currency 
       : [];
 
     const currencyCodes = loadedCurrencies
-      .filter(i => !i.isDeleted)
       .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
       .map((s) => String(s || "").trim().toLowerCase())
       .filter(Boolean);
@@ -42,17 +50,20 @@ export default function GeneralInfoTab({ fieldsData, onAddNewField }) {
           name="mainCurrency"
           control={control}
           render={({ field }) => (
-            <CreatableSelect
-              value={field.value}
-              onChange={(val) => field.onChange(val.toLowerCase())} 
-              options={currencies.map(c => c.toUpperCase())} 
-              placeholder="Выберите или введите..."
-              onAdd={(val) => {
-                const lowerVal = val.toLowerCase();
-                setCurrencies(prev => [...prev, lowerVal]);
-                if (onAddNewField) onAddNewField("generalFields", "currency", lowerVal);
-              }}
-            />
+            <select {...field}>
+              <option value="" disabled hidden>Не выбрано</option>
+              {Array.isArray(currencies) && currencies.length > 0 ? (
+                currencies.map((currency) => {
+                  const currencyCode = typeof currency === 'string' ? currency : String(currency || '');
+                  const code = currencyCode.trim().toLowerCase();
+                  return code ? (
+                    <option key={code} value={code}>
+                      {code.toUpperCase()}
+                    </option>
+                  ) : null;
+                })
+              ) : null}
+            </select>
           )}
         />
       </div>
@@ -102,7 +113,8 @@ export default function GeneralInfoTab({ fieldsData, onAddNewField }) {
         <div className="currency-table">
         {Array.isArray(currencies) && currencies.length > 0 ? (
           currencies.map((currency) => {
-            const code = currency.trim().toLowerCase();
+            const currencyCode = typeof currency === 'string' ? currency : String(currency || '');
+            const code = currencyCode.trim().toLowerCase();
             if (!code) return null;
             return (
               <div

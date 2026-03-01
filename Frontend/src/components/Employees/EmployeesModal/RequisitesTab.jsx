@@ -1,8 +1,8 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
+import { useFields } from '../../../context/FieldsContext';
 import './RequisitesTab.css';
 import { X, Plus, GripVertical, Move, Check } from 'lucide-react';
-import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
 
 import {
   DndContext,
@@ -20,13 +20,15 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+const CURRENCIES = ['UAH', 'USD', 'EUR', 'USDT', 'RUB'];
+
 const SortableRequisiteRow = ({ 
   item, 
   index, 
   control, 
   fieldArrayName, 
   currencyOptions, 
-  onAddNewField, 
+  loading, 
   handleTextareaAutoResize, 
   remove,
   isSortMode 
@@ -67,15 +69,13 @@ const SortableRequisiteRow = ({
           control={control}
           defaultValue={item.currency ?? currencyOptions[0] ?? 'UAH'}
           render={({ field }) => (
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={currencyOptions}
-              placeholder="Валюта"
-              onAdd={(val) => {
-                 if (onAddNewField) onAddNewField("generalFields", "currency", val);
-              }}
-            />
+            <select {...field} className="assets-workplan-textarea" disabled={loading}>
+              {currencyOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           )}
         />
       </div>
@@ -145,9 +145,10 @@ const SortableRequisiteRow = ({
   );
 };
 
-export default function RequisitesTab({ fieldsData, onAddNewField }) {
+export default function RequisitesTab() {
   const { control } = useFormContext();
   const fieldArrayName = 'requisitesList';
+  const { currencies, loading } = useFields();
   const [isSortMode, setIsSortMode] = useState(false);
 
   const { fields, append, remove, move } = useFieldArray({
@@ -156,9 +157,8 @@ export default function RequisitesTab({ fieldsData, onAddNewField }) {
   });
 
   const currencyOptions = useMemo(() => {
-    const rawCurrencies = fieldsData?.generalFields?.currency || [];
-    return rawCurrencies.filter(i => !i.isDeleted).map(i => i.value);
-  }, [fieldsData]);
+    return Array.isArray(currencies) && currencies.length > 0 ? currencies : CURRENCIES;
+  }, [currencies]);
 
   const handleTextareaAutoResize = useCallback((e) => {
     e.target.style.height = 'auto';
@@ -193,6 +193,7 @@ export default function RequisitesTab({ fieldsData, onAddNewField }) {
             <div className="requisites-cell">Владелец</div>
           </div>
           
+          
           <div className="requisites-cell action-cell header-action">
              {fields.length > 1 && (
                 <button 
@@ -217,7 +218,7 @@ export default function RequisitesTab({ fieldsData, onAddNewField }) {
                 control={control}
                 fieldArrayName={fieldArrayName}
                 currencyOptions={currencyOptions}
-                onAddNewField={onAddNewField} 
+                loading={loading}
                 handleTextareaAutoResize={handleTextareaAutoResize}
                 remove={remove}
                 isSortMode={isSortMode}
