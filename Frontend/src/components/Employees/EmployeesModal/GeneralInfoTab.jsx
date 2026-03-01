@@ -107,7 +107,7 @@ export default function GeneralInfoTab({ fieldsData, onAddNewField }) {
             return (
               <div
                 key={code}
-                className={`currency-row ${selectedMainCurrency === code ? "selected" : ""}`}
+                className={`currency-row ${mainCurrencyValue === code ? "selected" : ""}`}
               >
                 <span className="currency-label">
                   {code.toUpperCase()}
