@@ -268,6 +268,28 @@ export const TransactionsProvider = ({ children, authReady, isAuthenticated }) =
         }
     };
 
+    const refreshOrders = async () => {
+        try {
+            const rawOrders = await fetchOrders();
+            const list = Array.isArray(rawOrders?.orders) ? rawOrders.orders : safeArr(rawOrders);
+            const sorted = list.slice().sort((a, b) => {
+                const aSeq = a?.orderSequence ?? Number.POSITIVE_INFINITY;
+                const bSeq = b?.orderSequence ?? Number.POSITIVE_INFINITY;
+                if (aSeq !== bSeq) return aSeq - bSeq;
+                return String(a?.numberOrder ?? a?.id ?? '').localeCompare(
+                    String(b?.numberOrder ?? b?.id ?? '')
+                );
+            });
+            setOrders(sorted);
+        } catch (error) {
+            console.error("Ошибка при обновлении заказов:", error);
+        }
+    };
+    
+    const refreshAll = async () => {
+        await Promise.all([refreshAssets(), refreshCounterparties(), refreshOrders()]);
+    };
+
     const addTransaction = async (newTransactions) => {
         try {
             const list = Array.isArray(newTransactions)
@@ -368,6 +390,7 @@ export const TransactionsProvider = ({ children, authReady, isAuthenticated }) =
         closeViewEditModal,
         orders,
         counterparties,
+        refreshAll, 
     };
 
     return (

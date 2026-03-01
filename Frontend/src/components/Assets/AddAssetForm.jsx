@@ -4,7 +4,10 @@ import { Plus, X } from "lucide-react";
 import ConfirmationModal from "../modals/confirm/ConfirmationModal";
 import AutoResizeTextarea from "../modals/OrderModal/AutoResizeTextarea";
 
-const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
+
+import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
+
+const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +35,12 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
+    handleFormChange();
+  };
+
+  
+  const handleSelectChange = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
     handleFormChange();
   };
 
@@ -130,9 +139,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
 
           <form onSubmit={handleSubmit} className="add-asset-form">
             <div className="form-row">
-              <label htmlFor="accountName" className="form-label">
-                Наименование
-              </label>
+              <label htmlFor="accountName" className="form-label">Наименование</label>
               <input
                 type="text"
                 id="accountName"
@@ -147,36 +154,19 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
             </div>
 
             <div className="form-row">
-              <label htmlFor="currency" className="form-label">
-                Валюта счета
-              </label>
-              <select
-                id="currency"
-                name="currency"
+              <label htmlFor="currency" className="form-label">Валюта счета</label>
+              <CreatableSelect
                 value={formData.currency}
-                onChange={handleChange}
-                required
-                className="form-input1"
+                onChange={(val) => handleSelectChange("currency", val)}
+                options={(generalFields.currency || []).filter(i=>!i.isDeleted).map(i=>i.value)}
+                placeholder="Выберите или введите..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>
-                  Не выбрано
-                </option>
-                {(generalFields.currency || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
+                onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
+              />
             </div>
 
             <div className="form-row">
-              <label htmlFor="limitTurnover" className="form-label">
-                Лимит оборота
-              </label>
+              <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
               <input
                 type="number"
                 id="limitTurnover"
@@ -190,60 +180,31 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
             </div>
 
             <div className="form-row">
-              <label htmlFor="type" className="form-label">
-                Тип
-              </label>
-              <select
-                id="type"
-                name="type"
+              <label htmlFor="type" className="form-label">Тип</label>
+              <CreatableSelect
                 value={formData.type}
-                onChange={handleChange}
-                required
-                className="form-input1"
+                onChange={(val) => handleSelectChange("type", val)}
+                options={(assetsFields.type || []).filter(i=>!i.isDeleted).map(i=>i.value)}
+                placeholder="Выберите или введите..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>
-                  Не выбрано
-                </option>
-                {(assetsFields.type || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
+                onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
+              />
             </div>
 
             <div className="form-row">
-              <label htmlFor="paymentSystem" className="form-label">
-                Платежная система
-              </label>
-              <select
-                id="paymentSystem"
-                name="paymentSystem"
+              <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
+              <CreatableSelect
                 value={formData.paymentSystem}
-                onChange={handleChange}
-                className="form-input1"
+                onChange={(val) => handleSelectChange("paymentSystem", val)}
+                options={(assetsFields.paymentSystem || []).filter(i=>!i.isDeleted).map(i=>i.value)}
+                placeholder="Выберите или введите..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>Не выбрано</option>
-                {(assetsFields.paymentSystem || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
+                onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "paymentSystem", val)}
+              />
             </div>
 
             <div className="form-row">
-              <label htmlFor="design" className="form-label">
-                Дизайн
-              </label>
+              <label htmlFor="design" className="form-label">Дизайн</label>
               <select
                 id="design"
                 name="design"
@@ -253,7 +214,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                 disabled={isLoading}
               >
                 <option value="" disabled hidden>Не выбрано</option>
-                {(assetsFields.cardDesigns || []).map((design, index) => (
+                {(assetsFields.cardDesigns || []).filter(i=>!i.isDeleted).map((design, index) => (
                   <option key={design?.id || index} value={design?.id}>
                     {design?.name}
                   </option>
@@ -262,9 +223,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
             </div>
 
             <div className="form-row">
-              <label htmlFor="employeeId" className="form-label">
-                Сотрудник
-              </label>
+              <label htmlFor="employeeId" className="form-label">Сотрудник</label>
               <select
                 id="employeeId"
                 name="employeeId"

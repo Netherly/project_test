@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import "../../styles/ViewEditTransactionModal.css"; 
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
-import { Trash2, Copy} from 'lucide-react';
+import { Trash2, Copy, X} from 'lucide-react';
+import CreatableSelect from "../../components/Client/ClientModal/CreatableSelect"; 
 
 const getArticleValue = (article) =>
     String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
@@ -24,7 +25,8 @@ const ViewEditRegularPaymentModal = ({
     onDelete,
     onDuplicate,
     assets = [],
-    financeFields = {}
+    financeFields = {},
+    onAddNewField
 }) => {
     
     const normalizePayment = (p) => ({
@@ -65,7 +67,6 @@ const ViewEditRegularPaymentModal = ({
             newFormData.subcategory = "";
         }
 
-        
         if (name === "period") {
             if (value === "Еженедельно") {
                 newFormData.cycleDay = '1'; 
@@ -78,7 +79,6 @@ const ViewEditRegularPaymentModal = ({
             }
         }
 
-        
         if (name === "cycleDay") {
             const { period } = formData; 
             let valueToSave = value;
@@ -116,10 +116,8 @@ const ViewEditRegularPaymentModal = ({
             newFormData.cycleDay = valueToSave;
         }
 
-        
         const scheduleFields = ['period', 'cycleDay', 'time'];
         if (scheduleFields.includes(name)) {
-            
             newFormData.nextPaymentDate = null; 
         }
 
@@ -165,11 +163,21 @@ const ViewEditRegularPaymentModal = ({
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
         
-        
         const time = timeString || 'ЧЧ:мм'; 
         
         return `${day}.${month}.${year} ${time}`;
     };
+
+    const articleOptions = useMemo(() => {
+        return financeFields?.articles
+            ?.filter(a => !a.isDeleted)
+            ?.map(getArticleValue)
+            .filter(Boolean) || [];
+    }, [financeFields]);
+
+    const subcategoryOptions = useMemo(() => {
+        return availableSubcategories.filter(s => !s.isDeleted).map(getSubarticleValue).filter(Boolean);
+    }, [availableSubcategories]);
 
     return (
         <div className="add-transaction-overlay" onClick={handleCloseModal}>
@@ -184,7 +192,7 @@ const ViewEditRegularPaymentModal = ({
                                 <button className="menu-item delete-item" onClick={handleDeleteClick}><Trash2 size={14}/> Удалить</button>
                             </div>
                         )}
-                        <span className="icon" onClick={handleCloseModal}><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" color="white" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+                        <span className="icon" onClick={handleCloseModal}><X size={24} color="white"/></span>
                     </div>
                 </div>
 
@@ -192,41 +200,31 @@ const ViewEditRegularPaymentModal = ({
                     {/* Статья */}
                     <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
-                        <select id="category" name="category" value={formData.category} onChange={handleChange} required className="form-input1">
-                            <option value="" disabled hidden>Не выбрано</option>
-                            {financeFields?.articles
-                                ?.map((article, index) => ({
-                                    key: article?.id || index,
-                                    value: getArticleValue(article),
-                                }))
-                                .filter((article) => article.value)
-                                .map((article) => (
-                                    <option key={article.key} value={article.value}>
-                                        {article.value}
-                                    </option>
-                                ))}
-                        </select>
+                        <CreatableSelect
+                            value={formData.category}
+                            onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
+                            options={articleOptions}
+                            placeholder="Выберите или введите статью..."
+                            onAdd={(val) => onAddNewField && onAddNewField("financeFields", "articles", val)}
+                        />
                     </div>
 
                     {/* Подстатья */}
-                    {availableSubcategories.length > 0 && (
+                    {(availableSubcategories.length > 0 || formData.category) && (
                         <div className="form-row">
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
-                            <select id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleChange} className="form-input1">
-                                <option value="" disabled hidden>Не выбрано</option>
-                            {availableSubcategories
-                                .map((sub, index) => ({
-                                    key: sub?.id || index,
-                                    value: getSubarticleValue(sub),
-                                }))
-                                .filter((sub) => sub.value)
-                                .map((sub) => (
-                                    <option key={sub.key} value={sub.value}>
-                                        {sub.value}
-                                    </option>
-                                ))}
-                        </select>
-                    </div>
+                            <CreatableSelect
+                                value={formData.subcategory}
+                                onChange={(val) => handleChange({ target: { name: 'subcategory', value: val } })}
+                                options={subcategoryOptions}
+                                placeholder="Выберите или введите подстатью..."
+                                disabled={!formData.category}
+                                onAdd={(val) => {
+                                    if (!formData.category) return alert("Сначала выберите статью!");
+                                    onAddNewField && onAddNewField("financeFields", "subarticles", val, { subarticleInterval: formData.category });
+                                }}
+                            />
+                        </div>
                     )}
                     
                     {/* Описание */}
@@ -262,8 +260,7 @@ const ViewEditRegularPaymentModal = ({
                         <input type="number" id="amount" name="amount" value={formData.amount} onChange={handleChange} required step="0.01" className="form-input1" />
                     </div>
                 
-                   
-
+                    {/* Период */}
                     <div className="form-row">
                         <label htmlFor="period" className="form-label">Период</label>
                         <select id="period" name="period" value={formData.period} onChange={handleChange} required className="form-input1">
@@ -275,7 +272,6 @@ const ViewEditRegularPaymentModal = ({
                         </select>
                     </div>
 
-                    
                     {/* Еженедельно */}
                     {formData.period === "Еженедельно" && (
                         <div className="form-row">
@@ -328,7 +324,6 @@ const ViewEditRegularPaymentModal = ({
                             />
                         </div>
                     )}
-
 
                     {/* Время */}
                     <div className="form-row">
