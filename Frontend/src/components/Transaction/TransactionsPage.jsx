@@ -9,6 +9,10 @@ import "../../styles/TransactionsPage.css";
 import "../../components/Journal/JournalPage.css";
 import { useTransactions } from "../../context/TransactionsContext";
 
+
+import { fetchFields, saveFields, withDefaults, serializeForSave, rid } from "../../api/fields";
+import { useFields } from "../../context/FieldsContext";
+
 const defaultFilterData = {
   searchGlobal: "",
   searchCategory: [],
@@ -24,17 +28,76 @@ const TransactionsPage = () => {
   const { transactionId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const { refreshFields } = useFields();
+
   const {
     transactions,
     assets,
-    financeFields,
     addTransaction,
     updateTransaction,
     deleteTransaction,
     duplicateTransaction,
     orders,
     counterparties,
+    refreshAll 
   } = useTransactions();
+
+  
+  const [localFinanceFields, setLocalFinanceFields] = useState({ articles: [], subarticles: [], subcategory: [] });
+
+ 
+  const loadFields = async () => {
+    try {
+        const raw = await fetchFields();
+        const norm = withDefaults(raw);
+        setLocalFinanceFields(norm.financeFields || { articles: [], subarticles: [], subcategory: [] });
+    } catch (e) {
+        console.error("Ошибка загрузки полей финансов:", e);
+    }
+  };
+
+  
+  useEffect(() => {
+    if (refreshAll) refreshAll();
+    loadFields(); 
+  }, []);
+
+  
+  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
+    try {
+        const raw = await fetchFields();
+        const normalized = withDefaults(raw);
+        const list = normalized[group]?.[fieldName] || [];
+
+        let exists = false;
+        let newItem = { id: rid(), isDeleted: false };
+
+        if (fieldName === "articles") {
+            exists = list.find(item => item.articleValue && item.articleValue.toLowerCase() === newValue.toLowerCase());
+            newItem.articleValue = newValue;
+        } else if (fieldName === "subarticles") {
+            exists = list.find(item => 
+                item.subarticleValue && item.subarticleValue.toLowerCase() === newValue.toLowerCase() &&
+                item.subarticleInterval === extraData.subarticleInterval
+            );
+            newItem.subarticleInterval = extraData.subarticleInterval;
+            newItem.subarticleValue = newValue;
+        }
+
+        if (!exists) {
+            list.push(newItem);
+            normalized[group][fieldName] = list;
+            const payload = serializeForSave(normalized);
+            await saveFields(payload);
+            
+            await loadFields(); 
+            if (refreshFields) await refreshFields();
+        }
+    } catch (e) {
+        console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
+  // -----------------------------------------------------
 
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const searchContainerRef = useRef(null);
@@ -152,13 +215,14 @@ const TransactionsPage = () => {
     });
   }, [transactions, assets]);
 
+ 
   const uniqueCategories = useMemo(() => {
-    return financeFields?.articles?.map((a) => a.articleValue).filter(Boolean) || [];
-  }, [financeFields]);
+    return localFinanceFields?.articles?.map((a) => a.articleValue).filter(Boolean) || [];
+  }, [localFinanceFields]);
 
   const uniqueSubcategories = useMemo(() => {
-    return financeFields?.subarticles?.map((s) => s.subarticleValue).filter(Boolean) || [];
-  }, [financeFields]);
+    return localFinanceFields?.subarticles?.map((s) => s.subarticleValue).filter(Boolean) || [];
+  }, [localFinanceFields]);
 
   const uniqueAccounts = useMemo(() => {
     return assets?.map((a) => a.accountName).filter(Boolean) || [];
@@ -556,9 +620,10 @@ const TransactionsPage = () => {
           onAdd={handleAddTransaction}
           onClose={handleCloseModal}
           assets={assets}
-          financeFields={financeFields}
+          financeFields={localFinanceFields}
           orders={orders}
           counterparties={counterparties}
+          onAddNewField={handleAddNewField}
         />
       )}
 
@@ -570,9 +635,10 @@ const TransactionsPage = () => {
           onDuplicate={handleDuplicateTransaction}
           onClose={handleCloseModal}
           assets={assets}
-          financeFields={financeFields}
+          financeFields={localFinanceFields}
           orders={orders}
           counterparties={counterparties}
+          onAddNewField={handleAddNewField}
         />
       )}
     </div>

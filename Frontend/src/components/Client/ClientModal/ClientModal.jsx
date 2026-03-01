@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { clientSchema } from "../validationSchema";
+import { fetchFields, saveFields, withDefaults, serializeForSave, rid } from "../../../api/fields";
+import { useFields } from "../../../context/FieldsContext";
 
 import ClientHeader from "./ClientHeader";
 import TabsNav from "./TabsNav";
@@ -33,6 +35,60 @@ export default function ClientModal({
   const safeClient = client ?? {};
   const isNew = !safeClient.id;
 
+  const { refreshFields } = useFields();
+  const [fieldOptions, setFieldOptions] = useState({
+    categories: [],
+    sources: [],
+    businesses: [],
+    countries: [],
+    currencies: [],
+    tags: []
+  });
+
+  const loadFields = async () => {
+    try {
+      const raw = await fetchFields();
+      const norm = withDefaults(raw);
+      setFieldOptions({
+        categories: (norm.clientFields?.category || []).filter(i=>!i.isDeleted).map(i=>i.value),
+        sources: (norm.clientFields?.source || []).filter(i=>!i.isDeleted).map(i=>i.value),
+        businesses: (norm.clientFields?.business || []).filter(i=>!i.isDeleted).map(i=>i.value),
+        countries: (norm.generalFields?.country || []).filter(i=>!i.isDeleted).map(i=>i.value),
+        currencies: (norm.generalFields?.currency || []).filter(i=>!i.isDeleted).map(i=>i.value),
+        tags: (norm.clientFields?.tags || []).filter(i=>!i.isDeleted)
+      });
+    } catch (e) {
+      console.error("Ошибка загрузки полей:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadFields();
+  }, []);
+
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find(item => 
+        item.value && item.value.toLowerCase() === newValue.toLowerCase()
+      );
+
+      if (!exists) {
+        list.push({ id: rid(), value: newValue, isDeleted: false });
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+        await saveFields(payload);
+        await loadFields();
+        if (refreshFields) await refreshFields();
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
+
   const [activeTab, setActiveTab] = useState(isNew ? "info" : "summary");
   const [showCompany, setShowCompany] = useState(false);
   const [showImage, setShowImage] = useState(false);
@@ -41,12 +97,8 @@ export default function ClientModal({
   const formId = "client-main-form";
   const sampleLogs = [
     { timestamp: "2023-03-07T12:36", author: "Менеджеры", message: "Отримувач: …" },
-    { timestamp: "2023-03-07T12:38", author: "Менеджеры", message: "ДУБЛЬ!!!!!!!!!!!" },
-    { timestamp: "2023-03-07T12:38", author: "Менеджеры", message: "гл talnova" },
-    { timestamp: new Date().toISOString(), author: "Лев", message: "Не" },
   ];
 
-  /* ---------- useForm ---------- */
   const methods = useForm({
     resolver: yupResolver(clientSchema),
     mode: "onChange",
@@ -57,18 +109,12 @@ export default function ClientModal({
       tags: safeClient.tags ?? [],
       accesses: safeClient.accesses ?? [],
       share_info: safeClient.share_info ?? false,
+      percent: safeClient.percent ?? 100,
     },
   });
 
-  const {
-    handleSubmit,
-    getValues,
-    setValue,
-    reset,
-    formState: { isDirty },
-  } = methods;
+  const { handleSubmit, getValues, setValue, reset, formState: { isDirty } } = methods;
 
-  /* ---------- Ошибки по вкладкам ---------- */
   const errorMap = {
     info: ["name", "company_id", "category", "source", "tags"],
     contacts: ["full_name", "phone", "email", "country"],
@@ -85,7 +131,6 @@ export default function ClientModal({
     return grouped;
   };
 
-  /* ---------- Сохранение / валидация ---------- */
   const submitHandler = async (data) => {
     try {
       const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
@@ -98,17 +143,12 @@ export default function ClientModal({
   };
 
   const onInvalid = (err) => {
-    console.log("Validation Errors:", err);
     const grouped = groupErrors(err);
     setFormErrors(grouped);
-
-    const firstTab = ["info", "contacts", "finances", "accesses"].find(
-      (t) => grouped?.[t]?.length
-    );
+    const firstTab = ["info", "contacts", "finances", "accesses"].find((t) => grouped?.[t]?.length);
     if (firstTab) setActiveTab(firstTab);
   };
 
-  /* ---------- Закрытие / Удаление ---------- */
   const closeHandler = () => {
     setClosing(true);
     setTimeout(onClose, 300);
@@ -125,90 +165,67 @@ export default function ClientModal({
   return (
     <div className={`client-modal-overlay${closing ? " closing" : ""}`}>
       <div className="client-modal tri-layout">
-        {/* ─── левая панель ─── */}
         <div className="left-panel">
           <FormProvider {...methods}>
-            <ClientHeader onClose={closeHandler} onDelete={onDelete ? deleteHandler : null} />
+            <ClientHeader onClose={closeHandler} onDelete={onDelete ? deleteHandler : null} tagOptions={fieldOptions.tags} />
           </FormProvider>
 
-          <TabsNav
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            errors={formErrors}
-            isNew={isNew}
-          />
+          <TabsNav activeTab={activeTab} setActiveTab={setActiveTab} errors={formErrors} isNew={isNew} />
 
           <FormProvider {...methods}>
-            <form
-              id={formId}
-              className="client-modal-body custom-scrollbar"
-              onSubmit={handleSubmit(submitHandler, onInvalid)}
-            >
+            <form id={formId} className="client-modal-body custom-scrollbar" onSubmit={handleSubmit(submitHandler, onInvalid)}>
               {activeTab === "info" && (
                 <InfoTab
                   companies={companies}
+                  categories={fieldOptions.categories} 
+                  sources={fieldOptions.sources}         
+                  businesses={fieldOptions.businesses}   
+                  tagOptions={fieldOptions.tags}         
                   onAddCompany={() => setShowCompany(true)}
+                  onAddNewField={handleAddNewField}
                 />
               )}
 
               {activeTab === "contacts" && (
                 <ContactsTab
-                  countries={countries}
+                  countries={fieldOptions.countries} 
                   openImage={() => getValues("photo_link") && setShowImage(true)}
+                  onAddNewField={handleAddNewField}
                 />
               )}
 
               {activeTab === "finances" && (
                 <FinancesTab
-                  currencies={currencies}
+                  currencies={fieldOptions.currencies.length ? fieldOptions.currencies : currencies}
                   referrers={referrers}
                   employees={employees}
+                  onAddNewField={handleAddNewField}
                 />
               )}
 
               {activeTab === "accesses" && <AccessesTab />}
             </form>
           </FormProvider>
+          
           <div className="form-actions-bottom">
-            <button
-              className="cancel-order-btn"
-              type="button"
-              onClick={() => reset()}
-              disabled={!isDirty}
-            >
-              Отменить
-            </button>
-
-            <button className="save-order-btn" type="submit" form={formId}>
-              Сохранить
-            </button>
+            <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>Отменить</button>
+            <button className="save-order-btn" type="submit" form={formId}>Сохранить</button>
           </div>
         </div>
 
-        {/* ─── центр – чат ─── */}
         {isNew ? (
-          <div className="chat-panel-wrapper chat-placeholder">
-            <p>Сохраните клиента, чтобы открыть чат.</p>
-          </div>
+          <div className="chat-panel-wrapper chat-placeholder"><p>Сохраните клиента, чтобы открыть чат.</p></div>
         ) : (
-          <div className="chat-panel-wrapper">
-            <ChatPanel clientId={safeClient.id} initialLogs={sampleLogs} />
-          </div>
+          <div className="chat-panel-wrapper"><ChatPanel clientId={safeClient.id} initialLogs={sampleLogs} /></div>
         )}
 
-        {/* ─── правая панель действий ─── */}
         {isNew ? (
-          <div className="menu-placeholder">
-            <p>Сохраните клиента, чтобы добавить заказ или дублировать.</p>
-          </div>
+          <div className="menu-placeholder"><p>Сохраните клиента, чтобы добавить заказ или дублировать.</p></div>
         ) : (
-          <div className="right-side-menu">
-            <ActionsBar onAddOrder={onAddOrder} onDuplicate={onDuplicate} />
-          </div>
+          <div className="right-side-menu"><ActionsBar onAddOrder={onAddOrder} onDuplicate={onDuplicate} /></div>
         )}
       </div>
 
-      {/* ─── модалки поверх ─── */}
       {showCompany && (
         <AddCompanyModal
           onCreate={async (data) => {
@@ -219,23 +236,14 @@ export default function ClientModal({
           onCancel={() => setShowCompany(false)}
         />
       )}
-
-      {showImage && (
-        <ImagePreviewModal
-          src={getValues("photo_link")}
-          onClose={() => setShowImage(false)}
-        />
-      )}
-
+      {showImage && <ImagePreviewModal src={getValues("photo_link")} onClose={() => setShowImage(false)} />}
       {formErrors && (
         <div className="error-modal-overlay">
           <div className="error-modal">
             <h3>Заполните обязательные поля:</h3>
             <ul>
               {Object.entries(formErrors).map(([tab, fields]) => (
-                <li key={tab}>
-                  <b>{tab}</b>: {Array.isArray(fields) ? fields.join(", ") : String(fields)}
-                </li>
+                <li key={tab}><b>{tab}</b>: {Array.isArray(fields) ? fields.join(", ") : String(fields)}</li>
               ))}
             </ul>
             <button onClick={() => setFormErrors(null)}>Ок</button>

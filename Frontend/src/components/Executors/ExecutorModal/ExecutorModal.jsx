@@ -17,12 +17,15 @@ import '../../../styles/ExecutorModal.css';
 export default function ExecutorModal({
   executor, 
   orders,
+  employees, 
   journalEntries,   
   transactions,
-  fields,  
   onClose,
   onSave,
-  onDelete
+  onDelete,
+  roleOptions = [],     
+  currencyOptions = [], 
+  onAddNewField          
 }) {
   const safeExecutor = executor ?? {};
   const isNew = !safeExecutor.id;
@@ -39,45 +42,41 @@ export default function ExecutorModal({
   }, []);
 
   const methods = useForm({
-        resolver: yupResolver(executorSchema),
-        mode: 'onChange',
-        defaultValues: {
-            orderId: '',
-            orderNumber: '',
-            performer: '', 
-            dateForPerformer: new Date().toISOString().split('T')[0], 
-            hideClient: false,
-            roundHours: false,
-            currency: fields?.currency?.[0]?.value || '', 
-            hourlyRate: '',
-            amountInput: '',
-            maxAmount: '',
-            ...safeExecutor,
-           role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].value : ''),
-        },
-    });
+    resolver: yupResolver(executorSchema),
+    mode: 'onChange',
+    defaultValues: {
+        orderId: '',
+        orderNumber: '',
+        performer: '', 
+        dateForPerformer: new Date().toISOString().split('T')[0], 
+        hideClient: false,
+        roundHours: false,
+        currency: safeExecutor.currency || (currencyOptions.length > 0 ? currencyOptions[0] : 'UAH'), 
+        hourlyRate: '',
+        amountInput: '',
+        maxAmount: '',
+        ...safeExecutor,
+        role: safeExecutor.performerRole || (roleOptions.length > 0 ? roleOptions[0] : ''),
+    },
+  });
 
   const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
 
   const submitHandler = (data) => {
-        console.log("Данные из формы:", data);
-        
-        const dataToSave = {
-            ...safeExecutor, 
-            ...data,        
-            performerRole: data.role,
-            orderSum: parseFloat(data.amountInput) || 0,
-            hourlyRate: parseFloat(data.hourlyRate) || 0,
-            paymentBalance: parseFloat(data.maxAmount) || 0,
-            clientHidden: data.hideClient,
-            orderDate: data.dateForPerformer,
-        };
-        
-        onSave(dataToSave);
+    const dataToSave = {
+        ...safeExecutor, 
+        ...data,        
+        performerRole: data.role,
+        orderSum: parseFloat(data.amountInput) || 0,
+        hourlyRate: parseFloat(data.hourlyRate) || 0,
+        paymentBalance: parseFloat(data.maxAmount) || 0,
+        clientHidden: data.hideClient,
+        orderDate: data.dateForPerformer,
     };
+    onSave(dataToSave);
+  };
 
   const onInvalid = (err) => {
-    console.log("Ошибки валидации:", err);
     const firstErrorField = Object.keys(err)[0];
     if (['orderId', 'performer', 'role', 'dateForPerformer'].includes(firstErrorField)) {
         setActiveTab('general');
@@ -156,7 +155,15 @@ export default function ExecutorModal({
               
               <div className="tab-content-wrapper">
                 {activeTab === 'dashboard' && <DashboardTab />}
-                {activeTab === 'general'   && <GeneralInfoTab orders={orders} fields={fields} />}
+                {activeTab === 'general'   && (
+                  <GeneralInfoTab 
+                    orders={orders} 
+                    employees={employees} 
+                    roleOptions={roleOptions}         
+                    currencyOptions={currencyOptions} 
+                    onAddNewField={onAddNewField}     
+                  />
+                )}
                 {activeTab === 'journal'   && <JournalTab isNew={isNew} executor={safeExecutor} journalEntries={journalEntries} />}
                 {activeTab === 'finances'  && <FinancesTab isNew={isNew} executor={safeExecutor} transactions={transactions} />}
               </div>
@@ -164,16 +171,15 @@ export default function ExecutorModal({
             </form>
           </FormProvider>
           <div className='form-actions-bottom'>
-                              <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
-                                  Сбросить
-                              </button>
-                              <button className='save-order-btn' type="submit" form="executor-form" disabled={!isDirty}>
-                                  Сохранить
-                              </button>
-                          </div>
+              <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
+                  Сбросить
+              </button>
+              <button className='save-order-btn' type="submit" form="executor-form" disabled={!isDirty}>
+                  Сохранить
+              </button>
+          </div>
         </div>
 
-        
         {isNew ? (
           <div className="chat-panel-wrapper chat-placeholder">
             <p>Сохраните исполнителя, чтобы открыть чат.</p>
