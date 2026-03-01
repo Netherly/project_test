@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import "../../styles/AddTransactionModal.css"; 
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
+import CreatableSelect from "../../components/Client/ClientModal/CreatableSelect"; 
 
 const getArticleValue = (article) =>
     String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
@@ -16,20 +17,7 @@ const getSubarticleInterval = (sub) =>
 const getSubarticleValue = (sub) =>
     String(sub?.subarticleValue ?? sub?.name ?? sub?.value ?? '').trim();
 
-const daysOfWeek = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"];
-const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
-
-
-const getTodayDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-
-const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {} }) => {
+const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {}, onAddNewField }) => {
     const initialFormData = useMemo(() => ({
         category: financeFields?.articles?.[0] ? getArticleValue(financeFields.articles[0]) : "",
         subcategory: "",
@@ -56,6 +44,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
         );
     }, [formData.category, financeFields]);
 
+  
     useEffect(() => {
         setFormData(prev => ({ ...prev, subcategory: "" }));
     }, [formData.category]);
@@ -69,7 +58,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             newFormData.accountCurrency = selectedAccount ? selectedAccount.currency : "UAH";
         }
 
-        
         if (name === "period") {
             if (value === "Еженедельно") {
                 newFormData.cycleDay = '1'; 
@@ -82,20 +70,16 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             }
         }
 
-       
         if (name === "cycleDay") {
             const { period } = formData; 
             let valueToSave = value;
 
             if (period === "Еженедельно") {
-                
                 valueToSave = value.replace(/[^1-7]/g, '');
-                
                 if (valueToSave.length > 1) {
                     valueToSave = valueToSave[0];
                 }
             } else if (period === "Ежемесячно") {
-                
                 valueToSave = value.replace(/\D/g, '');
                 if (valueToSave) {
                     const num = parseInt(valueToSave, 10);
@@ -103,21 +87,15 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                     if (num < 1 && valueToSave.length > 0) valueToSave = '1';
                 }
             } else if (period === "Ежегодно") {
-                
                 let formattedValue = value.replace(/[^0-9.]/g, ''); 
-
-                
                 if (formattedValue.length === 2 && formData.cycleDay.length === 1 && !formattedValue.includes('.')) {
                     formattedValue += '.';
                 }
-                
                 if (formattedValue === '.') {
                     formattedValue = '';
                 }
-                
                 valueToSave = formattedValue.substring(0, 5);
             }
-            
             newFormData.cycleDay = valueToSave;
         }
 
@@ -148,7 +126,19 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             onClose();
         }
     };
-    
+
+
+    const articleOptions = useMemo(() => {
+        return financeFields?.articles
+            ?.filter(a => !a.isDeleted)
+            ?.map(getArticleValue)
+            .filter(Boolean) || [];
+    }, [financeFields]);
+
+    const subcategoryOptions = useMemo(() => {
+        return availableSubcategories.filter(s => !s.isDeleted).map(getSubarticleValue).filter(Boolean);
+    }, [availableSubcategories]);
+
     return (
         <div className="add-transaction-overlay" onClick={handleOverlayClose}>
             <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
@@ -159,45 +149,34 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
 
                 <form id="add-regular-payment-form" onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
                     
-                    
-                     {/* Статья */}
-                     <div className="form-row">
+                    {/* Статья */}
+                    <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
-                        <select id="category" name="category" value={formData.category} onChange={handleChange} required className="form-input1">
-                            <option value="" disabled hidden>Не выбрано</option>
-                            {financeFields?.articles
-                                ?.map((article, index) => ({
-                                    key: article?.id || index,
-                                    value: getArticleValue(article),
-                                }))
-                                .filter((article) => article.value)
-                                .map((article) => (
-                                    <option key={article.key} value={article.value}>
-                                        {article.value}
-                                    </option>
-                                ))}
-                        </select>
+                        <CreatableSelect
+                            value={formData.category}
+                            onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
+                            options={articleOptions}
+                            placeholder="Выберите или введите статью..."
+                            onAdd={(val) => onAddNewField && onAddNewField("financeFields", "articles", val)}
+                        />
                     </div>
 
                     {/* Подстатья */}
-                    {availableSubcategories.length > 0 && (
+                    {(availableSubcategories.length > 0 || formData.category) && (
                         <div className="form-row">
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
-                            <select id="subcategory" name="subcategory" value={formData.subcategory} onChange={handleChange} className="form-input1">
-                                <option value="" disabled hidden>Не выбрано</option>
-                            {availableSubcategories
-                                .map((sub, index) => ({
-                                    key: sub?.id || index,
-                                    value: getSubarticleValue(sub),
-                                }))
-                                .filter((sub) => sub.value)
-                                .map((sub) => (
-                                    <option key={sub.key} value={sub.value}>
-                                        {sub.value}
-                                    </option>
-                                ))}
-                        </select>
-                    </div>
+                            <CreatableSelect
+                                value={formData.subcategory}
+                                onChange={(val) => handleChange({ target: { name: 'subcategory', value: val } })}
+                                options={subcategoryOptions}
+                                placeholder="Выберите или введите подстатью..."
+                                disabled={!formData.category}
+                                onAdd={(val) => {
+                                    if (!formData.category) return alert("Сначала выберите статью!");
+                                    onAddNewField && onAddNewField("financeFields", "subarticles", val, { subarticleInterval: formData.category });
+                                }}
+                            />
+                        </div>
                     )}
 
                     {/* Описание */}
@@ -229,10 +208,10 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                         </select>
                     </div>
 
-                    {/* Сумма операции */}
+                    {/* Сумма */}
                     <div className="form-row">
                         <label htmlFor="amount" className="form-label">Сумма операции</label>
-                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={handleChange} placeholder="Введите сумму" required step="0.01" className="form-input1" />
+                        <input type="number" id="amount" name="amount" value={formData.amount} onChange={handleChange} required step="0.01" className="form-input1" />
                     </div>
 
         
@@ -248,14 +227,12 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                         </select>
                     </div>
 
-                    {/* --- ИЗМЕНЕНИЕ 3: Новые инпуты для Конкретизации цикла --- */}
-
                     {/* Еженедельно */}
                     {formData.period === "Еженедельно" && (
                         <div className="form-row">
                             <label htmlFor="cycleDay" className="form-label">День недели (1-7)</label>
                             <input
-                                type="number" // Используем number для авто-валидации
+                                type="number"
                                 id="cycleDay"
                                 name="cycleDay"
                                 value={formData.cycleDay}
@@ -273,7 +250,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                         <div className="form-row">
                             <label htmlFor="cycleDay" className="form-label">Число месяца (1-31)</label>
                             <input
-                                type="number" // Используем number для авто-валидации
+                                type="number"
                                 id="cycleDay"
                                 name="cycleDay"
                                 value={formData.cycleDay}
@@ -297,7 +274,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
                                 value={formData.cycleDay}
                                 onChange={handleChange}
                                 placeholder="05.05"
-                                maxLength="5" // ДД.ММ
+                                maxLength="5" 
                                 className="form-input1"
                             />
                         </div>

@@ -14,7 +14,7 @@ import OrdersTab from "./OrdersTab";
 import ChatPanel from "../../Client/ClientModal/ChatPanel";
 
 import { normalizeEmployee } from "../../../api/employees";
-import { fetchFields, withDefaults } from "../../../api/fields";
+import { fetchFields, saveFields, withDefaults, serializeForSave, rid } from "../../../api/fields";
 import { fetchTransactions } from "../../../api/transactions";
 import { fetchAssets } from "../../../api/assets";
 import { fetchOrders } from "../../../api/orders";
@@ -34,7 +34,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
   const [loadingData, setLoadingData] = useState(false);
   const [appData, setAppData] = useState({
-    fields: { employeeFields: { country: [] }, executorFields: { currency: [] } },
+    fields: { employeeFields: { country: [] }, generalFields: { currency: [] } },
     transactions: [],
     assets: [],
     orders: []
@@ -47,57 +47,72 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     return () => clearTimeout(t);
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
+  
+  const loadAllData = async () => {
+    setLoadingData(true);
+    try {
+      const fieldsPromise = fetchFields().then(withDefaults).catch(() => ({}));
 
-    const loadAllData = async () => {
-      setLoadingData(true);
-      try {
-        const fieldsPromise = fetchFields().then(withDefaults).catch(() => ({}));
+      const promises = [fieldsPromise];
 
-        const promises = [fieldsPromise];
+      if (!isNew && safeEmployee?.id) {
+        const transactionsPromise = fetchTransactions({
+          page: 1,
+          pageSize: 1000,
+          employeeId: safeEmployee.id, 
+        }).catch(() => []);
 
-        if (!isNew && safeEmployee?.id) {
-          const transactionsPromise = fetchTransactions({
-            page: 1,
-            pageSize: 1000,
-            employeeId: safeEmployee.id, 
-          }).catch(() => []);
+        const assetsPromise = fetchAssets().catch(() => []);
+        const ordersPromise = fetchOrders({ page: 1, limit: 1000 }).catch(() => []);
 
-          const assetsPromise = fetchAssets().catch(() => []);
-
-          const ordersPromise = fetchOrders({ page: 1, limit: 1000 }).catch(() => []);
-
-          promises.push(transactionsPromise, assetsPromise, ordersPromise);
-        }
-
-        const [fieldsData, transactionsData, assetsData, ordersData] = await Promise.all(promises);
-
-        if (!mounted) return;
-
-        const cleanTransactions = Array.isArray(transactionsData?.items) ? transactionsData.items : (Array.isArray(transactionsData) ? transactionsData : []);
-        const cleanOrders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []);
-        const cleanAssets = Array.isArray(assetsData) ? assetsData : [];
-
-        setAppData({
-          fields: fieldsData || { employeeFields: { country: [] } },
-          transactions: cleanTransactions,
-          assets: cleanAssets,
-          orders: cleanOrders
-        });
-
-      } catch (error) {
-        console.error("Ошибка загрузки данных сотрудника:", error);
-      } finally {
-        if (mounted) setLoadingData(false);
+        promises.push(transactionsPromise, assetsPromise, ordersPromise);
       }
-    };
 
+      const [fieldsData, transactionsData, assetsData, ordersData] = await Promise.all(promises);
+
+      const cleanTransactions = Array.isArray(transactionsData?.items) ? transactionsData.items : (Array.isArray(transactionsData) ? transactionsData : []);
+      const cleanOrders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : []);
+      const cleanAssets = Array.isArray(assetsData) ? assetsData : [];
+
+      setAppData({
+        fields: fieldsData || { employeeFields: { country: [] }, generalFields: { currency: [] } },
+        transactions: cleanTransactions,
+        assets: cleanAssets,
+        orders: cleanOrders
+      });
+
+    } catch (error) {
+      console.error("Ошибка загрузки данных сотрудника:", error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
     loadAllData();
-
-    return () => { mounted = false; };
   }, [isNew, safeEmployee?.id]);
 
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find(item => 
+        item.value && item.value.toLowerCase() === newValue.toLowerCase()
+      );
+
+      if (!exists) {
+        list.push({ id: rid(), value: newValue, isDeleted: false });
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+        await saveFields(payload);
+        await loadAllData();
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
 
   const methods = useForm({
     resolver: yupResolver(employeeSchema),
@@ -168,13 +183,14 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       <div className="employee-modal tri-layout" onClick={(e) => e.stopPropagation()}>
         <div className="left-panel">
           <FormProvider {...methods}>
-            <form id={formId} className="employee-modal-body" onSubmit={handleSubmit(submitHandler, onInvalid)}>
+            <form id={formId} className="employee-modal-body custom-scrollbar" onSubmit={handleSubmit(submitHandler, onInvalid)}>
               <EmployeeHeader
                 isNew={isNew}
                 onClose={closeHandler}
                 onDelete={!isNew && onDelete ? deleteHandler : null}
                 isDirty={isDirty}
                 reset={reset}
+                tagOptions={(appData.fields.employeeFields?.tags || []).filter(t => !t.isDeleted)} // Прокидываем теги
               />
 
               <TabsNav activeTab={activeTab} setActiveTab={setActiveTab} errors={groupErrors(errors)} isNew={isNew} />
@@ -185,12 +201,25 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 {activeTab === "general" && (
                   <GeneralInfoTab 
                     fieldsData={appData.fields}
+                    onAddNewField={handleAddNewField} 
                   />
                 )}
                 
-                {activeTab === "contacts" && <ContactsTab isNew={isNew} employeeId={safeEmployee.id} fieldsData={appData.fields} />}
+                {activeTab === "contacts" && (
+                  <ContactsTab 
+                    isNew={isNew} 
+                    employeeId={safeEmployee.id} 
+                    fieldsData={appData.fields} 
+                    onAddNewField={handleAddNewField} 
+                  />
+                )}
                 
-                {activeTab === "requisites" && <RequisitesTab />}
+                {activeTab === "requisites" && (
+                  <RequisitesTab 
+                    fieldsData={appData.fields} 
+                    onAddNewField={handleAddNewField} 
+                  />
+                )}
                 
                 {activeTab === "finances" && (
                   <FinancesTab 

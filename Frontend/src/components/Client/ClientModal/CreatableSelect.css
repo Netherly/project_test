@@ -1,0 +1,79 @@
+.creatable-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.creatable-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.creatable-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-form-color, #444);
+  color: var(--text-color, #fff);
+  padding: 10px 12px; 
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.creatable-input:focus {
+  outline: none;
+  border-bottom-color: var(--input-border-focus, #007bff);
+}
+
+.creatable-input.input-error {
+  border-bottom-color: #ff5050;
+}
+
+
+.creatable-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #19213A; 
+  border: 1px solid var(--border-form-color, #444);
+  border-radius: 6px;
+  margin-top: 4px;
+  z-index: 2000; 
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.creatable-option, .creatable-option-empty, .creatable-add-option {
+  padding: 10px 12px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.creatable-option:hover, .creatable-add-option:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.creatable-option.selected {
+  background-color: rgba(74, 144, 226, 0.15);
+  color: #4a90e2;
+}
+
+.creatable-option-empty {
+  color: #777;
+  cursor: default;
+}
+
+.creatable-add-option {
+  display: flex;
+  align-items: center;
+  color: #4a90e2;
+  border-top: 1px solid var(--border-form-color, #444);
+  font-weight: 500;
+}

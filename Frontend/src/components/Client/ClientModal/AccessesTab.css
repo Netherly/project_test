@@ -1,25 +1,59 @@
-
 .accesses-tab-wrapper .employee-requisites-table {
   width: 100%;
   overflow: hidden;
 }
 
-
 .accesses-tab-wrapper .requisites-row {
   display: flex;
-  align-items: center;
+  align-items: stretch; 
   width: 100%;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  border-radius: 4px;
 }
 
 
+.accesses-tab-wrapper .requisites-row.dragging {
+  background-color: rgba(255, 255, 255, 0.05);
+  z-index: 999;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
 .accesses-tab-wrapper .requisites-row.header-row {
   align-items: stretch;
+  background-color: #141b2e;
+  border-radius: 6px;
+  margin-bottom: 5px;
+}
+
+
+.accesses-tab-wrapper .requisites-cell.drag-cell {
+  flex: none;
+  width: 0;
+  overflow: hidden;
+  transition: width 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.accesses-tab-wrapper .requisites-cell.drag-cell.visible {
+  width: 30px;
+}
+
+.accesses-tab-wrapper .drag-icon {
+  color: #555;
+  cursor: grab;
+}
+
+.accesses-tab-wrapper .requisites-row:hover .drag-icon {
+  color: #aaa;
 }
 
 .accesses-tab-wrapper .header-content-wrapper {
   display: flex;        
   flex-grow: 1;         
-  background-color: #141b2e;
   color: #fff;
   padding: 10px 0;
 }
@@ -36,12 +70,10 @@
   align-items: center;
 }
 
-
 .accesses-tab-wrapper .assets-workplan-textarea {
   width: 100%;
   background: transparent;
   border: none;
-  
   border-bottom: 1px solid var(--border-form-color, #444);
   color: var(--text-color, #fff);
   padding: 8px 0; 
@@ -50,13 +82,13 @@
   resize: none;
   overflow: hidden;
   transition: border-color 0.2s, background-color 0.2s;
+  box-sizing: border-box;
 }
 
 .accesses-tab-wrapper .assets-workplan-textarea::placeholder {
   color: var(--text-secondary, #777);
   opacity: 0.7;
 }
-
 
 .accesses-tab-wrapper .assets-workplan-textarea:focus {
   outline: none;
@@ -79,51 +111,69 @@
   background-color: rgba(255, 80, 80, 0.15); 
 }
 
-
-
-
-
 .accesses-tab-wrapper .requisites-row:not(.header-row) .requisites-cell {
   padding-right: 12px;
   padding-left: 1px;
   display: flex;
   align-items: center;
+  padding-bottom: 5px;
 }
 
-
 .accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(1),
-.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(1) {
+.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(2) {
   flex: 19; 
   flex-basis: 0;
 }
 
 .accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(2),
-.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(2) {
-  flex: 25;
-  flex-basis: 0;
-}
-
-.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(3),
 .accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(3) {
   flex: 25;
   flex-basis: 0;
 }
 
-.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(4),
+.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(3),
 .accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(4) {
+  flex: 25;
+  flex-basis: 0;
+}
+
+.accesses-tab-wrapper .header-content-wrapper > .requisites-cell:nth-child(4),
+.accesses-tab-wrapper .requisites-row:not(.header-row) > .requisites-cell:nth-child(5) {
   flex: 31;
   flex-basis: 0;
   padding-right: 5px;
 }
 
-
 .accesses-tab-wrapper .requisites-cell.action-cell {
   flex: none;     
-  flex-basis: 25px;
+  flex-basis: 40px; 
   flex-shrink: 0;
   justify-content: center;
   padding-right: 0;
   padding-left: 0; 
+}
+
+
+.accesses-tab-wrapper .icon-sort-btn {
+  background: transparent;
+  border: none;
+  color: #777;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.accesses-tab-wrapper .icon-sort-btn:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.accesses-tab-wrapper .icon-sort-btn.active {
+  color: #4a90e2;
 }
 
 .accesses-tab-wrapper .add-requisites-btn {
@@ -140,7 +190,6 @@
   font-weight: 600;
   transition: color 0.2s;
 }
-
 
 @media (max-width: 768px) {
   .accesses-tab-wrapper .employee-requisites-table {

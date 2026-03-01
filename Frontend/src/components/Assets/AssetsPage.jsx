@@ -6,7 +6,8 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
-import { fetchFields, withDefaults } from "../../api/fields";
+import { fetchFields, withDefaults, saveFields, serializeForSave, rid } from "../../api/fields";
+
 import {
   fetchAssets,
   createAsset as apiCreateAsset,
@@ -15,6 +16,7 @@ import {
 } from "../../api/assets";
 import { CreditCard } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
+import { useFields } from "../../context/FieldsContext";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -31,6 +33,7 @@ const AssetsPage = () => {
   const { assetId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { transactions } = useTransactions();
+  const { refreshFields } = useFields();
 
   const defaultAssets = [];
   const [assets, setAssets] = useState([]);
@@ -88,34 +91,48 @@ const AssetsPage = () => {
     }
   }, []);
 
+  const loadFields = async () => {
+    try {
+      const rawFields = await fetchFields();
+      const allFields = withDefaults(rawFields);
+      setFields({
+        generalFields: allFields.generalFields,
+        assetsFields: allFields.assetsFields,
+      });
+    } catch (err) {
+      console.error("Failed to load fields", err);
+    }
+  };
+
   useEffect(() => {
-    const loadFields = async () => {
-      try {
-        const rawFields = await fetchFields();
-        const allFields = withDefaults(rawFields);
-        setFields({
-          generalFields: allFields.generalFields,
-          assetsFields: allFields.assetsFields,
-        });
-      } catch (err) {
-        console.error("Failed to load fields", err);
-        const savedFields = localStorage.getItem("fieldsData");
-        if (savedFields) {
-          try {
-            const parsedFields = JSON.parse(savedFields);
-            setFields({
-              generalFields: parsedFields.generalFields || { currency: [] },
-              assetsFields:
-                parsedFields.assetsFields || { type: [], paymentSystem: [], cardDesigns: [] },
-            });
-          } catch (e) {
-            console.error("Ошибка парсинга полей из localStorage:", e);
-          }
-        }
-      }
-    };
     loadFields();
   }, []);
+
+
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find(item => 
+        item.value && item.value.toLowerCase() === newValue.toLowerCase()
+      );
+
+      if (!exists) {
+        list.push({ id: rid(), value: newValue, isDeleted: false });
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+        await saveFields(payload);
+        
+        await loadFields(); 
+        if (refreshFields) await refreshFields(); 
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
+
 
   useEffect(() => {
     const savedRates = localStorage.getItem("currencyRates_mock");
@@ -249,19 +266,6 @@ const AssetsPage = () => {
       handleCloseModal();
     } catch (err) {
       console.error("Failed to create asset", err);
-      const selectedEmployee = employees?.find((emp) => emp.id === newAsset.employeeId);
-      const assetWithDefaults = {
-        ...newAsset,
-        id: newAsset.accountName,
-        design: newAsset.design || "default-design",
-        paymentSystem: newAsset.paymentSystem || null,
-        turnoverStartBalance: Number(newAsset.turnoverStartBalance) || 0,
-        employeeId: newAsset.employeeId || null,
-        employee: newAsset.employeeName || selectedEmployee?.fullName || "",
-        employeeName: newAsset.employeeName || selectedEmployee?.fullName || "",
-      };
-      setAssets((prevAssets) => [...prevAssets, assetWithDefaults]);
-      handleCloseModal();
     }
   };
 
@@ -571,6 +575,7 @@ const AssetsPage = () => {
             onAdd={handleAddAsset}
             fields={fields}
             employees={employees}
+            onAddNewField={handleAddNewField} 
           />
         )}
 
@@ -583,6 +588,7 @@ const AssetsPage = () => {
             onSave={handleSaveAsset}
             fields={fields}
             employees={employees}
+            onAddNewField={handleAddNewField} 
           />
         )}
       </div>

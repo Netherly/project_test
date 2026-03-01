@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { Controller, useWatch } from 'react-hook-form';
+import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
 
-
-const GeneralInformation = ({ control, orderFields }) => {
+const GeneralInformation = ({ control, orderFields, onAddNewField }) => {
     
     const urgencyOptions = [
         { value: "1", label: "Не горит" },
@@ -10,40 +10,44 @@ const GeneralInformation = ({ control, orderFields }) => {
         { value: "3", label: "Жопа уже подгорает" },
         { value: "4", label: "ЛИБО СДАЛ ЛИБО ШТРАФ" },
     ];
-    const statusOptions = (orderFields?.statuses || [])
-        .map((opt) => ({
-            value: opt?.value ?? opt?.name ?? "",
-            label: opt?.value ?? opt?.name ?? "",
-        }))
-        .filter((opt) => opt.value);
-    const closeReasonOptions = (orderFields?.closeReasons || [])
-        .map((opt) => ({
-            value: opt?.value ?? opt?.name ?? "",
-            label: opt?.value ?? opt?.name ?? "",
-        }))
-        .filter((opt) => opt.value);
-
     
+    const statusOptions = (orderFields?.statuses || [])
+        .filter(opt => !opt.isDeleted)
+        .map((opt) => opt?.value ?? opt?.name ?? "")
+        .filter(Boolean);
+        
+    const closeReasonOptions = (orderFields?.closeReasons || [])
+        .filter(opt => !opt.isDeleted)
+        .map((opt) => opt?.value ?? opt?.name ?? "")
+        .filter(Boolean);
+
+    const intervalOptions = (orderFields?.intervals || [])
+        .filter(opt => !opt.isDeleted)
+        .map((opt) => opt?.intervalValue ?? opt?.value ?? "")
+        .filter(Boolean);
+
     const selectedInterval = useWatch({
         control,
         name: 'interval',
     });
 
-   
     const availableOrderTypes = useMemo(() => {
         if (!selectedInterval || !orderFields?.categories) {
             return [];
         }
-        return orderFields.categories.filter((category) => {
-            const intervalValue =
-                category?.categoryInterval ??
-                category?.intervalValue ??
-                category?.interval ??
-                "";
-            return intervalValue === selectedInterval;
-        });
+        return orderFields.categories
+            .filter(c => !c.isDeleted)
+            .filter((category) => {
+                const intervalValue =
+                    category?.categoryInterval ??
+                    category?.intervalValue ??
+                    category?.interval ??
+                    "";
+                return intervalValue === selectedInterval;
+            })
+            .map(c => c.categoryValue ?? c.value ?? "")
+            .filter(Boolean);
     }, [selectedInterval, orderFields]);
-
 
     return (
         <div className='tab-content-container'>
@@ -63,7 +67,6 @@ const GeneralInformation = ({ control, orderFields }) => {
                 />
             </div>
 
-
             <div className="tab-content-row">
                 <div className="tab-content-title">Срочность</div>
                 <Controller
@@ -79,7 +82,6 @@ const GeneralInformation = ({ control, orderFields }) => {
                     )}
                 />
             </div>
-
             
             <div className="tab-content-row">
                 <div className="tab-content-title">Дата обращения</div>
@@ -111,7 +113,6 @@ const GeneralInformation = ({ control, orderFields }) => {
                     )}
                 />
             </div>
-
             
             <div className="tab-content-row">
                 <div className="tab-content-title">Интервал</div>
@@ -119,46 +120,38 @@ const GeneralInformation = ({ control, orderFields }) => {
                     name="interval"
                     control={control}
                     render={({ field }) => (
-                        <select className='custom-content-input' {...field}>
-                            <option value="" disabled hidden>Не выбрано</option>
-                            {orderFields?.intervals?.map((interval, index) => {
-                                const value = interval?.intervalValue ?? interval?.value ?? "";
-                                if (!value) return null;
-                                return (
-                                    <option key={index} value={value}>
-                                        {value}
-                                    </option>
-                                );
-                            })}
-                        </select>
+                        <CreatableSelect
+                            value={field.value}
+                            onChange={field.onChange}
+                            options={intervalOptions}
+                            placeholder="Выберите или введите интервал..."
+                            onAdd={(val) => onAddNewField("orderFields", "intervals", val)}
+                        />
                     )}
                 />
             </div>
 
-           
+            
             <div className="tab-content-row">
                 <div className="tab-content-title">Тип заказа</div>
                 <Controller
                     name="orderType"
                     control={control}
                     render={({ field }) => (
-                        <select
-                            className='custom-content-input'
-                            {...field}
-                            
-                            disabled={!selectedInterval || availableOrderTypes.length === 0}
-                        >
-                            <option value="" disabled hidden>Не выбрано</option>
-                            {availableOrderTypes.map((type, index) => (
-                                <option key={index} value={type.categoryValue ?? type.value ?? ""}>
-                                    {type.categoryValue ?? type.value ?? ""}
-                                </option>
-                            ))}
-                        </select>
+                        <CreatableSelect
+                            value={field.value}
+                            onChange={field.onChange}
+                            options={availableOrderTypes}
+                            disabled={!selectedInterval}
+                            placeholder="Выберите или введите тип..."
+                            onAdd={(val) => {
+                                if (!selectedInterval) return alert("Сначала выберите интервал!");
+                                onAddNewField("orderFields", "categories", val, { categoryInterval: selectedInterval });
+                            }}
+                        />
                     )}
                 />
             </div>
-            
             
             <div className="tab-content-row">
                 <div className="tab-content-title">Статус заказа</div>
@@ -166,30 +159,34 @@ const GeneralInformation = ({ control, orderFields }) => {
                     name="orderStatus"
                     control={control}
                     render={({ field }) => (
-                        <select className='custom-content-input' {...field}>
-                            <option value="" disabled hidden>Не выбрано</option>
-                            {statusOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                        <CreatableSelect
+                            value={field.value}
+                            onChange={field.onChange}
+                            options={statusOptions}
+                            placeholder="Выберите или введите статус..."
+                            onAdd={(val) => onAddNewField("orderFields", "statuses", val)}
+                        />
                     )}
                 />
             </div>
+
             <div className="tab-content-row">
                 <div className="tab-content-title">Причина закрытия</div>
                 <Controller
                     name="closeReason"
                     control={control}
                     render={({ field }) => (
-                        <select className='custom-content-input' {...field}>
-                            <option value="" disabled hidden>Не выбрано</option>
-                            {closeReasonOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                         <CreatableSelect
+                            value={field.value}
+                            onChange={field.onChange}
+                            options={closeReasonOptions}
+                            placeholder="Выберите или введите причину..."
+                            onAdd={(val) => onAddNewField("orderFields", "closeReasons", val)}
+                        />
                     )}
                 />
             </div>
+
             <div className="tab-content-row">
                 <div className="tab-content-title">Плановая дата старта</div>
                 <Controller
