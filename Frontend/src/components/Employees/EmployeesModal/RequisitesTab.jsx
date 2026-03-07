@@ -57,10 +57,6 @@ const SortableRequisiteRow = ({
       style={style}
       className={`requisites-row ${isDragging ? 'dragging' : ''}`}
     >
-      <div className={`requisites-cell drag-cell ${isSortMode ? 'visible' : ''}`} {...attributes} {...listeners}>
-        <GripVertical size={18} className="drag-icon" />
-      </div>
-
       <div className="requisites-cell">
         <Controller
           name={`${fieldArrayName}.${index}.currency`}
@@ -132,14 +128,25 @@ const SortableRequisiteRow = ({
       </div>
 
       <div className="requisites-cell action-cell">
-        <button
-          type="button"
-          className="requisites-remove-btn"
-          onClick={() => remove(index)}
-          title="Удалить реквизит"
-        >
-          <X size={18} color="red" />
-        </button>
+        {isSortMode ? (
+          <div 
+            className="drag-handle-right" 
+            {...attributes} 
+            {...listeners}
+            title="Перетащить"
+          >
+            <GripVertical size={18} className="drag-icon" />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="requisites-remove-btn"
+            onClick={() => remove(index)}
+            title="Удалить реквизит"
+          >
+            <X size={18} color="red" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -183,9 +190,6 @@ export default function RequisitesTab({ fieldsData, onAddNewField }) {
     <div className="tab-section requisites-tab-wrapper">
       <div className="employee-requisites-table">
         <div className="requisites-row header-row">
-          
-          <div className={`requisites-cell drag-cell ${isSortMode ? 'visible' : ''}`}></div>
-          
           <div className="header-content-wrapper">
             <div className="requisites-cell">Валюта</div>
             <div className="requisites-cell">Банк</div>

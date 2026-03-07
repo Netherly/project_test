@@ -1,22 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import defaultAvatar from '../../../assets/avatar-placeholder.svg'; 
-
-
 import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
 import { Trash2 } from 'lucide-react';
 
-
-export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [] }) {
+export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [], firstContactName }) {
     const { watch, control } = useFormContext();
 
-    
     const companyName = watch('name')?.trim() || 'Название компании';
-    const companyEmail = watch('email') || 'Email не указан';
+    const companyEmail = watch('email');
+    const displaySubtext = companyEmail ? companyEmail : (firstContactName ? `Контакт: ${firstContactName}` : 'Email не указан');
     
     const avatarSrc = defaultAvatar; 
 
-    
     const [customTag, setCustomTag] = useState('');
     const [showTagDropdown, setShowTagDropdown] = useState(false);
     const tagInputRef = useRef(null);
@@ -53,7 +49,6 @@ export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [
                      (!watchedTags || !watchedTags.find(t => t.name === tagString))
     );
     
-    
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef(null);
 
@@ -80,7 +75,6 @@ export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [
         return () => document.removeEventListener('keydown', handleEsc);
     }, [handleEsc]);
 
-    
     return (
         <div className={styles.employeeHeader}>
             <div className={styles.avatarContainer}>
@@ -90,7 +84,7 @@ export default function CompanyHeader({ onClose, onDelete, isNew, tagOptions = [
             <div className={styles.mainContent}>
                 <div className={styles.info}>
                     <h2 className={companyName === 'Название компании' ? styles.placeholder : ''}>{companyName}</h2>
-                    <span className={!watch('email') ? styles.placeholder : ''}>{companyEmail}</span>
+                    <span className={!companyEmail && !firstContactName ? styles.placeholder : ''}>{displaySubtext}</span>
                 </div>
                 
                 <div className={styles.tagsSectionHeader}>
