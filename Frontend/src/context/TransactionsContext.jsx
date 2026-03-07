@@ -17,7 +17,7 @@ export const useTransactions = () => {
     return useContext(TransactionsContext);
 };
 
-export const TransactionsProvider = ({ children }) => {
+export const TransactionsProvider = ({ children, authReady, isAuthenticated }) => {
     const safeArr = (x) => (Array.isArray(x) ? x : []);
     const sortByDateDesc = (list) =>
         safeArr(list).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -98,6 +98,8 @@ export const TransactionsProvider = ({ children }) => {
     const [counterparties, setCounterparties] = useState([]);
 
     useEffect(() => {
+        if (!authReady || !isAuthenticated) return;
+
         let mounted = true;
         const loadAll = async () => {
             const [
@@ -199,7 +201,7 @@ export const TransactionsProvider = ({ children }) => {
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [authReady, isAuthenticated]);
 
     useEffect(() => {
         try {

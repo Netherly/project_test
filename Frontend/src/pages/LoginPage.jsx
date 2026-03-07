@@ -160,10 +160,18 @@ function LoginPage() {
         localStorage.setItem("token", loginResp.token);
       }
 
-      const linkResp = await api.createTelegramLink();
-      setTelegramLink(linkResp?.link || "");
+      let tgLink = "";
+      try {
+        const linkResp = await api.createTelegramLink();
+        tgLink = linkResp?.link || "";
+      } catch (tgErr) {
+        console.warn("Не удалось создать ссылку Telegram после регистрации:", tgErr);
+      }
+      setTelegramLink(tgLink);
       setConfirmMessage(
-        "Профиль создан и вы вошли в систему. Для привязки Telegram нажмите ссылку ниже и нажмите Start в боте."
+        tgLink
+          ? "Профиль создан и вы вошли в систему. Для привязки Telegram нажмите ссылку ниже и нажмите Start в боте."
+          : "Профиль создан и вы вошли в систему. Ссылка для привязки Telegram временно недоступна."
       );
 
       setShowConfirm(true);

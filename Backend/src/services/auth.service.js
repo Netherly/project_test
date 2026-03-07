@@ -77,8 +77,19 @@ async function register({ full_name, birthDate, phone, email, login, password })
     console.warn('[log] register employee failed:', e?.message || e);
   }
 
-  const token = await createLinkTokenForEmployee(employee.id, 60);
-  const telegramLink = `https://t.me/gsse_assistant_bot?start=${token}`;
+  let telegramLink = null;
+  try {
+    const ticket = await createLinkTokenForEmployee(employee.id, 60);
+    const code = typeof ticket === 'string' ? ticket : ticket?.code;
+    if (code) {
+      const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
+        .trim()
+        .replace(/^@/, '');
+      telegramLink = `https://t.me/${botName}?start=${code}`;
+    }
+  } catch (e) {
+    console.warn('[auth] register telegram link skipped:', e?.message || e);
+  }
 
   return { employee, telegramLink };
 }

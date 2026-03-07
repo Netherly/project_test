@@ -24,7 +24,7 @@ cd Backend
 npm install
 ```
 
-Создайте `.env` (можно взять за основу `Backend/.env`) и укажите минимум:
+Создайте `.env` (можно взять за основу `Backend/.env.example`) и укажите минимум:
 ```
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DB?schema=public
 JWT_SECRET=your_secret
@@ -98,5 +98,13 @@ npm run lint
 ```
 
 ## Примечания
-- CORS для dev уже настроен на `http://localhost:5173` (см. `Backend/src/app.js`).
+- CORS берётся из `CORS_ORIGINS` (CSV) в backend env. Если переменная не задана, используется локальный dev fallback (`http://localhost:5173`, `http://127.0.0.1:5173`).
 - Telegram‑бот запускается только если задан `TELEGRAM_BOT_TOKEN` и не установлен `BOT_DISABLED=1`.
+
+## Deploy: test + prod на одном сервере
+- CI/CD разделён на два workflow.
+- `main` -> `.github/workflows/deploy-prod.yml` -> GitHub Environment `prod`.
+- `develop` -> `.github/workflows/deploy-test.yml` -> GitHub Environment `test`.
+- One-time настройка Nginx/SSL/Basic Auth описана в `docs/deployment-two-environments.md`.
+- Шаблоны Nginx: `deploy/nginx/prod.conf.template`, `deploy/nginx/test.conf.template`.
+- Скрипт bootstrap сервера: `deploy/setup-server.sh`.

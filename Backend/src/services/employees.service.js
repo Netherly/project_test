@@ -338,7 +338,9 @@ const EmployeesService = {
       try {
         const ttlMinutes = Number(payload?.telegramLinkTtlMinutes) || 60;
         const token = await createLinkTokenForEmployee(employee.id, ttlMinutes);
-        const botName = process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot';
+        const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
+          .trim()
+          .replace(/^@/, '');
         const link = `https://t.me/${botName}?start=${token.code}`;
         await prisma.employee.update({
           where: { id: employee.id },

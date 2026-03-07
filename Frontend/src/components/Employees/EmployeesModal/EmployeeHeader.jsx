@@ -9,6 +9,7 @@ export default function EmployeeHeader({ onClose, onDelete, tagOptions = [] }) {
     const fullName = watch('fullName')?.trim() || 'Имя сотрудника';
     const login = watch('login')?.trim() || 'Логин';
     const avatarSrc = watch('photoLink')?.trim() || defaultAvatar;
+    
     useEffect(() => {
         if (avatarSrc !== defaultAvatar) {
             try {

@@ -1,10 +1,16 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "./AccessSettings.css";
 import Sidebar from "../Sidebar.jsx";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import AccessModal from './AccessModal.jsx';
 import { modules, defaultRoles } from './RolesConfig.jsx';
+import {
+    fetchAccessControlEmployees,
+    fetchAccessControlConfig,
+    mergeEmployeesWithAssignments,
+    persistAccessControlFromLocalCache,
+} from '../../api/access-control.js';
 import { Plus, Lock, LockOpen } from 'lucide-react';
 
 export const ModulePermissionStatus = ({ rolePermissions, moduleKey }) => {
@@ -120,6 +126,66 @@ function AccessSettings() {
 
     const [employees, setEmployees] = useState(loadEmployees);
     const [roles, setRoles] = useState(loadRoles);
+    const [loadingRemote, setLoadingRemote] = useState(true);
+    const [remoteError, setRemoteError] = useState("");
+    const [forbidden, setForbidden] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        const hydrateFromBackend = async () => {
+            setLoadingRemote(true);
+            setRemoteError("");
+            setForbidden(false);
+            try {
+                const [employeesList, accessCfg] = await Promise.all([
+                    fetchAccessControlEmployees(),
+                    fetchAccessControlConfig(),
+                ]);
+                if (!active) return;
+
+                const effectiveRoles =
+                    Array.isArray(accessCfg?.roles) && accessCfg.roles.length > 0
+                        ? accessCfg.roles
+                        : defaultRoles;
+
+                const employeesWithAccess = mergeEmployeesWithAssignments(
+                    employeesList.map((e) => ({
+                        ...e,
+                        name: e.fullName || e.full_name || e.login || e.email || "Сотрудник",
+                    })),
+                    accessCfg?.assignments || []
+                ).map((e) => {
+                    const role = effectiveRoles.find((r) => r.id === e.roleId);
+                    return {
+                        ...e,
+                        roleName: role?.name || null,
+                        isProtected: Boolean(e.isProtected || e.roleId === "owner"),
+                    };
+                });
+
+                setEmployees(employeesWithAccess);
+                setRoles(effectiveRoles);
+
+                try {
+                    localStorage.setItem("employees", JSON.stringify(employeesWithAccess));
+                    localStorage.setItem("access-roles", JSON.stringify(effectiveRoles));
+                } catch {}
+            } catch (err) {
+                const msg = String(err?.message || "");
+                if (msg.includes("HTTP 403") || /Access denied/i.test(msg)) {
+                    setForbidden(true);
+                    setRemoteError("Недостаточно прав для раздела доступов");
+                } else {
+                    setRemoteError(msg || "Не удалось загрузить доступы из БД");
+                }
+                console.error("Ошибка загрузки доступов из БД:", err);
+            } finally {
+                if (active) setLoadingRemote(false);
+            }
+        };
+        hydrateFromBackend();
+        return () => { active = false; };
+    }, []);
 
     
     const isGeneralMode = subPage === 'general';
@@ -136,27 +202,9 @@ function AccessSettings() {
         const currentRoles = loadRoles();
         setRoles(currentRoles);
 
-        setEmployees(prev => prev.map(employee => {
-            const currentRole = currentRoles.find(role => role.id === employee.roleId);
-
-            if (currentRole) {
-                return {
-                    ...employee,
-                    roleName: currentRole.name
-                };
-            } else {
-                return {
-                    ...employee,
-                    roleId: null,
-                    roleName: null
-                };
-            }
-        }));
-
-        try {
-            const updatedEmployees = employees.map(employee => {
+        setEmployees(prev => {
+            const updatedEmployees = prev.map(employee => {
                 const currentRole = currentRoles.find(role => role.id === employee.roleId);
-
                 if (currentRole) {
                     return {
                         ...employee,
@@ -170,11 +218,16 @@ function AccessSettings() {
                     };
                 }
             });
-            localStorage.setItem('employees-roles', JSON.stringify(updatedEmployees));
-        } catch (error) {
-            console.error('Ошибка сохранения синхронизированных сотрудников:', error);
-        }
-    }, [employees]);
+
+            try {
+                localStorage.setItem('employees', JSON.stringify(updatedEmployees));
+            } catch (error) {
+                console.error('Ошибка сохранения синхронизированных сотрудников:', error);
+            }
+
+            return updatedEmployees;
+        });
+    }, []);
 
     const getProtectedRoles = () => ['owner']; 
 
@@ -218,7 +271,7 @@ function AccessSettings() {
         }
         const searchLower = searchTerm.toLowerCase().trim();
         return employees.filter(employee => {
-            const fullName = employee.name.toLowerCase();
+            const fullName = String(employee.name || employee.fullName || employee.full_name || '').toLowerCase();
             const searchWords = searchLower.split(/\s+/);
             return searchWords.every(word => fullName.includes(word));
         });
@@ -268,6 +321,9 @@ function AccessSettings() {
 
             try {
                 localStorage.setItem('employees', JSON.stringify(updatedEmployees));
+                persistAccessControlFromLocalCache().catch((e) => {
+                    console.error('Ошибка сохранения назначений ролей в БД:', e);
+                });
                 console.log(`Роль "${newRole.name}" назначена сотруднику.`);
             } catch (error) {
                 console.error('Ошибка сохранения назначения роли:', error);
@@ -287,11 +343,21 @@ function AccessSettings() {
                         <PageHeaderIcon pageName="Роли/Доступы" />
                         Доступы
                     </h1>
-                    <button className="access-button" onClick={handleAccessButtonClick}>
-                        <Plus size={20}/>Добавить
+                    <button
+                        className="access-button"
+                        onClick={forbidden || loadingRemote || !!remoteError ? undefined : handleAccessButtonClick}
+                        disabled={forbidden || loadingRemote || !!remoteError}
+                    >
+                        {forbidden ? null : <Plus size={20}/>}
+                        {forbidden ? "Нет доступа" : "Добавить"}
                     </button>
                 </header>
 
+                {loadingRemote && <div style={{ padding: 16 }}>Загрузка доступов...</div>}
+                {remoteError && !loadingRemote && (
+                    <div style={{ padding: 16, color: "#f87171" }}>{remoteError}</div>
+                )}
+                {!loadingRemote && !forbidden && !remoteError ? (
                 <div className="access-table-container">
                     <table className="access-table">
                         <thead>
@@ -367,10 +433,10 @@ function AccessSettings() {
                         </tbody>
                     </table>
                 </div>
-
+                ) : null}
                 
                 <AccessModal
-                    isOpen={isModalOpen}
+                    isOpen={!loadingRemote && !forbidden && !remoteError && isModalOpen}
                     onClose={handleCloseModal}
                     selectedEmployee={selectedEmployee}
                     isGeneralMode={isGeneralMode}
