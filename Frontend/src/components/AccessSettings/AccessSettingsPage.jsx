@@ -4,6 +4,7 @@ import "./AccessSettings.css";
 import Sidebar from "../Sidebar.jsx";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import AccessModal from './AccessModal.jsx';
+import NoAccessState from "../ui/NoAccessState.jsx";
 import { modules, defaultRoles } from './RolesConfig.jsx';
 import {
     fetchAccessControlEmployees,
@@ -11,6 +12,7 @@ import {
     mergeEmployeesWithAssignments,
     persistAccessControlFromLocalCache,
 } from '../../api/access-control.js';
+import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import { Plus, Lock, LockOpen } from 'lucide-react';
 
 export const ModulePermissionStatus = ({ rolePermissions, moduleKey }) => {
@@ -172,9 +174,9 @@ function AccessSettings() {
                 } catch {}
             } catch (err) {
                 const msg = String(err?.message || "");
-                if (msg.includes("HTTP 403") || /Access denied/i.test(msg)) {
+                if (isForbiddenError(err)) {
                     setForbidden(true);
-                    setRemoteError("Недостаточно прав для раздела доступов");
+                    setRemoteError("");
                 } else {
                     setRemoteError(msg || "Не удалось загрузить доступы из БД");
                 }
@@ -354,7 +356,14 @@ function AccessSettings() {
                 </header>
 
                 {loadingRemote && <div style={{ padding: 16 }}>Загрузка доступов...</div>}
-                {remoteError && !loadingRemote && (
+                {forbidden && !loadingRemote && (
+                    <NoAccessState
+                        title='Нет доступа к разделу "Доступы"'
+                        description="У вашей учетной записи недостаточно прав для просмотра и изменения ролей."
+                        note="Если доступ нужен, обратитесь к администратору."
+                    />
+                )}
+                {remoteError && !loadingRemote && !forbidden && (
                     <div style={{ padding: 16, color: "#f87171" }}>{remoteError}</div>
                 )}
                 {!loadingRemote && !forbidden && !remoteError ? (
