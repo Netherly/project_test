@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { fetchFields, withDefaults } from '../api/fields.js';
 import {
     fetchTransactions as apiFetchTransactions,
@@ -10,18 +10,49 @@ import { fetchAssets } from '../api/assets';
 import { fetchOrders } from '../api/orders';
 import { fetchClients } from '../api/clients';
 import { fetchEmployees } from '../api/employees';
+import {
+    CACHE_TTL,
+    hasDataChanged,
+    readCacheSnapshot,
+    readCachedValue,
+    writeCachedValue,
+} from '../utils/resourceCache';
 
 const TransactionsContext = createContext();
+
+const EMPTY_FINANCE_FIELDS = { articles: [], subarticles: [], subcategory: [] };
+
+const safeArr = (x) => (Array.isArray(x) ? x : []);
+const sortByDateDesc = (list) =>
+    safeArr(list).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+const sortOrdersList = (list) =>
+    safeArr(list).slice().sort((a, b) => {
+        const aSeq = a?.orderSequence ?? Number.POSITIVE_INFINITY;
+        const bSeq = b?.orderSequence ?? Number.POSITIVE_INFINITY;
+        if (aSeq !== bSeq) return aSeq - bSeq;
+        return String(a?.numberOrder ?? a?.id ?? '').localeCompare(
+            String(b?.numberOrder ?? b?.id ?? '')
+        );
+    });
+
+const getCachedFinanceFields = () => {
+    const cachedFields = readCachedValue('fieldsData', null);
+    if (!cachedFields) return EMPTY_FINANCE_FIELDS;
+
+    try {
+        const allFields = withDefaults(cachedFields);
+        return allFields.financeFields || EMPTY_FINANCE_FIELDS;
+    } catch (_) {
+        return EMPTY_FINANCE_FIELDS;
+    }
+};
 
 export const useTransactions = () => {
     return useContext(TransactionsContext);
 };
 
 export const TransactionsProvider = ({ children, authReady, isAuthenticated }) => {
-    const safeArr = (x) => (Array.isArray(x) ? x : []);
-    const sortByDateDesc = (list) =>
-        safeArr(list).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-
     const normalizeTransaction = (trx) => {
         if (!trx || typeof trx !== 'object') return trx;
         const accountId =
@@ -77,123 +108,250 @@ export const TransactionsProvider = ({ children, authReady, isAuthenticated }) =
         };
     };
 
-    const readLocalList = (key) => {
-        try {
-            const saved = localStorage.getItem(key);
-            const parsed = JSON.parse(saved);
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (_) {
-            return [];
-        }
+    const buildCounterparties = (employeesData, clientsData) => {
+        const employeeCounterparties = safeArr(employeesData).map((emp) => {
+            const name = emp?.full_name || emp?.fullName || '';
+            return {
+                id: emp?.id,
+                type: 'employee',
+                name,
+                requisites: buildRequisitesMap(emp),
+            };
+        });
+
+        const clientCounterparties = safeArr(clientsData).map((client) => {
+            const name = client?.name || client?.full_name || '';
+            const paymentMap = buildPaymentDetailsMap(client);
+            const baseMap = buildRequisitesMap(client);
+            return {
+                id: client?.id,
+                type: 'client',
+                name,
+                requisites: paymentMap || baseMap,
+            };
+        });
+
+        return [...employeeCounterparties, ...clientCounterparties]
+            .filter((c) => c.id && c.name)
+            .sort((a, b) => a.name.localeCompare(b.name));
     };
 
-    const [transactions, setTransactions] = useState([]);
-    const [assets, setAssets] = useState([]);
-    const [financeFields, setFinanceFields] = useState({ articles: [], subarticles: [], subcategory: [] });
+    const [transactions, setTransactions] = useState(() =>
+        sortByDateDesc(readCachedValue('transactionsData', []))
+    );
+    const [assets, setAssets] = useState(() => safeArr(readCachedValue('assetsData', [])));
+    const [financeFields, setFinanceFields] = useState(() => getCachedFinanceFields());
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isViewEditModalOpen, setIsViewEditModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [initialDataForModal, setInitialDataForModal] = useState(null);
-    const [orders, setOrders] = useState([]);
-    const [counterparties, setCounterparties] = useState([]);
+    const [orders, setOrders] = useState(() =>
+        sortOrdersList(readCachedValue('ordersData', []))
+    );
+    const [counterparties, setCounterparties] = useState(() =>
+        safeArr(readCachedValue('counterpartiesData', []))
+    );
+    const cacheWriteStateRef = useRef({
+        transactions: false,
+        assets: false,
+        orders: false,
+        counterparties: false,
+    });
 
     useEffect(() => {
         if (!authReady || !isAuthenticated) return;
 
         let mounted = true;
         const loadAll = async () => {
-            const [
-                fieldsRes,
-                transactionsRes,
-                assetsRes,
-                ordersRes,
-                employeesRes,
-                clientsRes,
-            ] = await Promise.allSettled([
-                fetchFields(),
-                apiFetchTransactions({ page: 1, pageSize: 1000 }),
-                fetchAssets(),
-                fetchOrders(),
-                fetchEmployees(),
-                fetchClients(),
-            ]);
+            const fieldsSnapshot = readCacheSnapshot('fieldsData', { ttlMs: CACHE_TTL.fields });
+            const transactionsSnapshot = readCacheSnapshot('transactionsData', {
+                fallback: [],
+                ttlMs: CACHE_TTL.transactions,
+            });
+            const assetsSnapshot = readCacheSnapshot('assetsData', {
+                fallback: [],
+                ttlMs: CACHE_TTL.assets,
+            });
+            const ordersSnapshot = readCacheSnapshot('ordersData', {
+                fallback: [],
+                ttlMs: CACHE_TTL.lists,
+            });
+            const employeesSnapshot = readCacheSnapshot('employees', {
+                fallback: [],
+                ttlMs: CACHE_TTL.lists,
+            });
+            const clientsSnapshot = readCacheSnapshot('clientsData', {
+                fallback: [],
+                ttlMs: CACHE_TTL.lists,
+            });
+            const counterpartiesSnapshot = readCacheSnapshot('counterpartiesData', {
+                fallback: [],
+                ttlMs: CACHE_TTL.lists,
+            });
+
+            if (fieldsSnapshot.hasData) {
+                const cachedFinanceFields = (() => {
+                    try {
+                        return withDefaults(fieldsSnapshot.data).financeFields || EMPTY_FINANCE_FIELDS;
+                    } catch (_) {
+                        return EMPTY_FINANCE_FIELDS;
+                    }
+                })();
+                setFinanceFields((prev) =>
+                    hasDataChanged(prev, cachedFinanceFields) ? cachedFinanceFields : prev
+                );
+            }
+
+            if (transactionsSnapshot.hasData) {
+                const cachedTransactions = sortByDateDesc(
+                    safeArr(transactionsSnapshot.data).map(normalizeTransaction)
+                );
+                setTransactions((prev) =>
+                    hasDataChanged(prev, cachedTransactions) ? cachedTransactions : prev
+                );
+            }
+
+            if (assetsSnapshot.hasData) {
+                const cachedAssets = safeArr(assetsSnapshot.data);
+                setAssets((prev) => (hasDataChanged(prev, cachedAssets) ? cachedAssets : prev));
+            }
+
+            if (ordersSnapshot.hasData) {
+                const cachedOrders = sortOrdersList(ordersSnapshot.data);
+                setOrders((prev) => (hasDataChanged(prev, cachedOrders) ? cachedOrders : prev));
+            }
+
+            if (counterpartiesSnapshot.hasData) {
+                const cachedCounterparties = safeArr(counterpartiesSnapshot.data);
+                setCounterparties((prev) =>
+                    hasDataChanged(prev, cachedCounterparties) ? cachedCounterparties : prev
+                );
+            }
+
+            const requests = [];
+
+            if (!fieldsSnapshot.isFresh) {
+                requests.push(['fields', fetchFields()]);
+            }
+            if (!transactionsSnapshot.isFresh) {
+                requests.push(['transactions', apiFetchTransactions({ page: 1, pageSize: 1000 })]);
+            }
+            if (!assetsSnapshot.isFresh) {
+                requests.push(['assets', fetchAssets()]);
+            }
+            if (!ordersSnapshot.isFresh) {
+                requests.push(['orders', fetchOrders()]);
+            }
+            if (!employeesSnapshot.isFresh) {
+                requests.push(['employees', fetchEmployees()]);
+            }
+            if (!clientsSnapshot.isFresh) {
+                requests.push(['clients', fetchClients()]);
+            }
+
+            if (requests.length === 0) {
+                if (!counterpartiesSnapshot.hasData) {
+                    const builtFromCache = buildCounterparties(
+                        safeArr(employeesSnapshot.data),
+                        safeArr(clientsSnapshot.data)
+                    );
+                    setCounterparties((prev) =>
+                        hasDataChanged(prev, builtFromCache) ? builtFromCache : prev
+                    );
+                    writeCachedValue('counterpartiesData', builtFromCache);
+                }
+                return;
+            }
+
+            const settled = await Promise.allSettled(requests.map(([, promise]) => promise));
 
             if (!mounted) return;
 
-            if (fieldsRes.status === 'fulfilled') {
+            const resultMap = new Map(
+                requests.map(([key], index) => [key, settled[index]])
+            );
+
+            const fieldsRes = resultMap.get('fields');
+            if (fieldsRes?.status === 'fulfilled') {
                 const allFields = withDefaults(fieldsRes.value);
-                setFinanceFields(allFields.financeFields || { articles: [], subarticles: [], subcategory: [] });
-            } else {
-                console.error("Ошибка при загрузке полей финансов:", fieldsRes.reason);
+                const nextFinanceFields = allFields.financeFields || EMPTY_FINANCE_FIELDS;
+                setFinanceFields((prev) =>
+                    hasDataChanged(prev, nextFinanceFields) ? nextFinanceFields : prev
+                );
+                writeCachedValue('fieldsData', fieldsRes.value);
+            } else if (fieldsRes?.status === 'rejected') {
+                console.error('Ошибка при загрузке полей финансов:', fieldsRes.reason);
             }
 
-            if (transactionsRes.status === 'fulfilled') {
+            const transactionsRes = resultMap.get('transactions');
+            if (transactionsRes?.status === 'fulfilled') {
                 const raw = transactionsRes.value;
                 const items = Array.isArray(raw?.items) ? raw.items : safeArr(raw);
                 const normalized = sortByDateDesc(items.map(normalizeTransaction));
-                setTransactions(normalized);
-            } else {
-                console.error("Ошибка при загрузке транзакций:", transactionsRes.reason);
-                setTransactions(sortByDateDesc(readLocalList("transactionsData")));
+                setTransactions((prev) =>
+                    hasDataChanged(prev, normalized) ? normalized : prev
+                );
+                writeCachedValue('transactionsData', normalized);
+            } else if (transactionsRes?.status === 'rejected') {
+                console.error('Ошибка при загрузке транзакций:', transactionsRes.reason);
             }
 
-            if (assetsRes.status === 'fulfilled') {
+            const assetsRes = resultMap.get('assets');
+            if (assetsRes?.status === 'fulfilled') {
                 const nextAssets = safeArr(assetsRes.value);
-                setAssets(nextAssets);
-            } else {
-                console.error("Ошибка при загрузке активов:", assetsRes.reason);
-                setAssets(readLocalList("assetsData"));
+                setAssets((prev) => (hasDataChanged(prev, nextAssets) ? nextAssets : prev));
+                writeCachedValue('assetsData', nextAssets);
+            } else if (assetsRes?.status === 'rejected') {
+                console.error('Ошибка при загрузке активов:', assetsRes.reason);
             }
 
-            if (ordersRes.status === 'fulfilled') {
+            const ordersRes = resultMap.get('orders');
+            if (ordersRes?.status === 'fulfilled') {
                 const rawOrders = ordersRes.value;
                 const list = Array.isArray(rawOrders?.orders) ? rawOrders.orders : safeArr(rawOrders);
-                const sorted = list.slice().sort((a, b) => {
-                    const aSeq = a?.orderSequence ?? Number.POSITIVE_INFINITY;
-                    const bSeq = b?.orderSequence ?? Number.POSITIVE_INFINITY;
-                    if (aSeq !== bSeq) return aSeq - bSeq;
-                    return String(a?.numberOrder ?? a?.id ?? '').localeCompare(
-                        String(b?.numberOrder ?? b?.id ?? '')
-                    );
-                });
-                setOrders(sorted);
-            } else {
-                console.error("Ошибка при загрузке заказов:", ordersRes.reason);
-                const fallback = readLocalList("ordersData");
-                setOrders(fallback);
+                const sorted = sortOrdersList(list);
+                setOrders((prev) => (hasDataChanged(prev, sorted) ? sorted : prev));
+                writeCachedValue('ordersData', sorted);
+            } else if (ordersRes?.status === 'rejected') {
+                console.error('Ошибка при загрузке заказов:', ordersRes.reason);
             }
 
+            const employeesRes = resultMap.get('employees');
+            const clientsRes = resultMap.get('clients');
+
             const employeesData =
-                employeesRes.status === 'fulfilled' ? safeArr(employeesRes.value) : [];
+                employeesRes?.status === 'fulfilled'
+                    ? safeArr(employeesRes.value)
+                    : safeArr(employeesSnapshot.data);
             const clientsData =
-                clientsRes.status === 'fulfilled' ? safeArr(clientsRes.value) : [];
+                clientsRes?.status === 'fulfilled'
+                    ? safeArr(clientsRes.value)
+                    : safeArr(clientsSnapshot.data);
 
-            const employeeCounterparties = employeesData.map((emp) => {
-                const name = emp?.full_name || emp?.fullName || '';
-                return {
-                    id: emp?.id,
-                    type: 'employee',
-                    name,
-                    requisites: buildRequisitesMap(emp),
-                };
-            });
+            if (employeesRes?.status === 'fulfilled') {
+                writeCachedValue('employees', employeesData);
+            } else if (employeesRes?.status === 'rejected') {
+                console.error('Ошибка при загрузке сотрудников для контрагентов:', employeesRes.reason);
+            }
 
-            const clientCounterparties = clientsData.map((client) => {
-                const name = client?.name || client?.full_name || '';
-                const paymentMap = buildPaymentDetailsMap(client);
-                const baseMap = buildRequisitesMap(client);
-                return {
-                    id: client?.id,
-                    type: 'client',
-                    name,
-                    requisites: paymentMap || baseMap,
-                };
-            });
+            if (clientsRes?.status === 'fulfilled') {
+                writeCachedValue('clientsData', clientsData);
+            } else if (clientsRes?.status === 'rejected') {
+                console.error('Ошибка при загрузке клиентов для контрагентов:', clientsRes.reason);
+            }
 
-            const allCounterparties = [...employeeCounterparties, ...clientCounterparties]
-                .filter((c) => c.id && c.name)
-                .sort((a, b) => a.name.localeCompare(b.name));
-            setCounterparties(allCounterparties);
+            const shouldRefreshCounterparties =
+                !counterpartiesSnapshot.isFresh ||
+                employeesRes?.status === 'fulfilled' ||
+                clientsRes?.status === 'fulfilled';
+
+            if (shouldRefreshCounterparties) {
+                const allCounterparties = buildCounterparties(employeesData, clientsData);
+                setCounterparties((prev) =>
+                    hasDataChanged(prev, allCounterparties) ? allCounterparties : prev
+                );
+                writeCachedValue('counterpartiesData', allCounterparties);
+            }
         };
 
         loadAll();
@@ -204,27 +362,42 @@ export const TransactionsProvider = ({ children, authReady, isAuthenticated }) =
     }, [authReady, isAuthenticated]);
 
     useEffect(() => {
-        try {
-            localStorage.setItem("transactionsData", JSON.stringify(transactions));
-        } catch (_) {}
+        if (!cacheWriteStateRef.current.transactions) {
+            cacheWriteStateRef.current.transactions = true;
+            return;
+        }
+        writeCachedValue('transactionsData', transactions);
     }, [transactions]);
 
     useEffect(() => {
-        try {
-            localStorage.setItem("assetsData", JSON.stringify(assets));
-        } catch (_) {}
+        if (!cacheWriteStateRef.current.assets) {
+            cacheWriteStateRef.current.assets = true;
+            return;
+        }
+        writeCachedValue('assetsData', assets);
     }, [assets]);
 
     useEffect(() => {
-        try {
-            localStorage.setItem("ordersData", JSON.stringify(orders));
-        } catch (_) {}
+        if (!cacheWriteStateRef.current.orders) {
+            cacheWriteStateRef.current.orders = true;
+            return;
+        }
+        writeCachedValue('ordersData', orders);
     }, [orders]);
+
+    useEffect(() => {
+        if (!cacheWriteStateRef.current.counterparties) {
+            cacheWriteStateRef.current.counterparties = true;
+            return;
+        }
+        writeCachedValue('counterpartiesData', counterparties);
+    }, [counterparties]);
 
     const refreshAssets = async () => {
         try {
             const nextAssets = safeArr(await fetchAssets());
-            setAssets(nextAssets);
+            setAssets((prev) => (hasDataChanged(prev, nextAssets) ? nextAssets : prev));
+            writeCachedValue('assetsData', nextAssets);
         } catch (error) {
             console.error("Ошибка при обновлении активов:", error);
         }
@@ -237,32 +410,15 @@ export const TransactionsProvider = ({ children, authReady, isAuthenticated }) =
                 fetchClients(),
             ]);
 
-            const employeeCounterparties = safeArr(employeesData).map((emp) => {
-                const name = emp?.full_name || emp?.fullName || '';
-                return {
-                    id: emp?.id,
-                    type: 'employee',
-                    name,
-                    requisites: buildRequisitesMap(emp),
-                };
-            });
-
-            const clientCounterparties = safeArr(clientsData).map((client) => {
-                const name = client?.name || client?.full_name || '';
-                const paymentMap = buildPaymentDetailsMap(client);
-                const baseMap = buildRequisitesMap(client);
-                return {
-                    id: client?.id,
-                    type: 'client',
-                    name,
-                    requisites: paymentMap || baseMap,
-                };
-            });
-
-            const allCounterparties = [...employeeCounterparties, ...clientCounterparties]
-                .filter((c) => c.id && c.name)
-                .sort((a, b) => a.name.localeCompare(b.name));
-            setCounterparties(allCounterparties);
+            const safeEmployees = safeArr(employeesData);
+            const safeClients = safeArr(clientsData);
+            const allCounterparties = buildCounterparties(safeEmployees, safeClients);
+            writeCachedValue('employees', safeEmployees);
+            writeCachedValue('clientsData', safeClients);
+            setCounterparties((prev) =>
+                hasDataChanged(prev, allCounterparties) ? allCounterparties : prev
+            );
+            writeCachedValue('counterpartiesData', allCounterparties);
         } catch (error) {
             console.error("Ошибка при обновлении контрагентов:", error);
         }
@@ -272,15 +428,9 @@ export const TransactionsProvider = ({ children, authReady, isAuthenticated }) =
         try {
             const rawOrders = await fetchOrders();
             const list = Array.isArray(rawOrders?.orders) ? rawOrders.orders : safeArr(rawOrders);
-            const sorted = list.slice().sort((a, b) => {
-                const aSeq = a?.orderSequence ?? Number.POSITIVE_INFINITY;
-                const bSeq = b?.orderSequence ?? Number.POSITIVE_INFINITY;
-                if (aSeq !== bSeq) return aSeq - bSeq;
-                return String(a?.numberOrder ?? a?.id ?? '').localeCompare(
-                    String(b?.numberOrder ?? b?.id ?? '')
-                );
-            });
-            setOrders(sorted);
+            const sorted = sortOrdersList(list);
+            setOrders((prev) => (hasDataChanged(prev, sorted) ? sorted : prev));
+            writeCachedValue('ordersData', sorted);
         } catch (error) {
             console.error("Ошибка при обновлении заказов:", error);
         }

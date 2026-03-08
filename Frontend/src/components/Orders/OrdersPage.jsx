@@ -22,6 +22,12 @@ import {
   deleteOrder as apiDeleteOrder,
 } from "../../api/orders";
 import { isForbiddenError } from "../../utils/isForbiddenError.js";
+import {
+  CACHE_TTL,
+  hasDataChanged,
+  readCacheSnapshot,
+  writeCachedValue,
+} from "../../utils/resourceCache";
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
@@ -118,6 +124,7 @@ const stageToApi = {
 };
 
 const apiToStage = Object.fromEntries(Object.entries(stageToApi).map(([k, v]) => [v, k]));
+const ORDER_PAGE_CACHE_KEY = "ordersPageData";
 
 const urgencyToApi = { "1": "one", "2": "two", "3": "three", "4": "four" };
 const apiToUrgency = { one: "1", two: "2", three: "3", four: "4" };
@@ -437,11 +444,25 @@ const OrdersPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Состояние
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState(() => {
+    const pageSnapshot = readCacheSnapshot(ORDER_PAGE_CACHE_KEY, { fallback: [] });
+    if (pageSnapshot.hasData) {
+      return Array.isArray(pageSnapshot.data) ? pageSnapshot.data : [];
+    }
+
+    const sharedSnapshot = readCacheSnapshot("ordersData", { fallback: [] });
+    const cachedSharedOrders = Array.isArray(sharedSnapshot.data) ? sharedSnapshot.data : [];
+    return cachedSharedOrders.map(mapOrderFromApi);
+  });
+  const [loading, setLoading] = useState(
+    () =>
+      !readCacheSnapshot(ORDER_PAGE_CACHE_KEY, { fallback: [] }).hasData &&
+      !readCacheSnapshot("ordersData", { fallback: [] }).hasData
+  );
   const [error, setError] = useState("");
   const [forbidden, setForbidden] = useState(false);
   const [journalEntries, setJournalEntries] = useState([]);
+  const cacheWriteStateRef = useRef({ orders: false });
   
   // Видимость стадий
   const [visibleOrderStages, setVisibleOrderStages] = useState(() => {
@@ -469,20 +490,52 @@ const OrdersPage = () => {
 
   // Загрузка данных
   useEffect(() => {
+    const pageSnapshot = readCacheSnapshot(ORDER_PAGE_CACHE_KEY, {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+    const sharedSnapshot = readCacheSnapshot("ordersData", {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+    const cachedOrders = pageSnapshot.hasData
+      ? Array.isArray(pageSnapshot.data)
+        ? pageSnapshot.data
+        : []
+      : Array.isArray(sharedSnapshot.data)
+      ? sharedSnapshot.data.map(mapOrderFromApi)
+      : [];
+
+    if (pageSnapshot.hasData || sharedSnapshot.hasData) {
+      setOrders((prev) => (hasDataChanged(prev, cachedOrders) ? cachedOrders : prev));
+      setLoading(false);
+      if (pageSnapshot.isFresh || sharedSnapshot.isFresh) {
+        setError("");
+        setForbidden(false);
+      }
+    }
+
     const load = async () => {
-      setLoading(true);
+      if (!pageSnapshot.hasData && !sharedSnapshot.hasData) {
+        setLoading(true);
+      }
       setError("");
       setForbidden(false);
       try {
         const data = await fetchOrders();
         const apiOrders = data?.orders || data || [];
-        setOrders(apiOrders.map(mapOrderFromApi));
+        const nextOrders = apiOrders.map(mapOrderFromApi);
+        writeCachedValue("ordersData", apiOrders);
+        writeCachedValue(ORDER_PAGE_CACHE_KEY, nextOrders);
+        setOrders((prev) => (hasDataChanged(prev, nextOrders) ? nextOrders : prev));
       } catch (e) {
         console.error("Fetch orders error", e);
         if (isForbiddenError(e)) {
           setForbidden(true);
           setError("");
-          setOrders([]);
+          if (!pageSnapshot.hasData && !sharedSnapshot.hasData) {
+            setOrders([]);
+          }
         } else {
           setError(e?.message || "Не удалось загрузить заказы");
         }
@@ -490,11 +543,22 @@ const OrdersPage = () => {
         setLoading(false);
       }
     };
-    load();
+
+    if (!pageSnapshot.isFresh && !sharedSnapshot.isFresh) {
+      load();
+    }
 
     const allEntries = getLogEntries();
     setJournalEntries(allEntries);
   }, []);
+
+  useEffect(() => {
+    if (!cacheWriteStateRef.current.orders) {
+      cacheWriteStateRef.current.orders = true;
+      return;
+    }
+    writeCachedValue(ORDER_PAGE_CACHE_KEY, orders);
+  }, [orders]);
 
   // --- Handlers ---
 

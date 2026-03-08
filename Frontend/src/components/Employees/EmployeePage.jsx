@@ -11,6 +11,12 @@ import {
 } from "../../api/employees";
 import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
+import {
+  CACHE_TTL,
+  hasDataChanged,
+  readCacheSnapshot,
+  writeCachedValue,
+} from "../../utils/resourceCache";
 
 const formatDate = (dateString) => {
   if (!dateString) return "";
@@ -55,6 +61,8 @@ const EmployeeCard = ({ employee, onClick }) => {
         src={avatar}
         alt={employee.fullName || employee.full_name || "Сотрудник"}
         className="card-avatar"
+        loading="lazy"
+        decoding="async"
       />
       <div className="card-details">
         <div className="card-header">
@@ -98,29 +106,61 @@ const EmployeePage = () => {
   const navigate = useNavigate();
   const { currencies = [] } = useFields();
   
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState(
+    () => readCacheSnapshot("employees", { fallback: [] }).data || []
+  );
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(
+    () => !readCacheSnapshot("employees", { fallback: [] }).hasData
+  );
   const [error, setError] = useState("");
   const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+    const snapshot = readCacheSnapshot("employees", {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+
+    if (snapshot.hasData) {
+      const cachedEmployees = Array.isArray(snapshot.data) ? snapshot.data : [];
+      setEmployees((prev) =>
+        hasDataChanged(prev, cachedEmployees) ? cachedEmployees : prev
+      );
+      setLoading(false);
+      if (snapshot.isFresh) {
+        setError("");
+        setForbidden(false);
+        return () => {
+          mounted = false;
+        };
+      }
+    }
+
     (async () => {
-      setLoading(true);
+      if (!snapshot.hasData) {
+        setLoading(true);
+      }
       setError("");
       setForbidden(false);
       try {
         const list = await apiFetchEmployees();
         if (!mounted) return;
-        setEmployees(list);
+        const nextEmployees = Array.isArray(list) ? list : [];
+        writeCachedValue("employees", nextEmployees);
+        setEmployees((prev) =>
+          hasDataChanged(prev, nextEmployees) ? nextEmployees : prev
+        );
       } catch (e) {
         console.warn("API /employees недоступен:", e?.message || e);
         if (!mounted) return;
         if (isForbiddenError(e)) {
           setForbidden(true);
           setError("");
-          setEmployees([]);
+          if (!snapshot.hasData) {
+            setEmployees([]);
+          }
         } else {
           setError("Не удалось получить данные с сервера.");
         }

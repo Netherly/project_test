@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { fetchFields } from "../api/fields";
+import {
+  CACHE_TTL,
+  hasDataChanged,
+  readCacheSnapshot,
+  writeCachedValue,
+} from "../utils/resourceCache";
 
 export const FieldsContext = createContext();
 
@@ -12,38 +18,63 @@ export const useFields = () => {
 };
 
 export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
-  const [fields, setFields] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [fields, setFields] = useState(() =>
+    readCacheSnapshot("fieldsData").data
+  );
+  const [loading, setLoading] = useState(() => !readCacheSnapshot("fieldsData").hasData);
   const [error, setError] = useState(null);
 
-  // Загрузка полей
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
 
+    const snapshot = readCacheSnapshot("fieldsData", { ttlMs: CACHE_TTL.fields });
+    if (snapshot.hasData) {
+      setFields((prev) => (hasDataChanged(prev, snapshot.data) ? snapshot.data : prev));
+      setLoading(false);
+      if (snapshot.isFresh) {
+        setError(null);
+        return;
+      }
+    }
+
+    let mounted = true;
+
     const loadFields = async () => {
       try {
-        setLoading(true);
+        if (!snapshot.hasData) {
+          setLoading(true);
+        }
         setError(null);
         const data = await fetchFields();
-        setFields(data);
+        if (!mounted) return;
+        setFields((prev) => (hasDataChanged(prev, data) ? data : prev));
+        writeCachedValue("fieldsData", data);
       } catch (err) {
+        if (!mounted) return;
         console.error("Ошибка загрузки полей:", err);
         setError(err?.message || "Не удалось загрузить поля");
-        setFields(null);
+        if (!snapshot.hasData) {
+          setFields(null);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     loadFields();
+
+    return () => {
+      mounted = false;
+    };
   }, [authReady, isAuthenticated]);
 
-  // ручная обнова полей
   const refreshFields = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await fetchFields();
-      setFields(data);
+      setFields((prev) => (hasDataChanged(prev, data) ? data : prev));
+      writeCachedValue("fieldsData", data);
     } catch (err) {
       console.error("Ошибка обновления полей:", err);
       setError(err?.message || "Не удалось обновить поля");
