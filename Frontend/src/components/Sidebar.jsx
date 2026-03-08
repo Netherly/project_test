@@ -89,17 +89,28 @@ const Sidebar = () => {
   const [activeMenu, setActiveMenu] = useState(null);
   const leaveTimerRef = useRef(null); 
 
- 
-  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "" });
+  
+  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "", photoLink: null });
+  
   const loadProfile = useCallback(async () => {
     try {
       const p = await ProfileAPI.get();
-      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "" });
+      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "", photoLink: p.photoLink || null });
     } catch (e) {
       console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
     }
   }, []);
+  
   useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  
+  useEffect(() => {
+    const handlePhotoUpdate = (e) => {
+        setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
+    };
+    window.addEventListener("profile:photo-updated", handlePhotoUpdate);
+    return () => window.removeEventListener("profile:photo-updated", handlePhotoUpdate);
+  }, []);
 
   const handleAvatarEnter = useCallback(() => { loadProfile(); }, [loadProfile]);
 
@@ -139,7 +150,6 @@ const Sidebar = () => {
     { name: "Настройки", menu: "settings", iconActive: SettingsWebm, iconInactive: SettingsWebm },
   ];
 
-  
   const handleMouseEnter = (menuName) => {
     if (leaveTimerRef.current) {
       clearTimeout(leaveTimerRef.current);
@@ -160,7 +170,6 @@ const Sidebar = () => {
     [location.pathname]
   );
 
-  
   const handleParentClick = (menuKey) => {
     const firstItem = submenus[menuKey]?.[0];
     if (firstItem && firstItem.path) {
@@ -221,7 +230,8 @@ const Sidebar = () => {
     <>
       <nav className="sidebar">
         <div className="avatar-link" onMouseEnter={handleAvatarEnter}>
-          <img src="/avatar.jpg" alt="Profile" className="avatar-sidebar" />
+          {/* ОБНОВЛЕНО: Используем profile.photoLink */}
+          <img src={profile.photoLink || "/avatar.jpg"} alt="Profile" className="avatar-sidebar" />
           <div className="avatar-dropdown">
             <div className="avatar-info">
               <div className="avatar-name">{profile.nickname || "Nickname"}</div>

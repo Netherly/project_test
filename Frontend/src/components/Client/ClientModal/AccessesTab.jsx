@@ -3,7 +3,6 @@ import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
 import { X, Plus, GripVertical, Move, Check } from 'lucide-react';
 import './AccessesTab.css';
 
-
 import {
   DndContext,
   closestCenter,
@@ -19,7 +18,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
 
 const SortableAccessRow = ({ 
   item, 
@@ -56,12 +54,6 @@ const SortableAccessRow = ({
       style={style}
       className={`requisites-row ${isDragging ? 'dragging' : ''}`}
     >
-      
-      <div className={`requisites-cell drag-cell ${isSortMode ? 'visible' : ''}`} {...attributes} {...listeners}>
-        <GripVertical size={18} className="drag-icon" />
-      </div>
-
-      
       <div className="requisites-cell">
         <Controller
           name={`${fieldArrayName}[${index}].name`}
@@ -79,7 +71,6 @@ const SortableAccessRow = ({
         />
       </div>
 
-     
       <div className="requisites-cell">
         <Controller
           name={`${fieldArrayName}[${index}].login`}
@@ -97,7 +88,6 @@ const SortableAccessRow = ({
         />
       </div>
 
-     
       <div className="requisites-cell">
         <Controller
           name={`${fieldArrayName}[${index}].password`}
@@ -115,7 +105,6 @@ const SortableAccessRow = ({
         />
       </div>
 
-      
       <div className="requisites-cell">
         <Controller
           name={`${fieldArrayName}[${index}].description`}
@@ -133,21 +122,30 @@ const SortableAccessRow = ({
         />
       </div>
 
-      
       <div className="requisites-cell action-cell">
-        <button
-          type="button"
-          className="requisites-remove-btn" 
-          onClick={() => remove(index)}
-          title="Удалить доступ"
-        >
-          <X size={18} color='red' />
-        </button>
+        {isSortMode ? (
+          <div 
+            className="drag-handle-right" 
+            {...attributes} 
+            {...listeners}
+            title="Перетащить"
+          >
+            <GripVertical size={18} className="drag-icon" />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="requisites-remove-btn" 
+            onClick={() => remove(index)}
+            title="Удалить доступ"
+          >
+            <X size={18} color='red' />
+          </button>
+        )}
       </div>
     </div>
   );
 };
-
 
 export default function AccessesTab() {
   const { control } = useFormContext();
@@ -164,13 +162,11 @@ export default function AccessesTab() {
     e.target.style.height = `${e.target.scrollHeight}px`;
   }, []);
 
-  
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (active && over && active.id !== over.id) {
@@ -185,15 +181,12 @@ export default function AccessesTab() {
       <div className="employee-requisites-table"> 
         
         <div className="requisites-row header-row">
-          <div className={`requisites-cell drag-cell ${isSortMode ? 'visible' : ''}`}></div>
-
           <div className="header-content-wrapper"> 
             <div className="requisites-cell">Название</div>
             <div className="requisites-cell">Логин</div>
             <div className="requisites-cell">Пароль</div>
             <div className="requisites-cell">Описание</div>
           </div>
-          
           
           <div className="requisites-cell action-cell header-action">
             {fields.length > 1 && (
@@ -209,7 +202,6 @@ export default function AccessesTab() {
           </div>
         </div>
 
-        
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={fields} strategy={verticalListSortingStrategy}>
             {fields.map((item, index) => (
@@ -228,7 +220,6 @@ export default function AccessesTab() {
         </DndContext>
       </div>
 
-      
       <button
         type="button"
         className="add-requisites-btn" 

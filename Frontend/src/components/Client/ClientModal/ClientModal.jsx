@@ -13,7 +13,6 @@ import FinancesTab from "./FinancesTab";
 import AccessesTab from "./AccessesTab";
 import ChatPanel from "./ChatPanel";
 import ActionsBar from "./ActionsBar";
-import AddCompanyModal from "../AddCompanyForm";
 import ImagePreviewModal from "../ImagePreviewModal";
 
 import "../../../styles/ClientModal.css";
@@ -36,6 +35,7 @@ export default function ClientModal({
   const isNew = !safeClient.id;
 
   const { refreshFields } = useFields();
+
   const [fieldOptions, setFieldOptions] = useState({
     categories: [],
     sources: [],
@@ -81,6 +81,7 @@ export default function ClientModal({
         normalized[group][fieldName] = list;
         const payload = serializeForSave(normalized);
         await saveFields(payload);
+        
         await loadFields();
         if (refreshFields) await refreshFields();
       }
@@ -90,7 +91,6 @@ export default function ClientModal({
   };
 
   const [activeTab, setActiveTab] = useState(isNew ? "info" : "summary");
-  const [showCompany, setShowCompany] = useState(false);
   const [showImage, setShowImage] = useState(false);
   const [closing, setClosing] = useState(false);
   const [formErrors, setFormErrors] = useState(null);
@@ -114,6 +114,21 @@ export default function ClientModal({
   });
 
   const { handleSubmit, getValues, setValue, reset, formState: { isDirty } } = methods;
+
+  
+  const handleAddCompanyDirect = async (companyName) => {
+    const clientFullName = getValues('full_name') || getValues('name') || 'Новый клиент';
+    const data = {
+      name: companyName,
+      firstContactName: clientFullName, 
+    };
+    try {
+      const created = await onAddCompany(data);
+      setValue("company_id", created.id, { shouldDirty: true });
+    } catch (e) {
+      console.error("Ошибка при прямом создании компании:", e);
+    }
+  };
 
   const errorMap = {
     info: ["name", "company_id", "category", "source", "tags"],
@@ -181,7 +196,7 @@ export default function ClientModal({
                   sources={fieldOptions.sources}         
                   businesses={fieldOptions.businesses}   
                   tagOptions={fieldOptions.tags}         
-                  onAddCompany={() => setShowCompany(true)}
+                  onAddCompany={handleAddCompanyDirect} 
                   onAddNewField={handleAddNewField}
                 />
               )}
@@ -226,17 +241,8 @@ export default function ClientModal({
         )}
       </div>
 
-      {showCompany && (
-        <AddCompanyModal
-          onCreate={async (data) => {
-            const created = await onAddCompany(data);
-            setValue("company_id", created.id);
-            setShowCompany(false);
-          }}
-          onCancel={() => setShowCompany(false)}
-        />
-      )}
       {showImage && <ImagePreviewModal src={getValues("photo_link")} onClose={() => setShowImage(false)} />}
+      
       {formErrors && (
         <div className="error-modal-overlay">
           <div className="error-modal">
