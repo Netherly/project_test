@@ -8,6 +8,7 @@ export const CACHE_TTL = {
   lists: 2 * minute,
   assets: 2 * minute,
   companies: 10 * minute,
+  profile: 10 * minute,
 };
 
 const hasStorage = () =>
