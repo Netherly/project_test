@@ -4,10 +4,12 @@ import { useFields } from "../../context/FieldsContext";
 import Sidebar from "../Sidebar";
 import "../../styles/EmployeesPage.css";
 import avatarPlaceholder from "../../assets/avatar-placeholder.svg";
+import NoAccessState from "../ui/NoAccessState.jsx";
 import {
   fetchEmployees as apiFetchEmployees,
   normalizeEmployee,
 } from "../../api/employees";
+import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 
 const formatDate = (dateString) => {
@@ -100,12 +102,14 @@ const EmployeePage = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       setLoading(true);
       setError("");
+      setForbidden(false);
       try {
         const list = await apiFetchEmployees();
         if (!mounted) return;
@@ -113,7 +117,13 @@ const EmployeePage = () => {
       } catch (e) {
         console.warn("API /employees недоступен:", e?.message || e);
         if (!mounted) return;
-        setError("Не удалось получить данные с сервера.");
+        if (isForbiddenError(e)) {
+          setForbidden(true);
+          setError("");
+          setEmployees([]);
+        } else {
+          setError("Не удалось получить данные с сервера.");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -207,30 +217,44 @@ const EmployeePage = () => {
             </button>
           </div>
 
-          <button className="add-employee-button" onClick={() => handleOpenEmployee()}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-plus"
-              aria-hidden="true"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            Добавить
+          <button
+            className="add-employee-button"
+            onClick={forbidden ? undefined : () => handleOpenEmployee()}
+            disabled={forbidden}
+          >
+            {forbidden ? null : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-plus"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            )}
+            {forbidden ? "Нет доступа" : "Добавить"}
           </button>
         </header>
 
         {loading && <div className="employees-loading">Загрузка…</div>}
-        {!!error && !loading && <div className="employees-error">{error}</div>}
+        {!!error && !loading && !forbidden && <div className="employees-error">{error}</div>}
+        {forbidden && !loading && (
+          <NoAccessState
+            title='Нет доступа к разделу "Сотрудники"'
+            description="У вашей учетной записи недостаточно прав для просмотра списка сотрудников."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
+        )}
 
+        {!forbidden && (
         <div className="employees-content">
           {viewMode === "table" ? (
             <div className="employees-table-container">
@@ -366,6 +390,7 @@ const EmployeePage = () => {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

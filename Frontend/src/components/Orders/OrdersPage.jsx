@@ -6,6 +6,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import Sidebar from "../Sidebar";
 import StageColumn from "./StageColumn";
 import OrderModal from "../modals/OrderModal/OrderModal";
+import NoAccessState from "../ui/NoAccessState.jsx";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import ColumnMinimap from "./Minimap/ColumnMinimap";
 import ColumnVisibilityToggle from "./ColumnVisibilityToggle/ColumnVisibilityToggle";
@@ -20,6 +21,7 @@ import {
   changeOrderStage,
   deleteOrder as apiDeleteOrder,
 } from "../../api/orders";
+import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
@@ -438,6 +440,7 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [forbidden, setForbidden] = useState(false);
   const [journalEntries, setJournalEntries] = useState([]);
   
   // Видимость стадий
@@ -469,13 +472,20 @@ const OrdersPage = () => {
     const load = async () => {
       setLoading(true);
       setError("");
+      setForbidden(false);
       try {
         const data = await fetchOrders();
         const apiOrders = data?.orders || data || [];
         setOrders(apiOrders.map(mapOrderFromApi));
       } catch (e) {
         console.error("Fetch orders error", e);
-        setError(e?.message || "Не удалось загрузить заказы");
+        if (isForbiddenError(e)) {
+          setForbidden(true);
+          setError("");
+          setOrders([]);
+        } else {
+          setError(e?.message || "Не удалось загрузить заказы");
+        }
       } finally {
         setLoading(false);
       }
@@ -719,29 +729,43 @@ const OrdersPage = () => {
             </svg>
           </button>
 
-          <button className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-plus-icon lucide-plus"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            Добавить
+          <button
+            className="create-order-btn"
+            onClick={forbidden ? undefined : () => setIsCreateModalOpen(true)}
+            disabled={forbidden}
+          >
+            {forbidden ? null : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-plus-icon lucide-plus"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            )}
+            {forbidden ? "Нет доступа" : "Добавить"}
           </button>
         </header>
 
-        {error && <div className="orders-error">{error}</div>}
+        {error && !forbidden && <div className="orders-error">{error}</div>}
         {loading && <div className="orders-loading">Загрузка заказов...</div>}
+        {forbidden && !loading && (
+          <NoAccessState
+            title='Нет доступа к разделу "Заказы"'
+            description="У вашей учетной записи недостаточно прав для просмотра списка заказов."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
+        )}
 
+        {!forbidden && (
         <DndProvider backend={HTML5Backend}>
           <div className="stages-container" ref={stagesContainerRef}>
             {allStages.map((stage) => (
@@ -783,8 +807,9 @@ const OrdersPage = () => {
             </div>
           )}
         </DndProvider>
+        )}
 
-        {isMassEditMode && selectedOrders.length > 0 && (
+        {!forbidden && isMassEditMode && selectedOrders.length > 0 && (
           <OrderMassActionBar
             selectedCount={selectedOrders.length}
             onClose={() => {
@@ -797,7 +822,7 @@ const OrdersPage = () => {
         )}
       </div>
 
-      {selectedOrder && (
+      {!forbidden && selectedOrder && (
         <OrderModal
           mode="edit"
           order={selectedOrder}
@@ -808,7 +833,7 @@ const OrdersPage = () => {
         />
       )}
 
-      {isCreateModalOpen && (
+      {!forbidden && isCreateModalOpen && (
         <OrderModal
           mode="create"
           onClose={() => setIsCreateModalOpen(false)}

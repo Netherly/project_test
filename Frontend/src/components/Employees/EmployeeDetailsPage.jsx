@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import EmployeeModal from "./EmployeesModal/EmployeeModal";
+import NoAccessState from "../ui/NoAccessState.jsx";
 import {
   fetchEmployeeById as apiFetchEmployeeById,
   updateEmployee as apiUpdateEmployee,
@@ -10,6 +11,7 @@ import {
   normalizeEmployee,
   serializeEmployee,
 } from "../../api/employees";
+import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import "../../styles/EmployeesPage.css";
 
 export default function EmployeeDetailsPage() {
@@ -18,6 +20,7 @@ export default function EmployeeDetailsPage() {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [forbidden, setForbidden] = useState(false);
 
   useEffect(() => {
     if (!employeeId || employeeId === "new") {
@@ -30,6 +33,7 @@ export default function EmployeeDetailsPage() {
     (async () => {
       setLoading(true);
       setError("");
+      setForbidden(false);
       try {
         const data = await apiFetchEmployeeById(employeeId);
         if (!mounted) return;
@@ -37,7 +41,13 @@ export default function EmployeeDetailsPage() {
       } catch (e) {
         console.error("Ошибка загрузки сотрудника:", e);
         if (!mounted) return;
-        setError("Не удалось загрузить данные сотрудника");
+        if (isForbiddenError(e)) {
+          setForbidden(true);
+          setError("");
+          setEmployee(null);
+        } else {
+          setError("Не удалось загрузить данные сотрудника");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -88,6 +98,21 @@ export default function EmployeeDetailsPage() {
         <Sidebar />
         <div className="employees-page-main-container">
           <div className="employees-loading">Загрузка…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <div className="employees-page">
+        <Sidebar />
+        <div className="employees-page-main-container">
+          <NoAccessState
+            title='Нет доступа к разделу "Сотрудники"'
+            description="У вашей учетной записи недостаточно прав для просмотра карточки сотрудника."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
         </div>
       </div>
     );

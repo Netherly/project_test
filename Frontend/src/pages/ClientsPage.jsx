@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
+import NoAccessState from "../components/ui/NoAccessState";
 import { useFields } from "../context/FieldsContext";
 import "../styles/ClientsPage.css";
 import {
@@ -11,6 +12,7 @@ import {
 } from "../api/clients";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
+import { isForbiddenError } from "../utils/isForbiddenError";
 
 
 const statusToEmojiMap = {
@@ -103,6 +105,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState([]);
   const [error, setError] = useState("");
+  const [forbidden, setForbidden] = useState(false);
   const [companiesList, setCompaniesList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
 
@@ -192,6 +195,7 @@ export default function ClientsPage() {
     (async () => {
       setLoading(true);
       setError("");
+      setForbidden(false);
       try {
         const data = await fetchClients();
         if (!mounted) return;
@@ -200,7 +204,12 @@ export default function ClientsPage() {
       } catch (e) {
         console.error("fetchClients failed:", e);
         if (mounted) {
-          setError(e?.message || "Не удалось загрузить клиентов");
+          if (isForbiddenError(e)) {
+            setForbidden(true);
+            setError("");
+          } else {
+            setError(e?.message || "Не удалось загрузить клиентов");
+          }
           setList([]);
         }
       } finally {
@@ -575,6 +584,9 @@ export default function ClientsPage() {
           }}
           onSearch={setSearch}
           total={filteredRows.length}
+          addDisabled={forbidden}
+          addLabel={forbidden ? "Нет доступа" : "Добавить"}
+          hideAddIcon={forbidden}
           currencyOptions={currencyOptions}
           statusOptions={statusOptions}
           tagOptions={tagOptions}
@@ -604,10 +616,17 @@ export default function ClientsPage() {
           }}
         />
 
-        <div ref={wrapRef} className="clients-table-wrapper custom-scrollbar">
-          {loading ? (
-            <div className="table-loader">Загрузка…</div>
-          ) : (
+        {forbidden && !loading ? (
+          <NoAccessState
+            title='Нет доступа к разделу "Клиенты"'
+            description="У вашей учетной записи недостаточно прав для просмотра списка клиентов."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
+        ) : (
+          <div ref={wrapRef} className="clients-table-wrapper custom-scrollbar">
+            {loading ? (
+              <div className="table-loader">Загрузка…</div>
+            ) : (
             <table className="clients-table">
               <thead className="fixed-task-panel">
                 <tr>
@@ -693,10 +712,11 @@ export default function ClientsPage() {
                 })}
               </tbody>
             </table>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {!loading && filteredRows.length === 0 && (
+        {!loading && !forbidden && filteredRows.length === 0 && (
           <div className="empty-state">{error || "Клиенты не найдены"}</div>
         )}
       </div>
