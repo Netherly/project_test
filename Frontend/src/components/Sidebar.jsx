@@ -4,13 +4,6 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 import "../styles/Sidebar.css";
 import { ProfileAPI } from "../api/profile";
-import {
-  CACHE_TTL,
-  hasDataChanged,
-  readCacheSnapshot,
-  writeCachedValue,
-  removeCachedValue,
-} from "../utils/resourceCache";
 
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
 import FinanceWebm from "../assets/menu-icons/Финансы.webm";
@@ -32,28 +25,6 @@ import TransactionNewWebm from "../assets/menu-icons/Транзакции век
 import ReportWebm from "../assets/menu-icons/Отчеты.webm";
 import EmployesWebm from "../assets/menu-icons/Сотрудники.webm";
 import DashboardJson from "../assets/menu-icons/Дашборд.webm";
-
-const normalizeSidebarProfile = (raw = {}) => ({
-  nickname: raw?.nickname || "Nickname",
-  userId: raw?.userId || "",
-  photoLink: raw?.photoLink || null,
-});
-
-const getCachedSidebarProfile = () => {
-  const snapshot = readCacheSnapshot("profileData", { fallback: null });
-  if (!snapshot.hasData) {
-    return normalizeSidebarProfile();
-  }
-  return normalizeSidebarProfile(snapshot.data);
-};
-
-const patchCachedProfile = (patch) => {
-  const snapshot = readCacheSnapshot("profileData", { fallback: {} });
-  const base = snapshot.hasData && snapshot.data && typeof snapshot.data === "object"
-    ? snapshot.data
-    : {};
-  writeCachedValue("profileData", { ...base, ...patch });
-};
 
 const MediaIcon = ({ src, alt, className, active }) => {
   const lottieRef = useRef(null);
@@ -95,18 +66,7 @@ const MediaIcon = ({ src, alt, className, active }) => {
   }, [active]);
 
   if (typeof src === "string" && src.endsWith(".webm")) {
-    return (
-      <video
-        src={src}
-        autoPlay={active}
-        loop={active}
-        muted
-        playsInline
-        preload={active ? "metadata" : "none"}
-        disablePictureInPicture
-        className={className}
-      />
-    );
+    return <video src={src} autoPlay={active} loop muted playsInline className={className} />;
   }
   if (typeof src === "object" && src !== null) {
     return (
@@ -130,89 +90,29 @@ const Sidebar = () => {
   const leaveTimerRef = useRef(null); 
 
   
-  const [profile, setProfile] = useState(getCachedSidebarProfile);
-  const profileRequestRef = useRef(null);
-  const applyProfile = useCallback((nextProfile) => {
-    const normalized = normalizeSidebarProfile(nextProfile);
-    setProfile((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
-    return normalized;
-  }, []);
+  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "", photoLink: null });
   
-  const loadProfile = useCallback(async ({ force = false } = {}) => {
-    const snapshot = readCacheSnapshot("profileData", {
-      fallback: null,
-      ttlMs: CACHE_TTL.profile,
-    });
-
-    if (snapshot.hasData) {
-      applyProfile(snapshot.data);
-      if (snapshot.isFresh && !force) {
-        return normalizeSidebarProfile(snapshot.data);
-      }
-    }
-
-    if (profileRequestRef.current && !force) {
-      return profileRequestRef.current;
-    }
-
-    const request = ProfileAPI.get()
-      .then((p) => applyProfile(p))
-      .catch((e) => {
-        console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
-        throw e;
-      })
-      .finally(() => {
-        if (profileRequestRef.current === request) {
-          profileRequestRef.current = null;
-        }
-      });
-
-    profileRequestRef.current = request;
-
+  const loadProfile = useCallback(async () => {
     try {
-      return await request;
-    } catch (_) {
-      return snapshot.hasData ? normalizeSidebarProfile(snapshot.data) : normalizeSidebarProfile();
+      const p = await ProfileAPI.get();
+      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "", photoLink: p.photoLink || null });
+    } catch (e) {
+      console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
     }
-  }, [applyProfile]);
+  }, []);
   
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
   
   useEffect(() => {
     const handlePhotoUpdate = (e) => {
-        const nextPhoto = e.detail.photo || null;
-        setProfile((prev) => {
-          const next = { ...prev, photoLink: nextPhoto };
-          patchCachedProfile({ photoLink: nextPhoto });
-          return hasDataChanged(prev, next) ? next : prev;
-        });
-    };
-    const handleNicknameUpdate = (e) => {
-        const nextNickname = e.detail.nickname || "Nickname";
-        setProfile((prev) => {
-          const next = { ...prev, nickname: nextNickname };
-          patchCachedProfile({ nickname: nextNickname });
-          return hasDataChanged(prev, next) ? next : prev;
-        });
+        setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
     };
     window.addEventListener("profile:photo-updated", handlePhotoUpdate);
-    window.addEventListener("profile:nickname-updated", handleNicknameUpdate);
-    return () => {
-      window.removeEventListener("profile:photo-updated", handlePhotoUpdate);
-      window.removeEventListener("profile:nickname-updated", handleNicknameUpdate);
-    };
+    return () => window.removeEventListener("profile:photo-updated", handlePhotoUpdate);
   }, []);
 
-  const handleAvatarEnter = useCallback(() => {
-    const snapshot = readCacheSnapshot("profileData", {
-      fallback: null,
-      ttlMs: CACHE_TTL.profile,
-    });
-    if (!snapshot.isFresh) {
-      loadProfile();
-    }
-  }, [loadProfile]);
+  const handleAvatarEnter = useCallback(() => { loadProfile(); }, [loadProfile]);
 
   const submenus = {
     Desktop: [
@@ -290,7 +190,6 @@ const Sidebar = () => {
     try {
       localStorage.removeItem("token");
     } catch {}
-    removeCachedValue("profileData");
     navigate("/login", { replace: true });
   }, [navigate]);
 
@@ -332,13 +231,7 @@ const Sidebar = () => {
       <nav className="sidebar">
         <div className="avatar-link" onMouseEnter={handleAvatarEnter}>
           {/* ОБНОВЛЕНО: Используем profile.photoLink */}
-          <img
-            src={profile.photoLink || "/avatar.jpg"}
-            alt="Profile"
-            className="avatar-sidebar"
-            decoding="async"
-            fetchPriority="high"
-          />
+          <img src={profile.photoLink || "/avatar.jpg"} alt="Profile" className="avatar-sidebar" />
           <div className="avatar-dropdown">
             <div className="avatar-info">
               <div className="avatar-name">{profile.nickname || "Nickname"}</div>

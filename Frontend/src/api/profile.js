@@ -1,6 +1,5 @@
 // src/api/profile.js
 import { httpGet, httpPost, httpPut, fileUrl, apiBase } from "./http";
-import { writeCachedValue } from "../utils/resourceCache";
 
 const unwrap = (resp) => {
   if (resp && typeof resp === "object" && "ok" in resp) {
@@ -14,16 +13,12 @@ const unwrap = (resp) => {
 
 export async function fetchProfile() {
   const r = await httpGet("/profile");
-  const normalized = withDefaults(unwrap(r));
-  writeCachedValue("profileData", normalized);
-  return normalized;
+  return withDefaults(unwrap(r));
 }
 
 export async function saveProfile(payload) {
   const r = await httpPut("/profile", payload);
-  const normalized = withDefaults(unwrap(r));
-  writeCachedValue("profileData", normalized);
-  return normalized;
+  return withDefaults(unwrap(r));
 }
 
 export async function uploadProfileBackground(fileOrFormData) {
