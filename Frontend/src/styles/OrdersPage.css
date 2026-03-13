@@ -269,6 +269,15 @@
   background-color: #335d7a;
 }
 
+.create-order-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.create-order-btn:disabled:hover {
+  background-color: var(--container-bg);
+}
+
 .stages-container {
   display: flex;
   overflow-x: auto;

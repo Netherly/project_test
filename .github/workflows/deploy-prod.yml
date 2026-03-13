@@ -284,6 +284,18 @@ jobs:
           target: "/var/www"
           overwrite: true
 
+      - name: Upload nginx prod template
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          source: "deploy/nginx/prod.conf.template"
+          target: "/tmp"
+          overwrite: true
+
       - name: Move backend .env into place (chmod 640)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -319,6 +331,24 @@ jobs:
             if ! command -v pm2 >/dev/null 2>&1; then
               sudo npm i -g pm2
             fi
+
+      - name: Sync nginx prod config and reload
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            TEMPLATE="/tmp/deploy/nginx/prod.conf.template"
+            TARGET="/etc/nginx/sites-available/crm-prod.conf"
+            test -f "$TEMPLATE"
+            sed "s/PROD_DOMAIN/${{ secrets.PRIMARY_DOMAIN }}/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
+            sudo ln -sf "$TARGET" /etc/nginx/sites-enabled/crm-prod.conf
+            sudo nginx -t
+            sudo systemctl reload nginx
 
       - name: Install backend deps, prisma migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3

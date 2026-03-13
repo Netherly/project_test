@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
+import NoAccessState from "../components/ui/NoAccessState";
 import { useFields } from "../context/FieldsContext";
 import {
   fetchClients,
@@ -10,6 +11,7 @@ import {
 } from "../api/clients";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
+import { isForbiddenError } from "../utils/isForbiddenError";
 import "../styles/ClientsPage.css";
 
 const withReferrerNames = (client) => {
@@ -24,6 +26,7 @@ export default function ClientDetailsPage() {
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [forbidden, setForbidden] = useState(false);
   const [companiesList, setCompaniesList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
   const [referrerOptions, setReferrerOptions] = useState([]); 
@@ -74,6 +77,7 @@ export default function ClientDetailsPage() {
     (async () => {
       setLoading(true);
       setError("");
+      setForbidden(false);
       try {
         const data = await fetchClients();
         if (!mounted) return;
@@ -95,7 +99,13 @@ export default function ClientDetailsPage() {
       } catch (e) {
         console.error("fetchClients failed:", e);
         if (mounted) {
-          setError(e?.message || "Не удалось загрузить клиента");
+          if (isForbiddenError(e)) {
+            setForbidden(true);
+            setError("");
+            setClient(null);
+          } else {
+            setError(e?.message || "Не удалось загрузить клиента");
+          }
         }
       } finally {
         if (mounted) setLoading(false);
@@ -150,6 +160,21 @@ export default function ClientDetailsPage() {
         <Sidebar />
         <div className="clients-page-main-container">
           <div className="loading">Загрузка…</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <div className="clients-page">
+        <Sidebar />
+        <div className="clients-page-main-container">
+          <NoAccessState
+            title='Нет доступа к разделу "Клиенты"'
+            description="У вашей учетной записи недостаточно прав для просмотра карточки клиента."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
         </div>
       </div>
     );
