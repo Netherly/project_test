@@ -20,9 +20,6 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { rid } from "../../api/fields.js";
 
-
-import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
-
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
     return "0.00";
@@ -78,7 +75,6 @@ const AssetDetailsModal = ({
   onSave,
   fields,
   employees,
-  onAddNewField
 }) => {
   const { transactions } = useTransactions();
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -129,7 +125,15 @@ const AssetDetailsModal = ({
         setExchangeRates(JSON.parse(stored)[0]);
       } else {
         setExchangeRates({
-          UAH: 1, USD: 43, RUB: 0.5, UAH_RUB: 2, UAH_USD: 0.023, USD_UAH: 43, USD_RUB: 16, RUB_UAH: 0.5, RUB_USD: 0.062,
+          UAH: 1,
+          USD: 43,
+          RUB: 0.5,
+          UAH_RUB: 2,
+          UAH_USD: 0.023,
+          USD_UAH: 43,
+          USD_RUB: 16,
+          RUB_UAH: 0.5,
+          RUB_USD: 0.062,
         });
       }
     } catch (err) {
@@ -151,10 +155,6 @@ const AssetDetailsModal = ({
       }
       return { ...prev, [name]: value };
     });
-  };
-
-  const handleSelectChange = (name, value) => {
-     setEditableAsset((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRequisiteChange = (index, e) => {
@@ -385,13 +385,23 @@ const AssetDetailsModal = ({
                 <label htmlFor="currency" className="form-label">
                   Валюта
                 </label>
-                <CreatableSelect
+                <select
+                  id="currency"
+                  name="currency"
                   value={editableAsset.currency}
-                  onChange={(val) => handleSelectChange("currency", val)}
-                  options={(fields?.generalFields?.currency || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                  placeholder="Выберите или введите..."
-                  onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
-                />
+                  onChange={handleChange}
+                  className="form-input1"
+                >
+                  <option value="" disabled hidden>Не выбрано</option>
+                  {fields?.generalFields?.currency?.map((item, index) => {
+                    const val = item?.value ?? item;
+                    return (
+                      <option key={item?.id || index} value={val}>
+                        {val}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div className="form-row">
@@ -413,26 +423,44 @@ const AssetDetailsModal = ({
                 <label htmlFor="type" className="form-label">
                   Тип
                 </label>
-                <CreatableSelect
+                <select
+                  name="type"
                   value={editableAsset.type}
-                  onChange={(val) => handleSelectChange("type", val)}
-                  options={(fields?.assetsFields?.type || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                  placeholder="Выберите или введите..."
-                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
-                />
+                  onChange={handleChange}
+                  className="form-input1"
+                >
+                  <option value="" disabled hidden>Не выбрано</option>
+                  {fields?.assetsFields?.type?.map((item, index) => {
+                    const val = item?.value ?? item;
+                    return (
+                      <option key={item?.id || index} value={val}>
+                        {val}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div className="form-row">
                 <label htmlFor="paymentSystem" className="form-label">
                   Платежная система
                 </label>
-                <CreatableSelect
+                <select
+                  name="paymentSystem"
                   value={editableAsset.paymentSystem}
-                  onChange={(val) => handleSelectChange("paymentSystem", val)}
-                  options={(fields?.assetsFields?.paymentSystem || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                  placeholder="Выберите или введите..."
-                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "paymentSystem", val)}
-                />
+                  onChange={handleChange}
+                  className="form-input1"
+                >
+                  <option value="" disabled hidden>Не выбрано</option>
+                  {fields?.assetsFields?.paymentSystem?.map((item, index) => {
+                    const val = item?.value ?? item;
+                    return (
+                      <option key={item?.id || index} value={val}>
+                        {val}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div className="form-row">
@@ -440,14 +468,13 @@ const AssetDetailsModal = ({
                   Дизайн
                 </label>
                 <select
-                  id="design"
                   name="design"
                   value={editableAsset.design}
                   onChange={handleChange}
                   className="form-input1"
                 >
                   <option value="" disabled hidden>Не выбрано</option>
-                  {(fields?.assetsFields?.cardDesigns || []).filter(i=>!i.isDeleted).map((design, index) => (
+                  {fields?.assetsFields?.cardDesigns?.map((design, index) => (
                     <option key={design?.id || index} value={design?.id}>
                       {design?.name}
                     </option>
@@ -492,7 +519,6 @@ const AssetDetailsModal = ({
               </div>
             </div>
           </div>
-
 
           <div className="modal-section requisites-block">
             <div className="requisites-header">

@@ -1,7 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
 import { X, Plus, GripVertical, Move, Check } from 'lucide-react';
-import './AccessesTab.css';
 
 import {
   DndContext,
@@ -19,14 +18,16 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const SortableAccessRow = ({ 
-  item, 
-  index, 
-  control, 
-  fieldArrayName, 
-  handleTextareaAutoResize, 
+import './AccessesTab.css';
+
+const SortableAccessRow = ({
+  item,
+  index,
+  control,
+  fieldArrayName,
+  handleTextareaAutoResize,
   remove,
-  isSortMode 
+  isSortMode,
 }) => {
   const {
     attributes,
@@ -35,9 +36,9 @@ const SortableAccessRow = ({
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: item.id,
-    disabled: !isSortMode 
+    disabled: !isSortMode,
   });
 
   const style = {
@@ -63,7 +64,7 @@ const SortableAccessRow = ({
             <textarea
               {...field}
               placeholder="Название"
-              className="assets-workplan-textarea" 
+              className="assets-workplan-textarea"
               onInput={handleTextareaAutoResize}
               rows={1}
             />
@@ -124,9 +125,9 @@ const SortableAccessRow = ({
 
       <div className="requisites-cell action-cell">
         {isSortMode ? (
-          <div 
-            className="drag-handle-right" 
-            {...attributes} 
+          <div
+            className="drag-handle-right"
+            {...attributes}
             {...listeners}
             title="Перетащить"
           >
@@ -135,11 +136,11 @@ const SortableAccessRow = ({
         ) : (
           <button
             type="button"
-            className="requisites-remove-btn" 
+            className="requisites-remove-btn"
             onClick={() => remove(index)}
             title="Удалить доступ"
           >
-            <X size={18} color='red' />
+            <X size={18} color="red" />
           </button>
         )}
       </div>
@@ -164,37 +165,42 @@ export default function AccessesTab() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (active && over && active.id !== over.id) {
-      const oldIndex = fields.findIndex((item) => item.id === active.id);
-      const newIndex = fields.findIndex((item) => item.id === over.id);
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = fields.findIndex((item) => item.id === active.id);
+    const newIndex = fields.findIndex((item) => item.id === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
       move(oldIndex, newIndex);
     }
   };
 
   return (
     <div className="tab-section accesses-tab-wrapper">
-      <div className="employee-requisites-table"> 
-        
+      <div className="employee-requisites-table">
         <div className="requisites-row header-row">
-          <div className="header-content-wrapper"> 
+          <div className="header-content-wrapper">
             <div className="requisites-cell">Название</div>
             <div className="requisites-cell">Логин</div>
             <div className="requisites-cell">Пароль</div>
             <div className="requisites-cell">Описание</div>
           </div>
-          
+
           <div className="requisites-cell action-cell header-action">
             {fields.length > 1 && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className={`icon-sort-btn ${isSortMode ? 'active' : ''}`}
                 onClick={() => setIsSortMode(!isSortMode)}
-                title={isSortMode ? "Завершить сортировку" : "Сортировать"}
+                title={isSortMode ? 'Завершить сортировку' : 'Сортировать'}
               >
                 {isSortMode ? <Check size={16} /> : <Move size={16} />}
               </button>
@@ -202,8 +208,15 @@ export default function AccessesTab() {
           </div>
         </div>
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={fields.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
             {fields.map((item, index) => (
               <SortableAccessRow
                 key={item.id}
@@ -222,9 +235,14 @@ export default function AccessesTab() {
 
       <button
         type="button"
-        className="add-requisites-btn" 
+        className="add-requisites-btn"
         onClick={() =>
-          append({ name: '', login: '', password: '', description: '' })
+          append({
+            name: '',
+            login: '',
+            password: '',
+            description: '',
+          })
         }
       >
         <Plus size={16} /> Добавить

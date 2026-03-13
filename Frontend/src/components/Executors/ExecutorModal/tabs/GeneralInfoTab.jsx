@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import AutoResizeTextarea from '../../../modals/OrderModal/AutoResizeTextarea';
-import CreatableSelect from "../../../Client/ClientModal/CreatableSelect"; 
 
+// Вынес компонент поля выше
 const OrderDetailField = ({ label, value }) => (
   <div className="form-field read-only-field">
     <label>{label}</label>
     {label.includes('Описание') || label.includes('ТЗ') ? (
        <AutoResizeTextarea 
-         value={value || ''} 
-         readOnly={true} 
-         placeholder="Нет данных"
-         className="read-only-textarea"
+          value={value || ''} 
+          readOnly={true} 
+          placeholder="Нет данных"
+          className="read-only-textarea"
        />
     ) : (
       <div className="read-only-value">{value || 'Нет данных'}</div>
@@ -19,7 +19,7 @@ const OrderDetailField = ({ label, value }) => (
   </div>
 );
 
-export default function GeneralInfoTab({ orders, employees, roleOptions, currencyOptions, onAddNewField }) {
+export default function GeneralInfoTab({ orders, fields }) {
   const { control, setValue, formState: { errors } } = useFormContext();
 
   const watchedOrderId = useWatch({
@@ -56,21 +56,20 @@ export default function GeneralInfoTab({ orders, employees, roleOptions, currenc
         </div>
       )}
 
-      
+      {/* Остальная часть формы */}
       <Controller
         name="orderId"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Номер заказа</label>
-            <select {...field} value={field.value || ""} className={errors.orderId ? 'input-error' : ''}>
+            <select {...field} className={errors.orderId ? 'input-error' : ''}>
               <option value="" disabled hidden>Не выбрано</option>
               {orders.map((order) => {
                 const label = order.orderSequence ?? order.numberOrder ?? order.id;
-                const clientName = order.clientName || order.orderMainClient || order.name || "";
                 return (
                   <option key={order.id} value={order.id}>
-                    Заказ №{label} {clientName ? `— ${clientName}` : ""}
+                    Заказ №{label}
                   </option>
                 );
               })}
@@ -80,44 +79,35 @@ export default function GeneralInfoTab({ orders, employees, roleOptions, currenc
         )}
       />
 
-      
       <Controller
         name="performer"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Исполнитель</label>
-            <select {...field} value={field.value || ""} className={errors.performer ? 'input-error' : ''}>
+            <select {...field} className={errors.performer ? 'input-error' : ''}>
               <option value="" disabled hidden>Не выбрано</option>
-              {employees?.map((employee) => {
-                const empName = employee.fullName || employee.full_name;
-                return (
-                  <option key={employee.id} value={empName}>
-                    {empName}
-                  </option>
-                );
-              })}
+              {fields?.employees?.map((employee) => (
+                <option key={employee.id} value={employee.fullName}>{employee.fullName}</option>
+              ))}
             </select>
             {errors.performer && <p className="error-message">{errors.performer.message}</p>}
           </div>
         )}
       />
 
-      
       <Controller
         name="role"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Роль</label>
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={roleOptions} 
-              placeholder="Выберите или введите..."
-              error={!!errors.role}
-              onAdd={(val) => onAddNewField && onAddNewField("executorFields", "role", val)}
-            />
+            <select {...field} className={errors.role ? 'input-error' : ''}>
+              <option value="" disabled hidden>Не выбрано</option>
+              {fields?.role?.map((role) => (
+                <option key={role.id} value={role.value}>{role.value}</option>
+              ))}
+            </select>
             {errors.role && <p className="error-message">{errors.role.message}</p>}
           </div>
         )}
@@ -134,25 +124,28 @@ export default function GeneralInfoTab({ orders, employees, roleOptions, currenc
         )}
       />
 
-      
+      {/* --- ИСПРАВЛЕННЫЙ БЛОК ВАЛЮТЫ --- */}
       <Controller
           name="currency"
           control={control}
           render={({ field }) => (
               <div className="form-field">
                   <label>Валюта</label>
-                  <CreatableSelect
-                    value={field.value}
-                    onChange={field.onChange}
-                    options={currencyOptions}
-                    placeholder="Выберите или введите..."
-                    error={!!errors.currency}
-                    onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
-                  />
+                  <select {...field} className={errors.currency ? 'input-error' : ''}>
+                      <option value="" disabled hidden>Не выбрано</option>
+                      {fields?.currency?.map((item, index) => {
+                          const val = item.value || item; 
+                          const key = item.id || index;
+                          return (
+                              <option key={key} value={val}>{val}</option> 
+                          );
+                      })}
+                  </select>
                   {errors.currency && <p className="error-message">{errors.currency.message}</p>}
               </div>
           )}
       />
+      {/* ---------------------------------- */}
 
       <Controller
         name="hourlyRate"

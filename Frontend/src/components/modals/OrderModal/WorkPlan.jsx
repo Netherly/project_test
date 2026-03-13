@@ -2,19 +2,17 @@ import React, { useState, useRef, useEffect } from "react";
 import { Controller, useFieldArray, useWatch, useFormContext } from "react-hook-form";
 import { X, Plus, Copy } from "lucide-react";
 import AutoResizeTextarea from "./AutoResizeTextarea";
-import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
 
-const WorkPlan = ({ control, orderFields, onAddNewField }) => {
+const WorkPlan = ({ control, orderFields }) => {
   const { getValues, setValue } = useFormContext();
 
-  const readySolutionsOptions = (Array.isArray(orderFields?.readySolution)
+  const rawReadySolutions = Array.isArray(orderFields?.readySolution)
     ? orderFields.readySolution
     : Array.isArray(orderFields?.orderFields?.readySolution)
     ? orderFields.orderFields.readySolution
-    : [])
-    .filter((item) => !item?.isDeleted)
-    .map(i => i.value ?? i.name ?? i)
-    .filter(Boolean);
+    : [];
+
+  const readySolutions = rawReadySolutions.filter((item) => !item?.isDeleted);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -44,17 +42,35 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
   const taskTagDropdownRef = useRef(null);
 
   const defaultTechTags = (orderFields?.techTags || [])
-    .filter(t => !t.isDeleted)
-    .map((t) => (typeof t === "string" ? t : t?.name || t?.value))
+    .map((t) => (typeof t === "string" ? t : t?.name))
     .filter(Boolean);
 
   const defaultTaskTags = (orderFields?.taskTags || [])
-    .filter(t => !t.isDeleted)
-    .map((t) => (typeof t === "string" ? t : t?.name || t?.value))
+    .map((t) => (typeof t === "string" ? t : t?.name))
     .filter(Boolean);
 
-  const techOptions = defaultTechTags;
-  const taskOptions = defaultTaskTags;
+  const fallbackTechTags = [
+    "React",
+    "Node.js",
+    "JavaScript",
+    "Python",
+    "Vue",
+    "TypeScript",
+    "MongoDB",
+    "PostgreSQL",
+  ];
+
+  const fallbackTaskTags = [
+    "Разработка",
+    "Тестирование",
+    "Дизайн",
+    "Реализация",
+    "Аналитика",
+    "Документация",
+  ];
+
+  const techOptions = defaultTechTags.length ? defaultTechTags : fallbackTechTags;
+  const taskOptions = defaultTaskTags.length ? defaultTaskTags : fallbackTaskTags;
 
   const descriptionOptions = ["Описание 1", "Описание 2", "Описание 3"];
 
@@ -148,9 +164,15 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
   };
 
   const projectOptions = (orderFields?.projects || [])
-    .filter(p => !p.isDeleted)
     .map((p) => p?.value ?? p?.name ?? (typeof p === "string" ? p : ""))
     .filter(Boolean);
+
+  const fallbackProjects = [
+    "Проект Альфа",
+    "Разработка CRM",
+    "Интернет-магазин 'Космос'",
+    "Лендинг для конференции",
+  ];
 
   return (
     <div className="tab-content-container workplan-tab-wrapper">
@@ -160,13 +182,14 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
           name="project"
           control={control}
           render={({ field }) => (
-             <CreatableSelect
-                value={field.value}
-                onChange={field.onChange}
-                options={projectOptions}
-                placeholder="Выберите или введите проект..."
-                onAdd={(val) => onAddNewField("orderFields", "projects", val)}
-            />
+            <select {...field} className="custom-content-input">
+              <option value="" disabled hidden>Не выбрано</option>
+              {(projectOptions.length ? projectOptions : fallbackProjects).map((project, index) => (
+                <option key={index} value={project}>
+                  {project}
+                </option>
+              ))}
+            </select>
           )}
         />
       </div>
@@ -192,13 +215,20 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
           name="readySolution"
           control={control}
           render={({ field }) => (
-            <CreatableSelect
-                value={field.value}
-                onChange={field.onChange}
-                options={readySolutionsOptions}
-                placeholder="Выберите или введите..."
-                onAdd={(val) => onAddNewField("orderFields", "readySolution", val)}
-            />
+            <select {...field} className="custom-content-input">
+              <option value="" disabled hidden>Не выбрано</option>
+              {readySolutions.length > 0 ? (
+                readySolutions.map((item) => (
+                  <option key={item.id || item.value} value={item.value ?? item.name ?? item}>
+                    {item.value ?? item.name ?? item}
+                  </option>
+                ))
+              ) : (
+                <option value="" disabled>
+                  Список пуст (добавьте в настройках)
+                </option>
+              )}
+            </select>
           )}
         />
       </div>
@@ -225,7 +255,6 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                       e.preventDefault();
                       const next = customTechTag.trim();
                       if (!value.includes(next)) onChange([...value, next]);
-                      onAddNewField("orderFields", "techTags", next); 
                       setCustomTechTag("");
                       setShowTechTagDropdown(false);
                     }
@@ -258,7 +287,6 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                           onClick={() => {
                             const next = customTechTag.trim();
                             onChange([...value, next]);
-                            onAddNewField("orderFields", "techTags", next); 
                             setCustomTechTag("");
                             setShowTechTagDropdown(false);
                           }}
@@ -308,7 +336,6 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                       e.preventDefault();
                       const next = customTaskTag.trim();
                       if (!value.includes(next)) onChange([...value, next]);
-                      onAddNewField("orderFields", "taskTags", next); 
                       setCustomTaskTag("");
                       setShowTaskTagDropdown(false);
                     }
@@ -341,7 +368,6 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                           onClick={() => {
                             const next = customTaskTag.trim();
                             onChange([...value, next]);
-                            onAddNewField("orderFields", "taskTags", next); 
                             setCustomTaskTag("");
                             setShowTaskTagDropdown(false);
                           }}
@@ -369,7 +395,6 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
         />
       </div>
 
-      
       <div className="tab-content-table">
         <div className="tab-content-title">Список работ</div>
 
