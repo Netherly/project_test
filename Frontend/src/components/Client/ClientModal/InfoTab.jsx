@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { Download, X } from "lucide-react";
 import TextareaWithCounter from "../TextareaWithCounter";
-import CreatableSelect from "../CreatableSelect";
+import CreatableSelect from "./CreatableSelect";
 import "./InfoTab.css";
 
 const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
