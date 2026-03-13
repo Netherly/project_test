@@ -67,8 +67,14 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
   const handleReferrerChange = (field, nameField) => (event) => {
     const nextId = event.target.value;
     field.onChange(nextId);
+    
     const nextName = referrerById.get(String(nextId)) || '';
     setValue(nameField, nextName, { shouldDirty: true });
+    if (nextId) {
+      setValue('percent', 80, { shouldValidate: true, shouldDirty: true });
+    } else {
+      setValue('percent', 100, { shouldValidate: true, shouldDirty: true });
+    }
   };
 
   return (

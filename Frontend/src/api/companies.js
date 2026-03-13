@@ -1,4 +1,4 @@
-import { httpGet, httpPost } from "./http";
+import { httpGet, httpPost, httpPut, httpDelete } from "./http";
 
 const BASE = "/companies";
 
@@ -15,6 +15,9 @@ const unwrap = (resp) => {
 const normalizeCompany = (c = {}) => ({
   id: c.id ?? null,
   name: c.name ?? "",
+  phone: c.phone ?? "",
+  email: c.email ?? "",
+  dateAdded: c.dateAdded ?? c.createdAt ?? "",
 });
 
 export async function fetchCompanies() {
@@ -29,9 +32,22 @@ export async function createCompany(payload) {
   return normalizeCompany(unwrap(r));
 }
 
+export async function updateCompany(id, payload) {
+  const r = await httpPut(`${BASE}/${id}`, payload);
+  return normalizeCompany(unwrap(r));
+}
+
+
+export async function deleteCompany(id) {
+  const r = await httpDelete(`${BASE}/${id}`);
+  return unwrap(r);
+}
+
 export const CompaniesAPI = {
   fetch: fetchCompanies,
   create: createCompany,
+  update: updateCompany,
+  delete: deleteCompany,
 };
 
 export default CompaniesAPI;

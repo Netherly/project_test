@@ -305,6 +305,15 @@
   height: 100%;
 }
 
+.addEntryButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.addEntryButton:disabled:hover {
+  background-color: var(--container-bg);
+}
+
 
 /* Tag Select Component Styles (embedded here for consistency) */
 .tagsSelect { position: relative; width: 100%; }

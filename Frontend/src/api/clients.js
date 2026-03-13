@@ -121,6 +121,7 @@ export const normalizeClient = (c = {}) => {
     chat_link: c.chat_link ?? c.chatLink ?? "",
     photo_link: c.photo_link ?? c.photoLink ?? "",
     folder_link: c.folder_link ?? c.folderLink ?? "",
+    company_photo_link: c.company_photo_link ?? c.companyPhotoLink ?? "",
     tags: normTags(c.tags),
     accesses,
     credentials,
@@ -162,6 +163,7 @@ export const serializeClient = (payload = {}) => {
   if ("chat_link" in data) data.chat_link = tidy(data.chat_link);
   if ("photo_link" in data) data.photo_link = tidy(data.photo_link);
   if ("folder_link" in data) data.folder_link = tidy(data.folder_link);
+  if ("company_photo_link" in data) data.company_photo_link = tidy(data.company_photo_link);
 
   if ("hourly_rate" in data) data.hourly_rate = toNumberSafe(data.hourly_rate);
   if ("percent" in data) data.percent = toNumberSafe(data.percent);

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import "../../styles/AssetsPage.css";
@@ -15,6 +15,13 @@ import {
 } from "../../api/assets";
 import { CreditCard } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
+import {
+  CACHE_TTL,
+  hasDataChanged,
+  readCacheSnapshot,
+  readCachedValue,
+  writeCachedValue,
+} from "../../utils/resourceCache";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -33,16 +40,40 @@ const AssetsPage = () => {
   const { transactions } = useTransactions();
 
   const defaultAssets = [];
-  const [assets, setAssets] = useState([]);
+  const [assets, setAssets] = useState(
+    () => readCacheSnapshot("assetsData", { fallback: [] }).data || []
+  );
   const [currencyRates, setCurrencyRates] = useState({});
-  const [fields, setFields] = useState({
-    generalFields: { currency: [] },
-    assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
+  const [fields, setFields] = useState(() => {
+    const cachedFields = readCachedValue("fieldsData", null);
+
+    if (!cachedFields) {
+      return {
+        generalFields: { currency: [] },
+        assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
+      };
+    }
+
+    try {
+      const allFields = withDefaults(cachedFields);
+      return {
+        generalFields: allFields.generalFields,
+        assetsFields: allFields.assetsFields,
+      };
+    } catch (_) {
+      return {
+        generalFields: { currency: [] },
+        assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
+      };
+    }
   });
+
   const [employees, setEmployees] = useState([]);
   const [cardSize, setCardSize] = useState("medium");
+  const cacheWriteStateRef = useRef({ assets: false });
 
   const viewMode = searchParams.get("view") || "card";
+
   const setViewMode = (mode) => {
     setSearchParams({ view: mode });
   };
@@ -77,43 +108,48 @@ const AssetsPage = () => {
   };
 
   useEffect(() => {
-    const savedEmployees = localStorage.getItem("employees");
-    if (savedEmployees) {
-      try {
-        const parsedEmployees = JSON.parse(savedEmployees);
-        setEmployees(parsedEmployees);
-      } catch (e) {
-        console.error("Ошибка парсинга сотрудников из localStorage:", e);
-      }
-    }
+    const cachedEmployees = readCachedValue("employees", []);
+    setEmployees(Array.isArray(cachedEmployees) ? cachedEmployees : []);
   }, []);
 
+  const loadFields = async () => {
+    try {
+      const rawFields = await fetchFields();
+      const allFields = withDefaults(rawFields);
+
+      writeCachedValue("fieldsData", rawFields);
+
+      setFields({
+        generalFields: allFields.generalFields,
+        assetsFields: allFields.assetsFields,
+      });
+    } catch (err) {
+      console.error("Failed to load fields", err);
+    }
+  };
+
   useEffect(() => {
-    const loadFields = async () => {
+    const snapshot = readCacheSnapshot("fieldsData", {
+      ttlMs: CACHE_TTL.fields,
+    });
+
+    if (snapshot.hasData) {
       try {
-        const rawFields = await fetchFields();
-        const allFields = withDefaults(rawFields);
-        setFields({
-          generalFields: allFields.generalFields,
-          assetsFields: allFields.assetsFields,
+        const cachedFields = withDefaults(snapshot.data);
+        setFields((prev) => {
+          const next = {
+            generalFields: cachedFields.generalFields,
+            assetsFields: cachedFields.assetsFields,
+          };
+          return hasDataChanged(prev, next) ? next : prev;
         });
-      } catch (err) {
-        console.error("Failed to load fields", err);
-        const savedFields = localStorage.getItem("fieldsData");
-        if (savedFields) {
-          try {
-            const parsedFields = JSON.parse(savedFields);
-            setFields({
-              generalFields: parsedFields.generalFields || { currency: [] },
-              assetsFields:
-                parsedFields.assetsFields || { type: [], paymentSystem: [], cardDesigns: [] },
-            });
-          } catch (e) {
-            console.error("Ошибка парсинга полей из localStorage:", e);
-          }
-        }
+      } catch (_) {
+        // ignore invalid cached fields
       }
-    };
+
+      if (snapshot.isFresh) return;
+    }
+
     loadFields();
   }, []);
 
@@ -209,36 +245,51 @@ const AssetsPage = () => {
   }, [transactions, currencyRates, assets.length]);
 
   useEffect(() => {
-    localStorage.setItem("assetsData", JSON.stringify(assets));
+    if (!cacheWriteStateRef.current.assets) {
+      cacheWriteStateRef.current.assets = true;
+      return;
+    }
+    writeCachedValue("assetsData", assets);
   }, [assets]);
 
   const loadAssets = async () => {
     try {
       const fetchedAssets = await fetchAssets();
+      const safeFetchedAssets = Array.isArray(fetchedAssets) ? fetchedAssets : [];
+
       if (transactions.length > 0) {
-        const calculated = calculateRealBalance(fetchedAssets, transactions, currencyRates);
-        setAssets(calculated);
+        const calculated = calculateRealBalance(
+          safeFetchedAssets,
+          transactions,
+          currencyRates
+        );
+        setAssets((prev) => (hasDataChanged(prev, calculated) ? calculated : prev));
+        writeCachedValue("assetsData", calculated);
       } else {
-        setAssets(fetchedAssets);
+        setAssets((prev) =>
+          hasDataChanged(prev, safeFetchedAssets) ? safeFetchedAssets : prev
+        );
+        writeCachedValue("assetsData", safeFetchedAssets);
       }
     } catch (err) {
       console.error("Failed to load assets", err);
-      const savedAssets = localStorage.getItem("assetsData");
-      if (savedAssets) {
-        try {
-          const parsedAssets = JSON.parse(savedAssets);
-          setAssets(parsedAssets);
-        } catch (e) {
-          console.error("Ошибка парсинга assets из localStorage:", e);
-          setAssets(defaultAssets);
-        }
-      } else {
-        setAssets(defaultAssets);
-      }
+      const cachedAssets = readCachedValue("assetsData", defaultAssets);
+      setAssets(Array.isArray(cachedAssets) ? cachedAssets : defaultAssets);
     }
   };
 
   useEffect(() => {
+    const snapshot = readCacheSnapshot("assetsData", {
+      fallback: defaultAssets,
+      ttlMs: CACHE_TTL.assets,
+    });
+
+    if (snapshot.hasData) {
+      const cachedAssets = Array.isArray(snapshot.data) ? snapshot.data : defaultAssets;
+      setAssets((prev) => (hasDataChanged(prev, cachedAssets) ? cachedAssets : prev));
+      if (snapshot.isFresh) return;
+    }
+
     loadAssets();
   }, []);
 
@@ -272,7 +323,9 @@ const AssetsPage = () => {
       handleCloseModal();
     } catch (err) {
       console.error("Failed to delete asset", err);
-      setAssets((prevAssets) => prevAssets.filter((asset) => asset.id !== idToDelete));
+      setAssets((prevAssets) =>
+        prevAssets.filter((asset) => asset.id !== idToDelete)
+      );
       handleCloseModal();
     }
   };
@@ -303,7 +356,10 @@ const AssetsPage = () => {
   const handleCopyRequisites = (e, requisites) => {
     e.stopPropagation();
     if (requisites && requisites.length > 0) {
-      const requisitesText = requisites.map((req) => `${req.label}: ${req.value}`).join("\n");
+      const requisitesText = requisites
+        .map((req) => `${req.label}: ${req.value}`)
+        .join("\n");
+
       navigator.clipboard
         .writeText(requisitesText)
         .then(() => {
@@ -337,7 +393,9 @@ const AssetsPage = () => {
     } catch (err) {
       console.error("Failed to update asset", err);
       setAssets((prevAssets) =>
-        prevAssets.map((asset) => (asset.id === updatedAsset.id ? updatedAsset : asset))
+        prevAssets.map((asset) =>
+          asset.id === updatedAsset.id ? updatedAsset : asset
+        )
       );
       handleCloseModal();
     }
@@ -355,6 +413,7 @@ const AssetsPage = () => {
         totalTurnoverEndBalance: 0,
       };
     }
+
     acc[asset.currency].items.push(asset);
     acc[asset.currency].totalBalance += Number(asset.balance);
     acc[asset.currency].totalBalanceUAH += Number(asset.balanceUAH);
@@ -362,6 +421,7 @@ const AssetsPage = () => {
     acc[asset.currency].totalTurnoverIncoming += Number(asset.turnoverIncoming);
     acc[asset.currency].totalTurnoverOutgoing += Number(asset.turnoverOutgoing);
     acc[asset.currency].totalTurnoverEndBalance += Number(asset.turnoverEndBalance);
+
     return acc;
   }, {});
 
@@ -478,6 +538,7 @@ const AssetsPage = () => {
                         <td>{formatNumberWithSpaces(data.totalTurnoverOutgoing)}</td>
                         <td>{formatNumberWithSpaces(data.totalTurnoverEndBalance)}</td>
                       </tr>
+
                       {data.items.map((asset) => (
                         <tr
                           key={asset.id}
@@ -520,7 +581,11 @@ const AssetsPage = () => {
                             </div>
                           </td>
                           <td>{asset.employee || "—"}</td>
-                          <td>{asset.limitTurnover ? formatNumberWithSpaces(asset.limitTurnover) : ""}</td>
+                          <td>
+                            {asset.limitTurnover
+                              ? formatNumberWithSpaces(asset.limitTurnover)
+                              : ""}
+                          </td>
                           <td>{formatNumberWithSpaces(asset.turnoverStartBalance)}</td>
                           <td>{formatNumberWithSpaces(asset.turnoverIncoming)}</td>
                           <td>{formatNumberWithSpaces(asset.turnoverOutgoing)}</td>

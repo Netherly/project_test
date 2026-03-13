@@ -84,6 +84,11 @@
   height: 100%;
 }
 
+.add-employee-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 
 /* ==== States ==== */
 .employees-loading,

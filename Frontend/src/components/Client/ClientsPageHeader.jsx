@@ -220,6 +220,9 @@ export default function ClientsPageHeader({
   onAdd,
   onSearch,
   total,
+  addDisabled = false,
+  addLabel = "Добавить",
+  hideAddIcon = false,
   currencyOptions = [],
   statusOptions   = [],
   tagOptions      = [],
@@ -488,8 +491,16 @@ export default function ClientsPageHeader({
         </div>
       </div>
 
-      <button type="button" className={styles.addEntryButton} onClick={onAdd}>
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Добавить
+      <button
+        type="button"
+        className={styles.addEntryButton}
+        onClick={addDisabled ? undefined : onAdd}
+        disabled={addDisabled}
+      >
+        {hideAddIcon ? null : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        )}{" "}
+        {addLabel}
       </button>
     </header>
   );
