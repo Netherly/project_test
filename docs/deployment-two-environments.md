@@ -3,7 +3,7 @@
 This project now supports two isolated deployments on one server:
 
 - `prod` (`main` branch) -> `crm-frontend-prod`, `crm-backend-prod`, pm2 app `crm-backend-prod`, backend port `3000`
-- `test` (`develop` branch) -> `crm-frontend-test`, `crm-backend-test`, pm2 app `crm-backend-test`, backend port `3001`
+- `test` (`develope` branch) -> `crm-frontend-test`, `crm-backend-test`, pm2 app `crm-backend-test`, backend port `3001`
 
 ## 1. GitHub Actions workflows
 
@@ -47,6 +47,13 @@ TELEGRAM_BOT_TOKEN=...
 ```
 
 Use separate `DATABASE_URL` and Telegram token for `prod` and `test`.
+
+Test deploy additionally forces:
+
+```env
+TEST_DEFAULT_ADMIN_ENABLED=true
+TEST_FIELDS_ENABLED=true
+```
 
 ## 3. One-time server setup
 
@@ -102,5 +109,5 @@ sudo systemctl reload nginx
 
 ## 5. Branch -> environment flow
 
-- push to `develop` => deploys only `test`
+- push to `develope` => deploys only `test`
 - push to `main` => deploys only `prod`
