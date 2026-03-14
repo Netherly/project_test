@@ -136,6 +136,7 @@ const normalizeCountryEntries = (list) => {
       nameUk: nameUk || '',
       iso2: iso2 || '',
       iso3: iso3 || '',
+      order: Number.isFinite(Number(source?.order)) ? Number(source.order) : null,
     });
   }
 
@@ -150,6 +151,7 @@ const mapCountry = (country) => ({
   nameUk: country.nameUk || null,
   iso2: country.iso2 || null,
   iso3: country.iso3 || null,
+  order: Number.isFinite(Number(country.order)) ? Number(country.order) : 0,
 });
 
 const syncSimpleDict = async (tx, model, list, opts = {}) => {
@@ -212,6 +214,7 @@ const syncCountries = async (tx, list) => {
       iso2: true,
       iso3: true,
       isActive: true,
+      order: true,
     },
   });
   const existingById = new Map(existing.map((item) => [item.id, item]));
@@ -228,7 +231,7 @@ const syncCountries = async (tx, list) => {
 
   const keepIds = new Set();
 
-  for (const item of countries) {
+  for (const [index, item] of countries.entries()) {
     const localizedNames = item.iso2 ? buildCountryNames(item.iso2) : null;
     const merged = {
       name: item.name || localizedNames?.name || item.iso2,
@@ -237,6 +240,7 @@ const syncCountries = async (tx, list) => {
       nameUk: item.nameUk || localizedNames?.nameUk || item.name || null,
       iso2: item.iso2 || localizedNames?.iso2 || null,
       iso3: item.iso3 || null,
+      order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
     };
 
     const existingCountry =
@@ -260,6 +264,7 @@ const syncCountries = async (tx, list) => {
           nameUk: merged.nameUk || existingCountry.nameUk,
           iso2: merged.iso2 || existingCountry.iso2,
           iso3: merged.iso3 || existingCountry.iso3,
+          order: merged.order,
         },
       });
       continue;
@@ -275,6 +280,7 @@ const syncCountries = async (tx, list) => {
         iso2: merged.iso2,
         iso3: merged.iso3,
         isActive: true,
+        order: merged.order,
       },
       select: { id: true },
     });
@@ -506,7 +512,7 @@ async function getAll(db) {
     typeWorks,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereActive, orderBy: { code: 'asc' } }),
-    _db.country.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.country.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.executorRoleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
@@ -680,7 +686,7 @@ async function getInactive(db) {
     typeWorks,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereInactive, orderBy: { code: 'asc' } }),
-    _db.country.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.country.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.executorRoleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),

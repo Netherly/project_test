@@ -62,6 +62,7 @@ export const normCountries = (arr) => {
       nameUk: tidy(item?.nameUk),
       iso2,
       iso3,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
       isDeleted: item?.isDeleted || false,
     });
   }
@@ -251,7 +252,7 @@ export const serCountries = (arr) => {
   const out = [];
   const source = (Array.isArray(arr) ? arr : []).filter((item) => !item?.isDeleted);
   for (const item of source) {
-    const name = tidy(item?.name ?? item?.value);
+    const name = tidy(item?.value ?? item?.name);
     const iso2 = tidy(item?.iso2).toUpperCase();
     const iso3 = tidy(item?.iso3).toUpperCase();
     const key = String(item?.id || iso2 || name).trim().toLowerCase();
@@ -266,6 +267,7 @@ export const serCountries = (arr) => {
       nameUk: tidy(item?.nameUk),
       iso2: iso2 || undefined,
       iso3: iso3 || undefined,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
     });
   }
   return out;

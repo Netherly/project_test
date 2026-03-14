@@ -9,6 +9,7 @@ const { initTelegramAvatarJob } = require('./jobs/telegram-avatars.job');
 const { initTelegramBot, stopTelegramBot } = require('./bot/bot');
 const { ensureDefaultCompanies } = require('./seeds/companies.seed');
 const { ensureDefaultClientGroups } = require('./seeds/client-groups.seed');
+const { ensureDefaultCountries } = require('./seeds/countries.seed');
 const prisma = require('../prisma/client');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -77,6 +78,12 @@ function setupGracefulShutdown(server, isBotActive) {
 }
 
 async function boot() {
+  try {
+    await ensureDefaultCountries();
+    console.log('[seed] default countries ensured');
+  } catch (e) {
+    console.error('[seed] countries failed:', e?.message || e);
+  }
   try {
     await ensureDefaultCompanies();
     console.log('[seed] default companies ensured');

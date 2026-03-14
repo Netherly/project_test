@@ -2,6 +2,7 @@
 const bcrypt = require('bcrypt');
 const prisma = require('./client');
 const { ensureTestFields } = require('../src/seeds/test-fields.seed');
+const { ensureDefaultCountries } = require('../src/seeds/countries.seed');
 
 const ACCESS_CONFIG_KEY = 'access_control_v1';
 const FULL_MODULES = [
@@ -85,6 +86,9 @@ async function ensureOwnerAccessForEmployee(employeeId) {
 async function main() {
   const adminEnabled = isEnabled(process.env.TEST_DEFAULT_ADMIN_ENABLED);
   const fieldsEnabled = isEnabled(process.env.TEST_FIELDS_ENABLED);
+
+  await ensureDefaultCountries();
+  console.log('✔ Default countries ensured');
 
   if (!adminEnabled && !fieldsEnabled) {
     console.log('ℹ Seed skipped: test seed flags are not enabled');
