@@ -1,4 +1,4 @@
-const prisma = require('../../prisma/client');
+const companyService = require('../services/company.service');
 
 const DEFAULT_COMPANIES = [
   'ООО «Ромашка»',
@@ -16,10 +16,7 @@ const DEFAULT_COMPANIES = [
 async function ensureDefaultCompanies() {
   for (const name of DEFAULT_COMPANIES) {
     if (!name) continue;
-    const existing = await prisma.company.findFirst({ where: { name } });
-    if (!existing) {
-      await prisma.company.create({ data: { name } });
-    }
+    await companyService.create({ name });
   }
 }
 
