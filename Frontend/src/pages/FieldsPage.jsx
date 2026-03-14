@@ -34,6 +34,8 @@ import {
 import { fileUrl } from "../api/http";
 import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
+import NoAccessState from "../components/ui/NoAccessState";
+import { isForbiddenError } from "../utils/isForbiddenError";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
 const MAX_IMAGE_BYTES = 500 * 1024;
@@ -61,7 +63,7 @@ const tabsConfig = [
 ];
 
 const initialValues = {
-  generalFields: { currency: [], country: [] },
+  generalFields: { currency: [], country: [], businessLine: [] },
   orderFields: {
     intervals: [{ id: rid(), intervalValue: "", isDeleted: false }],
     categories: [{ id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }],
@@ -850,6 +852,7 @@ function FieldsPage() {
   const [inactiveLoaded, setInactiveLoaded] = useState(false);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
   
   const loadSavedOrders = () => {
     try {
@@ -909,6 +912,7 @@ function FieldsPage() {
     let mounted = true;
     (async () => {
       setLoading(true);
+      setForbidden(false);
       try {
         const raw = await fetchFields();
         const normalized = withDefaults(raw);
@@ -917,7 +921,12 @@ function FieldsPage() {
         setSavedValues(normalized);
         setHasChanges(false);
       } catch (e) {
-        openErrorModal("Ошибка загрузки списков", e?.message || "Не удалось получить данные с сервера.");
+        if (isForbiddenError(e)) {
+          if (!mounted) return;
+          setForbidden(true);
+        } else {
+          openErrorModal("Ошибка загрузки списков", e?.message || "Не удалось получить данные с сервера.");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -1786,7 +1795,7 @@ function FieldsPage() {
                 className={`header-action-btn ${isDragEnabled ? 'active' : ''}`}
                 title={isDragEnabled ? "Выключить сортировку" : "Включить сортировку"}
                 onClick={() => setIsDragEnabled(!isDragEnabled)}
-                disabled={saving || loading}
+                disabled={saving || loading || forbidden}
               >
                 <Move size={20} />
               </button>
@@ -1796,7 +1805,7 @@ function FieldsPage() {
                 className={`header-action-btn ${showHidden ? 'active' : ''}`}
                 title={showHidden ? "Скрыть удаленные" : "Показать удаленные"}
                 onClick={() => setShowHidden(!showHidden)}
-                disabled={saving || loading}
+                disabled={saving || loading || forbidden}
               >
                 {showHidden ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -1815,28 +1824,36 @@ function FieldsPage() {
         </div>
 
         <div className="fields-container">
-          <div className="main-content-wrapper">
-            <div className="tabs-content-wrapper">
-              <div className="tabs-container">
-                {tabsConfig
-                  .filter(tab => tab.key !== "miscFields")
-                  .map((tab) => (
-                    <button
-                      key={tab.key}
-                      className={`tab-button ${activeTab === tab.key ? "active" : ""}`}
-                      onClick={() => onTabClick(tab.key)}
-                      type="button"
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-              </div>
+          {forbidden ? (
+            <NoAccessState
+              title='Нет доступа к разделу "Поля"'
+              description="У вашей учетной записи недостаточно прав для просмотра и редактирования настроек полей."
+              note="Если доступ нужен, обратитесь к администратору."
+            />
+          ) : (
+            <div className="main-content-wrapper">
+              <div className="tabs-content-wrapper">
+                <div className="tabs-container">
+                  {tabsConfig
+                    .filter(tab => tab.key !== "miscFields")
+                    .map((tab) => (
+                      <button
+                        key={tab.key}
+                        className={`tab-button ${activeTab === tab.key ? "active" : ""}`}
+                        onClick={() => onTabClick(tab.key)}
+                        type="button"
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                </div>
 
-              <div className="fields-content">
-                <div className="fields-box">{renderActiveTabFields()}</div>
+                <div className="fields-content">
+                  <div className="fields-box">{renderActiveTabFields()}</div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

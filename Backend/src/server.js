@@ -13,12 +13,12 @@ const prisma = require('../prisma/client');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-function startJobs() {
+async function startJobs() {
   try {
     initRatesAutofillJob();
     scheduleTokenCleanup(); // Добавили запуск нашей новой задачи
     initTelegramAvatarJob();
-    initRegularPaymentsJob();
+    await initRegularPaymentsJob();
     console.log('[cron] all jobs scheduled');
   } catch (e) {
     console.error('[cron] schedule failed:', e?.message || e);
@@ -94,7 +94,7 @@ async function boot() {
     console.log(`[api] listening on :${PORT}`);
   });
 
-  startJobs();
+  await startJobs();
   const botIsActive = await startBot();
   setupGracefulShutdown(server, botIsActive);
 }

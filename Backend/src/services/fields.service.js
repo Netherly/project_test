@@ -1,6 +1,7 @@
 const prisma = require('../../prisma/client');
 const fs = require('fs');
 const path = require('path');
+const { hasTable } = require('../utils/db-schema');
 
 /* ==============================
    FS utils
@@ -14,6 +15,7 @@ const CARD_DIR = path.join(UPLOADS_ROOT, 'card-designs');
 ensureDir(CARD_DIR);
 
 const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const EXTRA_FIELDS_CONFIG_KEY = 'fields.extra';
 
 async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
@@ -137,6 +139,151 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
   }
 };
 
+const normalizeExtraFieldList = (list) => {
+  const out = [];
+  const seen = new Set();
+
+  for (const item of Array.isArray(list) ? list : []) {
+    const value = pickStr(item?.value ?? item?.name ?? item);
+    if (!value) continue;
+
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      id: item?.id || rid(),
+      value,
+      isActive: item?.isActive !== false,
+    });
+  }
+
+  return out;
+};
+
+const emptyExtraFields = () => ({
+  generalFields: { businessLine: [] },
+  orderFields: { minOrderAmount: [], readySolution: [] },
+  clientFields: { business: [] },
+});
+
+function normalizeExtraConfig(raw) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  return {
+    generalFields: {
+      businessLine: normalizeExtraFieldList(value?.generalFields?.businessLine),
+    },
+    orderFields: {
+      minOrderAmount: normalizeExtraFieldList(value?.orderFields?.minOrderAmount),
+      readySolution: normalizeExtraFieldList(value?.orderFields?.readySolution),
+    },
+    clientFields: {
+      business: normalizeExtraFieldList(value?.clientFields?.business),
+    },
+  };
+}
+
+async function loadExtraConfig(db) {
+  if (!(await hasTable('AppConfig'))) {
+    return emptyExtraFields();
+  }
+
+  const row = await (db || prisma).appConfig.findUnique({
+    where: { key: EXTRA_FIELDS_CONFIG_KEY },
+    select: { value: true },
+  });
+
+  return normalizeExtraConfig(row?.value);
+}
+
+function mergeExtraFieldList(existingList, incomingList) {
+  const current = normalizeExtraFieldList(existingList);
+  const incoming = normalizeExtraFieldList(incomingList).map((item) => ({
+    id: item.id || null,
+    value: item.value,
+  }));
+
+  const currentById = new Map(current.map((item) => [String(item.id), item]));
+  const currentByValue = new Map(current.map((item) => [item.value.toLowerCase(), item]));
+  const active = [];
+  const activeIds = new Set();
+  const activeKeys = new Set();
+
+  for (const item of incoming) {
+    const key = item.value.toLowerCase();
+    if (activeKeys.has(key)) continue;
+    activeKeys.add(key);
+
+    const existing =
+      (item.id && currentById.get(String(item.id))) ||
+      currentByValue.get(key) ||
+      null;
+
+    const next = existing
+      ? { ...existing, value: item.value, isActive: true }
+      : { id: item.id || rid(), value: item.value, isActive: true };
+
+    active.push(next);
+    activeIds.add(String(next.id));
+  }
+
+  const inactive = current
+    .filter((item) => !activeIds.has(String(item.id)))
+    .map((item) => ({ ...item, isActive: false }));
+
+  return [...active, ...inactive];
+}
+
+async function saveExtraConfig(tx, payload) {
+  if (!(await hasTable('AppConfig'))) {
+    return emptyExtraFields();
+  }
+
+  const current = await loadExtraConfig(tx);
+  const next = {
+    generalFields: {
+      businessLine: mergeExtraFieldList(
+        current?.generalFields?.businessLine,
+        payload?.generalFields?.businessLine
+      ),
+    },
+    orderFields: {
+      minOrderAmount: mergeExtraFieldList(
+        current?.orderFields?.minOrderAmount,
+        payload?.orderFields?.minOrderAmount
+      ),
+      readySolution: mergeExtraFieldList(
+        current?.orderFields?.readySolution,
+        payload?.orderFields?.readySolution
+      ),
+    },
+    clientFields: {
+      business: mergeExtraFieldList(
+        current?.clientFields?.business,
+        payload?.clientFields?.business
+      ),
+    },
+  };
+
+  await tx.appConfig.upsert({
+    where: { key: EXTRA_FIELDS_CONFIG_KEY },
+    update: { value: next },
+    create: { key: EXTRA_FIELDS_CONFIG_KEY, value: next },
+  });
+
+  return next;
+}
+
+const activeExtraValues = (list) =>
+  normalizeExtraFieldList(list)
+    .filter((item) => item.isActive !== false)
+    .map((item) => ({ id: item.id, value: item.value }));
+
+const inactiveExtraValues = (list) =>
+  normalizeExtraFieldList(list)
+    .filter((item) => item.isActive === false)
+    .map((item) => ({ id: item.id, value: item.value }));
+
 /* ==============================
    Tags (единая версия)
 ================================ */
@@ -188,6 +335,10 @@ async function getAll(db) {
   const _db = db || prisma;
   const whereActive = { where: { isActive: true } };
   const whereActiveHardDelete = {};
+  const [clientGroupsEnabled, extraFields] = await Promise.all([
+    hasTable('ClientGroup'),
+    loadExtraConfig(_db),
+  ]);
 
   const [
     orderCurrencies,
@@ -211,7 +362,7 @@ async function getAll(db) {
     _db.executorRoleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
-    _db.clientGroup.findMany({ orderBy: { order: 'asc' } }),
+    clientGroupsEnabled ? _db.clientGroup.findMany({ orderBy: { order: 'asc' } }) : [],
     _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }) : [],
     _db.orderCloseReasonDict
       ? _db.orderCloseReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } })
@@ -280,6 +431,8 @@ async function getAll(db) {
   return {
     generalFields: {
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      businessLine: activeExtraValues(extraFields?.generalFields?.businessLine),
     },
 
     orderFields: {
@@ -295,6 +448,8 @@ async function getAll(db) {
       closeReasons: orderCloseReasons.map((r) => ({ id: r.id, name: r.name })),
       projects: orderProjects.map((p) => ({ id: p.id, name: p.name })),
       discountReason: orderDiscountReasons.map((d) => ({ id: d.id, name: d.name })),
+      minOrderAmount: activeExtraValues(extraFields?.orderFields?.minOrderAmount),
+      readySolution: activeExtraValues(extraFields?.orderFields?.readySolution),
       tags: mapTags(orderTags),
       techTags: mapTags(orderTechTags),
       taskTags: mapTags(orderTaskTags),
@@ -309,6 +464,7 @@ async function getAll(db) {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
       category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
       country: countries.map((c) => ({ id: c.id, name: c.name })),
+      business: activeExtraValues(extraFields?.clientFields?.business),
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: mapTags(clientTags),
       groups: clientGroups.map((g) => ({ id: g.id, name: g.name, order: g.order })),
@@ -360,6 +516,7 @@ async function getAll(db) {
 async function getInactive(db) {
   const _db = db || prisma;
   const whereInactive = { where: { isActive: false } };
+  const extraFields = await loadExtraConfig(_db);
 
   const [
     currencies,
@@ -396,12 +553,16 @@ async function getInactive(db) {
   return {
     generalFields: {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      businessLine: inactiveExtraValues(extraFields?.generalFields?.businessLine),
     },
     orderFields: {
       intervals: emptyArr,
       categories: emptyArr,
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       discountReason: discountReasons.map((r) => ({ id: r.id, name: r.name })),
+      minOrderAmount: inactiveExtraValues(extraFields?.orderFields?.minOrderAmount),
+      readySolution: inactiveExtraValues(extraFields?.orderFields?.readySolution),
       tags: emptyArr,
       techTags: emptyArr,
       taskTags: emptyArr,
@@ -417,6 +578,7 @@ async function getInactive(db) {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
       category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
       country: countries.map((c) => ({ id: c.id, name: c.name })),
+      business: inactiveExtraValues(extraFields?.clientFields?.business),
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: emptyArr,
       groups: emptyArr,
@@ -554,7 +716,12 @@ async function saveAll(payload) {
       // 5. CLIENTS
       await syncSimpleDict(tx, 'clientSourceDict', arrToUniqueStrings(payload?.clientFields?.source, 'name'));
       await syncSimpleDict(tx, 'clientCategoryDict', arrToUniqueStrings(payload?.clientFields?.category, 'name'));
-      await syncSimpleDict(tx, 'country', arrToUniqueStrings(payload?.clientFields?.country, 'name'));
+      const allCountries = new Set([
+        ...arrToUniqueStrings(payload?.generalFields?.country, 'name'),
+        ...arrToUniqueStrings(payload?.clientFields?.country, 'name'),
+        ...arrToUniqueStrings(payload?.employeeFields?.country, 'name'),
+      ]);
+      await syncSimpleDict(tx, 'country', Array.from(allCountries));
 
       // 6. TAGS (единая система через TagCategory+Tag)
       await Promise.all([
@@ -693,6 +860,8 @@ async function saveAll(payload) {
           arrToUniqueStrings(payload?.sundryFields?.typeWork, 'name')
         );
       }
+
+      await saveExtraConfig(tx, payload);
 
       return getAll(tx);
     },

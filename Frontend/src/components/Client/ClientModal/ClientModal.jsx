@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { clientSchema } from "../validationSchema";
@@ -11,8 +11,11 @@ import FinancesTab from "./FinancesTab";
 import AccessesTab from "./AccessesTab";
 import ChatPanel from "./ChatPanel";
 import ActionsBar from "./ActionsBar";
-import AddCompanyModal from "../AddCompanyForm";
 import ImagePreviewModal from "../ImagePreviewModal";
+
+import { useFields } from "../../../context/FieldsContext";
+import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { rid } from "../../../utils/rid";
 
 import "../../../styles/ClientModal.css";
 
@@ -33,12 +36,24 @@ export default function ClientModal({
   const safeClient = client ?? {};
   const isNew = !safeClient.id;
 
+  const { refreshFields } = useFields();
+
+  const [fieldOptions, setFieldOptions] = useState({
+    categories: [],
+    sources: [],
+    businesses: [],
+    countries: [],
+    currencies: [],
+    tags: [],
+  });
+
   const [activeTab, setActiveTab] = useState(isNew ? "info" : "summary");
-  const [showCompany, setShowCompany] = useState(false);
   const [showImage, setShowImage] = useState(false);
   const [closing, setClosing] = useState(false);
   const [formErrors, setFormErrors] = useState(null);
+
   const formId = "client-main-form";
+
   const sampleLogs = [
     { timestamp: "2023-03-07T12:36", author: "Менеджеры", message: "Отримувач: …" },
     { timestamp: "2023-03-07T12:38", author: "Менеджеры", message: "ДУБЛЬ!!!!!!!!!!!" },
@@ -46,7 +61,70 @@ export default function ClientModal({
     { timestamp: new Date().toISOString(), author: "Лев", message: "Не" },
   ];
 
-  /* ---------- useForm ---------- */
+  const loadFields = async () => {
+    try {
+      const raw = await fetchFields();
+      const norm = withDefaults(raw);
+
+      setFieldOptions({
+        categories: (norm.clientFields?.category || [])
+          .filter((i) => !i.isDeleted)
+          .map((i) => i.value),
+        sources: (norm.clientFields?.source || [])
+          .filter((i) => !i.isDeleted)
+          .map((i) => i.value),
+        businesses: (norm.clientFields?.business || [])
+          .filter((i) => !i.isDeleted)
+          .map((i) => i.value),
+        countries: (norm.generalFields?.country || [])
+          .filter((i) => !i.isDeleted)
+          .map((i) => i.value),
+        currencies: (norm.generalFields?.currency || [])
+          .filter((i) => !i.isDeleted)
+          .map((i) => i.value),
+        tags: (norm.clientFields?.tags || []).filter((i) => !i.isDeleted),
+      });
+    } catch (e) {
+      console.error("Ошибка загрузки полей:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadFields();
+  }, []);
+
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find(
+        (item) => item.value && item.value.toLowerCase() === newValue.toLowerCase()
+      );
+
+      if (!exists) {
+        list.push({
+          id: rid(),
+          value: newValue,
+          isDeleted: false,
+        });
+
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+
+        await saveFields(payload);
+        await loadFields();
+
+        if (refreshFields) {
+          await refreshFields();
+        }
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
+
   const methods = useForm({
     resolver: yupResolver(clientSchema),
     mode: "onChange",
@@ -68,7 +146,22 @@ export default function ClientModal({
     formState: { isDirty },
   } = methods;
 
-  /* ---------- Ошибки по вкладкам ---------- */
+  const handleAddCompanyDirect = async (companyName) => {
+    const clientFullName = getValues("full_name") || getValues("name") || "Новый клиент";
+
+    const data = {
+      name: companyName,
+      firstContactName: clientFullName,
+    };
+
+    try {
+      const created = await onAddCompany(data);
+      setValue("company_id", created.id, { shouldDirty: true });
+    } catch (e) {
+      console.error("Ошибка при прямом создании компании:", e);
+    }
+  };
+
   const errorMap = {
     info: ["name", "company_id", "category", "source", "tags"],
     contacts: ["full_name", "phone", "email", "country"],
@@ -78,14 +171,17 @@ export default function ClientModal({
 
   const groupErrors = (err) => {
     const grouped = {};
+
     Object.keys(err || {}).forEach((f) => {
       const tab = Object.keys(errorMap).find((t) => errorMap[t].includes(f));
-      if (tab) (grouped[tab] ??= []).push(f);
+      if (tab) {
+        (grouped[tab] ??= []).push(f);
+      }
     });
+
     return grouped;
   };
 
-  /* ---------- Сохранение / валидация ---------- */
   const submitHandler = async (data) => {
     try {
       const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
@@ -99,16 +195,19 @@ export default function ClientModal({
 
   const onInvalid = (err) => {
     console.log("Validation Errors:", err);
+
     const grouped = groupErrors(err);
     setFormErrors(grouped);
 
     const firstTab = ["info", "contacts", "finances", "accesses"].find(
       (t) => grouped?.[t]?.length
     );
-    if (firstTab) setActiveTab(firstTab);
+
+    if (firstTab) {
+      setActiveTab(firstTab);
+    }
   };
 
-  /* ---------- Закрытие / Удаление ---------- */
   const closeHandler = () => {
     setClosing(true);
     setTimeout(onClose, 300);
@@ -116,6 +215,7 @@ export default function ClientModal({
 
   const deleteHandler = async () => {
     if (!onDelete) return;
+
     if (window.confirm("Удалить клиента безвозвратно?")) {
       await onDelete(safeClient.id);
       closeHandler();
@@ -125,7 +225,6 @@ export default function ClientModal({
   return (
     <div className={`client-modal-overlay${closing ? " closing" : ""}`}>
       <div className="client-modal tri-layout">
-        {/* ─── левая панель ─── */}
         <div className="left-panel">
           <FormProvider {...methods}>
             <ClientHeader onClose={closeHandler} onDelete={onDelete ? deleteHandler : null} />
@@ -147,7 +246,12 @@ export default function ClientModal({
               {activeTab === "info" && (
                 <InfoTab
                   companies={companies}
-                  onAddCompany={() => setShowCompany(true)}
+                  categories={fieldOptions.categories}
+                  sources={fieldOptions.sources}
+                  businesses={fieldOptions.businesses}
+                  tagOptions={fieldOptions.tags}
+                  onAddCompany={handleAddCompanyDirect}
+                  onAddNewField={handleAddNewField}
                 />
               )}
 
@@ -169,6 +273,7 @@ export default function ClientModal({
               {activeTab === "accesses" && <AccessesTab />}
             </form>
           </FormProvider>
+
           <div className="form-actions-bottom">
             <button
               className="cancel-order-btn"
@@ -185,7 +290,6 @@ export default function ClientModal({
           </div>
         </div>
 
-        {/* ─── центр – чат ─── */}
         {isNew ? (
           <div className="chat-panel-wrapper chat-placeholder">
             <p>Сохраните клиента, чтобы открыть чат.</p>
@@ -196,7 +300,6 @@ export default function ClientModal({
           </div>
         )}
 
-        {/* ─── правая панель действий ─── */}
         {isNew ? (
           <div className="menu-placeholder">
             <p>Сохраните клиента, чтобы добавить заказ или дублировать.</p>
@@ -207,18 +310,6 @@ export default function ClientModal({
           </div>
         )}
       </div>
-
-      {/* ─── модалки поверх ─── */}
-      {showCompany && (
-        <AddCompanyModal
-          onCreate={async (data) => {
-            const created = await onAddCompany(data);
-            setValue("company_id", created.id);
-            setShowCompany(false);
-          }}
-          onCancel={() => setShowCompany(false)}
-        />
-      )}
 
       {showImage && (
         <ImagePreviewModal

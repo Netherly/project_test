@@ -6,6 +6,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import Sidebar from "../Sidebar";
 import StageColumn from "./StageColumn";
 import OrderModal from "../modals/OrderModal/OrderModal";
+import NoAccessState from "../ui/NoAccessState.jsx";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import ColumnMinimap from "./Minimap/ColumnMinimap";
 import ColumnVisibilityToggle from "./ColumnVisibilityToggle/ColumnVisibilityToggle";
@@ -20,6 +21,13 @@ import {
   changeOrderStage,
   deleteOrder as apiDeleteOrder,
 } from "../../api/orders";
+import { isForbiddenError } from "../../utils/isForbiddenError.js";
+import {
+  CACHE_TTL,
+  hasDataChanged,
+  readCacheSnapshot,
+  writeCachedValue,
+} from "../../utils/resourceCache";
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
@@ -116,6 +124,7 @@ const stageToApi = {
 };
 
 const apiToStage = Object.fromEntries(Object.entries(stageToApi).map(([k, v]) => [v, k]));
+const ORDER_PAGE_CACHE_KEY = "ordersPageData";
 
 const urgencyToApi = { "1": "one", "2": "two", "3": "three", "4": "four" };
 const apiToUrgency = { one: "1", two: "2", three: "3", four: "4" };
@@ -435,10 +444,25 @@ const OrdersPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Состояние
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState(() => {
+    const pageSnapshot = readCacheSnapshot(ORDER_PAGE_CACHE_KEY, { fallback: [] });
+    if (pageSnapshot.hasData) {
+      return Array.isArray(pageSnapshot.data) ? pageSnapshot.data : [];
+    }
+
+    const sharedSnapshot = readCacheSnapshot("ordersData", { fallback: [] });
+    const cachedSharedOrders = Array.isArray(sharedSnapshot.data) ? sharedSnapshot.data : [];
+    return cachedSharedOrders.map(mapOrderFromApi);
+  });
+  const [loading, setLoading] = useState(
+    () =>
+      !readCacheSnapshot(ORDER_PAGE_CACHE_KEY, { fallback: [] }).hasData &&
+      !readCacheSnapshot("ordersData", { fallback: [] }).hasData
+  );
   const [error, setError] = useState("");
+  const [forbidden, setForbidden] = useState(false);
   const [journalEntries, setJournalEntries] = useState([]);
+  const cacheWriteStateRef = useRef({ orders: false });
   
   // Видимость стадий
   const [visibleOrderStages, setVisibleOrderStages] = useState(() => {
@@ -466,25 +490,75 @@ const OrdersPage = () => {
 
   // Загрузка данных
   useEffect(() => {
+    const pageSnapshot = readCacheSnapshot(ORDER_PAGE_CACHE_KEY, {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+    const sharedSnapshot = readCacheSnapshot("ordersData", {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+    const cachedOrders = pageSnapshot.hasData
+      ? Array.isArray(pageSnapshot.data)
+        ? pageSnapshot.data
+        : []
+      : Array.isArray(sharedSnapshot.data)
+      ? sharedSnapshot.data.map(mapOrderFromApi)
+      : [];
+
+    if (pageSnapshot.hasData || sharedSnapshot.hasData) {
+      setOrders((prev) => (hasDataChanged(prev, cachedOrders) ? cachedOrders : prev));
+      setLoading(false);
+      if (pageSnapshot.isFresh || sharedSnapshot.isFresh) {
+        setError("");
+        setForbidden(false);
+      }
+    }
+
     const load = async () => {
-      setLoading(true);
+      if (!pageSnapshot.hasData && !sharedSnapshot.hasData) {
+        setLoading(true);
+      }
       setError("");
+      setForbidden(false);
       try {
         const data = await fetchOrders();
         const apiOrders = data?.orders || data || [];
-        setOrders(apiOrders.map(mapOrderFromApi));
+        const nextOrders = apiOrders.map(mapOrderFromApi);
+        writeCachedValue("ordersData", apiOrders);
+        writeCachedValue(ORDER_PAGE_CACHE_KEY, nextOrders);
+        setOrders((prev) => (hasDataChanged(prev, nextOrders) ? nextOrders : prev));
       } catch (e) {
         console.error("Fetch orders error", e);
-        setError(e?.message || "Не удалось загрузить заказы");
+        if (isForbiddenError(e)) {
+          setForbidden(true);
+          setError("");
+          if (!pageSnapshot.hasData && !sharedSnapshot.hasData) {
+            setOrders([]);
+          }
+        } else {
+          setError(e?.message || "Не удалось загрузить заказы");
+        }
       } finally {
         setLoading(false);
       }
     };
-    load();
+
+    if (!pageSnapshot.isFresh && !sharedSnapshot.isFresh) {
+      load();
+    }
 
     const allEntries = getLogEntries();
     setJournalEntries(allEntries);
   }, []);
+
+  useEffect(() => {
+    if (!cacheWriteStateRef.current.orders) {
+      cacheWriteStateRef.current.orders = true;
+      return;
+    }
+    writeCachedValue(ORDER_PAGE_CACHE_KEY, orders);
+  }, [orders]);
 
   // --- Handlers ---
 
@@ -719,29 +793,43 @@ const OrdersPage = () => {
             </svg>
           </button>
 
-          <button className="create-order-btn" onClick={() => setIsCreateModalOpen(true)}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="lucide lucide-plus-icon lucide-plus"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5v14" />
-            </svg>
-            Добавить
+          <button
+            className="create-order-btn"
+            onClick={forbidden ? undefined : () => setIsCreateModalOpen(true)}
+            disabled={forbidden}
+          >
+            {forbidden ? null : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-plus-icon lucide-plus"
+              >
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            )}
+            {forbidden ? "Нет доступа" : "Добавить"}
           </button>
         </header>
 
-        {error && <div className="orders-error">{error}</div>}
+        {error && !forbidden && <div className="orders-error">{error}</div>}
         {loading && <div className="orders-loading">Загрузка заказов...</div>}
+        {forbidden && !loading && (
+          <NoAccessState
+            title='Нет доступа к разделу "Заказы"'
+            description="У вашей учетной записи недостаточно прав для просмотра списка заказов."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
+        )}
 
+        {!forbidden && (
         <DndProvider backend={HTML5Backend}>
           <div className="stages-container" ref={stagesContainerRef}>
             {allStages.map((stage) => (
@@ -783,8 +871,9 @@ const OrdersPage = () => {
             </div>
           )}
         </DndProvider>
+        )}
 
-        {isMassEditMode && selectedOrders.length > 0 && (
+        {!forbidden && isMassEditMode && selectedOrders.length > 0 && (
           <OrderMassActionBar
             selectedCount={selectedOrders.length}
             onClose={() => {
@@ -797,7 +886,7 @@ const OrdersPage = () => {
         )}
       </div>
 
-      {selectedOrder && (
+      {!forbidden && selectedOrder && (
         <OrderModal
           mode="edit"
           order={selectedOrder}
@@ -808,7 +897,7 @@ const OrdersPage = () => {
         />
       )}
 
-      {isCreateModalOpen && (
+      {!forbidden && isCreateModalOpen && (
         <OrderModal
           mode="create"
           onClose={() => setIsCreateModalOpen(false)}

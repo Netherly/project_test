@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
+import NoAccessState from "../components/ui/NoAccessState";
 import { useFields } from "../context/FieldsContext";
 import "../styles/ClientsPage.css";
 import {
@@ -11,6 +12,13 @@ import {
 } from "../api/clients";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
+import { isForbiddenError } from "../utils/isForbiddenError";
+import {
+  CACHE_TTL,
+  hasDataChanged,
+  readCacheSnapshot,
+  writeCachedValue,
+} from "../utils/resourceCache";
 
 
 const statusToEmojiMap = {
@@ -100,11 +108,26 @@ export default function ClientsPage() {
   const [dateTo, setDateTo] = useState("");
 
   /* === загрузка данных === */
-  const [loading, setLoading] = useState(true);
-  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(
+    () => !readCacheSnapshot("clientsData", { fallback: [] }).hasData
+  );
+  const [list, setList] = useState(
+    () => readCacheSnapshot("clientsData", { fallback: [] }).data || []
+  );
   const [error, setError] = useState("");
-  const [companiesList, setCompaniesList] = useState([]);
-  const [employeesList, setEmployeesList] = useState([]);
+  const [forbidden, setForbidden] = useState(false);
+  const [companiesList, setCompaniesList] = useState(
+    () => readCacheSnapshot("companiesData", { fallback: [] }).data || []
+  );
+  const [employeesList, setEmployeesList] = useState(() => {
+    const cachedEmployees = readCacheSnapshot("employees", { fallback: [] }).data || [];
+    return Array.isArray(cachedEmployees)
+      ? cachedEmployees.map((e) => ({
+          id: e.id,
+          full_name: e.fullName ?? e.full_name ?? "",
+        }))
+      : [];
+  });
 
   
   const referrerOptions = useMemo(() => {
@@ -151,17 +174,38 @@ export default function ClientsPage() {
 
   useEffect(() => {
     let mounted = true;
+    const snapshot = readCacheSnapshot("employees", {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+
+    if (snapshot.hasData) {
+      const normalized = Array.isArray(snapshot.data)
+        ? snapshot.data.map((e) => ({
+            id: e.id,
+            full_name: e.fullName ?? e.full_name ?? "",
+          }))
+        : [];
+      setEmployeesList((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
+      if (snapshot.isFresh) {
+        return () => {
+          mounted = false;
+        };
+      }
+    }
+
     (async () => {
       try {
         const data = await fetchEmployees();
         if (!mounted) return;
+        writeCachedValue("employees", Array.isArray(data) ? data : []);
         const normalized = Array.isArray(data)
           ? data.map((e) => ({
               id: e.id,
               full_name: e.fullName ?? e.full_name ?? "",
             }))
           : [];
-        setEmployeesList(normalized);
+        setEmployeesList((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
       } catch (e) {
         console.error("fetchEmployees failed:", e);
       }
@@ -173,11 +217,32 @@ export default function ClientsPage() {
 
   useEffect(() => {
     let mounted = true;
+    const snapshot = readCacheSnapshot("companiesData", {
+      fallback: [],
+      ttlMs: CACHE_TTL.companies,
+    });
+
+    if (snapshot.hasData) {
+      const cachedCompanies = Array.isArray(snapshot.data) ? snapshot.data : [];
+      setCompaniesList((prev) =>
+        hasDataChanged(prev, cachedCompanies) ? cachedCompanies : prev
+      );
+      if (snapshot.isFresh) {
+        return () => {
+          mounted = false;
+        };
+      }
+    }
+
     (async () => {
       try {
         const data = await fetchCompanies();
         if (!mounted) return;
-        setCompaniesList(Array.isArray(data) ? data : []);
+        const nextCompanies = Array.isArray(data) ? data : [];
+        writeCachedValue("companiesData", nextCompanies);
+        setCompaniesList((prev) =>
+          hasDataChanged(prev, nextCompanies) ? nextCompanies : prev
+        );
       } catch (e) {
         console.error("fetchCompanies failed:", e);
       }
@@ -189,19 +254,48 @@ export default function ClientsPage() {
 
   useEffect(() => {
     let mounted = true;
+    const snapshot = readCacheSnapshot("clientsData", {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+
+    if (snapshot.hasData) {
+      const cachedClients = Array.isArray(snapshot.data) ? snapshot.data : [];
+      setList((prev) => (hasDataChanged(prev, cachedClients) ? cachedClients : prev));
+      setLoading(false);
+      if (snapshot.isFresh) {
+        setError("");
+        setForbidden(false);
+        return () => {
+          mounted = false;
+        };
+      }
+    }
+
     (async () => {
-      setLoading(true);
+      if (!snapshot.hasData) {
+        setLoading(true);
+      }
       setError("");
+      setForbidden(false);
       try {
         const data = await fetchClients();
         if (!mounted) return;
-        const normalized = Array.isArray(data) ? data.map(withReferrerNames) : [];
-        setList(normalized);
+        const nextClients = Array.isArray(data) ? data : [];
+        writeCachedValue("clientsData", nextClients);
+        setList((prev) => (hasDataChanged(prev, nextClients) ? nextClients : prev));
       } catch (e) {
         console.error("fetchClients failed:", e);
         if (mounted) {
-          setError(e?.message || "Не удалось загрузить клиентов");
-          setList([]);
+          if (isForbiddenError(e)) {
+            setForbidden(true);
+            setError("");
+          } else {
+            setError(e?.message || "Не удалось загрузить клиентов");
+          }
+          if (!snapshot.hasData) {
+            setList([]);
+          }
         }
       } finally {
         if (mounted) setLoading(false);
@@ -434,21 +528,17 @@ export default function ClientsPage() {
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
-      const savedCategory = saved?.category?.name || saved?.category;
-      if (savedCategory) {
-        setCategoriesList((prev) => {
-          const listSafe = Array.isArray(prev) ? prev : [];
-          return Array.from(new Set([...listSafe, savedCategory]));
-        });
-      }
       setList((prev) => {
         const idx = prev.findIndex((x) => x.id === saved.id);
         if (idx !== -1) {
           const copy = [...prev];
           copy[idx] = saved;
+          writeCachedValue("clientsData", copy);
           return copy;
         }
-        return [saved, ...prev];
+        const next = [saved, ...prev];
+        writeCachedValue("clientsData", next);
+        return next;
       });
       return saved;
     } catch (e) {
@@ -463,6 +553,7 @@ export default function ClientsPage() {
     setCompaniesList((prev) => {
       const next = [...prev, created];
       next.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+      writeCachedValue("companiesData", next);
       return next;
     });
     return created;
@@ -472,7 +563,11 @@ export default function ClientsPage() {
     try {
       setError("");
       await deleteClientApi(id);
-      setList((prev) => prev.filter((c) => c.id !== id));
+      setList((prev) => {
+        const next = prev.filter((c) => c.id !== id);
+        writeCachedValue("clientsData", next);
+        return next;
+      });
     } catch (e) {
       console.error("deleteClient failed:", e);
       setError(e?.message || "Не удалось удалить клиента");
@@ -575,6 +670,9 @@ export default function ClientsPage() {
           }}
           onSearch={setSearch}
           total={filteredRows.length}
+          addDisabled={forbidden}
+          addLabel={forbidden ? "Нет доступа" : "Добавить"}
+          hideAddIcon={forbidden}
           currencyOptions={currencyOptions}
           statusOptions={statusOptions}
           tagOptions={tagOptions}
@@ -604,10 +702,17 @@ export default function ClientsPage() {
           }}
         />
 
-        <div ref={wrapRef} className="clients-table-wrapper custom-scrollbar">
-          {loading ? (
-            <div className="table-loader">Загрузка…</div>
-          ) : (
+        {forbidden && !loading ? (
+          <NoAccessState
+            title='Нет доступа к разделу "Клиенты"'
+            description="У вашей учетной записи недостаточно прав для просмотра списка клиентов."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
+        ) : (
+          <div ref={wrapRef} className="clients-table-wrapper custom-scrollbar">
+            {loading ? (
+              <div className="table-loader">Загрузка…</div>
+            ) : (
             <table className="clients-table">
               <thead className="fixed-task-panel">
                 <tr>
@@ -693,10 +798,11 @@ export default function ClientsPage() {
                 })}
               </tbody>
             </table>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {!loading && filteredRows.length === 0 && (
+        {!loading && !forbidden && filteredRows.length === 0 && (
           <div className="empty-state">{error || "Клиенты не найдены"}</div>
         )}
       </div>

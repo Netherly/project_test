@@ -11,7 +11,16 @@ export default function EmployeeHeader({ onClose, onDelete }) {
     const fullName = watch('fullName')?.trim() || 'Имя сотрудника';
     const login = watch('login')?.trim() || 'Логин';
     const avatarSrc = watch('photoLink')?.trim() || defaultAvatar;
-
+    
+    useEffect(() => {
+        if (avatarSrc !== defaultAvatar) {
+            try {
+                window.dispatchEvent(new CustomEvent('profile:photo-updated', { detail: { photo: avatarSrc } }));
+            } catch (error) {
+                console.error('Ошибка диспатча события обновления фото:', error);
+            }
+        }
+    }, [avatarSrc]);
     
     const [customTag, setCustomTag] = useState('');
     const [showTagDropdown, setShowTagDropdown] = useState(false);
@@ -48,7 +57,6 @@ export default function EmployeeHeader({ onClose, onDelete }) {
         tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !watchedTags.find(t => t.name === tagString)
     );
     
-
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef(null);
 

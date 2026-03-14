@@ -21,6 +21,9 @@ function parseCorsOrigins(raw) {
 
 const allowedOrigins = parseCorsOrigins(process.env.CORS_ORIGINS);
 
+// The app runs behind nginx in both prod and test, so trust X-Forwarded-*.
+app.set('trust proxy', 1);
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -41,5 +44,23 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname,'..', 'uploads')));
 app.use('/api', routes);
+
+app.use((err, _req, res, _next) => {
+  const status = Number(err?.status || err?.statusCode) || 500;
+  const message = String(
+    err?.message ||
+      (status >= 500 ? 'Internal Server Error' : 'Request failed')
+  );
+
+  if (status >= 500) {
+    console.error('[api] unhandled error:', err);
+  }
+
+  res.status(status).json({
+    ok: false,
+    error: message,
+    message,
+  });
+});
 
 module.exports = app;

@@ -1,77 +1,18 @@
-// /components/Companies/CompanyModal/CompanyModal.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { companySchema } from './companySchema'; 
-import CompanyHeader from './CompanyHeader'; // <-- Новый хедер
-import CompanyTabsNav from './CompanyTabsNav'; // <-- Новая навигация
+import CompanyHeader from './CompanyHeader'; 
+import CompanyTabsNav from './CompanyTabsNav'; 
 import ConfirmationModal from '../../modals/confirm/ConfirmationModal';
 import ChatPanel from '../../Client/ClientModal/ChatPanel'; 
 
-// Стили
-import '../../../styles/ExecutorModal.css'; // <-- Используем стили от модала исполнителя
+import SummaryTab from './tabs/SummaryTab';
+import CompanyEmployeesTab from './tabs/CompanyEmployeesTab';
+import AccessTab from './tabs/AccessTab';
+import CompanyFinancesTab from './tabs/CompanyFinancesTab';
 
-// --- Утилита форматирования (нужна для вкладки "Финансы") ---
-const formatNumberWithSpaces = (num) => {
-    if (num === null || num === undefined || isNaN(Number(num))) {
-        return '0.00';
-    }
-    const fixedNum = Number(num).toFixed(2);
-    const parts = fixedNum.split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-    return parts.join('.');
-};
-
-// --- Компоненты вкладок (оставляем как в прошлый раз) ---
-
-const SummaryTab = ({ company }) => (
-    <div className="tab-section">
-        <p>Сводка по компании {company?.name || ''} (в разработке)</p>
-        {/* TODO: Добавить сюда основные поля формы (name, phone, email...) */}
-    </div>
-);
-
-const CompanyEmployeesTab = ({ clients, companyName }) => {
-    const companyClients = companyName 
-        ? clients.filter(c => c.company === companyName) 
-        : [];
-    return (
-        <div className="tab-section">
-            <div className="tab-content-title">Сотрудники ({companyClients.length})</div>
-            {/* ... (код вкладки) ... */}
-        </div>
-    );
-};
-
-const AccessTab = () => (
-    <div className="tab-section placeholder-tab">
-        <p>Доступы (в разработке)</p>
-    </div>
-);
-
-const CompanyFinancesTab = ({ transactions, clients, companyName }) => {
-    const companyClientIds = companyName
-        ? clients.filter(c => c.company === companyName).map(c => c.id)
-        : [];
-    const companyTransactions = transactions.filter(t => 
-        companyClientIds.includes(t.clientId)
-    );
-
-    return (
-        <div className="tab-section">
-            <div className="tab-content-title">Журнал операций</div>
-            
-            {/* Используем ту же таблицу, что и раньше */}
-            <div className="finances-log-table">
-                {/* ... (код таблицы) ... */}
-            </div>
-        </div>
-    );
-};
-
-
-// --- ОСНОВНОЙ КОМПОНЕНТ МОДАЛА ---
+import '../../../styles/ExecutorModal.css'; 
 
 export default function CompanyModal({
     company, 
@@ -84,7 +25,7 @@ export default function CompanyModal({
     const safeCompany = company ?? {};
     const isNew = !safeCompany.id;
 
-    const [activeTab, setActiveTab] = useState('summary'); // <-- Вкладка по умолчанию
+    const [activeTab, setActiveTab] = useState('summary'); 
     const [closing, setClosing] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -102,15 +43,17 @@ export default function CompanyModal({
             name: '',
             phone: '',
             email: '',
-            tags: [], // Добавлено для хедера
+            tags: [], 
             ...safeCompany,
         },
     });
 
     const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
 
+    const companyClients = clients.filter(c => String(c.company_id) === String(safeCompany.id) || c.company === safeCompany.name);
+    const firstContactName = companyClients.length > 0 ? (companyClients[0].full_name || companyClients[0].name) : null;
+
     const submitHandler = (data) => {
-        console.log("Данные из формы:", data);
         const dataToSave = {
             ...safeCompany, 
             ...data,
@@ -119,14 +62,12 @@ export default function CompanyModal({
     };
 
     const onInvalid = (err) => {
-        console.log("Ошибки валидации:", err);
         const firstErrorField = Object.keys(err)[0];
         if (['name', 'phone', 'email'].includes(firstErrorField)) {
             setActiveTab('summary');
         }
     };
 
-    // ... (Обработчики закрытия и удаления) ...
     const handleActualClose = () => {
         setClosing(true);
         setTimeout(onClose, 300);
@@ -164,9 +105,7 @@ export default function CompanyModal({
 
     return (
         <div className={`employee-modal-overlay ${isOpen ? 'open' : ''} ${closing ? 'closing' : ''}`} onClick={closeHandler}>
-           
             <div className="employee-modal tri-layout" onClick={(e) => e.stopPropagation()}>
-                
                 
                 <div className="left-panel">
                     <FormProvider {...methods}>
@@ -180,6 +119,7 @@ export default function CompanyModal({
                                 onDelete={!isNew && onDelete ? deleteHandler : null}
                                 isDirty={isDirty}
                                 reset={reset}
+                                firstContactName={firstContactName} 
                             />
 
                             <CompanyTabsNav
@@ -188,16 +128,23 @@ export default function CompanyModal({
                                 errors={errors} 
                             />
                             
-                            <div className="tab-content-wrapper">
+                            <div className="tab-content-wrapper custom-scrollbar">
                                 {activeTab === 'summary' && <SummaryTab company={safeCompany} />}
-                                {activeTab === 'employees' && <CompanyEmployeesTab clients={clients} companyName={safeCompany.name} />}
+                                
+                                {activeTab === 'employees' && (
+                                    <CompanyEmployeesTab 
+                                        clients={clients} 
+                                        companyName={safeCompany.name} 
+                                        companyId={safeCompany.id} 
+                                    />
+                                )}
+                                
                                 {activeTab === 'access' && <AccessTab />}
                                 {activeTab === 'finances' && <CompanyFinancesTab transactions={transactions} clients={clients} companyName={safeCompany.name} />}
                             </div>
                         </form>
                     </FormProvider>
                     
-                   
                     <div className='form-actions-bottom'>
                         <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
                             Сбросить
@@ -208,7 +155,6 @@ export default function CompanyModal({
                     </div>
                 </div>
 
-                
                 {isNew ? (
                     <div className="chat-panel-wrapper chat-placeholder">
                         <p>Сохраните компанию, чтобы открыть чат.</p>
@@ -219,7 +165,6 @@ export default function CompanyModal({
                     </div>
                 )}
 
-               
                 <div className="right-side-menu">
                     {isNew ? (
                         <div className="menu-placeholder">
@@ -232,7 +177,6 @@ export default function CompanyModal({
 
             </div> 
 
-           
             {showCloseConfirm && (
                 <ConfirmationModal
                     title="Сообщение"
