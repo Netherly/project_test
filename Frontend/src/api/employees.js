@@ -467,6 +467,11 @@ export async function updateEmployee(id, payload) {
   return normalizeEmployee(unwrap(r));
 }
 
+export async function createEmployeeTemporaryPassword(id) {
+  const r = await httpPut(`/employees/${id}/temporary-password`, {});
+  return unwrap(r);
+}
+
 export async function deleteEmployee(id) {
   const r = await httpDelete(`/employees/${id}`);
   return unwrap(r) ?? true;
@@ -477,6 +482,7 @@ export default {
   fetchEmployeeById,
   createEmployee,
   updateEmployee,
+  createEmployeeTemporaryPassword,
   deleteEmployee,
   normalizeEmployee,
   serializeEmployee,

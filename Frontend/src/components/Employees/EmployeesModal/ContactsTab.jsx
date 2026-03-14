@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { httpPost, httpPut } from '../../../api/http';
+import { createEmployeeTemporaryPassword } from '../../../api/employees';
 import { Plus, ExternalLink, Copy, LogOut, Link2Off } from 'lucide-react';
 
 export default function ContactsTab({ isNew, employeeId, fieldsData }) {
@@ -34,6 +35,12 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
       if (match) setValue("countryId", match.value, { shouldDirty: false });
     }
   }, [countryOptions, currentCountry, currentCountryId, setValue]);
+
+  useEffect(() => {
+    setTemporaryPassword(null);
+    setTempPasswordError('');
+    setTempPasswordCopyState('');
+  }, [employeeId]);
  
 
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
@@ -42,6 +49,10 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [unlinkError, setUnlinkError] = useState('');
   const [unlinkState, setUnlinkState] = useState('');
+  const [isCreatingTempPassword, setIsCreatingTempPassword] = useState(false);
+  const [tempPasswordError, setTempPasswordError] = useState('');
+  const [tempPasswordCopyState, setTempPasswordCopyState] = useState('');
+  const [temporaryPassword, setTemporaryPassword] = useState(null);
 
   const telegramId = useWatch({ control, name: 'telegramId' });
   const telegramNickname = useWatch({ control, name: 'telegramNickname' });
@@ -61,6 +72,19 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
     const yyyy = d.getFullYear();
     const hh = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+  };
+
+  const formatExpiry = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) return text;
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
     return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
   };
 
@@ -158,6 +182,49 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
     }
   };
 
+  const handleCreateTemporaryPassword = async () => {
+    if (!employeeId) {
+      setTempPasswordError('Сначала сохраните сотрудника');
+      return;
+    }
+
+    setIsCreatingTempPassword(true);
+    setTempPasswordError('');
+    setTempPasswordCopyState('');
+
+    try {
+      const data = await createEmployeeTemporaryPassword(employeeId);
+      setTemporaryPassword({
+        password: String(data?.password || ''),
+        expiresAt: String(data?.expiresAt || ''),
+        login: String(data?.login || ''),
+      });
+    } catch (error) {
+      console.error('Ошибка создания временного пароля:', error);
+      setTempPasswordError(error?.message || 'Не удалось создать временный пароль');
+    } finally {
+      setIsCreatingTempPassword(false);
+    }
+  };
+
+  const copyTemporaryPassword = async () => {
+    const password = String(temporaryPassword?.password || '').trim();
+    if (!password) return;
+
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable');
+      }
+      await navigator.clipboard.writeText(password);
+      setTempPasswordCopyState('Скопировано');
+    } catch (error) {
+      console.error('Temporary password copy failed:', error);
+      setTempPasswordCopyState('Не удалось скопировать');
+    } finally {
+      setTimeout(() => setTempPasswordCopyState(''), 2000);
+    }
+  };
+
   return (
     <div className="tab-section">
       
@@ -237,17 +304,58 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Пароль</label>
+            <label>{isNew ? 'Пароль' : 'Основной пароль'}</label>
             <input
               {...field}
               type="password"
-              placeholder="Введите пароль"
+              placeholder={isNew ? 'Введите пароль' : 'Оставьте пустым, если менять не нужно'}
               className={errors.password ? "input-error" : ""}
             />
             {errors.password && <p className="error">{errors.password.message}</p>}
           </div>
         )}
       />
+
+      {!isNew && (
+        <div className="form-field temporary-password-field">
+          <label>Временный пароль на 24 часа</label>
+          <div className="input-with-action">
+            <input
+              type="text"
+              readOnly
+              value={temporaryPassword?.password || ''}
+              placeholder="Нажмите «Создать временный пароль»"
+            />
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleCreateTemporaryPassword}
+              disabled={isCreatingTempPassword}
+            >
+              {isCreatingTempPassword ? 'Создание...' : 'Создать временный пароль'}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={copyTemporaryPassword}
+              disabled={!temporaryPassword?.password}
+            >
+              Копировать
+            </button>
+          </div>
+          <p className="hint">
+            Основной пароль не меняется. Временный пароль действует 24 часа и сгорает после первого входа.
+          </p>
+          {temporaryPassword?.login && (
+            <p className="hint">Логин для входа: {temporaryPassword.login}</p>
+          )}
+          {temporaryPassword?.expiresAt && (
+            <p className="hint">Действует до: {formatExpiry(temporaryPassword.expiresAt)}</p>
+          )}
+          {tempPasswordCopyState && <p className="hint">{tempPasswordCopyState}</p>}
+          {tempPasswordError && <p className="error">{tempPasswordError}</p>}
+        </div>
+      )}
 
       <Controller
         name="birthDate"

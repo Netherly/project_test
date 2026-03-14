@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const prisma = require('../../prisma/client');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity, diffObjects } = require('./activity-log.service');
+const tempPasswordService = require('./employee-temp-password.service');
 
 const SALT_ROUNDS = 10;
 
@@ -543,6 +544,10 @@ const EmployeesService = {
     });
 
     return removed;
+  },
+
+  async createTemporaryPassword(id, actor = {}) {
+    return tempPasswordService.createForEmployee(id, normalizeActorMeta(actor));
   },
 
   async updateTags(employeeId, tags) {

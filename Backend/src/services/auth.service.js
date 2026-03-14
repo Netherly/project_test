@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity } = require('./activity-log.service');
 const { hasColumn, pickExistingColumns } = require('../utils/db-schema');
+const tempPasswordService = require('./employee-temp-password.service');
 
 const ACCESS_TTL = process.env.JWT_ACCESS_TTL || '15m';
 const REFRESH_TTL = process.env.JWT_REFRESH_TTL || '3d';
@@ -157,9 +158,13 @@ async function login(identifier, password) {
 
   const stored = employee.password || '';
   const isBcrypt = typeof stored === 'string' && stored.startsWith('$2');
-  const ok = isBcrypt
+  let ok = isBcrypt
     ? await bcrypt.compare(password, stored)
     : String(password) === String(stored);
+  if (!ok) {
+    const temporary = await tempPasswordService.consumeIfMatches(employee.id, password);
+    ok = temporary.matched === true;
+  }
   if (!ok) httpErr('Неверный логин или пароль', 401);
 
   const loginAtMs = Date.now();

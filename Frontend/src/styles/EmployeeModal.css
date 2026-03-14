@@ -203,6 +203,16 @@ select option:disabled {
   cursor: not-allowed;
 }
 
+.temporary-password-field {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.temporary-password-field .input-with-action {
+  flex-wrap: wrap;
+}
+
 .form-field input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
     cursor: pointer;
