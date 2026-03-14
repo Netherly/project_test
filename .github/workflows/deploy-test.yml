@@ -475,6 +475,30 @@ jobs:
             echo 'Running seed for test default admin...'
             npm run seed
 
+            APP_PORT="$(grep -E '^PORT=' .env | tail -n1 | cut -d= -f2- | tr -d '\r' | xargs || true)"
+            TARGET_CWD="$(pwd)"
+            if [ -n "$APP_PORT" ]; then
+              LISTEN_PIDS="$(ss -ltnp 2>/dev/null | grep ":$APP_PORT " | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)"
+              for pid in $LISTEN_PIDS; do
+                PROC_CWD="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+                if [ "$PROC_CWD" = "$TARGET_CWD" ]; then
+                  continue
+                fi
+                echo "Stopping rogue listener pid=$pid on :$APP_PORT cwd=${PROC_CWD:-unknown}"
+                kill "$pid" || true
+              done
+              sleep 2
+              STILL_PIDS="$(ss -ltnp 2>/dev/null | grep ":$APP_PORT " | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)"
+              for pid in $STILL_PIDS; do
+                PROC_CWD="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+                if [ "$PROC_CWD" = "$TARGET_CWD" ]; then
+                  continue
+                fi
+                echo "Force stopping rogue listener pid=$pid on :$APP_PORT cwd=${PROC_CWD:-unknown}"
+                kill -9 "$pid" || true
+              done
+            fi
+
             (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start)
             pm2 save
 
