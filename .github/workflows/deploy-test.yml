@@ -378,6 +378,44 @@ jobs:
             fi
 
       - name: Sync nginx test config and reload
+        env:
+          LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: LETSENCRYPT_EMAIL
+          script: |
+            set -e
+            TEMPLATE="/tmp/deploy/nginx/test.conf.template"
+            TARGET="/etc/nginx/sites-available/crm-test.conf"
+            DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            test -f "$TEMPLATE"
+            sed "s/TEST_DOMAIN/$DOMAIN/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
+            sudo ln -sf "$TARGET" /etc/nginx/sites-enabled/crm-test.conf
+            sudo nginx -t
+            sudo systemctl reload nginx
+
+            if ! command -v certbot >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y certbot python3-certbot-nginx
+            fi
+
+            CERTBOT_ARGS="--nginx --non-interactive --agree-tos --keep-until-expiring -d $DOMAIN"
+            if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
+              CERTBOT_ARGS="$CERTBOT_ARGS --email $LETSENCRYPT_EMAIL"
+            else
+              CERTBOT_ARGS="$CERTBOT_ARGS --register-unsafely-without-email"
+            fi
+
+            sudo certbot $CERTBOT_ARGS
+            sudo nginx -t
+            sudo systemctl reload nginx
+
+      - name: Verify test TLS certificate
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -387,13 +425,9 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             set -e
-            TEMPLATE="/tmp/deploy/nginx/test.conf.template"
-            TARGET="/etc/nginx/sites-available/crm-test.conf"
-            test -f "$TEMPLATE"
-            sed "s/TEST_DOMAIN/${{ secrets.PRIMARY_DOMAIN }}/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
-            sudo ln -sf "$TARGET" /etc/nginx/sites-enabled/crm-test.conf
-            sudo nginx -t
-            sudo systemctl reload nginx
+            DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            CERT_TEXT="$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -text)"
+            echo "$CERT_TEXT" | grep -q "DNS:$DOMAIN"
 
       - name: Install backend deps, prisma migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3
