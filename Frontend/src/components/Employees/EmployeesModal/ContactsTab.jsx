@@ -39,7 +39,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
   useEffect(() => {
     setTemporaryPassword(null);
     setTempPasswordError('');
-    setTempPasswordCopyState('');
   }, [employeeId]);
  
 
@@ -51,7 +50,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
   const [unlinkState, setUnlinkState] = useState('');
   const [isCreatingTempPassword, setIsCreatingTempPassword] = useState(false);
   const [tempPasswordError, setTempPasswordError] = useState('');
-  const [tempPasswordCopyState, setTempPasswordCopyState] = useState('');
   const [temporaryPassword, setTemporaryPassword] = useState(null);
 
   const telegramId = useWatch({ control, name: 'telegramId' });
@@ -72,19 +70,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
     const yyyy = d.getFullYear();
     const hh = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
-    return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
-  };
-
-  const formatExpiry = (value) => {
-    const text = String(value || '').trim();
-    if (!text) return '';
-    const date = new Date(text);
-    if (Number.isNaN(date.getTime())) return text;
-    const dd = String(date.getDate()).padStart(2, '0');
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const yyyy = date.getFullYear();
-    const hh = String(date.getHours()).padStart(2, '0');
-    const min = String(date.getMinutes()).padStart(2, '0');
     return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
   };
 
@@ -196,8 +181,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
       const data = await createEmployeeTemporaryPassword(employeeId);
       setTemporaryPassword({
         password: String(data?.password || ''),
-        expiresAt: String(data?.expiresAt || ''),
-        login: String(data?.login || ''),
       });
     } catch (error) {
       console.error('Ошибка создания временного пароля:', error);
@@ -216,12 +199,10 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
         throw new Error('Clipboard API unavailable');
       }
       await navigator.clipboard.writeText(password);
-      setTempPasswordCopyState('Скопировано');
     } catch (error) {
       console.error('Temporary password copy failed:', error);
-      setTempPasswordCopyState('Не удалось скопировать');
-    } finally {
-      setTimeout(() => setTempPasswordCopyState(''), 2000);
+      setTempPasswordError('Не удалось скопировать пароль');
+      setTimeout(() => setTempPasswordError(''), 2000);
     }
   };
 
@@ -317,42 +298,36 @@ export default function ContactsTab({ isNew, employeeId, fieldsData }) {
       />
 
       {!isNew && (
-        <div className="form-field temporary-password-field">
-          <label>Временный пароль на 24 часа</label>
-          <div className="input-with-action">
+        <div className="form-field">
+          <label>Временный пароль</label>
+          <div className="input-with-icon-wrapper">
             <input
               type="text"
               readOnly
               value={temporaryPassword?.password || ''}
-              placeholder="Нажмите «Создать временный пароль»"
+              placeholder="Создать временный пароль"
             />
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleCreateTemporaryPassword}
-              disabled={isCreatingTempPassword}
-            >
-              {isCreatingTempPassword ? 'Создание...' : 'Создать временный пароль'}
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={copyTemporaryPassword}
-              disabled={!temporaryPassword?.password}
-            >
-              Копировать
-            </button>
+            <div className="input-icons-group">
+              <button
+                type="button"
+                className="icon-action-btn"
+                onClick={handleCreateTemporaryPassword}
+                disabled={isCreatingTempPassword}
+                title="Создать временный пароль"
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                type="button"
+                className="icon-action-btn"
+                onClick={copyTemporaryPassword}
+                disabled={!temporaryPassword?.password}
+                title="Скопировать пароль"
+              >
+                <Copy size={18} />
+              </button>
+            </div>
           </div>
-          <p className="hint">
-            Основной пароль не меняется. Временный пароль действует 24 часа и сгорает после первого входа.
-          </p>
-          {temporaryPassword?.login && (
-            <p className="hint">Логин для входа: {temporaryPassword.login}</p>
-          )}
-          {temporaryPassword?.expiresAt && (
-            <p className="hint">Действует до: {formatExpiry(temporaryPassword.expiresAt)}</p>
-          )}
-          {tempPasswordCopyState && <p className="hint">{tempPasswordCopyState}</p>}
           {tempPasswordError && <p className="error">{tempPasswordError}</p>}
         </div>
       )}
