@@ -1,4 +1,5 @@
 const prisma = require('../../prisma/client');
+const { hasColumn, hasTable } = require('../utils/db-schema');
 
 const DEFAULT_CLIENT_GROUPS = [
   { order: 1, name: 'Партнёры' },
@@ -7,6 +8,11 @@ const DEFAULT_CLIENT_GROUPS = [
 ];
 
 async function ensureDefaultClientGroups() {
+  if (!(await hasTable('ClientGroup'))) {
+    console.log('[seed] client groups skipped: table "ClientGroup" not found');
+    return;
+  }
+
   let defaultGroupId = null;
 
   for (const group of DEFAULT_CLIENT_GROUPS) {
@@ -46,7 +52,7 @@ async function ensureDefaultClientGroups() {
     if (group.order === 2) defaultGroupId = created.id;
   }
 
-  if (defaultGroupId) {
+  if (defaultGroupId && (await hasColumn('Client', 'groupId'))) {
     await prisma.client.updateMany({
       where: { groupId: null },
       data: { groupId: defaultGroupId },
