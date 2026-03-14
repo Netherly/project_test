@@ -63,7 +63,7 @@ const tabsConfig = [
 ];
 
 const initialValues = {
-  generalFields: { currency: [], country: [] },
+  generalFields: { currency: [], country: [], businessLine: [] },
   orderFields: {
     intervals: [{ id: rid(), intervalValue: "", isDeleted: false }],
     categories: [{ id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }],

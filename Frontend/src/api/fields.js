@@ -126,10 +126,14 @@ export async function fetchInactiveFields() {
 export function withDefaults(fields) {
   const safeObj = (x) => (x && typeof x === "object" ? x : {});
   const f = safeObj(fields);
+  const sharedCountries =
+    f?.generalFields?.country ?? f?.clientFields?.country ?? f?.employeeFields?.country;
 
   return {
     generalFields: {
       currency: normStrs(f?.generalFields?.currency),
+      country: normStrs(sharedCountries),
+      businessLine: normStrs(f?.generalFields?.businessLine),
     },
     orderFields: {
       currency: normStrs(f?.orderFields?.currency),
@@ -138,6 +142,8 @@ export function withDefaults(fields) {
       statuses: normStrs(f?.orderFields?.statuses),
       closeReasons: normStrs(f?.orderFields?.closeReasons),
       projects: normStrs(f?.orderFields?.projects),
+      minOrderAmount: normStrs(f?.orderFields?.minOrderAmount),
+      readySolution: normStrs(f?.orderFields?.readySolution),
       tags: normTags(f?.orderFields?.tags),
       techTags: normTags(f?.orderFields?.techTags),
       taskTags: normTags(f?.orderFields?.taskTags),
@@ -150,6 +156,7 @@ export function withDefaults(fields) {
       source: normStrs(f?.clientFields?.source),
       category: normStrs(f?.clientFields?.category),
       country: normStrs(f?.clientFields?.country),
+      business: normStrs(f?.clientFields?.business),
       tags: normTags(f?.clientFields?.tags ?? f?.clientFields?.tag),
       groups: Array.isArray(f?.clientFields?.groups) ? f.clientFields.groups : [],
     },
@@ -277,6 +284,8 @@ export function serializeForSave(values) {
   return {
     generalFields: {
       currency: currencyList,
+      country: serByName(values?.generalFields?.country),
+      businessLine: serByName(values?.generalFields?.businessLine),
     },
     orderFields: {
       intervals: serIntervals(values?.orderFields?.intervals),
@@ -285,6 +294,8 @@ export function serializeForSave(values) {
       closeReasons: serByName(values?.orderFields?.closeReasons),
       projects: serByName(values?.orderFields?.projects),
       discountReason: serByName(values?.orderFields?.discountReason),
+      minOrderAmount: serByName(values?.orderFields?.minOrderAmount),
+      readySolution: serByName(values?.orderFields?.readySolution),
       tags: serTags(values?.orderFields?.tags),
       techTags: serTags(values?.orderFields?.techTags),
       taskTags: serTags(values?.orderFields?.taskTags),
@@ -296,6 +307,7 @@ export function serializeForSave(values) {
       source: serByName(values?.clientFields?.source),
       category: serByName(values?.clientFields?.category),
       country: serByName(values?.clientFields?.country),
+      business: serByName(values?.clientFields?.business),
       tags: serTags(values?.clientFields?.tags),
     },
     companyFields: {
