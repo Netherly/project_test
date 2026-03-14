@@ -29,6 +29,45 @@ export const normStrs = (arr) => {
   return out;
 };
 
+export const normCountries = (arr) => {
+  const seen = new Set();
+  const out = [];
+  const source = Array.isArray(arr) ? arr : [];
+  for (const item of source) {
+    if (typeof item === "string") {
+      const name = tidy(item);
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ id: rid(), value: name, name, isDeleted: false });
+      continue;
+    }
+
+    const name = tidy(item?.name ?? item?.value);
+    const iso2 = tidy(item?.iso2).toUpperCase();
+    const iso3 = tidy(item?.iso3).toUpperCase();
+    const key = String(item?.id || iso2 || name).trim().toLowerCase();
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      ...item,
+      id: item?.id || rid(),
+      value: name || iso2 || iso3,
+      name,
+      nameEn: tidy(item?.nameEn),
+      nameRu: tidy(item?.nameRu),
+      nameUk: tidy(item?.nameUk),
+      iso2,
+      iso3,
+      isDeleted: item?.isDeleted || false,
+    });
+  }
+  return out;
+};
+
 export const normIntervals = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
@@ -132,7 +171,7 @@ export function withDefaults(fields) {
   return {
     generalFields: {
       currency: normStrs(f?.generalFields?.currency),
-      country: normStrs(sharedCountries),
+      country: normCountries(sharedCountries),
       businessLine: normStrs(f?.generalFields?.businessLine),
     },
     orderFields: {
@@ -155,7 +194,7 @@ export function withDefaults(fields) {
     clientFields: {
       source: normStrs(f?.clientFields?.source),
       category: normStrs(f?.clientFields?.category),
-      country: normStrs(f?.clientFields?.country),
+      country: normCountries(f?.clientFields?.country),
       business: normStrs(f?.clientFields?.business),
       tags: normTags(f?.clientFields?.tags ?? f?.clientFields?.tag),
       groups: Array.isArray(f?.clientFields?.groups) ? f.clientFields.groups : [],
@@ -164,7 +203,7 @@ export function withDefaults(fields) {
       tags: normTags(f?.companyFields?.tags),
     },
     employeeFields: {
-      country: normStrs(f?.employeeFields?.country),
+      country: normCountries(f?.employeeFields?.country),
       tags: normTags(f?.employeeFields?.tags),
     },
     assetsFields: {
@@ -203,6 +242,31 @@ export const serByName = (arr) => {
       seen.add(k);
       out.push({ id: item?.id || rid(), name: v });
     }
+  }
+  return out;
+};
+
+export const serCountries = (arr) => {
+  const seen = new Set();
+  const out = [];
+  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item?.isDeleted);
+  for (const item of source) {
+    const name = tidy(item?.name ?? item?.value);
+    const iso2 = tidy(item?.iso2).toUpperCase();
+    const iso3 = tidy(item?.iso3).toUpperCase();
+    const key = String(item?.id || iso2 || name).trim().toLowerCase();
+    if (!key || (!name && !iso2)) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: item?.id || rid(),
+      name: name || iso2,
+      nameEn: tidy(item?.nameEn),
+      nameRu: tidy(item?.nameRu),
+      nameUk: tidy(item?.nameUk),
+      iso2: iso2 || undefined,
+      iso3: iso3 || undefined,
+    });
   }
   return out;
 };
@@ -284,7 +348,7 @@ export function serializeForSave(values) {
   return {
     generalFields: {
       currency: currencyList,
-      country: serByName(values?.generalFields?.country),
+      country: serCountries(values?.generalFields?.country),
       businessLine: serByName(values?.generalFields?.businessLine),
     },
     orderFields: {
@@ -306,7 +370,7 @@ export function serializeForSave(values) {
     clientFields: {
       source: serByName(values?.clientFields?.source),
       category: serByName(values?.clientFields?.category),
-      country: serByName(values?.clientFields?.country),
+      country: serCountries(values?.clientFields?.country),
       business: serByName(values?.clientFields?.business),
       tags: serTags(values?.clientFields?.tags),
     },
@@ -314,7 +378,7 @@ export function serializeForSave(values) {
       tags: serTags(values?.companyFields?.tags),
     },
     employeeFields: {
-      country: serByName(values?.employeeFields?.country),
+      country: serCountries(values?.employeeFields?.country),
       tags: serTags(values?.employeeFields?.tags),
     },
     assetsFields: {
@@ -382,7 +446,7 @@ export const FieldsAPI = {
   },
   async setClientCountries(list) {
     return updateBundle((all) => {
-      all.clientFields.country = normStrs(list);
+      all.clientFields.country = normCountries(list);
       return all;
     });
   },

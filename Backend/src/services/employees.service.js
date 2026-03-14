@@ -3,6 +3,12 @@ const prisma = require('../../prisma/client');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity, diffObjects } = require('./activity-log.service');
 const tempPasswordService = require('./employee-temp-password.service');
+const {
+  buildCountryNames,
+  inferPhoneCountryIso2,
+  normalizeIso2,
+  normalizeIso3,
+} = require('../utils/country-localization');
 
 const SALT_ROUNDS = 10;
 
@@ -156,27 +162,151 @@ const isUuid = (value) =>
     String(value || '')
   );
 
-const resolveCountryId = async (payload) => {
-  const candidate = payload?.countryId ?? payload?.country;
-  if (!candidate) return undefined;
-  if (isUuid(candidate)) return candidate;
+const COUNTRY_SELECT = {
+  id: true,
+  name: true,
+  nameEn: true,
+  nameRu: true,
+  nameUk: true,
+  iso2: true,
+  iso3: true,
+  isActive: true,
+};
 
-  const byName = await prisma.country.findFirst({
-    where: { name: String(candidate).trim() },
-    select: { id: true },
+const uniqueTexts = (values) => {
+  const seen = new Set();
+  const result = [];
+
+  for (const value of values) {
+    const text = toText(value);
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(text);
+  }
+
+  return result;
+};
+
+const buildCountryNameMatchers = (text) => [
+  { name: { equals: text, mode: 'insensitive' } },
+  { nameEn: { equals: text, mode: 'insensitive' } },
+  { nameRu: { equals: text, mode: 'insensitive' } },
+  { nameUk: { equals: text, mode: 'insensitive' } },
+];
+
+const updateCountryTranslations = async (country, names) => {
+  if (!country?.id || !names) return country;
+
+  const data = {};
+  if (!toText(country.name) && toText(names.name)) data.name = names.name;
+  if (!toText(country.nameEn) && toText(names.nameEn)) data.nameEn = names.nameEn;
+  if (!toText(country.nameRu) && toText(names.nameRu)) data.nameRu = names.nameRu;
+  if (!toText(country.nameUk) && toText(names.nameUk)) data.nameUk = names.nameUk;
+  if (!toText(country.iso2) && toText(names.iso2)) data.iso2 = names.iso2;
+  if (country.isActive === false) data.isActive = true;
+
+  if (!Object.keys(data).length) return country;
+
+  return prisma.country.update({
+    where: { id: country.id },
+    data,
+    select: COUNTRY_SELECT,
   });
-  if (byName?.id) return byName.id;
+};
 
-  const byIso = await prisma.country.findFirst({
+const ensureCountryByIso2 = async (iso2) => {
+  const normalizedIso2 = normalizeIso2(iso2);
+  if (!normalizedIso2) return null;
+
+  const names = buildCountryNames(normalizedIso2);
+  if (!names) return null;
+
+  let existing = await prisma.country.findFirst({
     where: {
       OR: [
-        { iso2: String(candidate).trim().toUpperCase() },
-        { iso3: String(candidate).trim().toUpperCase() },
+        { iso2: normalizedIso2 },
+        ...buildCountryNameMatchers(names.nameEn),
+        ...buildCountryNameMatchers(names.nameRu),
+        ...buildCountryNameMatchers(names.nameUk),
       ],
     },
-    select: { id: true },
+    select: COUNTRY_SELECT,
   });
-  return byIso?.id ?? null;
+
+  if (existing) {
+    return updateCountryTranslations(existing, names);
+  }
+
+  return prisma.country.create({
+    data: {
+      name: names.name,
+      nameEn: names.nameEn,
+      nameRu: names.nameRu,
+      nameUk: names.nameUk,
+      iso2: names.iso2,
+      isActive: true,
+    },
+    select: COUNTRY_SELECT,
+  });
+};
+
+const findCountryByText = async (value) => {
+  const text = toText(value);
+  if (!text) return null;
+
+  const iso2 = normalizeIso2(text);
+  if (iso2) {
+    const byIso2 = await prisma.country.findFirst({
+      where: { iso2 },
+      select: COUNTRY_SELECT,
+    });
+    if (byIso2) return byIso2;
+  }
+
+  const iso3 = normalizeIso3(text);
+  if (iso3) {
+    const byIso3 = await prisma.country.findFirst({
+      where: { iso3 },
+      select: COUNTRY_SELECT,
+    });
+    if (byIso3) return byIso3;
+  }
+
+  return prisma.country.findFirst({
+    where: { OR: buildCountryNameMatchers(text) },
+    select: COUNTRY_SELECT,
+  });
+};
+
+const resolveCountryId = async (payload = {}) => {
+  const directCountryId = toText(payload.countryId);
+  if (directCountryId && isUuid(directCountryId)) {
+    return directCountryId;
+  }
+
+  const explicitCandidates = uniqueTexts([
+    directCountryId && !isUuid(directCountryId) ? directCountryId : null,
+    payload.country,
+    payload.countryName,
+  ]);
+  const phoneIso2 = inferPhoneCountryIso2(payload.phone);
+
+  for (const candidate of explicitCandidates) {
+    const matched = await findCountryByText(candidate);
+    if (matched?.id) {
+      if (phoneIso2) {
+        const enriched = await updateCountryTranslations(matched, buildCountryNames(phoneIso2));
+        return enriched?.id ?? matched.id;
+      }
+      return matched.id;
+    }
+  }
+
+  const explicitIso2 = explicitCandidates.map(normalizeIso2).find(Boolean);
+  const countryByIso = await ensureCountryByIso2(explicitIso2 || phoneIso2);
+  return countryByIso?.id ?? null;
 };
 
 const EmployeesService = {
@@ -409,7 +539,11 @@ const EmployeesService = {
     if (payload.companyId !== undefined) data.companyId = payload.companyId;
     if (payload.publicId !== undefined) data.publicId = payload.publicId;
     if (payload.roleId !== undefined) data.roleId = payload.roleId;
-    if (payload.countryId !== undefined || payload.country !== undefined) {
+    if (
+      payload.countryId !== undefined ||
+      payload.country !== undefined ||
+      (payload.phone !== undefined && !before?.countryId)
+    ) {
       data.countryId = await resolveCountryId(payload);
     }
     if (payload.telegramUserId !== undefined) data.telegramUserId = payload.telegramUserId;

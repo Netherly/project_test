@@ -2,6 +2,7 @@ const prisma = require('../../prisma/client');
 const fs = require('fs');
 const path = require('path');
 const { hasTable } = require('../utils/db-schema');
+const { buildCountryNames, normalizeIso2, normalizeIso3 } = require('../utils/country-localization');
 
 /* ==============================
    FS utils
@@ -100,6 +101,57 @@ const normalizeSimpleValues = (list) => {
   return Array.from(out);
 };
 
+const normalizeCountryEntries = (list) => {
+  const out = [];
+  const seen = new Set();
+
+  for (const item of Array.isArray(list) ? list : []) {
+    const source =
+      item && typeof item === 'object'
+        ? item
+        : {
+            name: pickStr(item),
+          };
+
+    const name = pickStr(source?.name ?? source?.value);
+    const nameEn = pickStr(source?.nameEn);
+    const nameRu = pickStr(source?.nameRu);
+    const nameUk = pickStr(source?.nameUk);
+    const iso2 = normalizeIso2(source?.iso2);
+    const iso3 = normalizeIso3(source?.iso3);
+    const id = pickStr(source?.id);
+
+    const displayName = name || nameEn || nameRu || nameUk || iso2;
+    if (!displayName) continue;
+
+    const key = id || iso2 || displayName.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      id: id || null,
+      name: name || nameEn || nameRu || nameUk || iso2,
+      nameEn: nameEn || '',
+      nameRu: nameRu || '',
+      nameUk: nameUk || '',
+      iso2: iso2 || '',
+      iso3: iso3 || '',
+    });
+  }
+
+  return out;
+};
+
+const mapCountry = (country) => ({
+  id: country.id,
+  name: country.name,
+  nameEn: country.nameEn || null,
+  nameRu: country.nameRu || null,
+  nameUk: country.nameUk || null,
+  iso2: country.iso2 || null,
+  iso3: country.iso3 || null,
+});
+
 const syncSimpleDict = async (tx, model, list, opts = {}) => {
   const field = opts.field || 'name';
   const hasIsActive = opts.hasIsActive !== false;
@@ -137,6 +189,102 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
       where: { [field]: { notIn: values } },
     });
   }
+};
+
+const syncCountries = async (tx, list) => {
+  const countries = normalizeCountryEntries(list);
+  const dbModel = tx.country;
+
+  if (!dbModel) return;
+
+  if (!countries.length) {
+    await dbModel.updateMany({ data: { isActive: false } });
+    return;
+  }
+
+  const existing = await dbModel.findMany({
+    select: {
+      id: true,
+      name: true,
+      nameEn: true,
+      nameRu: true,
+      nameUk: true,
+      iso2: true,
+      iso3: true,
+      isActive: true,
+    },
+  });
+  const existingById = new Map(existing.map((item) => [item.id, item]));
+  const existingByIso2 = new Map(
+    existing.map((item) => [normalizeIso2(item.iso2), item]).filter(([key]) => key)
+  );
+  const existingByName = new Map();
+  for (const item of existing) {
+    [item.name, item.nameEn, item.nameRu, item.nameUk]
+      .map((value) => pickStr(value).toLowerCase())
+      .filter(Boolean)
+      .forEach((key) => existingByName.set(key, item));
+  }
+
+  const keepIds = new Set();
+
+  for (const item of countries) {
+    const localizedNames = item.iso2 ? buildCountryNames(item.iso2) : null;
+    const merged = {
+      name: item.name || localizedNames?.name || item.iso2,
+      nameEn: item.nameEn || localizedNames?.nameEn || item.name || null,
+      nameRu: item.nameRu || localizedNames?.nameRu || item.name || null,
+      nameUk: item.nameUk || localizedNames?.nameUk || item.name || null,
+      iso2: item.iso2 || localizedNames?.iso2 || null,
+      iso3: item.iso3 || null,
+    };
+
+    const existingCountry =
+      (item.id && existingById.get(item.id)) ||
+      (merged.iso2 && existingByIso2.get(merged.iso2)) ||
+      existingByName.get(pickStr(merged.name).toLowerCase()) ||
+      existingByName.get(pickStr(merged.nameEn).toLowerCase()) ||
+      existingByName.get(pickStr(merged.nameRu).toLowerCase()) ||
+      existingByName.get(pickStr(merged.nameUk).toLowerCase()) ||
+      null;
+
+    if (existingCountry?.id) {
+      keepIds.add(existingCountry.id);
+      await dbModel.update({
+        where: { id: existingCountry.id },
+        data: {
+          isActive: true,
+          name: merged.name || existingCountry.name,
+          nameEn: merged.nameEn || existingCountry.nameEn,
+          nameRu: merged.nameRu || existingCountry.nameRu,
+          nameUk: merged.nameUk || existingCountry.nameUk,
+          iso2: merged.iso2 || existingCountry.iso2,
+          iso3: merged.iso3 || existingCountry.iso3,
+        },
+      });
+      continue;
+    }
+
+    const created = await dbModel.create({
+      data: {
+        id: item.id || rid(),
+        name: merged.name,
+        nameEn: merged.nameEn,
+        nameRu: merged.nameRu,
+        nameUk: merged.nameUk,
+        iso2: merged.iso2,
+        iso3: merged.iso3,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    keepIds.add(created.id);
+  }
+
+  await dbModel.updateMany({
+    where: { id: { notIn: Array.from(keepIds) } },
+    data: { isActive: false },
+  });
 };
 
 const normalizeExtraFieldList = (list) => {
@@ -431,7 +579,7 @@ async function getAll(db) {
   return {
     generalFields: {
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       businessLine: activeExtraValues(extraFields?.generalFields?.businessLine),
     },
 
@@ -463,7 +611,7 @@ async function getAll(db) {
     clientFields: {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
       category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       business: activeExtraValues(extraFields?.clientFields?.business),
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: mapTags(clientTags),
@@ -475,7 +623,7 @@ async function getAll(db) {
     },
 
     employeeFields: {
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       tags: mapTags(employeeTags),
     },
 
@@ -553,7 +701,7 @@ async function getInactive(db) {
   return {
     generalFields: {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       businessLine: inactiveExtraValues(extraFields?.generalFields?.businessLine),
     },
     orderFields: {
@@ -577,7 +725,7 @@ async function getInactive(db) {
     clientFields: {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
       category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       business: inactiveExtraValues(extraFields?.clientFields?.business),
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: emptyArr,
@@ -587,7 +735,7 @@ async function getInactive(db) {
       tags: emptyArr,
     },
     employeeFields: {
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       tags: emptyArr,
     },
     assetsFields: {
@@ -716,12 +864,12 @@ async function saveAll(payload) {
       // 5. CLIENTS
       await syncSimpleDict(tx, 'clientSourceDict', arrToUniqueStrings(payload?.clientFields?.source, 'name'));
       await syncSimpleDict(tx, 'clientCategoryDict', arrToUniqueStrings(payload?.clientFields?.category, 'name'));
-      const allCountries = new Set([
-        ...arrToUniqueStrings(payload?.generalFields?.country, 'name'),
-        ...arrToUniqueStrings(payload?.clientFields?.country, 'name'),
-        ...arrToUniqueStrings(payload?.employeeFields?.country, 'name'),
-      ]);
-      await syncSimpleDict(tx, 'country', Array.from(allCountries));
+      const allCountries = [
+        ...(Array.isArray(payload?.generalFields?.country) ? payload.generalFields.country : []),
+        ...(Array.isArray(payload?.clientFields?.country) ? payload.clientFields.country : []),
+        ...(Array.isArray(payload?.employeeFields?.country) ? payload.employeeFields.country : []),
+      ];
+      await syncCountries(tx, allCountries);
 
       // 6. TAGS (единая система через TagCategory+Tag)
       await Promise.all([
