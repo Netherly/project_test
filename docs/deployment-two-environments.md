@@ -20,6 +20,7 @@ Both workflows require these secrets in each environment:
 - `PRIMARY_DOMAIN`
 - `FRONTEND_ENV`
 - `BACKEND_ENV`
+- optional but recommended: `LETSENCRYPT_EMAIL`
 - optional: `NODE_VERSION`
 
 Important: workflows run backend commands as the SSH user from `VPS_USER` (for your setup, use `root`).
@@ -76,6 +77,13 @@ sudo htpasswd -c /etc/nginx/.htpasswd-crm-test YOUR_TEST_USER
 ```bash
 sudo certbot --nginx -d PROD_DOMAIN -d TEST_DOMAIN
 ```
+
+Deploy note:
+
+- each deploy rewrites the nginx vhost from the repo template
+- after that the workflow now runs `certbot --nginx -d PRIMARY_DOMAIN --keep-until-expiring`
+- this re-applies the correct certificate for the environment domain (`prod` or `test`) and verifies that the served cert contains that domain
+- if `LETSENCRYPT_EMAIL` is not set, the workflow falls back to `--register-unsafely-without-email`
 
 5. Validate and reload Nginx:
 
