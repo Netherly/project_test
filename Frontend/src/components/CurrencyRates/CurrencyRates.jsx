@@ -56,16 +56,44 @@ const getPureDateTimestamp = (date) => {
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 };
+const toYmd = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return trimmed.slice(0, 10);
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, '0');
+  const d = String(parsed.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+const formatDisplayDate = (value) => {
+  if (!value) return '';
+  const parsed = new Date(`${toYmd(value)}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString();
+};
 const mapServerRows = (rows) =>
   rows
     .map((row) => {
-      const ts  = getPureDateTimestamp(row.date || new Date());
+      const ymd = toYmd(row.date || new Date());
+      const ts  = getPureDateTimestamp(ymd || new Date());
       const USD = Number(row.USD ?? row.usd ?? 0);
       const RUB = Number(row.RUB ?? row.rub ?? 0);
       const UAH = Number(row.UAH ?? row.uah ?? 1);
       const calc = calculateRates(USD, RUB);
       return {
-        id: String(ts),
+        id: ymd || String(ts),
+        ymd,
         date: ts,
         UAH,
         USD,
@@ -351,7 +379,7 @@ function CurrencyRates() {
       const payload = changed.map((row) => {
         const rec = calculateRates(row.USD, row.RUB);
         return {
-          date: new Date(row.date).toISOString().slice(0, 10), // YYYY-MM-DD
+          date: row.ymd || toYmd(row.date),
           uah:  1.0,
           usd:  Number(row.USD),
           rub:  Number(row.RUB),
@@ -376,8 +404,9 @@ function CurrencyRates() {
       });
 
       await upsertRates(payload);
-      setInitialRates(rates);
+      setInitialRates(rates.map((row) => ({ ...row })));
       setDirtyIds(new Set());
+      debouncedSaveToSession.current(rates);
       stopEditRow();
     } catch (e) {
       console.error(e);
@@ -400,14 +429,6 @@ function CurrencyRates() {
     setRates(restored);
     setDirtyIds(new Set());
     stopEditRow();
-  };
-
-  const handleRefresh = async () => {
-    if (isDirty) {
-      openModal('Есть несохранённые изменения', 'Перед обновлением списка сохраните или отмените изменения.', 'warning');
-      return;
-    }
-    await initialLoad();
   };
 
   const handleEnsureToday = async () => {
@@ -459,26 +480,6 @@ function CurrencyRates() {
           {error && <span style={{ color: 'salmon' }}>{error}</span>}
 
           <div className="currency-rates-header-actions">
-            <button
-              type="button"
-              className="cancel-order-btn"
-              onClick={handleEnsureToday}
-              disabled={loading || saving}
-              title="Создать запись курсов на сегодня"
-            >
-              На сегодня
-            </button>
-
-            <button
-              type="button"
-              className="cancel-order-btn"
-              onClick={handleRefresh}
-              disabled={loading || saving}
-              title="Обновить список с первой страницы"
-            >
-              Обновить
-            </button>
-
             {isDirty && (
               <>
                 <button type="button" className="cancel-order-btn" onClick={handleCancel}>
@@ -488,6 +489,18 @@ function CurrencyRates() {
                   Сохранить
                 </button>
               </>
+            )}
+
+            {!isDirty && (
+              <button
+                type="button"
+                className="cancel-order-btn"
+                onClick={handleEnsureToday}
+                disabled={loading || saving}
+                title="Создать запись курсов на сегодня"
+              >
+                На сегодня
+              </button>
             )}
           </div>
         </header>
@@ -526,7 +539,7 @@ function CurrencyRates() {
                       className={isActive ? 'row-active' : 'row-inactive'}
                       onClick={() => startEditRow(row.id)}
                     >
-                      <td>{new Date(row.date).toLocaleDateString()}</td>
+                      <td>{formatDisplayDate(row.ymd || row.date)}</td>
                       <td>{fmt(row.UAH)}</td>
 
                       {/* USD editable */}
