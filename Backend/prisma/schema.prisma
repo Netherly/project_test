@@ -371,8 +371,8 @@ model AppConfig {
 model EmployeeSettings {
   id             String        @id @default(uuid())
   employeeId     String        @unique
-  crmLanguage    String        @default("ua") @db.VarChar(5)
-  crmTheme       EmployeeTheme @default(light)
+  crmLanguage    String        @default("ru") @db.VarChar(5)
+  crmTheme       EmployeeTheme @default(dark)
   crmBackground  String?       @db.VarChar(1000)
   currencyId     String?
   timezone       String?       @db.VarChar(64)
@@ -854,6 +854,7 @@ model Asset {
   id                   String             @id @default(uuid())
   accountName          String             @db.VarChar(255)
   externalId           String?            @db.VarChar(255)
+  isActive             Boolean            @default(true)
   currencyId           String
   typeId               String?
   paymentSystemId      String?
