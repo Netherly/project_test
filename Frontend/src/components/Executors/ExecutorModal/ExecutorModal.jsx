@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { executorSchema } from './executorSchema'; 
@@ -32,6 +32,21 @@ export default function ExecutorModal({
   const [isOpen, setIsOpen] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const formId = 'executor-form';
+  const formDefaults = useMemo(() => ({
+      orderId: '',
+      orderNumber: '',
+      performer: '',
+      dateForPerformer: new Date().toISOString().split('T')[0],
+      hideClient: false,
+      roundHours: false,
+      currency: fields?.currency?.[0]?.value || '',
+      hourlyRate: '',
+      amountInput: '',
+      maxAmount: '',
+      ...safeExecutor,
+      role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].value : ''),
+  }), [fields, safeExecutor]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsOpen(true), 10);
@@ -41,23 +56,14 @@ export default function ExecutorModal({
   const methods = useForm({
         resolver: yupResolver(executorSchema),
         mode: 'onChange',
-        defaultValues: {
-            orderId: '',
-            orderNumber: '',
-            performer: '', 
-            dateForPerformer: new Date().toISOString().split('T')[0], 
-            hideClient: false,
-            roundHours: false,
-            currency: fields?.currency?.[0]?.value || '', 
-            hourlyRate: '',
-            amountInput: '',
-            maxAmount: '',
-            ...safeExecutor,
-           role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].value : ''),
-        },
+        defaultValues: formDefaults,
     });
 
   const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
+
+  useEffect(() => {
+    reset(formDefaults);
+  }, [formDefaults, reset]);
 
   const submitHandler = (data) => {
         console.log("Данные из формы:", data);
@@ -135,7 +141,7 @@ export default function ExecutorModal({
         <div className="left-panel">
           <FormProvider {...methods}>
             <form
-              id="executor-form"
+              id={formId}
               className="employee-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
@@ -163,14 +169,16 @@ export default function ExecutorModal({
 
             </form>
           </FormProvider>
-          <div className='form-actions-bottom'>
-                              <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
-                                  Сбросить
-                              </button>
-                              <button className='save-order-btn' type="submit" form="executor-form" disabled={!isDirty}>
-                                  Сохранить
-                              </button>
-                          </div>
+          {isDirty && (
+            <div className='form-actions-bottom'>
+              <button className='cancel-order-btn' type="button" onClick={() => reset(formDefaults)}>
+                Отменить
+              </button>
+              <button className='save-order-btn' type="submit" form={formId}>
+                Сохранить
+              </button>
+            </div>
+          )}
         </div>
 
         

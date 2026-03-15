@@ -66,7 +66,7 @@ function buildCountryNames(iso2) {
   };
 }
 
-function getCountryDisplayName(country, crmLanguage = 'ua') {
+function getCountryDisplayName(country, crmLanguage = 'ru') {
   const source = country && typeof country === 'object' ? country : null;
   if (!source) return toText(country);
 

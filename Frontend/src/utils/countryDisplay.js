@@ -59,7 +59,7 @@ export function buildCountryNames(iso2) {
   };
 }
 
-export function getCountryDisplayName(country, crmLanguage = "ua") {
+export function getCountryDisplayName(country, crmLanguage = "ru") {
   const source = country && typeof country === "object" ? country : null;
   if (!source) return toText(country);
 
@@ -92,7 +92,7 @@ export function getCountryDisplayName(country, crmLanguage = "ua") {
   );
 }
 
-export function buildSyntheticCountryOption(iso2, crmLanguage = "ua") {
+export function buildSyntheticCountryOption(iso2, crmLanguage = "ru") {
   const names = buildCountryNames(iso2);
   if (!names) return null;
 

@@ -9,7 +9,7 @@ import {
   inferPhoneCountryIso2,
 } from '../../../utils/countryDisplay';
 
-export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ua' }) {
+export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ru' }) {
   const { control, getValues, setValue, formState: { errors } } = useFormContext();
   
   

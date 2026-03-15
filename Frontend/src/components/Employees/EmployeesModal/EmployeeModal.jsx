@@ -39,7 +39,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     transactions: [],
     assets: [],
     orders: [],
-    profile: { crmLanguage: "ua" },
+    profile: { crmLanguage: "ru" },
   });
 
   const formId = "employee-form";
@@ -56,7 +56,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       setLoadingData(true);
       try {
         const fieldsPromise = fetchFields().then(withDefaults).catch(() => ({}));
-        const profilePromise = fetchProfile().catch(() => ({ crmLanguage: "ua" }));
+        const profilePromise = fetchProfile().catch(() => ({ crmLanguage: "ru" }));
 
         const promises = [fieldsPromise, profilePromise];
 
@@ -84,7 +84,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
         setAppData({
           fields: fieldsData || { employeeFields: { country: [] } },
-          profile: profileData || { crmLanguage: "ua" },
+          profile: profileData || { crmLanguage: "ru" },
           transactions: cleanTransactions,
           assets: cleanAssets,
           orders: cleanOrders
@@ -197,7 +197,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                     isNew={isNew}
                     employeeId={safeEmployee.id}
                     fieldsData={appData.fields}
-                    crmLanguage={appData.profile?.crmLanguage || "ua"}
+                    crmLanguage={appData.profile?.crmLanguage || "ru"}
                   />
                 )}
                 

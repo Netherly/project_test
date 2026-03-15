@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientModal from "../components/Client/ClientModal/ClientModal";
 import NoAccessState from "../components/ui/NoAccessState";
@@ -21,6 +21,7 @@ const withReferrerNames = (client) => {
 export default function ClientDetailsPage() {
   const { clientId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { clientCountries = [], currencies = [], clientCategories = [] } = useFields();
   
   const [client, setClient] = useState(null);
@@ -126,7 +127,10 @@ export default function ClientDetailsPage() {
   const handleDeleteClient = async () => {
     try {
       await deleteClientApi(clientId);
-      navigate("/clients");
+      navigate({
+        pathname: "/clients",
+        search: location.search,
+      });
     } catch (e) {
       console.error("deleteClient failed:", e);
       throw e;
@@ -145,7 +149,10 @@ export default function ClientDetailsPage() {
   };
 
   const handleCloseModal = () => {
-    navigate("/clients");
+    navigate({
+      pathname: "/clients",
+      search: location.search,
+    });
   };
 
   if (loading) {

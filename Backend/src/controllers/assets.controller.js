@@ -1,7 +1,7 @@
 const AssetsService = require('../services/assets.service');
 
 async function list(req, res, next) {
-  try { res.json(await AssetsService.list()); }
+  try { res.json(await AssetsService.list(req.query || {})); }
   catch (e) { next(e); }
 }
 

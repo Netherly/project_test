@@ -219,6 +219,7 @@ function MultiTagSelect({
 export default function ClientsPageHeader({
   onAdd,
   onSearch,
+  queryValue = "",
   total,
   addDisabled = false,
   addLabel = "Добавить",
@@ -229,21 +230,30 @@ export default function ClientsPageHeader({
   sourceOptions   = [],
   categoryOptions = [],
   countryOptions  = [],
+  filtersValue,
   onFilterChange,
 }) {
-  
-  const [query, setQuery] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const [filters, setFilters] = useState({
+  const initialFilters = filtersValue || {
     currency: "", status: "", tags: [], source: "", category: "", country: "",
     share: "", dateFrom: "", dateTo: ""
-  });
+  };
+  const filtersValueKey = JSON.stringify(initialFilters);
+
+  const [query, setQuery] = useState(queryValue);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const [filters, setFilters] = useState(initialFilters);
 
   const inputRef = useRef(null);
 
   // Фокус при открытии панели (как в журнале)
   useEffect(() => { if (showAdvanced) inputRef.current?.focus(); }, [showAdvanced]);
+  useEffect(() => {
+    setQuery(queryValue || "");
+  }, [queryValue]);
+  useEffect(() => {
+    setFilters(initialFilters);
+  }, [filtersValueKey]);
 
   
   const preview = useMemo(() => {
@@ -269,7 +279,7 @@ export default function ClientsPageHeader({
 
   const handleApply = () => {
     onFilterChange?.(filters);
-    onSearch?.(query.trim());
+    onSearch?.(query.trim(), filters);
     setShowAdvanced(false);
   };
 
@@ -278,7 +288,7 @@ export default function ClientsPageHeader({
     setFilters(empty);
     setQuery("");
     onFilterChange?.(empty);
-    onSearch?.("");
+    onSearch?.("", empty);
   };
 
   const hasActive =

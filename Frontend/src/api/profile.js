@@ -16,8 +16,47 @@ export async function fetchProfile() {
   return withDefaults(unwrap(r));
 }
 
+const normalizeOptionalText = (value) => {
+  const text = value === null || value === undefined ? "" : String(value).trim();
+  return text || null;
+};
+
+const normalizeCurrencyCode = (value) => {
+  const text = value === null || value === undefined ? "" : String(value).trim().toUpperCase();
+  return text || null;
+};
+
+const sanitizeRequisites = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => ({
+      currency: normalizeCurrencyCode(item?.currency) || "",
+      bank: normalizeOptionalText(item?.bank) || "",
+      account: normalizeOptionalText(item?.account) || "",
+    }))
+    .filter((item) => item.currency || item.bank || item.account);
+};
+
+function normalizeProfilePayload(payload = {}) {
+  const next = { ...payload };
+  if ("nickname" in next) next.nickname = normalizeOptionalText(next.nickname) || "";
+  if ("fullName" in next) next.fullName = normalizeOptionalText(next.fullName) || "";
+  if ("email" in next) next.email = normalizeOptionalText(next.email);
+  if ("photoLink" in next) next.photoLink = normalizeOptionalText(next.photoLink);
+  if ("currency" in next) next.currency = normalizeCurrencyCode(next.currency);
+  if ("crmLanguage" in next) next.crmLanguage = normalizeOptionalText(next.crmLanguage) || "ru";
+  if ("crmTheme" in next) next.crmTheme = next.crmTheme === "light" ? "light" : "dark";
+  if ("crmBackground" in next) next.crmBackground = normalizeOptionalText(next.crmBackground);
+  if ("requisites" in next) next.requisites = sanitizeRequisites(next.requisites);
+  if ("notifySound" in next) next.notifySound = !!next.notifySound;
+  if ("notifyCounter" in next) next.notifyCounter = !!next.notifyCounter;
+  if ("notifyTelegram" in next) next.notifyTelegram = !!next.notifyTelegram;
+  if (Array.isArray(next.botReminders)) next.botReminders = next.botReminders.map(Boolean);
+  return next;
+}
+
 export async function saveProfile(payload) {
-  const r = await httpPut("/profile", payload);
+  const r = await httpPut("/profile", normalizeProfilePayload(payload));
   return withDefaults(unwrap(r));
 }
 
@@ -72,8 +111,8 @@ export function withDefaults(p) {
         ])
       : Array(7).fill(["09:00", "18:00"]),
     botReminders: safeArr(x.botReminders, 7, false),
-    crmLanguage: x.crmLanguage || "ua",
-    crmTheme: x.crmTheme || "light",
+    crmLanguage: x.crmLanguage || "ru",
+    crmTheme: x.crmTheme || "dark",
     crmBackground: x.crmBackground || null,
     crmBackgroundView: x.crmBackground ? fileUrl(x.crmBackground) : null,
     notifySound: x.notifySound !== undefined ? !!x.notifySound : true,
@@ -95,7 +134,7 @@ export const ProfileAPI = {
   },
   async setLanguage(lang) {
     const cur = await fetchProfile();
-    return saveProfile({ ...cur, crmLanguage: lang || "ua" });
+    return saveProfile({ ...cur, crmLanguage: lang || "ru" });
   },
   async setBackgroundUrl(url) {
     const cur = await fetchProfile();
@@ -111,8 +150,8 @@ export const ProfileAPI = {
   },
 };
 
-export async function changePassword({ currentPassword, newPassword }) {
-  const r = await httpPut("/profile/password", { currentPassword, newPassword });
+export async function changePassword({ currentPassword, newPassword, confirmPassword }) {
+  const r = await httpPut("/profile/password", { currentPassword, newPassword, confirmPassword });
   return unwrap(r);
 }
 
@@ -121,15 +160,50 @@ export async function unlinkTelegram() {
   return unwrap(r);
 }
 
+function resolveTelegramBotName({ botName, httpsLink }) {
+  const explicit = String(botName || "").trim().replace(/^@/, "");
+  if (explicit) return explicit;
+
+  const publicEnvName =
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_PUBLIC_BOT_NAME
+      ? String(import.meta.env.VITE_PUBLIC_BOT_NAME).trim().replace(/^@/, "")
+      : "";
+  if (publicEnvName) return publicEnvName;
+
+  const publicWindowName =
+    typeof window !== "undefined" && window.__PUBLIC_BOT_NAME
+      ? String(window.__PUBLIC_BOT_NAME).trim().replace(/^@/, "")
+      : "";
+  if (publicWindowName) return publicWindowName;
+
+  const link = String(httpsLink || "").trim();
+  if (!link) return "";
+
+  try {
+    const url = new URL(link);
+    return String(url.pathname || "")
+      .split("/")
+      .filter(Boolean)[0]
+      ?.replace(/^@/, "") || "";
+  } catch {
+    const match = link.match(/t\.me\/([^/?#]+)/i);
+    return match?.[1]?.replace(/^@/, "") || "";
+  }
+}
+
 /**
  * Утилита: построить deep-link к боту из botName и code
  * Возвращает оба варианта: tg:// и https://
  */
 export function buildTelegramDeepLinks({ botName, code, httpsLink }) {
-  const domain = botName?.replace(/^@/, '') || (typeof window !== 'undefined' && window.__PUBLIC_BOT_NAME) || 'gsse_assistant_bot';
+  const domain = resolveTelegramBotName({ botName, httpsLink });
   const startCode = code || '';
-  const https = httpsLink || `https://t.me/${domain}?start=${encodeURIComponent(startCode)}`;
-  const tg = `tg://resolve?domain=${encodeURIComponent(domain)}&start=${encodeURIComponent(startCode)}`;
+  const https = httpsLink || (domain ? `https://t.me/${domain}?start=${encodeURIComponent(startCode)}` : "");
+  const tg = domain
+    ? `tg://resolve?domain=${encodeURIComponent(domain)}&start=${encodeURIComponent(startCode)}`
+    : https;
   return { tg, https };
 }
 
