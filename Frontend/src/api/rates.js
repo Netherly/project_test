@@ -7,6 +7,10 @@ export function getLatestRates() {
   return httpGet('/rates/latest');
 }
 
+export function ensureTodayRates() {
+  return httpPost('/rates/today', {});
+}
+
 /**
  * Список постранично
  * @param {number} page

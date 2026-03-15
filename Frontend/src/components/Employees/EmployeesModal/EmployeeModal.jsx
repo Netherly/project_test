@@ -18,6 +18,7 @@ import { fetchFields, withDefaults } from "../../../api/fields";
 import { fetchTransactions } from "../../../api/transactions";
 import { fetchAssets } from "../../../api/assets";
 import { fetchOrders } from "../../../api/orders";
+import { fetchProfile } from "../../../api/profile";
 
 import "../../../styles/EmployeeModal.css";
 
@@ -37,7 +38,8 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     fields: { employeeFields: { country: [] }, executorFields: { currency: [] } },
     transactions: [],
     assets: [],
-    orders: []
+    orders: [],
+    profile: { crmLanguage: "ua" },
   });
 
   const formId = "employee-form";
@@ -54,8 +56,9 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       setLoadingData(true);
       try {
         const fieldsPromise = fetchFields().then(withDefaults).catch(() => ({}));
+        const profilePromise = fetchProfile().catch(() => ({ crmLanguage: "ua" }));
 
-        const promises = [fieldsPromise];
+        const promises = [fieldsPromise, profilePromise];
 
         if (!isNew && safeEmployee?.id) {
           const transactionsPromise = fetchTransactions({
@@ -71,7 +74,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
           promises.push(transactionsPromise, assetsPromise, ordersPromise);
         }
 
-        const [fieldsData, transactionsData, assetsData, ordersData] = await Promise.all(promises);
+        const [fieldsData, profileData, transactionsData, assetsData, ordersData] = await Promise.all(promises);
 
         if (!mounted) return;
 
@@ -81,6 +84,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
         setAppData({
           fields: fieldsData || { employeeFields: { country: [] } },
+          profile: profileData || { crmLanguage: "ua" },
           transactions: cleanTransactions,
           assets: cleanAssets,
           orders: cleanOrders
@@ -137,7 +141,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       if (typeof onSave === "function") {
         await onSave(data);
       }
-      closeHandler();
+      setFormErrors(null);
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       alert(e?.message || "Не удалось сохранить сотрудника");
@@ -188,7 +192,14 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                   />
                 )}
                 
-                {activeTab === "contacts" && <ContactsTab isNew={isNew} employeeId={safeEmployee.id} fieldsData={appData.fields} />}
+                {activeTab === "contacts" && (
+                  <ContactsTab
+                    isNew={isNew}
+                    employeeId={safeEmployee.id}
+                    fieldsData={appData.fields}
+                    crmLanguage={appData.profile?.crmLanguage || "ua"}
+                  />
+                )}
                 
                 {activeTab === "requisites" && <RequisitesTab />}
                 

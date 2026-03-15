@@ -6,36 +6,52 @@ const prisma = require('../../prisma/client');
 const DEFAULT_TZ = 'Europe/Kyiv';
 const DEFAULT_MODE = 'today';
 
-async function copyLatestToDate(ymd) {
+function pickSnapshotFields(row = {}) {
+  return {
+    uah: row.uah,
+    usd: row.usd,
+    rub: row.rub,
+    usdt: row.usdt,
+    uah_rub: row.uah_rub,
+    uah_usd: row.uah_usd,
+    uah_usdt: row.uah_usdt,
+    usd_uah: row.usd_uah,
+    usd_rub: row.usd_rub,
+    usd_usdt: row.usd_usdt,
+    usdt_uah: row.usdt_uah,
+    usdt_usd: row.usdt_usd,
+    usdt_rub: row.usdt_rub,
+    rub_uah: row.rub_uah,
+    rub_usd: row.rub_usd,
+    rub_usdt: row.rub_usdt,
+  };
+}
+
+async function ensureLatestToDate(ymd) {
   const date = new Date(ymd + 'T00:00:00.000Z');
+  const existing = await prisma.exchangeRates.findUnique({ where: { date } });
+  if (existing) {
+    return { created: false, row: existing };
+  }
+
   const last = await prisma.exchangeRates.findFirst({
     orderBy: { date: 'desc' },
   });
-  if (!last) return false;
+  if (!last) return { created: false, row: null };
 
-  const data = {
-    date,
-    usd_uah: last.usd_uah,
-    eur_uah: last.eur_uah,
-    usd_eur: last.usd_eur,
-    btc_usd: last.btc_usd,
-    eth_usd: last.eth_usd,
-    btc_uah: last.btc_uah,
-    eth_uah: last.eth_uah,
-    usdt_uah: last.usdt_uah,
-    usdt_usd: last.usdt_usd,
-    rub_uah: last.rub_uah,
-    rub_usd: last.rub_usd,
-    rub_usdt: last.rub_usdt,
-  };
-
-  await prisma.exchangeRates.upsert({
-    where: { date },
-    update: data,
-    create: data,
+  const created = await prisma.exchangeRates.create({
+    data: {
+      date,
+      ...pickSnapshotFields(last),
+    },
   });
 
-  return true;
+  return { created: true, row: created };
+}
+
+async function copyLatestToDate(ymd) {
+  const { created } = await ensureLatestToDate(ymd);
+  return created;
 }
 
 function getYMD(tz = DEFAULT_TZ, mode = DEFAULT_MODE) {
@@ -55,4 +71,9 @@ function getTargetDateFromEnv() {
   return getYMD(tz, mode);
 }
 
-module.exports = { copyLatestToDate, getYMD, getTargetDateFromEnv };
+function getTodayYMDFromEnv() {
+  const tz = process.env.RATES_CRON_TZ || DEFAULT_TZ;
+  return getYMD(tz, 'today');
+}
+
+module.exports = { copyLatestToDate, ensureLatestToDate, getYMD, getTargetDateFromEnv, getTodayYMDFromEnv };

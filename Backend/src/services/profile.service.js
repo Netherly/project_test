@@ -1,5 +1,6 @@
 const prisma = require('../../prisma/client');
 const bcrypt = require('bcrypt');
+const { clearState: clearTelegramAvatarState } = require('./telegram-avatar-state.service');
 
 function splitRequisiteLabel(label = '') {
   const [currency = '', bank = ''] = String(label).split(':');
@@ -179,6 +180,7 @@ async function unlinkTelegram(employeeId) {
       photoLink: null,
     },
   });
+  await clearTelegramAvatarState(employeeId);
   return { ok: true };
 }
 

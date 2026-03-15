@@ -1,5 +1,6 @@
 // src/controllers/rates.controller.js
 const svc = require('../services/rates.service');
+const { ensureLatestToDate, getTodayYMDFromEnv } = require('../services/rates.autofill.service');
 
 // ===== helpers =====
 const US_LABELS = [
@@ -118,6 +119,18 @@ exports.getLatest = async (_req, res, next) => {
 
     const mapped = { ...row, date: toUSDate(row.date) };
     return ok(res, { columns: US_LABELS, rows: [mapped] });
+  } catch (e) { next(e); }
+};
+
+exports.ensureToday = async (_req, res, next) => {
+  try {
+    const ymd = getTodayYMDFromEnv();
+    const result = await ensureLatestToDate(ymd);
+    return ok(res, {
+      date: ymd,
+      created: Boolean(result?.created),
+      exists: Boolean(result?.row),
+    });
   } catch (e) { next(e); }
 };
 

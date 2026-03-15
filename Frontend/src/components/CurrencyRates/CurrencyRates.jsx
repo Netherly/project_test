@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from '../Sidebar';
 import Modal from '../AlertModal/Modal';
 import '../../styles/CurrencyRates.css';
-import { getRatesList, upsertRates } from '../../api/rates';
+import { ensureTodayRates, getRatesList, upsertRates } from '../../api/rates';
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon';
 
 const PAGE_SIZE = 50;
@@ -123,6 +123,7 @@ function CurrencyRates() {
   const hasMore = rates.length < total;
 
   const sentinelRef = useRef(null);
+  const ensuredTodayRef = useRef(false);
 
   const [modal, setModal] = useState({
     open: false,
@@ -171,7 +172,22 @@ function CurrencyRates() {
   const initialLoad = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const { mapped, total: t } = await fetchPage(1);
+      let { mapped, total: t } = await fetchPage(1);
+
+      if (!ensuredTodayRef.current) {
+        ensuredTodayRef.current = true;
+        try {
+          const result = await ensureTodayRates();
+          if (result?.created) {
+            const refreshed = await fetchPage(1);
+            mapped = refreshed.mapped;
+            t = refreshed.total;
+          }
+        } catch (todayError) {
+          console.error('Не удалось добавить курс на сегодня:', todayError);
+        }
+      }
+
       setRates(mapped);
       setInitialRates(mapped);
       setTotal(t);
@@ -394,7 +410,35 @@ function CurrencyRates() {
     await initialLoad();
   };
 
-  const shownCount = rates.length;
+  const handleEnsureToday = async () => {
+    if (isDirty) {
+      openModal('Есть несохранённые изменения', 'Перед добавлением курса на сегодня сохраните или отмените изменения.', 'warning');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const result = await ensureTodayRates();
+      await initialLoad();
+
+      if (result?.created) {
+        openModal('Курс на сегодня добавлен', 'Создана запись на сегодня на основе последнего курса.', 'success');
+      } else {
+        openModal('Курс на сегодня уже есть', 'Запись на сегодня уже существует.', 'info');
+      }
+    } catch (e) {
+      console.error(e);
+      setError('Не удалось добавить курс на сегодня.');
+      openErrorModal(
+        'Ошибка',
+        'Не удалось подготовить запись курсов на сегодня.',
+        () => { setModal(m => ({ ...m, open: false })); handleEnsureToday(); }
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="currency-rates-page">
@@ -415,18 +459,25 @@ function CurrencyRates() {
           {error && <span style={{ color: 'salmon' }}>{error}</span>}
 
           <div className="currency-rates-header-actions">
-            {/* <span style={{ opacity: 0.8, fontSize: 12 }}>
-              Показано {shownCount} из {total}
-            </span>
+            <button
+              type="button"
+              className="cancel-order-btn"
+              onClick={handleEnsureToday}
+              disabled={loading || saving}
+              title="Создать запись курсов на сегодня"
+            >
+              На сегодня
+            </button>
 
             <button
               type="button"
               className="cancel-order-btn"
               onClick={handleRefresh}
+              disabled={loading || saving}
               title="Обновить список с первой страницы"
             >
               Обновить
-            </button> */}
+            </button>
 
             {isDirty && (
               <>

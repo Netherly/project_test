@@ -39,6 +39,9 @@ model Tag {
 model Country {
   id        String     @id @default(uuid())
   name      String     @unique @db.VarChar(100)
+  nameEn    String?    @db.VarChar(100)
+  nameRu    String?    @db.VarChar(100)
+  nameUk    String?    @db.VarChar(100)
   iso2      String?    @unique @db.VarChar(2)
   iso3      String?    @unique @db.VarChar(3)
   isActive  Boolean    @default(true)

@@ -146,6 +146,15 @@ export default function ClientModal({
     formState: { isDirty },
   } = methods;
 
+  useEffect(() => {
+    reset({
+      ...safeClient,
+      tags: safeClient.tags ?? [],
+      accesses: safeClient.accesses ?? [],
+      share_info: safeClient.share_info ?? false,
+    });
+  }, [reset, safeClient]);
+
   const handleAddCompanyDirect = async (companyName) => {
     const clientFullName = getValues("full_name") || getValues("name") || "Новый клиент";
 
@@ -186,7 +195,7 @@ export default function ClientModal({
     try {
       const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
       await onSave?.(payload);
-      closeHandler();
+      setFormErrors(null);
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       console.error("saveClient failed:", e);

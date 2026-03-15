@@ -1029,6 +1029,13 @@ function FieldsPage() {
         const mergeInactive = (currentSelectedValues) => {
           const nextValues = clone(currentSelectedValues);
           const activeIds = {}; 
+          const sortByConfiguredOrder = (list) =>
+            [...list].sort((a, b) => {
+              const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+              const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+              if (aOrder !== bOrder) return aOrder - bOrder;
+              return 0;
+            });
 
           for (const groupKey of Object.keys(normalizedInactive)) {
             const group = normalizedInactive[groupKey];
@@ -1048,10 +1055,10 @@ function FieldsPage() {
               }));
 
               const currentActiveIds = activeIds[groupKey][fieldKey];
-              const mergedList = [
+              const mergedList = sortByConfiguredOrder([
                 ...activeList,
                 ...inactiveList.filter(item => !currentActiveIds.has(item.id))
-              ];
+              ]);
 
               nextValues[groupKey][fieldKey] = mergedList;
             }
