@@ -90,12 +90,12 @@ const Sidebar = () => {
   const leaveTimerRef = useRef(null); 
 
   
-  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "", photoLink: null });
+  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "" });
   
   const loadProfile = useCallback(async () => {
     try {
       const p = await ProfileAPI.get();
-      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "", photoLink: p.photoLink || null });
+      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "" });
     } catch (e) {
       console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
     }
@@ -105,16 +105,11 @@ const Sidebar = () => {
 
   
   useEffect(() => {
-    // const handlePhotoUpdate = (e) => {
-    //   setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
-    // };
     const handleNicknameUpdate = (e) => {
       setProfile((prev) => ({ ...prev, nickname: e.detail.nickname || prev.nickname }));
     };
-    window.addEventListener("profile:photo-updated", handlePhotoUpdate);
     window.addEventListener("profile:nickname-updated", handleNicknameUpdate);
     return () => {
-      window.removeEventListener("profile:photo-updated", handlePhotoUpdate);
       window.removeEventListener("profile:nickname-updated", handleNicknameUpdate);
     };
   }, []);
@@ -236,8 +231,7 @@ const Sidebar = () => {
     <>
       <nav className="sidebar">
         <div className="avatar-link" onMouseEnter={handleAvatarEnter}>
-          {/* ОБНОВЛЕНО: Используем profile.photoLink */}
-          <img src={profile.photoLink || "/avatar.jpg"} alt="Profile" className="avatar-sidebar" />
+          <img src="/avatar.jpg" alt="Profile" className="avatar-sidebar" />
           <div className="avatar-dropdown">
             <div className="avatar-info">
               <div className="avatar-name">{profile.nickname || "Nickname"}</div>
