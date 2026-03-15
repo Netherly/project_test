@@ -56,6 +56,8 @@ TEST_FIELDS_ENABLED=true
 TEST_DEMO_DATA_ENABLED=true
 ```
 
+Prod deploy also runs `npm run seed`, but with test flags disabled it only ensures required base dictionaries such as default countries and currencies. It does not create test/demo business data.
+
 ## 3. One-time server setup
 
 1. Prepare directories:

@@ -435,6 +435,9 @@ jobs:
               fi
             fi
 
+            echo 'Running base seed for prod dictionaries...'
+            npm run seed
+
             APP_PORT="$(grep -E '^PORT=' .env | tail -n1 | cut -d= -f2- | tr -d '\r' | xargs || true)"
             TARGET_CWD="$(pwd)"
             if [ -n "$APP_PORT" ]; then
