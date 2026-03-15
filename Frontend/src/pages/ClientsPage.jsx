@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
 import NoAccessState from "../components/ui/NoAccessState";
@@ -90,22 +90,43 @@ const Ellipsis = ({ value }) => {
 
 const normalizeStr = (value) => String(value ?? "").trim();
 const uniqueList = (arr) => Array.from(new Set(arr));
+const CLIENT_FILTER_DEFAULTS = {
+  query: "",
+  currency: "",
+  status: "",
+  tags: [],
+  source: "",
+  category: "",
+  country: "",
+  share: "",
+  dateFrom: "",
+  dateTo: "",
+};
+
+const parseClientFiltersFromUrl = (searchParams) => ({
+  query: searchParams.get("q") || "",
+  currency: searchParams.get("currency") || "",
+  status: searchParams.get("status") || "",
+  tags: (searchParams.get("tags") || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean),
+  source: searchParams.get("source") || "",
+  category: searchParams.get("category") || "",
+  country: searchParams.get("country") || "",
+  share: searchParams.get("share") || "",
+  dateFrom: searchParams.get("dateFrom") || "",
+  dateTo: searchParams.get("dateTo") || "",
+});
 
 export default function ClientsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { clientCountries = [], currencies = [], clientCategories = [], clientSources = [] } = useFields();
-  
-  /* === фильтры === */
-  const [search, setSearch] = useState("");
-  const [currencyFilter, setCurrencyFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [tagFilter, setTagFilter] = useState([]);
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [countryFilter, setCountryFilter] = useState("");
-  const [shareFilter, setShareFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const appliedFilters = useMemo(
+    () => parseClientFiltersFromUrl(searchParams),
+    [searchParams]
+  );
 
   /* === загрузка данных === */
   const [loading, setLoading] = useState(
@@ -347,9 +368,22 @@ export default function ClientsPage() {
   }, []);
 
   const filteredRows = useMemo(() => {
+    const {
+      query,
+      currency,
+      status,
+      tags,
+      source,
+      category,
+      country,
+      share,
+      dateFrom,
+      dateTo,
+    } = appliedFilters;
+
     return (list || [])
       .filter((c) => {
-        if (!search) return true;
+        if (!query) return true;
         const parts = [
           c.name,
           ...(c.tags || []).map((t) => t.name),
@@ -369,37 +403,37 @@ export default function ClientsPage() {
           ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
         ];
         const text = parts.join(" ").toLowerCase();
-        return text.includes(search.toLowerCase());
+        return text.includes(query.toLowerCase());
       })
       .filter((c) => {
         const curName = c.currency?.name || c.currency;
-        return !currencyFilter || curName === currencyFilter;
+        return !currency || curName === currency;
       })
       .filter((c) => {
-        const status = c.status?.name || c.status;
-        return !statusFilter || status === statusFilter;
+        const clientStatus = c.status?.name || c.status;
+        return !status || clientStatus === status;
       })
       .filter(
         (c) =>
-          !tagFilter.length ||
-          (c.tags || []).some((t) => tagFilter.includes(t.name))
+          !tags.length ||
+          (c.tags || []).some((t) => tags.includes(t.name))
       )
       .filter((c) => {
         const srcName = c.source?.name || c.source;
-        return !sourceFilter || srcName === sourceFilter;
+        return !source || srcName === source;
       })
       .filter((c) => {
         const catName = c.category?.name || c.category;
-        return !categoryFilter || catName === categoryFilter;
+        return !category || catName === category;
       })
       .filter((c) => {
         const countryName = c.country?.name || c.country;
-        return !countryFilter || countryName === countryFilter;
+        return !country || countryName === country;
       })
       .filter((c) => {
-        if (!shareFilter) return true;
-        const share = c.share_info === true || c.share_info === "true";
-        return shareFilter === "yes" ? share : !share;
+        if (!share) return true;
+        const hasShare = c.share_info === true || c.share_info === "true";
+        return share === "yes" ? hasShare : !hasShare;
       })
       .filter((c) => {
         if (
@@ -418,16 +452,7 @@ export default function ClientsPage() {
       });
   }, [
     list,
-    search,
-    currencyFilter,
-    statusFilter,
-    tagFilter,
-    sourceFilter,
-    categoryFilter,
-    countryFilter,
-    shareFilter,
-    dateFrom,
-    dateTo,
+    appliedFilters,
   ]);
 
   const currencyOptions = useMemo(
@@ -509,12 +534,19 @@ export default function ClientsPage() {
   const [active, setActive] = useState(null);
   const [expanded, setExp] = useState({});
   const idMap = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
+  const currentSearch = searchParams.toString();
 
   const openEdit = (c) => {
     if (c?.id) {
-      navigate(`/clients/${c.id}`);
+      navigate({
+        pathname: `/clients/${c.id}`,
+        search: currentSearch,
+      });
     } else {
-      navigate("/clients/new");
+      navigate({
+        pathname: "/clients/new",
+        search: currentSearch,
+      });
     }
   };
 
@@ -522,6 +554,43 @@ export default function ClientsPage() {
     e.stopPropagation();
     const r = idMap.get(id);
     if (r) openEdit(r);
+  };
+
+  const updateUrlFilters = ({
+    query = "",
+    currency = "",
+    status = "",
+    tags = [],
+    source = "",
+    category = "",
+    country = "",
+    share = "",
+    dateFrom = "",
+    dateTo = "",
+  }) => {
+    const params = new URLSearchParams(searchParams);
+    const nextValues = {
+      q: String(query || "").trim(),
+      currency: String(currency || "").trim(),
+      status: String(status || "").trim(),
+      tags: Array.isArray(tags) ? tags.filter(Boolean).join(",") : "",
+      source: String(source || "").trim(),
+      category: String(category || "").trim(),
+      country: String(country || "").trim(),
+      share: String(share || "").trim(),
+      dateFrom: String(dateFrom || "").trim(),
+      dateTo: String(dateTo || "").trim(),
+    };
+
+    Object.entries(nextValues).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
+
+    setSearchParams(params);
   };
 
   const save = async (data) => {
@@ -666,9 +735,19 @@ export default function ClientsPage() {
       <div className="clients-page">
         <ClientsPageHeader
           onAdd={() => {
-            navigate("/clients/new");
+            navigate({
+              pathname: "/clients/new",
+              search: currentSearch,
+            });
           }}
-          onSearch={setSearch}
+          onSearch={(query, nextFilters = appliedFilters) => {
+            updateUrlFilters({
+              ...CLIENT_FILTER_DEFAULTS,
+              ...nextFilters,
+              query,
+            });
+          }}
+          queryValue={appliedFilters.query}
           total={filteredRows.length}
           addDisabled={forbidden}
           addLabel={forbidden ? "Нет доступа" : "Добавить"}
@@ -679,27 +758,7 @@ export default function ClientsPage() {
           sourceOptions={sourceOptions}
           categoryOptions={categoryOptions}
           countryOptions={countryOptions}
-          onFilterChange={({
-            currency,
-            status,
-            tags,
-            source,
-            category,
-            country,
-            share,
-            dateFrom: df,
-            dateTo: dt,
-          }) => {
-            setCurrencyFilter(currency);
-            setStatusFilter(status);
-            setTagFilter(tags);
-            setSourceFilter(source);
-            setCategoryFilter(category);
-            setCountryFilter(country);
-            setShareFilter(share);
-            setDateFrom(df);
-            setDateTo(dt);
-          }}
+          filtersValue={appliedFilters}
         />
 
         {forbidden && !loading ? (

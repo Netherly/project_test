@@ -2,6 +2,7 @@ const profileService = require("../services/profile.service");
 
 function pickEmployeeId(req) {
   return (
+    req.user?.employeeId ||
     req.user?.id ||
     req.employeeId ||
     req.headers["x-employee-id"]
@@ -16,7 +17,7 @@ async function getProfile(req, res) {
     const data = await profileService.getProfile(employeeId);
     res.json({ ok: true, data });
   } catch (e) {
-    res.status(400).json({ ok: false, error: e.message });
+    res.status(e.status || 400).json({ ok: false, error: e.message });
   }
 }
 
@@ -28,7 +29,7 @@ async function updateProfile(req, res) {
     const data = await profileService.updateProfile(employeeId, req.body || {});
     res.json({ ok: true, data });
   } catch (e) {
-    res.status(400).json({ ok: false, error: e.message });
+    res.status(e.status || 400).json({ ok: false, error: e.message });
   }
 }
 
@@ -44,7 +45,7 @@ async function uploadBackground(req, res) {
     const out = await profileService.setBackground(employeeId, url);
     res.json({ ok: true, ...out });
   } catch (e) {
-    res.status(400).json({ ok: false, error: e.message });
+    res.status(e.status || 400).json({ ok: false, error: e.message });
   }
 }
 
@@ -53,11 +54,11 @@ async function changePassword(req, res) {
     const employeeId = pickEmployeeId(req);
     if (!employeeId) return res.status(401).json({ ok: false, error: "Unauthorized: no employee id" });
 
-    const { currentPassword, newPassword } = req.body || {};
-    const out = await profileService.changePassword(employeeId, { currentPassword, newPassword });
+    const { currentPassword, newPassword, confirmPassword } = req.body || {};
+    const out = await profileService.changePassword(employeeId, { currentPassword, newPassword, confirmPassword });
     res.json({ ok: true, ...out });
   } catch (e) {
-    res.status(400).json({ ok: false, error: e.message });
+    res.status(e.status || 400).json({ ok: false, error: e.message });
   }
 }
 
@@ -69,7 +70,7 @@ async function unlinkTelegram(req, res) {
     const out = await profileService.unlinkTelegram(employeeId);
     res.json({ ok: true, ...out });
   } catch (e) {
-    res.status(400).json({ ok: false, error: e.message });
+    res.status(e.status || 400).json({ ok: false, error: e.message });
   }
 }
 

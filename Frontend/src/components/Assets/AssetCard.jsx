@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "../../styles/AssetCard.css";
 import { fileUrl } from "../../api/http";
+import { X } from "lucide-react";
 
 import visaLogo from "../../assets/assets-card/visa.png";
 import mastercardLogo from "../../assets/assets-card/mastercard.png";
@@ -23,6 +24,7 @@ const designNameMap = {
 const AssetCard = ({
   asset,
   onCardClick,
+  onDeleteClick,
   onCopyValue,
   onCopyRequisites,
   cardDesigns = [],
@@ -49,6 +51,18 @@ const AssetCard = ({
     if (!requisites.length) return;
     const main = cardNumber || requisites[0]?.value || "";
     if (main) onCopyValue(main);
+  };
+
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+    if (!onDeleteClick) return;
+    const confirmed = window.confirm(`Удалить актив "${accountName || "Без названия"}"?`);
+    if (!confirmed) return;
+    try {
+      await onDeleteClick();
+    } catch (error) {
+      console.error("Не удалось удалить актив:", error);
+    }
   };
 
   const accountName = asset?.accountName || "";
@@ -162,6 +176,15 @@ const AssetCard = ({
     >
       <div className="asset-card-inner">
         <div className="asset-card-front">
+          <button
+            type="button"
+            className="asset-card-delete-button"
+            onClick={handleDelete}
+            title="Удалить актив"
+          >
+            <X size={16} />
+          </button>
+
           <div className="card-top-left-name">
             <span className="asset-name-top-left">{displayAccountName}</span>
             <span>{asset?.employee}</span>

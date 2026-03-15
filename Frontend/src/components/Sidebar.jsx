@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 import "../styles/Sidebar.css";
 import { ProfileAPI } from "../api/profile";
+import { api } from "../api/api";
 
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
 import FinanceWebm from "../assets/menu-icons/Финансы.webm";
@@ -87,15 +88,16 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState(null);
+  const [loggingOut, setLoggingOut] = useState(false);
   const leaveTimerRef = useRef(null); 
 
   
-  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "", photoLink: null });
+  const [profile, setProfile] = useState({ nickname: "Nickname", userId: "" });
   
   const loadProfile = useCallback(async () => {
     try {
       const p = await ProfileAPI.get();
-      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "", photoLink: p.photoLink || null });
+      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "" });
     } catch (e) {
       console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
     }
@@ -105,11 +107,13 @@ const Sidebar = () => {
 
   
   useEffect(() => {
-    const handlePhotoUpdate = (e) => {
-        setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
+    const handleNicknameUpdate = (e) => {
+      setProfile((prev) => ({ ...prev, nickname: e.detail.nickname || prev.nickname }));
     };
-    window.addEventListener("profile:photo-updated", handlePhotoUpdate);
-    return () => window.removeEventListener("profile:photo-updated", handlePhotoUpdate);
+    window.addEventListener("profile:nickname-updated", handleNicknameUpdate);
+    return () => {
+      window.removeEventListener("profile:nickname-updated", handleNicknameUpdate);
+    };
   }, []);
 
   const handleAvatarEnter = useCallback(() => { loadProfile(); }, [loadProfile]);
@@ -185,12 +189,21 @@ const Sidebar = () => {
       .catch((err) => console.error("Ошибка копирования:", err));
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
-      localStorage.removeItem("token");
-    } catch {}
-    navigate("/login", { replace: true });
-  }, [navigate]);
+      await api.logout();
+    } catch (error) {
+      console.error("Не удалось завершить сессию:", error?.message || error);
+    } finally {
+      try {
+        localStorage.removeItem("token");
+      } catch {}
+      navigate("/login", { replace: true });
+      setLoggingOut(false);
+    }
+  }, [loggingOut, navigate]);
 
   const renderSubmenu = useCallback(
     (key) => {
@@ -229,8 +242,7 @@ const Sidebar = () => {
     <>
       <nav className="sidebar">
         <div className="avatar-link" onMouseEnter={handleAvatarEnter}>
-          {/* ОБНОВЛЕНО: Используем profile.photoLink */}
-          <img src={profile.photoLink || "/avatar.jpg"} alt="Profile" className="avatar-sidebar" />
+          <img src="/avatar.jpg" alt="Profile" className="avatar-sidebar" />
           <div className="avatar-dropdown">
             <div className="avatar-info">
               <div className="avatar-name">{profile.nickname || "Nickname"}</div>
@@ -245,7 +257,9 @@ const Sidebar = () => {
             </div>
             <div className="avatar-actions">
               <NavLink to="/profile" className="avatar-action">Профиль</NavLink>
-              <button className="avatar-action" onClick={handleLogout}>Выход</button>
+              <button className="avatar-action" onClick={handleLogout} disabled={loggingOut}>
+                {loggingOut ? "Выход..." : "Выход"}
+              </button>
             </div>
           </div>
         </div>
