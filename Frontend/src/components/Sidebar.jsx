@@ -106,10 +106,17 @@ const Sidebar = () => {
   
   useEffect(() => {
     const handlePhotoUpdate = (e) => {
-        setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
+      setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
+    };
+    const handleNicknameUpdate = (e) => {
+      setProfile((prev) => ({ ...prev, nickname: e.detail.nickname || prev.nickname }));
     };
     window.addEventListener("profile:photo-updated", handlePhotoUpdate);
-    return () => window.removeEventListener("profile:photo-updated", handlePhotoUpdate);
+    window.addEventListener("profile:nickname-updated", handleNicknameUpdate);
+    return () => {
+      window.removeEventListener("profile:photo-updated", handlePhotoUpdate);
+      window.removeEventListener("profile:nickname-updated", handleNicknameUpdate);
+    };
   }, []);
 
   const handleAvatarEnter = useCallback(() => { loadProfile(); }, [loadProfile]);

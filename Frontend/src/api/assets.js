@@ -84,6 +84,7 @@ export function withAssetDefaults(asset) {
     designRaw: designResolved.raw ?? designResolved.value,
     paymentSystem: paymentSystemResolved.value,
     paymentSystemRaw: paymentSystemResolved.raw ?? paymentSystemResolved.value,
+    isActive: a.isActive !== false,
   };
 }
 

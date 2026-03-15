@@ -623,6 +623,7 @@ const AssetsPage = () => {
                         asset={asset}
                         cardDesigns={fields?.assetsFields?.cardDesigns || []}
                         onCardClick={() => handleRowClick(asset)}
+                        onDeleteClick={() => handleDeleteAsset(asset.id)}
                         onCopyValue={copyToClipboard}
                         onCopyRequisites={(e) => handleCopyRequisites(e, asset.requisites)}
                       />

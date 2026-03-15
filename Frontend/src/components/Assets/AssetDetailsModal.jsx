@@ -227,7 +227,7 @@ const AssetDetailsModal = ({
   };
 
   const handleDeleteClick = () => {
-    if (window.confirm(`Вы уверены, что хотите удалить актив "${asset.accountName}"?`)) {
+    if (window.confirm(`Скрыть актив "${asset.accountName}"?`)) {
       onDelete(asset.id);
       onClose();
     }
@@ -297,7 +297,7 @@ const AssetDetailsModal = ({
                     <Copy size={14} /> Дублировать
                   </button>
                   <button className="menu-item delete-item" onClick={handleDeleteClick}>
-                    <Trash2 size={14} /> Удалить
+                    <Trash2 size={14} /> Скрыть
                   </button>
                 </div>
               )}

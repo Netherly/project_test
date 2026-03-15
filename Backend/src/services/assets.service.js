@@ -72,8 +72,10 @@ async function resolveOptionalByIdOrName(model, { id, name }) {
 }
 
 const AssetsService = {
-  async list() {
+  async list(params = {}) {
+    const includeHidden = params?.includeHidden === true || String(params?.includeHidden || '') === 'true';
     return prisma.asset.findMany({
+      where: includeHidden ? undefined : { isActive: true },
       include: {
         requisites: true,
         currency: true,
@@ -105,6 +107,11 @@ const AssetsService = {
       e.status = 404;
       throw e;
     }
+    if (asset.isActive === false) {
+      const e = new Error('Asset not found');
+      e.status = 404;
+      throw e;
+    }
     return asset;
   },
 
@@ -130,6 +137,7 @@ const AssetsService = {
     return prisma.asset.create({
       data: {
         accountName: payload.accountName,
+        isActive: true,
         currencyId,
         typeId,
         paymentSystemId,
@@ -223,8 +231,19 @@ const AssetsService = {
 
   async remove(id) {
     await this.byId(id);
-    await prisma.assetRequisite.deleteMany({ where: { assetId: id } });
-    return prisma.asset.delete({ where: { id } });
+    return prisma.asset.update({
+      where: { id },
+      data: { isActive: false },
+      include: {
+        requisites: true,
+        currency: true,
+        type: true,
+        paymentSystem: true,
+        cardDesign: true,
+        employee: { select: { id: true, full_name: true } },
+        company: { select: { id: true, name: true } },
+      },
+    });
   },
 
   async duplicate(id) {
@@ -232,6 +251,7 @@ const AssetsService = {
     return prisma.asset.create({
       data: {
         accountName: `${src.accountName} (Копия)`,
+        isActive: true,
         currencyId: src.currencyId,
         typeId: src.typeId,
         paymentSystemId: src.paymentSystemId,
