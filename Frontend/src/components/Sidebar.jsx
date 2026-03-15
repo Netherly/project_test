@@ -105,9 +105,9 @@ const Sidebar = () => {
 
   
   useEffect(() => {
-    const handlePhotoUpdate = (e) => {
-      setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
-    };
+    // const handlePhotoUpdate = (e) => {
+    //   setProfile((prev) => ({ ...prev, photoLink: e.detail.photo }));
+    // };
     const handleNicknameUpdate = (e) => {
       setProfile((prev) => ({ ...prev, nickname: e.detail.nickname || prev.nickname }));
     };
