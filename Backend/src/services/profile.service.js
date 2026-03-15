@@ -34,6 +34,10 @@ function normalizeOptionalText(value) {
   return text || null;
 }
 
+function toComparableText(value) {
+  return toTrimmedText(value).toLowerCase();
+}
+
 function ensureTime(value, label) {
   const text = toTrimmedText(value);
   if (!TIME_RE.test(text)) {
@@ -93,7 +97,7 @@ async function getProfile(employeeId) {
       requisites: true,
     },
   });
-  if (!row) throw createError('Employee not found', 404);
+  if (!row) throw createError('Сотрудник не найден', 404);
   return normalizeDefaults(row);
 }
 
@@ -175,8 +179,13 @@ function normalizeTheme(theme) {
   return normalized;
 }
 
-async function ensureUniqueProfileFields(employeeId, { nickname, email }) {
-  if (nickname) {
+async function ensureUniqueProfileFields(employeeId, currentEmployee, { nickname, email }) {
+  const currentNickname = toComparableText(currentEmployee?.login);
+  const currentEmail = toComparableText(currentEmployee?.email);
+  const nextNickname = toComparableText(nickname);
+  const nextEmail = toComparableText(email);
+
+  if (nickname && nextNickname !== currentNickname) {
     const existingLogin = await prisma.employee.findFirst({
       where: {
         id: { not: employeeId },
@@ -189,7 +198,7 @@ async function ensureUniqueProfileFields(employeeId, { nickname, email }) {
     }
   }
 
-  if (email) {
+  if (email && nextEmail !== currentEmail) {
     const existingEmail = await prisma.employee.findFirst({
       where: {
         id: { not: employeeId },
@@ -221,6 +230,20 @@ async function replaceRequisites(tx, employeeId, items) {
 }
 
 async function updateProfile(employeeId, payload) {
+  const currentEmployee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: {
+      id: true,
+      login: true,
+      full_name: true,
+      email: true,
+      photoLink: true,
+    },
+  });
+  if (!currentEmployee) {
+    throw createError('Сотрудник не найден', 404);
+  }
+
   const nickname = payload.nickname === undefined ? undefined : toTrimmedText(payload.nickname);
   const fullName = payload.fullName === undefined ? undefined : toTrimmedText(payload.fullName);
   const email = payload.email === undefined ? undefined : normalizeOptionalText(payload.email);
@@ -258,13 +281,21 @@ async function updateProfile(employeeId, payload) {
     throw createError('Некорректный email');
   }
 
-  await ensureUniqueProfileFields(employeeId, { nickname, email });
+  await ensureUniqueProfileFields(employeeId, currentEmployee, { nickname, email });
 
   const employeeData = {};
-  if (nickname !== undefined) employeeData.login = nickname;
-  if (fullName !== undefined) employeeData.full_name = fullName;
-  if (email !== undefined) employeeData.email = email;
-  if (photoLink !== undefined) employeeData.photoLink = photoLink;
+  if (nickname !== undefined && toComparableText(nickname) !== toComparableText(currentEmployee.login)) {
+    employeeData.login = nickname;
+  }
+  if (fullName !== undefined && fullName !== toTrimmedText(currentEmployee.full_name)) {
+    employeeData.full_name = fullName;
+  }
+  if (email !== undefined && toComparableText(email) !== toComparableText(currentEmployee.email)) {
+    employeeData.email = email;
+  }
+  if (photoLink !== undefined && photoLink !== normalizeOptionalText(currentEmployee.photoLink)) {
+    employeeData.photoLink = photoLink;
+  }
 
   await prisma.$transaction(async (tx) => {
     if (Object.keys(employeeData).length > 0) {
@@ -315,29 +346,39 @@ async function setBackground(employeeId, url) {
   return { url };
 }
 
-async function changePassword(employeeId, { currentPassword, newPassword }) {
-  if (!currentPassword || !newPassword) {
-    throw createError('Both currentPassword and newPassword are required');
+async function changePassword(employeeId, { currentPassword, newPassword, confirmPassword }) {
+  const current = String(currentPassword || '');
+  const next = String(newPassword || '');
+  const confirm = String(confirmPassword || '');
+
+  if (!current || !next || !confirm) {
+    throw createError('Заполните текущий пароль, новый пароль и подтверждение');
   }
-  if (String(newPassword).trim().length < 6) {
+  if (next.trim().length < 6) {
     throw createError('Новый пароль слишком короткий (мин. 6)');
+  }
+  if (next !== confirm) {
+    throw createError('Новый пароль и подтверждение не совпадают');
+  }
+  if (current === next) {
+    throw createError('Новый пароль должен отличаться от текущего');
   }
 
   const emp = await prisma.employee.findUnique({ where: { id: employeeId } });
-  if (!emp) throw createError('Employee not found', 404);
+  if (!emp) throw createError('Сотрудник не найден', 404);
 
   const stored = emp.password || '';
   const isBcrypt = typeof stored === 'string' && stored.startsWith('$2');
   let ok = false;
 
   if (isBcrypt) {
-    ok = await bcrypt.compare(String(currentPassword), stored);
+    ok = await bcrypt.compare(current, stored);
   } else {
-    ok = String(currentPassword) === stored;
+    ok = current === stored;
   }
-  if (!ok) throw createError('Current password is incorrect');
+  if (!ok) throw createError('Текущий пароль указан неверно');
 
-  const hashed = await bcrypt.hash(String(newPassword), 10);
+  const hashed = await bcrypt.hash(next, 10);
   await prisma.employee.update({
     where: { id: employeeId },
     data: { password: hashed },

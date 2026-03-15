@@ -150,8 +150,8 @@ export const ProfileAPI = {
   },
 };
 
-export async function changePassword({ currentPassword, newPassword }) {
-  const r = await httpPut("/profile/password", { currentPassword, newPassword });
+export async function changePassword({ currentPassword, newPassword, confirmPassword }) {
+  const r = await httpPut("/profile/password", { currentPassword, newPassword, confirmPassword });
   return unwrap(r);
 }
 
@@ -160,15 +160,50 @@ export async function unlinkTelegram() {
   return unwrap(r);
 }
 
+function resolveTelegramBotName({ botName, httpsLink }) {
+  const explicit = String(botName || "").trim().replace(/^@/, "");
+  if (explicit) return explicit;
+
+  const publicEnvName =
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_PUBLIC_BOT_NAME
+      ? String(import.meta.env.VITE_PUBLIC_BOT_NAME).trim().replace(/^@/, "")
+      : "";
+  if (publicEnvName) return publicEnvName;
+
+  const publicWindowName =
+    typeof window !== "undefined" && window.__PUBLIC_BOT_NAME
+      ? String(window.__PUBLIC_BOT_NAME).trim().replace(/^@/, "")
+      : "";
+  if (publicWindowName) return publicWindowName;
+
+  const link = String(httpsLink || "").trim();
+  if (!link) return "";
+
+  try {
+    const url = new URL(link);
+    return String(url.pathname || "")
+      .split("/")
+      .filter(Boolean)[0]
+      ?.replace(/^@/, "") || "";
+  } catch {
+    const match = link.match(/t\.me\/([^/?#]+)/i);
+    return match?.[1]?.replace(/^@/, "") || "";
+  }
+}
+
 /**
  * Утилита: построить deep-link к боту из botName и code
  * Возвращает оба варианта: tg:// и https://
  */
 export function buildTelegramDeepLinks({ botName, code, httpsLink }) {
-  const domain = botName?.replace(/^@/, '') || (typeof window !== 'undefined' && window.__PUBLIC_BOT_NAME) || 'gsse_assistant_bot';
+  const domain = resolveTelegramBotName({ botName, httpsLink });
   const startCode = code || '';
-  const https = httpsLink || `https://t.me/${domain}?start=${encodeURIComponent(startCode)}`;
-  const tg = `tg://resolve?domain=${encodeURIComponent(domain)}&start=${encodeURIComponent(startCode)}`;
+  const https = httpsLink || (domain ? `https://t.me/${domain}?start=${encodeURIComponent(startCode)}` : "");
+  const tg = domain
+    ? `tg://resolve?domain=${encodeURIComponent(domain)}&start=${encodeURIComponent(startCode)}`
+    : https;
   return { tg, https };
 }
 

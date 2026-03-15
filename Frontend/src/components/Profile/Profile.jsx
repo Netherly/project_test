@@ -219,10 +219,10 @@ function Profile() {
   }, [applyProfile]);
 
   const hasPasswordDraft = Boolean(currentPassword || newPassword || confirmPassword);
-  const changed =
+  const profileChanged =
     JSON.stringify(buildComparableState(settings, watchedRequisites)) !==
-      JSON.stringify(buildComparableState(originalSettings, originalSettings.requisites)) ||
-    hasPasswordDraft;
+    JSON.stringify(buildComparableState(originalSettings, originalSettings.requisites));
+  const changed = profileChanged || hasPasswordDraft;
 
   const copyText = async (value) => {
     try {
@@ -308,6 +308,8 @@ function Profile() {
         nextErrors.password = "Введите новый пароль";
       } else if (newPassword.length < 6) {
         nextErrors.password = "Новый пароль слишком короткий (мин. 6)";
+      } else if (currentPassword === newPassword) {
+        nextErrors.password = "Новый пароль должен отличаться от текущего";
       } else if (newPassword !== confirmPassword) {
         nextErrors.password = "Пароли не совпадают";
       }
@@ -351,39 +353,40 @@ function Profile() {
 
     setErrors({});
     setSaving(true);
+    let profileWasSaved = false;
 
     try {
-      if (hasPasswordDraft) {
-        try {
-          await changePassword({ currentPassword, newPassword });
-          setCurrentPassword("");
-          setNewPassword("");
-          setConfirmPassword("");
-        } catch (error) {
-          setErrors({ password: error?.message || "Не удалось сменить пароль" });
-          return;
-        }
+      if (profileChanged) {
+        const payload = {
+          ...settings,
+          nickname: normalizeRequiredText(settings.nickname),
+          fullName: normalizeRequiredText(settings.fullName),
+          email: normalizeOptionalText(settings.email),
+          currency: normalizeCurrencyCode(settings.currency),
+          crmLanguage: settings.crmLanguage || "ru",
+          crmTheme: settings.crmTheme === "light" ? "light" : "dark",
+          requisites,
+        };
+
+        const syncedProfile = await saveProfile(payload);
+        applyProfile(syncedProfile);
+        dispatchProfileSync(syncedProfile);
+        profileWasSaved = true;
       }
 
-      const payload = {
-        ...settings,
-        nickname: normalizeRequiredText(settings.nickname),
-        fullName: normalizeRequiredText(settings.fullName),
-        email: normalizeOptionalText(settings.email),
-        currency: normalizeCurrencyCode(settings.currency),
-        crmLanguage: settings.crmLanguage || "ru",
-        crmTheme: settings.crmTheme === "light" ? "light" : "dark",
-        requisites,
-      };
-
-      const updated = await saveProfile(payload);
-      applyProfile(updated);
-      dispatchProfileSync(updated);
+      if (hasPasswordDraft) {
+        await changePassword({ currentPassword, newPassword, confirmPassword });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
     } catch (error) {
       console.error("Не удалось сохранить профиль:", error?.message || error);
-      setErrors({
-        general: error?.message || "Не удалось сохранить профиль. Попробуйте снова.",
-      });
+      const nextErrors =
+        hasPasswordDraft && (!profileChanged || profileWasSaved)
+          ? { password: error?.message || "Не удалось сменить пароль" }
+          : { general: error?.message || "Не удалось сохранить профиль. Попробуйте снова." };
+      setErrors(nextErrors);
     } finally {
       setSaving(false);
     }
