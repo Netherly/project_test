@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name PROD_DOMAIN;
+    server_name PROD_DOMAIN PROD_DOMAIN_WWW;
 
     root /var/www/crm-frontend-prod;
     index index.html;

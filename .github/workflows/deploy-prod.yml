@@ -357,8 +357,23 @@ jobs:
             TARGET="/etc/nginx/sites-available/crm-prod.conf"
             TARGET_ENABLED="/etc/nginx/sites-enabled/crm-prod.conf"
             DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            DOMAIN_WWW="$DOMAIN"
+            if [ "${DOMAIN#www.}" = "$DOMAIN" ]; then
+              DOMAIN_WWW="www.$DOMAIN"
+            fi
+            HAS_DOMAIN_WWW=0
+            if [ "$DOMAIN_WWW" != "$DOMAIN" ]; then
+              if getent ahosts "$DOMAIN_WWW" >/dev/null 2>&1; then
+                HAS_DOMAIN_WWW=1
+              else
+                echo "Optional www-domain $DOMAIN_WWW has no DNS record, skipping from cert."
+              fi
+            fi
             test -f "$TEMPLATE"
-            sed "s/PROD_DOMAIN/$DOMAIN/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
+            sed \
+              -e "s/PROD_DOMAIN_WWW/$DOMAIN_WWW/g" \
+              -e "s/PROD_DOMAIN/$DOMAIN/g" \
+              "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
             sudo ln -sf "$TARGET" "$TARGET_ENABLED"
 
             for enabled in /etc/nginx/sites-enabled/*; do
@@ -381,6 +396,9 @@ jobs:
             fi
 
             CERTBOT_ARGS="--nginx --non-interactive --agree-tos --keep-until-expiring -d $DOMAIN"
+            if [ "$HAS_DOMAIN_WWW" = "1" ]; then
+              CERTBOT_ARGS="$CERTBOT_ARGS -d $DOMAIN_WWW"
+            fi
             if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
               CERTBOT_ARGS="$CERTBOT_ARGS --email $LETSENCRYPT_EMAIL"
             else
@@ -402,8 +420,19 @@ jobs:
           script: |
             set -e
             DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            DOMAIN_WWW="$DOMAIN"
+            if [ "${DOMAIN#www.}" = "$DOMAIN" ]; then
+              DOMAIN_WWW="www.$DOMAIN"
+            fi
+            HAS_DOMAIN_WWW=0
+            if [ "$DOMAIN_WWW" != "$DOMAIN" ] && getent ahosts "$DOMAIN_WWW" >/dev/null 2>&1; then
+              HAS_DOMAIN_WWW=1
+            fi
             CERT_TEXT="$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -text)"
             echo "$CERT_TEXT" | grep -q "DNS:$DOMAIN"
+            if [ "$HAS_DOMAIN_WWW" = "1" ]; then
+              echo "$CERT_TEXT" | grep -q "DNS:$DOMAIN_WWW"
+            fi
 
       - name: Install backend deps, prisma migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3
