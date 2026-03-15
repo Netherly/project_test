@@ -40,9 +40,17 @@ function TasksPage() {
         const storedTasks = localStorage.getItem("tasks");
         if (storedTasks) {
             try {
-                setTasks(JSON.parse(storedTasks));
+                const parsed = JSON.parse(storedTasks);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setTasks(parsed);
+                } else if (shouldBootstrapDemoTasks()) {
+                    setTasks(demoTasks);
+                }
             } catch (e) {
                 console.error("Ошибка парсинга tasks из localStorage", e);
+                if (shouldBootstrapDemoTasks()) {
+                    setTasks(demoTasks);
+                }
             }
         } else if (shouldBootstrapDemoTasks()) {
             setTasks(demoTasks);

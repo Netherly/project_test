@@ -656,6 +656,286 @@ const DEMO_TASKS = [
   },
 ];
 
+const DEMO_ORDER_EXECUTION = {
+  'DEMO-1001': {
+    performers: [
+      {
+        employeeKey: 'owner',
+        performerRole: 'Менеджер проекта',
+        orderStatusEmoji: '🚀',
+        orderDateOffset: -8,
+        dateOffset: -7,
+        currencyCode: 'EUR',
+        hourlyRate: 45,
+        orderSum: 4800,
+        maxAmount: 5200,
+        paymentSum: 1800,
+      },
+      {
+        employeeKey: 'dev',
+        performerRole: 'Бэкенд-разработчик',
+        orderStatusEmoji: '🚀',
+        orderDateOffset: -8,
+        dateOffset: -6,
+        currencyCode: 'EUR',
+        hourlyRate: 42,
+        orderSum: 2100,
+        maxAmount: 2600,
+        paymentSum: 900,
+      },
+    ],
+    workLog: [
+      {
+        employeeKey: 'owner',
+        role: 'Менеджер проекта',
+        dateOffset: -6,
+        startTime: '10:00',
+        endTime: '12:30',
+        workDone: 'Провел kickoff созвон, согласовал scope и этапы внедрения CRM.',
+        adminApproved: 'Одобрено',
+        type: 'Звонок',
+        workCategory: 'Менеджмент',
+        task: 'Kickoff и roadmap',
+      },
+      {
+        employeeKey: 'dev',
+        role: 'Бэкенд-разработчик',
+        dateOffset: -5,
+        startTime: '13:00',
+        endTime: '17:15',
+        workDone: 'Подготовил webhook для заказов и базовую интеграцию оплат.',
+        adminApproved: 'Одобрено',
+        type: 'Разработка',
+        workCategory: 'Backend',
+        task: 'Webhook и платежи',
+      },
+      {
+        employeeKey: 'dev',
+        role: 'Бэкенд-разработчик',
+        dateOffset: -4,
+        startTime: '11:15',
+        endTime: '14:00',
+        workDone: 'Доработал валидацию сущностей клиента и очередь уведомлений.',
+        adminApproved: 'Ожидает',
+        type: 'Разработка',
+        workCategory: 'Backend',
+        task: 'Валидация и уведомления',
+      },
+    ],
+  },
+  'DEMO-1002': {
+    performers: [
+      {
+        employeeKey: 'marketing',
+        performerRole: 'Performance-маркетолог',
+        orderStatusEmoji: '🎯',
+        orderDateOffset: -7,
+        dateOffset: -6,
+        currencyCode: 'USD',
+        hourlyRate: 65,
+        orderSum: 950,
+        maxAmount: 1250,
+        paymentSum: 250,
+      },
+    ],
+    workLog: [
+      {
+        employeeKey: 'marketing',
+        role: 'Performance-маркетолог',
+        dateOffset: -4,
+        startTime: '09:30',
+        endTime: '11:45',
+        workDone: 'Собрал аудит Meta Ads, выявил перегретые аудитории и слабые офферы.',
+        adminApproved: 'Одобрено',
+        type: 'Аудит',
+        workCategory: 'Маркетинг',
+        task: 'Аудит Meta Ads',
+      },
+      {
+        employeeKey: 'marketing',
+        role: 'Performance-маркетолог',
+        dateOffset: -3,
+        startTime: '12:00',
+        endTime: '13:20',
+        workDone: 'Подготовил рекомендации по CPL, бюджетам и трекингу заявок.',
+        adminApproved: 'Одобрено',
+        type: 'Отчет',
+        workCategory: 'Маркетинг',
+        task: 'Рекомендации по CPL',
+      },
+    ],
+  },
+  'DEMO-1003': {
+    performers: [
+      {
+        employeeKey: 'design',
+        performerRole: 'UI/UX-дизайнер',
+        orderStatusEmoji: '💳',
+        orderDateOffset: -6,
+        dateOffset: -5,
+        currencyCode: 'UAH',
+        hourlyRate: 28,
+        orderSum: 78000,
+        maxAmount: 90000,
+        paymentSum: 24000,
+      },
+      {
+        employeeKey: 'sales',
+        performerRole: 'Аккаунт-менеджер',
+        orderStatusEmoji: '💳',
+        orderDateOffset: -6,
+        dateOffset: -5,
+        currencyCode: 'UAH',
+        hourlyRate: 24,
+        orderSum: 18000,
+        maxAmount: 22000,
+        paymentSum: 8000,
+      },
+    ],
+    workLog: [
+      {
+        employeeKey: 'design',
+        role: 'UI/UX-дизайнер',
+        dateOffset: -3,
+        startTime: '10:30',
+        endTime: '14:10',
+        workDone: 'Собрала новый hero-блок и варианты CTA для лендинга клиники.',
+        adminApproved: 'Одобрено',
+        type: 'Дизайн',
+        workCategory: 'Дизайн',
+        task: 'Hero-блок',
+      },
+      {
+        employeeKey: 'sales',
+        role: 'Аккаунт-менеджер',
+        dateOffset: -2,
+        startTime: '15:00',
+        endTime: '16:30',
+        workDone: 'Согласовал правки с клиентом и собрал комментарии по офферу.',
+        adminApproved: 'Ожидает',
+        type: 'Переписка',
+        workCategory: 'Коммуникация',
+        task: 'Согласование правок',
+      },
+    ],
+  },
+  'DEMO-1004': {
+    performers: [
+      {
+        employeeKey: 'dev',
+        performerRole: 'Бэкенд-разработчик',
+        orderStatusEmoji: '🏆',
+        orderDateOffset: -10,
+        dateOffset: -9,
+        currencyCode: 'USD',
+        hourlyRate: 40,
+        orderSum: 2100,
+        maxAmount: 2600,
+        paymentSum: 2100,
+      },
+    ],
+    workLog: [
+      {
+        employeeKey: 'dev',
+        role: 'Бэкенд-разработчик',
+        dateOffset: -1,
+        startTime: '10:00',
+        endTime: '12:00',
+        workDone: 'Протестировал оплату, обработку ошибок и Telegram-уведомления бота.',
+        adminApproved: 'Одобрено',
+        type: 'Тестирование',
+        workCategory: 'Backend',
+        task: 'Финальное тестирование',
+      },
+    ],
+  },
+  'DEMO-1005': {
+    performers: [
+      {
+        employeeKey: 'marketing',
+        performerRole: 'SEO-специалист',
+        orderStatusEmoji: '🤔',
+        orderDateOffset: -4,
+        dateOffset: -3,
+        currencyCode: 'USD',
+        hourlyRate: 38,
+        orderSum: 1200,
+        maxAmount: 1500,
+        paymentSum: 0,
+      },
+    ],
+    workLog: [
+      {
+        employeeKey: 'marketing',
+        role: 'SEO-специалист',
+        dateOffset: -1,
+        startTime: '09:00',
+        endTime: '10:25',
+        workDone: 'Подготовил медиаплан и прогноз CPL для monthly retainer.',
+        adminApproved: 'Ожидает',
+        type: 'Планирование',
+        workCategory: 'Маркетинг',
+        task: 'Медиаплан',
+      },
+    ],
+  },
+  'DEMO-1006': {
+    performers: [
+      {
+        employeeKey: 'dev',
+        performerRole: 'BI-разработчик',
+        orderStatusEmoji: '🧪',
+        orderDateOffset: -5,
+        dateOffset: -4,
+        currencyCode: 'USD',
+        hourlyRate: 55,
+        orderSum: 1600,
+        maxAmount: 1900,
+        paymentSum: 600,
+      },
+      {
+        employeeKey: 'owner',
+        performerRole: 'Продакт-менеджер',
+        orderStatusEmoji: '🧪',
+        orderDateOffset: -5,
+        dateOffset: -4,
+        currencyCode: 'USD',
+        hourlyRate: 48,
+        orderSum: 700,
+        maxAmount: 900,
+        paymentSum: 300,
+        clientHidden: true,
+      },
+    ],
+    workLog: [
+      {
+        employeeKey: 'dev',
+        role: 'BI-разработчик',
+        dateOffset: -2,
+        startTime: '11:00',
+        endTime: '14:40',
+        workDone: 'Собрал витрину продаж и базовый дашборд по воронке и ROMI.',
+        adminApproved: 'Одобрено',
+        type: 'Разработка',
+        workCategory: 'Аналитика',
+        task: 'BI dashboard',
+      },
+      {
+        employeeKey: 'owner',
+        role: 'Продакт-менеджер',
+        dateOffset: -1,
+        startTime: '16:00',
+        endTime: '17:10',
+        workDone: 'Принял промежуточный этап и зафиксировал задачи на следующую итерацию.',
+        adminApproved: 'Одобрено',
+        type: 'Встреча',
+        workCategory: 'Менеджмент',
+        task: 'Промежуточная приемка',
+      },
+    ],
+  },
+};
+
 function isNumber(value) {
   return Number.isFinite(Number(value));
 }
@@ -669,6 +949,104 @@ function startOfDayOffset(offset = 0) {
 
 function toDateOnlyInput(date) {
   return new Date(date).toISOString().slice(0, 10);
+}
+
+function calculateTimeDiff(startTime, endTime) {
+  if (!startTime || !endTime) return '00:00';
+  const [startHour, startMinute] = String(startTime).split(':').map(Number);
+  const [endHour, endMinute] = String(endTime).split(':').map(Number);
+  if (![startHour, startMinute, endHour, endMinute].every(Number.isFinite)) return '00:00';
+
+  const start = new Date(2000, 0, 1, startHour, startMinute, 0, 0);
+  const end = new Date(2000, 0, 1, endHour, endMinute, 0, 0);
+  if (end < start) end.setDate(end.getDate() + 1);
+
+  const diffMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+  const hours = Math.floor(diffMinutes / 60);
+  const minutes = diffMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function getDemoEmployeeMeta(employeeKey) {
+  return DEMO_EMPLOYEES.find((item) => item.key === employeeKey) || null;
+}
+
+function buildDemoPerformers(orderItem, orderSequence) {
+  const execution = DEMO_ORDER_EXECUTION[orderItem.numberOrder];
+  if (!Array.isArray(execution?.performers) || !execution.performers.length) return null;
+
+  return execution.performers.map((item, index) => {
+    const employee = getDemoEmployeeMeta(item.employeeKey);
+    const maxAmount = Number(item.maxAmount ?? orderItem.budget ?? orderItem.amount ?? 0);
+    const paymentSum = Number(item.paymentSum ?? 0);
+    return {
+      id: `demo-perf-${orderItem.numberOrder}-${index + 1}`,
+      orderStatus: orderItem.orderStatus,
+      orderStatusEmoji: item.orderStatusEmoji || '⏳',
+      orderDate: toDateOnlyInput(startOfDayOffset(item.orderDateOffset ?? -index - 1)),
+      description: item.description || orderItem.orderDescription,
+      client: orderItem.name,
+      clientHidden: Boolean(item.clientHidden),
+      performer: employee?.fullName || '',
+      fullName: employee?.fullName || '',
+      login: employee?.login || '',
+      performerRole: item.performerRole || employee?.roleName || '',
+      role: item.performerRole || employee?.roleName || '',
+      orderCurrency: item.currencyCode || orderItem.currencyCode,
+      currency: item.currencyCode || orderItem.currencyCode,
+      orderSum: Number(item.orderSum ?? orderItem.amount ?? orderItem.price ?? 0),
+      hourlyRate: Number(item.hourlyRate ?? orderItem.hourlyRate ?? 0),
+      paymentBalance: maxAmount,
+      workTime: 0,
+      paymentSum,
+      paymentRemaining: Number((maxAmount - paymentSum).toFixed(2)),
+      accountingCurrency: 'UAH',
+      amountInput: Number(item.orderSum ?? orderItem.amount ?? orderItem.price ?? 0),
+      maxAmount,
+      dateForPerformer: toDateOnlyInput(startOfDayOffset(item.dateOffset ?? -index - 1)),
+      hideClient: Boolean(item.clientHidden),
+      roundHours: Boolean(item.roundHours),
+      orderNumber: orderSequence,
+    };
+  });
+}
+
+function buildDemoWorkLog(orderItem) {
+  const execution = DEMO_ORDER_EXECUTION[orderItem.numberOrder];
+  if (!Array.isArray(execution?.workLog) || !execution.workLog.length) return null;
+
+  return execution.workLog.map((item, index) => {
+    const employee = getDemoEmployeeMeta(item.employeeKey);
+    const workDate = startOfDayOffset(item.dateOffset ?? -index - 1);
+    const hours = item.hours || calculateTimeDiff(item.startTime, item.endTime);
+    return {
+      id: `demo-log-${orderItem.numberOrder}-${index + 1}`,
+      executorRole: employee?.fullName || '',
+      role: item.role || employee?.roleName || '',
+      workDate: toDateOnlyInput(workDate),
+      startTime: item.startTime || '',
+      endTime: item.endTime || '',
+      hours,
+      workDone: item.workDone || orderItem.orderDescription,
+      adminApproved: item.adminApproved || 'Ожидает',
+      source: item.source || 'СРМ',
+      status: orderItem.orderStatus,
+      description: item.description || orderItem.orderDescription,
+      email: employee?.email || '',
+      createdAt: workDate.toISOString(),
+      trackerHours: item.trackerHours || hours,
+      correctionTime: item.correctionTime || '',
+      gptSummary: item.workDoneGPT || item.workDone || orderItem.orderDescription,
+      project: item.project || orderItem.project || '',
+      task: item.task || '',
+      type: item.type || '',
+      workCategory: item.workCategory || '',
+      payDay: item.payDay || null,
+      totalHours: item.totalHours || '',
+      points: item.points || '',
+      payLost: item.payLost || '',
+    };
+  });
 }
 
 function amountToUah(currencyCode, amount) {
@@ -996,12 +1374,13 @@ async function ensureOrders(lookups, clients, employees) {
 
   for (const [index, item] of DEMO_ORDERS.entries()) {
     const client = clients.get(item.clientEmail) || null;
+    const orderSequence = index + 1001;
     const row = await upsertByFirst(
       'order',
       { numberOrder: item.numberOrder },
       {
         numberOrder: item.numberOrder,
-        orderSequence: index + 1001,
+        orderSequence,
         name: item.name,
         title: item.name,
         clientId: client?.id || null,
@@ -1023,6 +1402,8 @@ async function ensureOrders(lookups, clients, employees) {
         budget: item.budget,
         hourlyRate: item.hourlyRate,
         sharePercent: item.sharePercent,
+        performers: buildDemoPerformers(item, orderSequence),
+        workLog: buildDemoWorkLog(item),
         date: startOfDayOffset(-(index + 3)),
         orderDate: startOfDayOffset(-(index + 3)),
         plannedFinishDate: startOfDayOffset(index + 5),

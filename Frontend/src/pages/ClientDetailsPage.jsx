@@ -114,13 +114,6 @@ export default function ClientDetailsPage() {
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
-      const savedCategory = saved?.category?.name || saved?.category;
-      if (savedCategory) {
-        setCategoriesList((prev) => {
-          const listSafe = Array.isArray(prev) ? prev : [];
-          return Array.from(new Set([...listSafe, savedCategory]));
-        });
-      }
       setClient(saved);
       return saved;
     } catch (e) {
