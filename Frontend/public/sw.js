@@ -5,8 +5,18 @@ const MAX_IMAGE_CACHE_ENTRIES = 150;
 const canCacheResponse = (response) =>
   response && (response.ok || response.type === "opaque");
 
+const isCacheableScheme = (requestUrl) => {
+  try {
+    const { protocol } = new URL(requestUrl);
+    return protocol === "http:" || protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+};
+
 const isImageRequest = (request) => {
   if (request.method !== "GET") return false;
+  if (!isCacheableScheme(request.url)) return false;
 
   try {
     const url = new URL(request.url);

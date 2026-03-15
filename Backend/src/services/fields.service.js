@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { hasTable } = require('../utils/db-schema');
 const { buildCountryNames, normalizeIso2, normalizeIso3 } = require('../utils/country-localization');
+const { httpErr } = require('../utils/http-error');
 
 /* ==============================
    FS utils
@@ -17,6 +18,39 @@ ensureDir(CARD_DIR);
 
 const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const EXTRA_FIELDS_CONFIG_KEY = 'fields.extra';
+const SIMPLE_DICT_RULES = {
+  currencyDict: {
+    code: {
+      max: 10,
+      label: 'код валюты',
+      normalize: (value) => value.toUpperCase(),
+      validate: (value) => /^[A-Z0-9._-]+$/.test(value),
+      invalidMessage: 'Некорректный код валюты',
+      tooLongMessage: 'Некорректный код валюты',
+    },
+  },
+  orderIntervalDict: { value: { max: 100, label: 'интервал' } },
+  orderStatusDict: { name: { max: 100, label: 'статус заказа' } },
+  orderCloseReasonDict: { name: { max: 150, label: 'причина закрытия' } },
+  orderProjectDict: { name: { max: 255, label: 'проект' } },
+  orderDiscountReasonDict: { name: { max: 255, label: 'причина скидки' } },
+  executorRoleDict: { name: { max: 100, label: 'роль исполнителя' } },
+  clientSourceDict: { name: { max: 100, label: 'источник клиента' } },
+  clientCategoryDict: { name: { max: 100, label: 'категория клиента' } },
+  assetTypeDict: { name: { max: 100, label: 'тип актива' } },
+  paymentSystemDict: { name: { max: 100, label: 'платежная система' } },
+  financeArticleDict: { name: { max: 150, label: 'статья' } },
+  financeSubcategoryDict: { name: { max: 150, label: 'подкатегория' } },
+  sundryTypeWorkDict: { name: { max: 150, label: 'тип работы' } },
+};
+const COUNTRY_FIELD_LIMITS = {
+  name: 100,
+  nameEn: 100,
+  nameRu: 100,
+  nameUk: 100,
+  iso2: 2,
+  iso3: 3,
+};
 
 async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
@@ -64,6 +98,45 @@ const pickStr = (v) => {
   return '';
 };
 
+const ruleFor = (model, field) => SIMPLE_DICT_RULES?.[model]?.[field] || null;
+
+const sanitizeDictValue = (value, options = {}) => {
+  const rule = ruleFor(options?.model, options?.field);
+  let normalized = String(value ?? '').trim();
+  if (rule?.normalize) normalized = rule.normalize(normalized);
+  if (!normalized) return '';
+
+  if (rule?.validate && !rule.validate(normalized)) {
+    throw httpErr(rule.invalidMessage || `Некорректное значение поля "${rule.label || options?.field || 'value'}"`);
+  }
+  if (rule?.max && normalized.length > rule.max) {
+    throw httpErr(rule.tooLongMessage || `Значение поля "${rule.label || options?.field || 'value'}" слишком длинное`);
+  }
+  return normalized;
+};
+
+const sanitizeCountryField = (value, field) => {
+  let normalized = pickStr(value);
+  if (!normalized) return '';
+  if (field === 'iso2' || field === 'iso3') normalized = normalized.toUpperCase();
+  const max = COUNTRY_FIELD_LIMITS[field];
+  if (max && normalized.length > max) {
+    if (field === 'iso2' || field === 'iso3') throw httpErr('Некорректный код страны');
+    throw httpErr('Название страны слишком длинное');
+  }
+  if (field === 'iso2' && !/^[A-Z]{2}$/.test(normalized)) throw httpErr('Некорректный код страны');
+  if (field === 'iso3' && !/^[A-Z]{3}$/.test(normalized)) throw httpErr('Некорректный код страны');
+  return normalized;
+};
+
+const pickCurrencyCode = (value) => {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    return value.code ?? value.value ?? '';
+  }
+  return '';
+};
+
 const arrToUniqueStrings = (list, key = 'name') => {
   const out = new Set();
   (Array.isArray(list) ? list : []).forEach((x) => {
@@ -75,7 +148,7 @@ const arrToUniqueStrings = (list, key = 'name') => {
 
 const isHexColor = (c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(c || ''));
 
-const normalizeSimpleValues = (list) => {
+const normalizeSimpleValues = (list, options = {}) => {
   const out = new Set();
   (Array.isArray(list) ? list : []).forEach((value) => {
     let v = value;
@@ -94,7 +167,7 @@ const normalizeSimpleValues = (list) => {
         '';
     }
     if (v !== undefined && v !== null) {
-      const s = String(v).trim();
+      const s = sanitizeDictValue(v, options);
       if (s) out.add(s);
     }
   });
@@ -113,12 +186,12 @@ const normalizeCountryEntries = (list) => {
             name: pickStr(item),
           };
 
-    const name = pickStr(source?.name ?? source?.value);
-    const nameEn = pickStr(source?.nameEn);
-    const nameRu = pickStr(source?.nameRu);
-    const nameUk = pickStr(source?.nameUk);
-    const iso2 = normalizeIso2(source?.iso2);
-    const iso3 = normalizeIso3(source?.iso3);
+    const name = sanitizeCountryField(source?.name ?? source?.value, 'name');
+    const nameEn = sanitizeCountryField(source?.nameEn, 'nameEn');
+    const nameRu = sanitizeCountryField(source?.nameRu, 'nameRu');
+    const nameUk = sanitizeCountryField(source?.nameUk, 'nameUk');
+    const iso2 = normalizeIso2(sanitizeCountryField(source?.iso2, 'iso2'));
+    const iso3 = normalizeIso3(sanitizeCountryField(source?.iso3, 'iso3'));
     const id = pickStr(source?.id);
 
     const displayName = name || nameEn || nameRu || nameUk || iso2;
@@ -157,7 +230,7 @@ const mapCountry = (country) => ({
 const syncSimpleDict = async (tx, model, list, opts = {}) => {
   const field = opts.field || 'name';
   const hasIsActive = opts.hasIsActive !== false;
-  const values = normalizeSimpleValues(list);
+  const values = normalizeSimpleValues(list, { model, field });
   const dbModel = tx[model];
 
   if (!dbModel) return;
@@ -784,14 +857,23 @@ async function saveAll(payload) {
   return prisma.$transaction(
     async (tx) => {
       // 1. ВАЛЮТЫ
-      const allCurrencyCodes = new Set([
-        ...arrToUniqueStrings(payload?.generalFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.orderFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.executorFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.clientFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.assetsFields?.currency, 'code'),
-      ]);
-      await syncSimpleDict(tx, 'currencyDict', Array.from(allCurrencyCodes), { field: 'code' });
+      const currencyCodes = new Set();
+      [
+        payload?.generalFields?.currency,
+        payload?.orderFields?.currency,
+        payload?.executorFields?.currency,
+        payload?.clientFields?.currency,
+        payload?.assetsFields?.currency,
+      ].forEach((list) => {
+        (Array.isArray(list) ? list : []).forEach((item) => {
+          const code = sanitizeDictValue(pickCurrencyCode(item), {
+            model: 'currencyDict',
+            field: 'code',
+          });
+          if (code) currencyCodes.add(code);
+        });
+      });
+      await syncSimpleDict(tx, 'currencyDict', Array.from(currencyCodes), { field: 'code' });
 
       // 2. ЗАКАЗЫ (Интервалы и категории)
       const intervalValues = (Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [])
