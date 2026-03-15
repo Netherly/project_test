@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 import "../styles/Sidebar.css";
 import { ProfileAPI } from "../api/profile";
+import { api } from "../api/api";
 
 import DashboardWebm from "../assets/menu-icons/Дашборд.webm";
 import FinanceWebm from "../assets/menu-icons/Финансы.webm";
@@ -87,6 +88,7 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState(null);
+  const [loggingOut, setLoggingOut] = useState(false);
   const leaveTimerRef = useRef(null); 
 
   
@@ -187,12 +189,21 @@ const Sidebar = () => {
       .catch((err) => console.error("Ошибка копирования:", err));
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
-      localStorage.removeItem("token");
-    } catch {}
-    navigate("/login", { replace: true });
-  }, [navigate]);
+      await api.logout();
+    } catch (error) {
+      console.error("Не удалось завершить сессию:", error?.message || error);
+    } finally {
+      try {
+        localStorage.removeItem("token");
+      } catch {}
+      navigate("/login", { replace: true });
+      setLoggingOut(false);
+    }
+  }, [loggingOut, navigate]);
 
   const renderSubmenu = useCallback(
     (key) => {
@@ -246,7 +257,9 @@ const Sidebar = () => {
             </div>
             <div className="avatar-actions">
               <NavLink to="/profile" className="avatar-action">Профиль</NavLink>
-              <button className="avatar-action" onClick={handleLogout}>Выход</button>
+              <button className="avatar-action" onClick={handleLogout} disabled={loggingOut}>
+                {loggingOut ? "Выход..." : "Выход"}
+              </button>
             </div>
           </div>
         </div>
