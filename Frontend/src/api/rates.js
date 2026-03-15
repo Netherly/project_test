@@ -1,10 +1,20 @@
 import { httpGet, httpPost, httpPut, httpDelete } from './http';
+import { normalizeRatesSnapshot } from '../utils/exchangeRates';
 
 /**
  * Последний снэпшот
  */
 export function getLatestRates() {
   return httpGet('/rates/latest');
+}
+
+export async function fetchLatestRatesSnapshot() {
+  const data = await getLatestRates();
+  return normalizeRatesSnapshot(data);
+}
+
+export function ensureTodayRates() {
+  return httpPost('/rates/today', {});
 }
 
 /**

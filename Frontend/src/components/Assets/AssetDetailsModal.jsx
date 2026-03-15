@@ -19,6 +19,13 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { rid } from "../../api/fields.js";
+import { fetchLatestRatesSnapshot } from "../../api/rates";
+import {
+  convertAmountByRates,
+  normalizeCurrencyCode,
+  readLatestRatesSnapshot,
+  writeLatestRatesSnapshot,
+} from "../../utils/exchangeRates";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -78,7 +85,7 @@ const AssetDetailsModal = ({
 }) => {
   const { transactions } = useTransactions();
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-  const [exchangeRates, setExchangeRates] = useState(null);
+  const [exchangeRates, setExchangeRates] = useState(() => readLatestRatesSnapshot());
   const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
   const [isEditingRequisites, setIsEditingRequisites] = useState(false);
 
@@ -119,26 +126,27 @@ const AssetDetailsModal = ({
 
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("exchangeRates");
-      if (stored) {
-        setExchangeRates(JSON.parse(stored)[0]);
-      } else {
-        setExchangeRates({
-          UAH: 1,
-          USD: 43,
-          RUB: 0.5,
-          UAH_RUB: 2,
-          UAH_USD: 0.023,
-          USD_UAH: 43,
-          USD_RUB: 16,
-          RUB_UAH: 0.5,
-          RUB_USD: 0.062,
-        });
+    let ignore = false;
+
+    const cached = readLatestRatesSnapshot();
+    if (cached) setExchangeRates(cached);
+
+    const loadLatestRates = async () => {
+      try {
+        const latest = await fetchLatestRatesSnapshot();
+        if (!ignore && latest) {
+          setExchangeRates(latest);
+          writeLatestRatesSnapshot(latest);
+        }
+      } catch (err) {
+        console.error("Error loading exchange rates:", err);
       }
-    } catch (err) {
-      console.error("Error loading exchange rates:", err);
-    }
+    };
+
+    loadLatestRates();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleChange = (e) => {
@@ -232,7 +240,7 @@ const AssetDetailsModal = ({
     setShowOptionsMenu(false);
   };
 
-  if (!asset || !exchangeRates) return null;
+  if (!asset) return null;
 
   const turnoverLimit = parseFloat(editableAsset.limitTurnover) || 0;
   const incoming = asset.turnoverIncoming || 0;
@@ -249,16 +257,13 @@ const AssetDetailsModal = ({
   };
 
   const convertToCurrency = (amount, from, to) => {
-    if (!exchangeRates) return amount.toFixed(2);
-    if (from === to) return amount.toFixed(2);
-    let inUAH = amount;
-    if (from !== "UAH") {
-      const key = `${from}_UAH`;
-      if (exchangeRates[key]) inUAH = amount * exchangeRates[key];
-    }
-    if (to === "UAH") return inUAH.toFixed(2);
-    const key = `UAH_${to}`;
-    return exchangeRates[key] ? (inUAH * exchangeRates[key]).toFixed(2) : amount.toFixed(2);
+    return convertAmountByRates(
+      amount,
+      normalizeCurrencyCode(from),
+      normalizeCurrencyCode(to),
+      exchangeRates,
+      amount
+    ).toFixed(2);
   };
 
   const currentBalance = asset.balance || 0;

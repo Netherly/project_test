@@ -8,6 +8,8 @@ export function clone(v) {
   return JSON.parse(JSON.stringify(v));
 }
 
+const normalizeCodeValue = (value) => tidy(value).toUpperCase();
+
 // --- Нормализация (чтение с сервера) ---
 
 export const normStrs = (arr) => {
@@ -25,6 +27,77 @@ export const normStrs = (arr) => {
       seen.add(k);
       out.push({ id: item?.id || rid(), value: v, isDeleted: item?.isDeleted || false });
     }
+  }
+  return out;
+};
+
+export const normCodeStrs = (arr) => {
+  const seen = new Set();
+  const out = [];
+  const source = Array.isArray(arr) ? arr : [];
+  for (const item of source) {
+    const code =
+      typeof item === "string"
+        ? normalizeCodeValue(item)
+        : normalizeCodeValue(item?.code ?? item?.value);
+    if (!code) continue;
+    const key = code.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const name =
+      typeof item === "string"
+        ? code
+        : tidy(item?.name ?? item?.label ?? code);
+
+    out.push({
+      id: item?.id || rid(),
+      value: code,
+      code,
+      name,
+      label: name || code,
+      isDeleted: item?.isDeleted || false,
+    });
+  }
+  return out;
+};
+
+export const normCountries = (arr) => {
+  const seen = new Set();
+  const out = [];
+  const source = Array.isArray(arr) ? arr : [];
+  for (const item of source) {
+    if (typeof item === "string") {
+      const name = tidy(item);
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ id: rid(), value: name, name, isDeleted: false });
+      continue;
+    }
+
+    const name = tidy(item?.name ?? item?.value);
+    const iso2 = tidy(item?.iso2).toUpperCase();
+    const iso3 = tidy(item?.iso3).toUpperCase();
+    const key = String(item?.id || iso2 || name).trim().toLowerCase();
+    if (!key) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      ...item,
+      id: item?.id || rid(),
+      value: name || iso2 || iso3,
+      name,
+      nameEn: tidy(item?.nameEn),
+      nameRu: tidy(item?.nameRu),
+      nameUk: tidy(item?.nameUk),
+      iso2,
+      iso3,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+      isDeleted: item?.isDeleted || false,
+    });
   }
   return out;
 };
@@ -73,6 +146,7 @@ export const normDesigns = (arr) =>
     name: tidy(d?.name),
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
+    order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
     isDeleted: d?.isDeleted || false,
   }));
 
@@ -100,6 +174,7 @@ const unwrap = (resp) => {
   if (resp && typeof resp === "object" && "ok" in resp) {
     if (resp.ok) return resp.data;
     const err = new Error(resp?.error || "Request failed");
+    err.status = resp?.status;
     err.payload = resp;
     throw err;
   }
@@ -128,15 +203,21 @@ export function withDefaults(fields) {
   const f = safeObj(fields);
   const sharedCountries =
     f?.generalFields?.country ?? f?.clientFields?.country ?? f?.employeeFields?.country;
+  const sharedCurrencies =
+    f?.generalFields?.currency ??
+    f?.orderFields?.currency ??
+    f?.executorFields?.currency ??
+    f?.clientFields?.currency ??
+    f?.assetsFields?.currency;
 
   return {
     generalFields: {
-      currency: normStrs(f?.generalFields?.currency),
-      country: normStrs(sharedCountries),
+      currency: normCodeStrs(sharedCurrencies),
+      country: normCountries(sharedCountries),
       businessLine: normStrs(f?.generalFields?.businessLine),
     },
     orderFields: {
-      currency: normStrs(f?.orderFields?.currency),
+      currency: normCodeStrs(f?.orderFields?.currency ?? sharedCurrencies),
       intervals: normIntervals(f?.orderFields?.intervals),
       categories: normCategories(f?.orderFields?.categories),
       statuses: normStrs(f?.orderFields?.statuses),
@@ -150,12 +231,14 @@ export function withDefaults(fields) {
       discountReason: normStrs(f?.orderFields?.discountReason),
     },
     executorFields: {
+      currency: normCodeStrs(f?.executorFields?.currency ?? sharedCurrencies),
       role: normStrs(f?.executorFields?.role),
     },
     clientFields: {
       source: normStrs(f?.clientFields?.source),
       category: normStrs(f?.clientFields?.category),
-      country: normStrs(f?.clientFields?.country),
+      country: normCountries(f?.clientFields?.country),
+      currency: normCodeStrs(f?.clientFields?.currency ?? sharedCurrencies),
       business: normStrs(f?.clientFields?.business),
       tags: normTags(f?.clientFields?.tags ?? f?.clientFields?.tag),
       groups: Array.isArray(f?.clientFields?.groups) ? f.clientFields.groups : [],
@@ -164,10 +247,11 @@ export function withDefaults(fields) {
       tags: normTags(f?.companyFields?.tags),
     },
     employeeFields: {
-      country: normStrs(f?.employeeFields?.country),
+      country: normCountries(f?.employeeFields?.country),
       tags: normTags(f?.employeeFields?.tags),
     },
     assetsFields: {
+      currency: normCodeStrs(f?.assetsFields?.currency ?? sharedCurrencies),
       type: normStrs(f?.assetsFields?.type),
       paymentSystem: normStrs(f?.assetsFields?.paymentSystem),
       cardDesigns: normDesigns(f?.assetsFields?.cardDesigns).map((d) => ({
@@ -207,12 +291,38 @@ export const serByName = (arr) => {
   return out;
 };
 
+export const serCountries = (arr) => {
+  const seen = new Set();
+  const out = [];
+  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item?.isDeleted);
+  for (const item of source) {
+    const name = tidy(item?.value ?? item?.name);
+    const iso2 = tidy(item?.iso2).toUpperCase();
+    const iso3 = tidy(item?.iso3).toUpperCase();
+    const key = String(item?.id || iso2 || name).trim().toLowerCase();
+    if (!key || (!name && !iso2)) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: item?.id || rid(),
+      name: name || iso2,
+      nameEn: tidy(item?.nameEn),
+      nameRu: tidy(item?.nameRu),
+      nameUk: tidy(item?.nameUk),
+      iso2: iso2 || undefined,
+      iso3: iso3 || undefined,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+    });
+  }
+  return out;
+};
+
 export const serByCode = (arr) => {
   const seen = new Set();
   const out = [];
   const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
   for (const item of source) {
-    const v = tidy(item?.value ?? item?.code);
+    const v = normalizeCodeValue(item?.code ?? item?.value);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
@@ -258,7 +368,13 @@ export const serSubarticles = (arr) =>
 export const serDesigns = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((d) => ({ id: d?.id || rid(), name: tidy(d?.name), url: tidy(d?.url), size: d?.size ?? null }))
+    .map((d, index) => ({
+      id: d?.id || rid(),
+      name: tidy(d?.name),
+      url: tidy(d?.url),
+      size: d?.size ?? null,
+      order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
+    }))
     .filter((d) => d.name);
 
 export const serTags = (arr) => {
@@ -284,10 +400,11 @@ export function serializeForSave(values) {
   return {
     generalFields: {
       currency: currencyList,
-      country: serByName(values?.generalFields?.country),
+      country: serCountries(values?.generalFields?.country),
       businessLine: serByName(values?.generalFields?.businessLine),
     },
     orderFields: {
+      currency: serByCode(values?.orderFields?.currency),
       intervals: serIntervals(values?.orderFields?.intervals),
       categories: serCategories(values?.orderFields?.categories),
       statuses: serByName(values?.orderFields?.statuses),
@@ -301,12 +418,14 @@ export function serializeForSave(values) {
       taskTags: serTags(values?.orderFields?.taskTags),
     },
     executorFields: {
+      currency: serByCode(values?.executorFields?.currency),
       role: serByName(values?.executorFields?.role),
     },
     clientFields: {
       source: serByName(values?.clientFields?.source),
       category: serByName(values?.clientFields?.category),
-      country: serByName(values?.clientFields?.country),
+      country: serCountries(values?.clientFields?.country),
+      currency: serByCode(values?.clientFields?.currency),
       business: serByName(values?.clientFields?.business),
       tags: serTags(values?.clientFields?.tags),
     },
@@ -314,10 +433,11 @@ export function serializeForSave(values) {
       tags: serTags(values?.companyFields?.tags),
     },
     employeeFields: {
-      country: serByName(values?.employeeFields?.country),
+      country: serCountries(values?.employeeFields?.country),
       tags: serTags(values?.employeeFields?.tags),
     },
     assetsFields: {
+      currency: serByCode(values?.assetsFields?.currency),
       type: serByName(values?.assetsFields?.type),
       paymentSystem: serByName(values?.assetsFields?.paymentSystem),
       cardDesigns: serDesigns(values?.assetsFields?.cardDesigns),
@@ -382,7 +502,7 @@ export const FieldsAPI = {
   },
   async setClientCountries(list) {
     return updateBundle((all) => {
-      all.clientFields.country = normStrs(list);
+      all.clientFields.country = normCountries(list);
       return all;
     });
   },

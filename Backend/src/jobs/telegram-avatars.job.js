@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const prisma = require('../../prisma/client');
 const { fetchAndSaveTelegramAvatar } = require('../services/telegram-avatar.service');
 
-const schedule = process.env.TELEGRAM_AVATAR_CRON || '0 0 * * *';
+const schedule = process.env.TELEGRAM_AVATAR_CRON || '0 0 * * 0';
 const timezone = process.env.TELEGRAM_AVATAR_CRON_TZ || 'Europe/Kyiv';
 
 const toText = (value) => {
@@ -25,10 +25,11 @@ async function refreshTelegramAvatars() {
           { telegramChatId: { not: null } },
         ],
       },
-      select: { id: true, telegramUserId: true, telegramChatId: true },
+      select: { id: true, telegramUserId: true, telegramChatId: true, telegramLinkedAt: true },
     });
 
     let updated = 0;
+    let unchanged = 0;
     let skipped = 0;
 
     for (const emp of employees) {
@@ -41,12 +42,14 @@ async function refreshTelegramAvatars() {
       const res = await fetchAndSaveTelegramAvatar({
         employeeId: emp.id,
         telegramUserId: tgIdText,
+        telegramLinkedAt: emp.telegramLinkedAt,
       });
-      if (res?.ok) updated += 1;
+      if (res?.ok && res.updated) updated += 1;
+      else if (res?.ok) unchanged += 1;
       else skipped += 1;
     }
 
-    console.log(`[tg-avatar] refreshed: ${updated}, skipped: ${skipped}`);
+    console.log(`[tg-avatar] refreshed: updated ${updated}, unchanged ${unchanged}, skipped ${skipped}`);
   } catch (e) {
     console.error('[tg-avatar] failed:', e?.message || e);
   }

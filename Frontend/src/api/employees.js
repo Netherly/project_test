@@ -1,5 +1,6 @@
 // Frontend/src/api/employees.js
 import { httpGet, httpPost, httpPut, httpDelete, fileUrl } from "./http";
+import { getCountryDisplayName } from "../utils/countryDisplay";
 
 /* -------------------------- utils -------------------------- */
 
@@ -67,6 +68,13 @@ const toNumberSafe = (v, fallback = 0) => {
   if (v === null || v === undefined) return fallback;
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
+};
+
+const extractCountryLabel = (country) => {
+  if (country && typeof country === "object") {
+    return getCountryDisplayName(country, "en");
+  }
+  return toText(country);
 };
 
 /* ----------------------- normalizers ----------------------- */
@@ -293,7 +301,10 @@ export function normalizeEmployee(e = {}) {
   const normalizedRates = normalizeRates(e.rates ?? e.hourlyRates ?? {});
   const mainCurrency = normalizeCurrencyCode(e.mainCurrency ?? e.main_currency ?? "");
   const countryId = e.countryId ?? e.country?.id ?? null;
-  const countryValue = (countryId ?? toText(e.country?.name ?? e.country ?? "")) || "";
+  const countryValue =
+    toText(e.countryName) ||
+    extractCountryLabel(e.country) ||
+    "";
 
   const telegram = {
     dateTime: toText(
@@ -349,7 +360,7 @@ export function normalizeEmployee(e = {}) {
     companyId: e.companyId ?? null,
     countryId,
     country: countryValue,
-    countryName: toText(e.country?.name),
+    countryName: countryValue,
     currencyId: e.currencyId ?? null,
     roleId: e.roleId ?? null,
     publicId: e.publicId ?? null,
@@ -368,10 +379,10 @@ export function serializeEmployee(e = {}) {
   const mainCurrency = normalizeCurrencyCode(e.mainCurrency ?? e.main_currency ?? "");
   const telegram = e.telegram || {};
   const password = toText(e.password);
-  const countryCandidate = toText(e.countryId ?? e.country);
-  const countryId = countryCandidate && isUuid(countryCandidate) ? countryCandidate : undefined;
-  const countryName =
-    !countryId && countryCandidate ? countryCandidate : toText(e.country);
+  const rawCountryId = toText(e.countryId);
+  const rawCountryName = toText(e.country);
+  const countryId = rawCountryId && isUuid(rawCountryId) ? rawCountryId : undefined;
+  const countryName = rawCountryName || (!countryId ? rawCountryId : "");
 
   /**
    * ✅ FIX MERGE CONFLICT (обе версии логики)
@@ -467,6 +478,11 @@ export async function updateEmployee(id, payload) {
   return normalizeEmployee(unwrap(r));
 }
 
+export async function createEmployeeTemporaryPassword(id) {
+  const r = await httpPut(`/employees/${id}/temporary-password`, {});
+  return unwrap(r);
+}
+
 export async function deleteEmployee(id) {
   const r = await httpDelete(`/employees/${id}`);
   return unwrap(r) ?? true;
@@ -477,6 +493,7 @@ export default {
   fetchEmployeeById,
   createEmployee,
   updateEmployee,
+  createEmployeeTemporaryPassword,
   deleteEmployee,
   normalizeEmployee,
   serializeEmployee,

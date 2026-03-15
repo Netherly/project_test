@@ -13,6 +13,7 @@ import {
   updateAsset as apiUpdateAsset,
   deleteAsset as apiDeleteAsset,
 } from "../../api/assets";
+import { fetchLatestRatesSnapshot } from "../../api/rates";
 import { CreditCard } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
 import {
@@ -22,6 +23,12 @@ import {
   readCachedValue,
   writeCachedValue,
 } from "../../utils/resourceCache";
+import {
+  convertAmountByRates,
+  normalizeCurrencyCode,
+  readLatestRatesSnapshot,
+  writeLatestRatesSnapshot,
+} from "../../utils/exchangeRates";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -43,7 +50,7 @@ const AssetsPage = () => {
   const [assets, setAssets] = useState(
     () => readCacheSnapshot("assetsData", { fallback: [] }).data || []
   );
-  const [currencyRates, setCurrencyRates] = useState({});
+  const [currencyRates, setCurrencyRates] = useState(() => readLatestRatesSnapshot() || {});
   const [fields, setFields] = useState(() => {
     const cachedFields = readCachedValue("fieldsData", null);
 
@@ -154,32 +161,29 @@ const AssetsPage = () => {
   }, []);
 
   useEffect(() => {
-    const savedRates = localStorage.getItem("currencyRates_mock");
-    if (savedRates) {
-      try {
-        const ratesData = JSON.parse(savedRates);
-        if (ratesData.length > 0) {
-          const latestRates = ratesData[0];
-          setCurrencyRates({
-            UAH_TO_USD: latestRates.UAH_USD,
-            UAH_TO_RUB: latestRates.UAH_RUB,
-            UAH_TO_USDT: latestRates.UAH_USDT,
-            USD_TO_UAH: latestRates.USD_UAH,
-            USD_TO_RUB: latestRates.USD_RUB,
-            USD_TO_USDT: latestRates.USD_USD,
-            USDT_TO_UAH: latestRates.USDT_UAH,
-            USDT_TO_USD: latestRates.USDT_USD,
-            USDT_TO_RUB: latestRates.USDT_RUB,
-            RUB_TO_UAH: latestRates.RUB_UAH,
-            RUB_TO_USD: latestRates.RUB_USD,
-            RUB_TO_USDT: latestRates.RUB_USDT,
-          });
-        }
-      } catch (e) {
-        console.error("Ошибка парсинга курсов валют из localStorage:", e);
-        setCurrencyRates({});
-      }
+    let ignore = false;
+
+    const cached = readLatestRatesSnapshot();
+    if (cached) {
+      setCurrencyRates((prev) => (hasDataChanged(prev, cached) ? cached : prev));
     }
+
+    const loadLatestRates = async () => {
+      try {
+        const latest = await fetchLatestRatesSnapshot();
+        if (!ignore && latest) {
+          setCurrencyRates((prev) => (hasDataChanged(prev, latest) ? latest : prev));
+          writeLatestRatesSnapshot(latest);
+        }
+      } catch (error) {
+        console.error("Не удалось загрузить актуальные курсы валют для активов:", error);
+      }
+    };
+
+    loadLatestRates();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const calculateRealBalance = (currentAssets, allTransactions, rates) => {
@@ -211,18 +215,18 @@ const AssetsPage = () => {
         totalOutgoing
       ).toFixed(2);
 
-      let newBalanceUAH = 0;
-      if (asset.currency === baseCurrency) {
-        newBalanceUAH = parseFloat(newBalance);
-      } else {
-        const rateKey = `${asset.currency}_TO_${baseCurrency}`;
-        const rate = rates[rateKey];
-        if (rate) {
-          newBalanceUAH = parseFloat(newBalance) * rate;
-        } else {
-          newBalanceUAH = asset.balanceUAH;
-        }
-      }
+      const assetCurrency = normalizeCurrencyCode(asset.currency);
+      const fallbackUah =
+        Number.isFinite(Number(asset.balanceUAH)) && Number(asset.balanceUAH) !== 0
+          ? Number(asset.balanceUAH)
+          : parseFloat(newBalance);
+      const newBalanceUAH = convertAmountByRates(
+        parseFloat(newBalance),
+        assetCurrency || baseCurrency,
+        baseCurrency,
+        rates,
+        fallbackUah
+      );
 
       return {
         ...asset,
