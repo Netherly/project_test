@@ -141,7 +141,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       if (typeof onSave === "function") {
         await onSave(data);
       }
-      closeHandler();
+      setFormErrors(null);
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       alert(e?.message || "Не удалось сохранить сотрудника");

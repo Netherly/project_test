@@ -4,6 +4,10 @@ const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity, diffObjects } = require('./activity-log.service');
 const tempPasswordService = require('./employee-temp-password.service');
 const {
+  clearState: clearTelegramAvatarState,
+  markSyncDisabled,
+} = require('./telegram-avatar-state.service');
+const {
   buildCountryNames,
   inferPhoneCountryIso2,
   normalizeIso2,
@@ -52,6 +56,8 @@ const arraysEqual = (a = [], b = []) => {
 
 const isEmpty = (value) => value === null || value === undefined || String(value).trim() === '';
 const toText = (value) => (value === null || value === undefined ? '' : String(value).trim());
+const isTelegramFileUrl = (value) =>
+  /^https:\/\/api\.telegram\.org\/file\/bot/i.test(String(value || '').trim());
 
 const genUserId8 = () => {
   const n = Math.floor(Math.random() * 100_000_000);
@@ -498,6 +504,20 @@ const EmployeesService = {
         })
       : employee;
 
+    const finalPhotoLink = toText(finalEmployee?.photoLink);
+    const finalLinked = Boolean(
+      finalEmployee?.telegramUserId ||
+        finalEmployee?.telegramChatId ||
+        finalEmployee?.telegramUsername ||
+        finalEmployee?.telegramVerified ||
+        finalEmployee?.chatLink
+    );
+    if (finalLinked && finalPhotoLink && !isTelegramFileUrl(finalPhotoLink)) {
+      await markSyncDisabled(finalEmployee.id, {
+        linkedAt: finalEmployee?.telegramLinkedAt,
+      });
+    }
+
     await safeLog({
       entityType: 'employee',
       entityId: employee.id,
@@ -595,6 +615,10 @@ const EmployeesService = {
     }
 
     const after = await prisma.employee.findUnique({ where: { id } });
+    const beforePhotoLink = toText(before?.photoLink);
+    const afterPhotoLink = toText(after?.photoLink);
+    const photoLinkProvided = payload.photoLink !== undefined;
+    const photoLinkChangedManually = photoLinkProvided && beforePhotoLink !== afterPhotoLink;
     const afterLinked = Boolean(
       after?.telegramUserId ||
         after?.telegramChatId ||
@@ -633,12 +657,17 @@ const EmployeesService = {
     }
 
     if (beforeLinked && !afterLinked) {
+      await clearTelegramAvatarState(id);
       await safeLog({
         entityType: 'employee',
         entityId: id,
         action: 'telegram_unlinked',
         message: 'Telegram отвязан',
         ...actorMeta,
+      });
+    } else if (afterLinked && photoLinkChangedManually && !isTelegramFileUrl(afterPhotoLink)) {
+      await markSyncDisabled(id, {
+        linkedAt: after?.telegramLinkedAt,
       });
     }
 
