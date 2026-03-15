@@ -618,19 +618,23 @@ async function upsertTags(
 
     await tx.tag.upsert({
       where: { name_categoryId: { name, categoryId: tagCategory.id } },
-      update: { color },
-      create: { id: rid(), name, color, categoryId: tagCategory.id },
+      update: { color, isActive: true },
+      create: { id: rid(), name, color, categoryId: tagCategory.id, isActive: true },
     });
   }
 
-  await tx.tag.deleteMany({
+  await tx.tag.updateMany({
     where: {
       categoryId: tagCategory.id,
       name: { notIn: Array.from(desiredNames) },
     },
+    data: { isActive: false },
   });
 
-  return tx.tag.findMany({ where: { categoryId: tagCategory.id }, orderBy: { name: 'asc' } });
+  return tx.tag.findMany({
+    where: { categoryId: tagCategory.id, isActive: true },
+    orderBy: { name: 'asc' },
+  });
 }
 
 /* ==============================
@@ -639,7 +643,6 @@ async function upsertTags(
 async function getAll(db) {
   const _db = db || prisma;
   const whereActive = { where: { isActive: true } };
-  const whereActiveHardDelete = {};
   const [clientGroupsEnabled, extraFields] = await Promise.all([
     hasTable('ClientGroup'),
     loadExtraConfig(_db),
@@ -686,15 +689,15 @@ async function getAll(db) {
   ]);
 
   const [intervals, orderCats, cardDesigns, subarticles, tagCategories] = await Promise.all([
-    _db.orderIntervalDict.findMany({ ...whereActiveHardDelete, orderBy: { value: 'asc' } }),
+    _db.orderIntervalDict.findMany({ ...whereActive, orderBy: { value: 'asc' } }),
     _db.orderCategoryDict.findMany({
-      ...whereActiveHardDelete,
+      ...whereActive,
       select: { id: true, value: true, interval: { select: { id: true, value: true } } },
       orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
     }),
-    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.cardDesign.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.financeSubarticleDict.findMany({
-      ...whereActiveHardDelete,
+      ...whereActive,
       select: {
         id: true,
         name: true,
@@ -710,7 +713,7 @@ async function getAll(db) {
   const tagsByCode = async (code) => {
     const categoryId = tagCategoryByCode.get(code);
     if (!categoryId) return [];
-    return _db.tag.findMany({ where: { categoryId }, orderBy: { name: 'asc' } });
+    return _db.tag.findMany({ where: { categoryId, isActive: true }, orderBy: { name: 'asc' } });
   };
 
   const [
@@ -834,6 +837,10 @@ async function getInactive(db) {
     roles,
     sources,
     clientCategories,
+    clientGroups,
+    orderStatuses,
+    orderCloseReasons,
+    orderProjects,
     assetTypes,
     paymentSystems,
     articles,
@@ -846,6 +853,12 @@ async function getInactive(db) {
     _db.executorRoleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    [],
+    _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereInactive, orderBy: { order: 'asc' } }) : [],
+    _db.orderCloseReasonDict
+      ? _db.orderCloseReasonDict.findMany({ ...whereInactive, orderBy: { order: 'asc' } })
+      : [],
+    _db.orderProjectDict ? _db.orderProjectDict.findMany({ ...whereInactive, orderBy: { order: 'asc' } }) : [],
     _db.assetTypeDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.paymentSystemDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.financeArticleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
@@ -858,6 +871,56 @@ async function getInactive(db) {
       : [],
   ]);
 
+  const [intervals, orderCats, cardDesigns, subarticles, tagCategories] = await Promise.all([
+    _db.orderIntervalDict.findMany({ ...whereInactive, orderBy: { value: 'asc' } }),
+    _db.orderCategoryDict.findMany({
+      ...whereInactive,
+      select: { id: true, value: true, interval: { select: { id: true, value: true } } },
+      orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
+    }),
+    _db.cardDesign.findMany({
+      ...whereInactive,
+      orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    }),
+    _db.financeSubarticleDict.findMany({
+      ...whereInactive,
+      select: {
+        id: true,
+        name: true,
+        article: { select: { id: true, name: true } },
+        subcategory: { select: { id: true, name: true } },
+      },
+      orderBy: [{ article: { name: 'asc' } }, { name: 'asc' }],
+    }),
+    _db.tagCategory.findMany({ select: { id: true, code: true } }),
+  ]);
+
+  const tagCategoryByCode = new Map(tagCategories.map((c) => [c.code, c.id]));
+  const tagsByCode = async (code) => {
+    const categoryId = tagCategoryByCode.get(code);
+    if (!categoryId) return [];
+    return _db.tag.findMany({ where: { categoryId, isActive: false }, orderBy: { name: 'asc' } });
+  };
+
+  const [
+    orderTags,
+    orderTechTags,
+    orderTaskTags,
+    clientTags,
+    companyTags,
+    employeeTags,
+    taskTags,
+  ] = await Promise.all([
+    tagsByCode('order'),
+    tagsByCode('order-tech'),
+    tagsByCode('order-task'),
+    tagsByCode('client'),
+    tagsByCode('company'),
+    tagsByCode('employee'),
+    tagsByCode('task'),
+  ]);
+
+  const mapTags = (list) => list.map((t) => ({ id: t.id, name: t.name, color: t.color }));
   const emptyArr = [];
 
   return {
@@ -867,18 +930,23 @@ async function getInactive(db) {
       businessLine: inactiveExtraValues(extraFields?.generalFields?.businessLine),
     },
     orderFields: {
-      intervals: emptyArr,
-      categories: emptyArr,
+      intervals: intervals.map((x) => ({ id: x.id, value: x.value })),
+      categories: orderCats.map((x) => ({
+        id: x.id,
+        value: x.value,
+        intervalId: x.interval?.id || null,
+        intervalValue: x.interval?.value || null,
+      })),
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       discountReason: discountReasons.map((r) => ({ id: r.id, name: r.name })),
       minOrderAmount: inactiveExtraValues(extraFields?.orderFields?.minOrderAmount),
       readySolution: inactiveExtraValues(extraFields?.orderFields?.readySolution),
-      tags: emptyArr,
-      techTags: emptyArr,
-      taskTags: emptyArr,
-      statuses: emptyArr,
-      closeReasons: emptyArr,
-      projects: emptyArr,
+      tags: mapTags(orderTags),
+      techTags: mapTags(orderTechTags),
+      taskTags: mapTags(orderTaskTags),
+      statuses: orderStatuses.map((s) => ({ id: s.id, name: s.name })),
+      closeReasons: orderCloseReasons.map((r) => ({ id: r.id, name: r.name })),
+      projects: orderProjects.map((p) => ({ id: p.id, name: p.name })),
     },
     executorFields: {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
@@ -890,40 +958,45 @@ async function getInactive(db) {
       country: countries.map(mapCountry),
       business: inactiveExtraValues(extraFields?.clientFields?.business),
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      tags: emptyArr,
-      groups: emptyArr,
+      tags: mapTags(clientTags),
+      groups: clientGroups.map((g) => ({ id: g.id, name: g.name, order: g.order })),
     },
     companyFields: {
-      tags: emptyArr,
+      tags: mapTags(companyTags),
     },
     employeeFields: {
       country: countries.map(mapCountry),
-      tags: emptyArr,
+      tags: mapTags(employeeTags),
     },
     assetsFields: {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
       paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
-      cardDesigns: await _db.cardDesign.findMany({
-        ...whereInactive,
-        orderBy: [{ order: 'asc' }, { name: 'asc' }],
-      }).then((items) => items.map((d) => ({
+      cardDesigns: cardDesigns.map((d) => ({
         id: d.id,
         name: d.name,
         url: d.imageUrl || '',
         order: d.order,
-      }))),
+      })),
     },
     financeFields: {
       articles: articles.map((a) => ({ id: a.id, name: a.name })),
-      subarticles: emptyArr,
+      subarticles: subarticles.map((s) => ({
+        id: s.id,
+        name: s.name,
+        articleId: s.article?.id || null,
+        articleName: s.article?.name || null,
+        subcategoryId: s.subcategory?.id || null,
+        subcategoryName: s.subcategory?.name || null,
+        subarticleInterval: s.article?.name || s.subcategory?.name || null,
+      })),
       subcategory: subcategories.map((s) => ({ id: s.id, name: s.name })),
     },
     sundryFields: {
       typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name })),
     },
     taskFields: {
-      tags: emptyArr,
+      tags: mapTags(taskTags),
     },
   };
 }
