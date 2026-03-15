@@ -1,6 +1,7 @@
 const EmployeesService = require('../services/employees.service');
 const activityLogService = require('../services/activity-log.service');
 const { createLinkTokenForEmployee } = require('../services/link-token.service');
+const { buildTelegramStartLink } = require('../services/telegram-bot.service');
 const prisma = require('../../prisma/client');
 
 const buildActorMeta = (req) => ({
@@ -129,10 +130,7 @@ const EmployeesController = {
       }
 
       const token = await createLinkTokenForEmployee(id, ttlMinutes);
-      const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
-        .trim()
-        .replace(/^@/, '');
-      const link = `https://t.me/${botName}?start=${token.code}`;
+      const link = await buildTelegramStartLink(token.code);
 
       await prisma.employee.update({
         where: { id },

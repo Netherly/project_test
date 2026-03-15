@@ -3,6 +3,7 @@ const prisma = require('../../prisma/client');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity, diffObjects } = require('./activity-log.service');
 const tempPasswordService = require('./employee-temp-password.service');
+const { buildTelegramStartLink } = require('./telegram-bot.service');
 const {
   clearState: clearTelegramAvatarState,
   markSyncDisabled,
@@ -475,10 +476,7 @@ const EmployeesService = {
       try {
         const ttlMinutes = Number(payload?.telegramLinkTtlMinutes) || 60;
         const token = await createLinkTokenForEmployee(employee.id, ttlMinutes);
-        const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
-          .trim()
-          .replace(/^@/, '');
-        const link = `https://t.me/${botName}?start=${token.code}`;
+        const link = await buildTelegramStartLink(token.code);
         await prisma.employee.update({
           where: { id: employee.id },
           data: { telegramBindingLink: link },
