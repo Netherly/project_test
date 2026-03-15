@@ -355,10 +355,23 @@ jobs:
             set -e
             TEMPLATE="/tmp/deploy/nginx/prod.conf.template"
             TARGET="/etc/nginx/sites-available/crm-prod.conf"
+            TARGET_ENABLED="/etc/nginx/sites-enabled/crm-prod.conf"
             DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
             test -f "$TEMPLATE"
             sed "s/PROD_DOMAIN/$DOMAIN/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
-            sudo ln -sf "$TARGET" /etc/nginx/sites-enabled/crm-prod.conf
+            sudo ln -sf "$TARGET" "$TARGET_ENABLED"
+
+            for enabled in /etc/nginx/sites-enabled/*; do
+              [ -e "$enabled" ] || continue
+              if [ "$(readlink -f "$enabled")" = "$(readlink -f "$TARGET_ENABLED")" ]; then
+                continue
+              fi
+              if sudo grep -q "$DOMAIN" "$enabled"; then
+                echo "Disabling conflicting nginx site $enabled for domain $DOMAIN"
+                sudo rm -f "$enabled"
+              fi
+            done
+
             sudo nginx -t
             sudo systemctl reload nginx
 
@@ -517,3 +530,40 @@ jobs:
 
             echo "Backend health check FAILED"
             exit 1
+
+      - name: Verify prod frontend serves current build
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            FRONTEND_DIR="/var/www/${{ env.FRONTEND_TARGET_DIR }}"
+            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN }}"
+
+            test -f "$FRONTEND_DIR/index.html"
+
+            EXPECTED_INDEX_SHA="$(sha256sum "$FRONTEND_DIR/index.html" | awk '{print $1}')"
+            SERVED_INDEX_SHA="$(curl -s -H "Host: $HOST_HEADER" "http://127.0.0.1/index.html" | sha256sum | awk '{print $1}')"
+
+            echo "Expected index sha: $EXPECTED_INDEX_SHA"
+            echo "Served   index sha: $SERVED_INDEX_SHA"
+
+            if [ "$EXPECTED_INDEX_SHA" != "$SERVED_INDEX_SHA" ]; then
+              echo "Prod domain is not serving the current frontend build from $FRONTEND_DIR" >&2
+              echo "Check nginx server_name/root conflicts and stale enabled sites." >&2
+              exit 1
+            fi
+
+            ASSET_PATH="$(grep -oE "/assets/[^\"' ]+\\.js" "$FRONTEND_DIR/index.html" | head -n1 || true)"
+            if [ -n "$ASSET_PATH" ]; then
+              ASSET_CODE="$(curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST_HEADER" "http://127.0.0.1$ASSET_PATH" || true)"
+              echo "Asset check $ASSET_PATH -> $ASSET_CODE"
+              if [ "$ASSET_CODE" != "200" ]; then
+                echo "Current frontend asset is not reachable through prod domain" >&2
+                exit 1
+              fi
+            fi
