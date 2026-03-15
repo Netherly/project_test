@@ -59,6 +59,7 @@ export const clientSchema = yup.object().shape({
 
   // === CONTACTS ===
   full_name: yup.string().required("ФИО обязательно"),
+  email: yup.string().required("Email обязателен").email("Неверный формат"),
   country: yup.string().required("Страна обязательна"),
   city: yup.string().nullable(),
   chat_link: yup.string().nullable(),

@@ -266,7 +266,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
 
   return (
     <aside className="chat-panel">
-      <div className="chat-scroll custom-scrollbar">
+      <div className="chat-scroll">
         {loadError && <div className="chat-empty">{loadError}</div>}
         {!loadError && logs.length === 0 && (
           <div className="chat-empty">Пока нет логов. Сохраните изменения или добавьте примечание.</div>

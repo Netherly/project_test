@@ -20,8 +20,6 @@ import { getStageColor } from "../../Orders/stageColors";
 import { fetchClients } from "../../../api/clients";
 import "../../../styles/OrderModal.css";
 import { X, Trash2, Copy, MoreVertical } from "lucide-react";
-import { fetchFields, saveFields, withDefaults, serializeForSave, rid } from "../../../api/fields";
-import { useFields } from "../../../context/FieldsContext";
 
 const stages = [
   "Лид",
@@ -41,6 +39,8 @@ const stages = [
   "Неудачно завершён",
   "Удаленные",
 ];
+
+const defaultTagsFallback = ["Срочный", "В приоритете", "На паузе", "Клиент VIP"];
 
 const tabs = ["Сводка", "Основное", "Планы", "Участники", "Финансы", "Выполнение", "Завершение"];
 
@@ -120,16 +120,72 @@ function OrderModal({
   const formDefaults = useMemo(() => {
     if (mode === "create") return newOrderDefaults;
     return {
-      ...newOrderDefaults,
-      ...order,
+      stage: order?.stage || "",
       tags: order?.tags || [],
+      isOldOrder: order?.isOldOrder || false,
+      urgency: order?.urgency || "",
+      appealDate: order?.appealDate || "",
+      proposalDate: order?.proposalDate || "",
+      orderDate: order?.orderDate || "",
+      interval: order?.interval || "",
+      orderType: order?.orderType || "",
+      orderStatus: order?.orderStatus || "",
+      closeReason: order?.closeReason || "",
+      plannedStartDate: order?.plannedStartDate || "",
+      plannedFinishDate: order?.plannedFinishDate || "",
+      project: order?.project || "",
+      orderDescription: order?.orderDescription || "",
       techTags: order?.techTags || [],
       taskTags: order?.taskTags || [],
-      workList: order?.workList?.length > 0 ? order.workList : [{ description: "", amount: "", specification: "", sale: false }],
+      workList:
+        order?.workList && order.workList.length > 0
+          ? order.workList
+          : [{ description: "", amount: "", specification: "", sale: false }],
       additionalOptions: Array.isArray(order?.additionalOptions) ? order.additionalOptions : [],
+      techSpecifications: order?.techSpecifications || "",
+      additionalConditions: order?.additionalConditions || "",
+      notes: order?.notes || "",
+      order_client: order?.order_client || "",
+      order_main_client: order?.order_main_client || "",
+      client_company: order?.client_company || "",
+      partner_name: order?.partner_name || "",
       third_parties: order?.third_parties || [],
+      partner_disable_share: order?.partner_disable_share ?? false,
+      partner_payment: order?.partner_payment ?? "",
+      partner_plan: order?.partner_plan ?? "",
+      partner_percent_plan: order?.partner_percent_plan ?? "",
+      partner_sum_plan: order?.partner_sum_plan ?? "",
+      partner_underpayment: order?.partner_underpayment ?? "",
       performers: order?.performers || [],
-      payment_log: order?.payment_log?.length > 0 ? order.payment_log : [{ date: "", item: "", sub_item: "", account: "", amount: "" }],
+      share_percent: order?.share_percent ?? "",
+      budget: order?.budget ?? "",
+      minOrderAmount: order?.minOrderAmount ?? "",
+      currency_type: order?.currency_type ?? "",
+      currency_rate: order?.currency_rate ?? "",
+      hourly_rate: order?.hourly_rate ?? "",
+      round_hour: order?.round_hour ?? false,
+      discount: order?.discount ?? "",
+      discountReason: order?.discountReason ?? "",
+      upsell: order?.upsell ?? "",
+      expenses: order?.expenses ?? "",
+      tips: order?.tips ?? "",
+      payment_details: order?.payment_details ?? "",
+      payment_log:
+        order?.payment_log && order.payment_log.length > 0
+          ? order.payment_log
+          : [{ date: "", item: "", sub_item: "", account: "", amount: "" }],
+      executionTime: order?.executionTime || "",
+      startDate: order?.startDate || "",
+      endDate: order?.endDate || "",
+      countDays: order?.countDays ?? "",
+      completedDate: order?.completedDate || "",
+      completingTime: order?.completingTime || "",
+      completingLink: order?.completingLink || "",
+      orderImpressions: order?.orderImpressions || "",
+      solutionLink: order?.solutionLink || "",
+      additionalSolutionLinks: order?.additionalSolutionLinks || "",
+      solutionCopyLink: order?.solutionCopyLink || "",
+      readySolution: order?.readySolution || "",
       work_log: order?.work_log || [],
     };
   }, [mode, order]);
@@ -166,7 +222,6 @@ function OrderModal({
   const [confirmAction, setConfirmAction] = useState(null);
   const [showStageDropdown, setShowStageDropdown] = useState(false);
 
-
   const [orderFields, setOrderFields] = useState({
     intervals: [],
     categories: [],
@@ -180,72 +235,6 @@ function OrderModal({
     taskTags: [],
     readySolution: [],
   });
-
-  const { refreshFields } = useFields();
-
-  const loadFields = async () => {
-    try {
-      const raw = await fetchFields();
-      const norm = withDefaults(raw);
-      setOrderFields({
-        intervals: norm.orderFields?.intervals || [],
-        categories: norm.orderFields?.categories || [],
-        currency: norm.generalFields?.currency || [],
-        statuses: norm.orderFields?.statuses || [],
-        closeReasons: norm.orderFields?.closeReasons || [],
-        projects: norm.orderFields?.projects || [],
-        discountReason: norm.orderFields?.discountReason || [],
-        tags: norm.orderFields?.tags || [],
-        techTags: norm.orderFields?.techTags || [],
-        taskTags: norm.orderFields?.taskTags || [],
-        readySolution: norm.orderFields?.readySolution || [],
-      });
-    } catch (err) {
-      console.error("Ошибка загрузки полей:", err);
-    }
-  };
-
-  useEffect(() => {
-    loadFields();
-  }, []);
-
-  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
-    try {
-        const raw = await fetchFields();
-        const normalized = withDefaults(raw);
-        const list = normalized[group]?.[fieldName] || [];
-
-        let exists = false;
-        let newItem = { id: rid(), isDeleted: false };
-
-        if (fieldName === "categories") {
-            exists = list.find(item => 
-                item.categoryValue && item.categoryValue.toLowerCase() === newValue.toLowerCase() &&
-                item.categoryInterval === extraData.categoryInterval
-            );
-            newItem.categoryInterval = extraData.categoryInterval;
-            newItem.categoryValue = newValue;
-        } else if (fieldName === "intervals") {
-            exists = list.find(item => item.intervalValue && item.intervalValue.toLowerCase() === newValue.toLowerCase());
-            newItem.intervalValue = newValue;
-        } else {
-            exists = list.find(item => item.value && item.value.toLowerCase() === newValue.toLowerCase());
-            newItem.value = newValue;
-        }
-
-        if (!exists) {
-            list.push(newItem);
-            normalized[group][fieldName] = list;
-            const payload = serializeForSave(normalized);
-            await saveFields(payload);
-            
-            await loadFields();
-            if (refreshFields) await refreshFields();
-        }
-    } catch (e) {
-        console.error("Ошибка при сохранении нового поля в БД:", e);
-    }
-  };
 
   const [clientsData, setClientsData] = useState([]);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -339,6 +328,24 @@ function OrderModal({
     if (savedFields) {
       try {
         const parsed = JSON.parse(savedFields);
+
+        if (parsed?.orderFields) {
+          const base = {
+            intervals: [],
+            categories: [],
+            currency: [],
+            statuses: [],
+            closeReasons: [],
+            projects: [],
+            discountReason: [],
+            tags: [],
+            techTags: [],
+            taskTags: [],
+            readySolution: [],
+          };
+          setOrderFields({ ...base, ...parsed.orderFields });
+        }
+
         const employeesFromStorage = JSON.parse(localStorage.getItem("employees")) || [];
         const activeEmployees = (Array.isArray(employeesFromStorage) ? employeesFromStorage : []).filter(
           (emp) => emp.status === "active"
@@ -410,11 +417,10 @@ function OrderModal({
   };
 
   const availableOrderTags = (orderFields?.tags || [])
-    .filter(t => !t.isDeleted)
-    .map((t) => (typeof t === "string" ? t : t?.name || t?.value))
+    .map((t) => (typeof t === "string" ? t : t?.name))
     .filter(Boolean);
 
-  const tagOptions = availableOrderTags;
+  const tagOptions = availableOrderTags.length ? availableOrderTags : defaultTagsFallback;
 
   const filteredTags = tagOptions.filter(
     (tag) => !watchedTags.includes(tag) && tag.toLowerCase().includes(customTag.toLowerCase())
@@ -430,9 +436,7 @@ function OrderModal({
 
   const handleCustomTagAdd = (e, onChange) => {
     if (e.key === "Enter" && customTag.trim() && !watchedTags.includes(customTag.trim())) {
-      const newVal = customTag.trim();
-      onChange([...watchedTags, newVal]);
-      handleAddNewField("orderFields", "tags", newVal);
+      onChange([...watchedTags, customTag.trim()]);
       setCustomTag("");
       setShowTagDropdown(false);
       e.preventDefault();
@@ -635,6 +639,7 @@ function OrderModal({
                     </button>
                   </div>
                 </div>
+                {/* Убрали кнопки отмены/сохранения из хедера */}
               </div>
 
               <div className="tags-section-header">
@@ -671,10 +676,7 @@ function OrderModal({
                               !watchedTags.includes(customTag.trim()) && (
                                 <div
                                   className="tag-dropdown-item tag-dropdown-custom-header"
-                                  onClick={() => {
-                                      handleTagSelect(customTag.trim(), onChange);
-                                      handleAddNewField("orderFields", "tags", customTag.trim());
-                                  }}
+                                  onClick={() => handleTagSelect(customTag.trim(), onChange)}
                                 >
                                   Добавить: "{customTag}"
                                 </div>
@@ -779,21 +781,9 @@ function OrderModal({
               <div className="tab-content">
                 {activeTab === "Сводка" && <OrderSummary />}
                 {activeTab === "Основное" && (
-                  <GeneralInformation 
-                    control={control} 
-                    orderFields={orderFields} 
-                    mode={mode} 
-                    onAddNewField={handleAddNewField} 
-                  />
+                  <GeneralInformation control={control} orderFields={orderFields} mode={mode} />
                 )}
-                {activeTab === "Планы" && (
-                  <WorkPlan 
-                    control={control} 
-                    orderFields={orderFields} 
-                    mode={mode} 
-                    onAddNewField={handleAddNewField} 
-                  />
-                )}
+                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} />}
                 {activeTab === "Участники" && (
                   <Participants
                     control={control}
@@ -804,16 +794,10 @@ function OrderModal({
                   />
                 )}
                 {activeTab === "Финансы" && (
-                  <Finance 
-                    control={control} 
-                    orderFields={orderFields} 
-                    mode={mode} 
-                    transactions={orderTransactions} 
-                    onAddNewField={handleAddNewField} 
-                  />
+                  <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions} />
                 )}
                 {activeTab === "Выполнение" && <OrderExecution control={control} mode={mode} />}
-                {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} onAddNewField={handleAddNewField} />}
+                {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} />}
               </div>
             </div>
 

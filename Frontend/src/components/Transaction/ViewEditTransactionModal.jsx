@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import "../../styles/ViewEditTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal'; 
 import { Trash2, Copy, X } from 'lucide-react';
-import CreatableSelect from "../../components/Client/ClientModal/CreatableSelect"; 
 
 const getArticleValue = (article) =>
     String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
@@ -49,7 +48,7 @@ const toDateTimeLocalValue = (value) => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
-const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, onDuplicate, assets, financeFields, orders = [], counterparties = [], onAddNewField }) => {
+const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, onDuplicate, assets, financeFields, orders = [], counterparties = [] }) => {
     const formattedDate = toDateTimeLocalValue(transaction.date);
     const originalTransactionRef = useRef(transaction);
 
@@ -425,21 +424,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
         return parts.join('.');
     };
 
-    const articleOptions = useMemo(() => {
-        const list = financeFields?.articles
-            ?.filter(a => !a.isDeleted)
-            ?.map(getArticleValue)
-            .filter(Boolean) || [];
-        if (!list.includes("Смена счета")) {
-            list.push("Смена счета");
-        }
-        return list;
-    }, [financeFields]);
-    
-    const subcategoryOptions = useMemo(() => {
-        return availableSubcategories.filter(s => !s.isDeleted).map(getSubarticleValue).filter(Boolean);
-    }, [availableSubcategories]);
-
 
     return (
         <div className="add-transaction-overlay" onClick={handleCloseModal}>
@@ -479,32 +463,61 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                     
                     <div className="form-row">
                         <label htmlFor="category" className="form-label">Статья</label>
-                        <CreatableSelect
+                        <select
+                            id="category"
+                            name="category"
                             value={formData.category}
-                            onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
-                            options={articleOptions}
-                            placeholder="Выберите или введите статью..."
-                            onAdd={(val) => onAddNewField && onAddNewField("financeFields", "articles", val)}
-                        />
+                            onChange={handleChange}
+                            required
+                            className="form-input1"
+                        >
+                            <option value="" disabled hidden>Не выбрано</option>
+                            
+                            {financeFields?.articles
+                                ?.map((article) => ({
+                                    id: article?.id,
+                                    value: getArticleValue(article),
+                                }))
+                                .filter((article) => article.value)
+                                .map((article) => (
+                                    <option key={article.id || article.value} value={article.value}>
+                                        {article.value}
+                                    </option>
+                                ))}
+
+                            {!financeFields?.articles?.some((a) => getArticleValue(a) === "Смена счета") && (
+                                <option value="Смена счета">Смена счета</option>
+                            )}
+                        </select>
                     </div>
 
-                    {(availableSubcategories.length > 0 || formData.category) && (
+                    {availableSubcategories.length > 0 && (
                         <div className="form-row">
                             <label htmlFor="subcategory" className="form-label">Подстатья</label>
-                            <CreatableSelect
+                            <select
+                                id="subcategory"
+                                name="subcategory"
                                 value={formData.subcategory}
-                                onChange={(val) => handleChange({ target: { name: 'subcategory', value: val } })}
-                                options={subcategoryOptions}
-                                placeholder="Выберите или введите подстатью..."
-                                disabled={!formData.category}
-                                onAdd={(val) => {
-                                    if (!formData.category) return alert("Сначала выберите статью!");
-                                    onAddNewField && onAddNewField("financeFields", "subarticles", val, { subarticleInterval: formData.category });
-                                }}
-                            />
+                                onChange={handleChange}
+                                className="form-input1"
+                            >
+                                <option value="" disabled hidden>Не выбрано</option>
+                                {availableSubcategories
+                                    .map((sub) => ({
+                                        id: sub?.id,
+                                        value: getSubarticleValue(sub),
+                                    }))
+                                    .filter((sub) => sub.value)
+                                    .map((sub, index) => (
+                                        <option key={sub.id || index} value={sub.value}>
+                                            {sub.value}
+                                        </option>
+                                    ))}
+                            </select>
                         </div>
                     )}
 
+                    
                     <div className="form-row">
                         <label htmlFor="description" className="form-label">
                             Описание
@@ -690,11 +703,9 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                                 {orders.map((order) => {
                                     const orderLabel = order.numberOrder ?? order.orderSequence ?? order.id;
                                     const clientLabel = order.clientName || order.name;
-                                    const typeLabel = order.orderSequence != null ? "заказ" : "заявка";
-                                    const baseLabel = clientLabel ? `${orderLabel} — ${clientLabel}` : orderLabel;
                                     return (
                                         <option key={order.id} value={order.id}>
-                                            {typeLabel === "заявка" ? `${baseLabel} (заявка)` : baseLabel}
+                                            {clientLabel ? `${orderLabel} — ${clientLabel}` : orderLabel}
                                         </option>
                                     );
                                 })}

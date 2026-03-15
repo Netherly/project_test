@@ -4,6 +4,7 @@ import Sidebar from "../Sidebar.jsx";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import TaskModal from "./TaskModal.jsx";
 import TaskViewModal from "./TaskViewModal.jsx";
+import { demoTasks, shouldBootstrapDemoTasks } from "./demoTasks.js";
 
 function TasksPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,10 +40,20 @@ function TasksPage() {
         const storedTasks = localStorage.getItem("tasks");
         if (storedTasks) {
             try {
-                setTasks(JSON.parse(storedTasks));
+                const parsed = JSON.parse(storedTasks);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setTasks(parsed);
+                } else if (shouldBootstrapDemoTasks()) {
+                    setTasks(demoTasks);
+                }
             } catch (e) {
                 console.error("Ошибка парсинга tasks из localStorage", e);
+                if (shouldBootstrapDemoTasks()) {
+                    setTasks(demoTasks);
+                }
             }
+        } else if (shouldBootstrapDemoTasks()) {
+            setTasks(demoTasks);
         }
 
         const storedWidths = localStorage.getItem("columnWidths");

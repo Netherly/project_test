@@ -6,17 +6,16 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
-import { fetchFields, withDefaults, saveFields, serializeForSave, rid } from "../../api/fields";
-
+import { fetchFields, withDefaults } from "../../api/fields";
 import {
   fetchAssets,
   createAsset as apiCreateAsset,
   updateAsset as apiUpdateAsset,
   deleteAsset as apiDeleteAsset,
 } from "../../api/assets";
+import { fetchLatestRatesSnapshot } from "../../api/rates";
 import { CreditCard } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
-import { useFields } from "../../context/FieldsContext";
 import {
   CACHE_TTL,
   hasDataChanged,
@@ -24,6 +23,12 @@ import {
   readCachedValue,
   writeCachedValue,
 } from "../../utils/resourceCache";
+import {
+  convertAmountByRates,
+  normalizeCurrencyCode,
+  readLatestRatesSnapshot,
+  writeLatestRatesSnapshot,
+} from "../../utils/exchangeRates";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -40,15 +45,15 @@ const AssetsPage = () => {
   const { assetId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { transactions } = useTransactions();
-  const { refreshFields } = useFields();
 
   const defaultAssets = [];
   const [assets, setAssets] = useState(
     () => readCacheSnapshot("assetsData", { fallback: [] }).data || []
   );
-  const [currencyRates, setCurrencyRates] = useState({});
+  const [currencyRates, setCurrencyRates] = useState(() => readLatestRatesSnapshot() || {});
   const [fields, setFields] = useState(() => {
     const cachedFields = readCachedValue("fieldsData", null);
+
     if (!cachedFields) {
       return {
         generalFields: { currency: [] },
@@ -69,11 +74,13 @@ const AssetsPage = () => {
       };
     }
   });
+
   const [employees, setEmployees] = useState([]);
   const [cardSize, setCardSize] = useState("medium");
   const cacheWriteStateRef = useRef({ assets: false });
 
   const viewMode = searchParams.get("view") || "card";
+
   const setViewMode = (mode) => {
     setSearchParams({ view: mode });
   };
@@ -116,7 +123,9 @@ const AssetsPage = () => {
     try {
       const rawFields = await fetchFields();
       const allFields = withDefaults(rawFields);
+
       writeCachedValue("fieldsData", rawFields);
+
       setFields({
         generalFields: allFields.generalFields,
         assetsFields: allFields.assetsFields,
@@ -127,7 +136,9 @@ const AssetsPage = () => {
   };
 
   useEffect(() => {
-    const snapshot = readCacheSnapshot("fieldsData", { ttlMs: CACHE_TTL.fields });
+    const snapshot = readCacheSnapshot("fieldsData", {
+      ttlMs: CACHE_TTL.fields,
+    });
 
     if (snapshot.hasData) {
       try {
@@ -139,7 +150,9 @@ const AssetsPage = () => {
           };
           return hasDataChanged(prev, next) ? next : prev;
         });
-      } catch (_) {}
+      } catch (_) {
+        // ignore invalid cached fields
+      }
 
       if (snapshot.isFresh) return;
     }
@@ -147,59 +160,30 @@ const AssetsPage = () => {
     loadFields();
   }, []);
 
-
-  const handleAddNewField = async (group, fieldName, newValue) => {
-    try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find(item => 
-        item.value && item.value.toLowerCase() === newValue.toLowerCase()
-      );
-
-      if (!exists) {
-        list.push({ id: rid(), value: newValue, isDeleted: false });
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-        await saveFields(payload);
-        
-        await loadFields(); 
-        if (refreshFields) await refreshFields(); 
-      }
-    } catch (e) {
-      console.error("Ошибка при сохранении нового поля в БД:", e);
-    }
-  };
-
-
   useEffect(() => {
-    const savedRates = localStorage.getItem("currencyRates_mock");
-    if (savedRates) {
-      try {
-        const ratesData = JSON.parse(savedRates);
-        if (ratesData.length > 0) {
-          const latestRates = ratesData[0];
-          setCurrencyRates({
-            UAH_TO_USD: latestRates.UAH_USD,
-            UAH_TO_RUB: latestRates.UAH_RUB,
-            UAH_TO_USDT: latestRates.UAH_USDT,
-            USD_TO_UAH: latestRates.USD_UAH,
-            USD_TO_RUB: latestRates.USD_RUB,
-            USD_TO_USDT: latestRates.USD_USD,
-            USDT_TO_UAH: latestRates.USDT_UAH,
-            USDT_TO_USD: latestRates.USDT_USD,
-            USDT_TO_RUB: latestRates.USDT_RUB,
-            RUB_TO_UAH: latestRates.RUB_UAH,
-            RUB_TO_USD: latestRates.RUB_USD,
-            RUB_TO_USDT: latestRates.RUB_USDT,
-          });
-        }
-      } catch (e) {
-        console.error("Ошибка парсинга курсов валют из localStorage:", e);
-        setCurrencyRates({});
-      }
+    let ignore = false;
+
+    const cached = readLatestRatesSnapshot();
+    if (cached) {
+      setCurrencyRates((prev) => (hasDataChanged(prev, cached) ? cached : prev));
     }
+
+    const loadLatestRates = async () => {
+      try {
+        const latest = await fetchLatestRatesSnapshot();
+        if (!ignore && latest) {
+          setCurrencyRates((prev) => (hasDataChanged(prev, latest) ? latest : prev));
+          writeLatestRatesSnapshot(latest);
+        }
+      } catch (error) {
+        console.error("Не удалось загрузить актуальные курсы валют для активов:", error);
+      }
+    };
+
+    loadLatestRates();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const calculateRealBalance = (currentAssets, allTransactions, rates) => {
@@ -231,18 +215,18 @@ const AssetsPage = () => {
         totalOutgoing
       ).toFixed(2);
 
-      let newBalanceUAH = 0;
-      if (asset.currency === baseCurrency) {
-        newBalanceUAH = parseFloat(newBalance);
-      } else {
-        const rateKey = `${asset.currency}_TO_${baseCurrency}`;
-        const rate = rates[rateKey];
-        if (rate) {
-          newBalanceUAH = parseFloat(newBalance) * rate;
-        } else {
-          newBalanceUAH = asset.balanceUAH;
-        }
-      }
+      const assetCurrency = normalizeCurrencyCode(asset.currency);
+      const fallbackUah =
+        Number.isFinite(Number(asset.balanceUAH)) && Number(asset.balanceUAH) !== 0
+          ? Number(asset.balanceUAH)
+          : parseFloat(newBalance);
+      const newBalanceUAH = convertAmountByRates(
+        parseFloat(newBalance),
+        assetCurrency || baseCurrency,
+        baseCurrency,
+        rates,
+        fallbackUah
+      );
 
       return {
         ...asset,
@@ -276,12 +260,19 @@ const AssetsPage = () => {
     try {
       const fetchedAssets = await fetchAssets();
       const safeFetchedAssets = Array.isArray(fetchedAssets) ? fetchedAssets : [];
+
       if (transactions.length > 0) {
-        const calculated = calculateRealBalance(safeFetchedAssets, transactions, currencyRates);
+        const calculated = calculateRealBalance(
+          safeFetchedAssets,
+          transactions,
+          currencyRates
+        );
         setAssets((prev) => (hasDataChanged(prev, calculated) ? calculated : prev));
         writeCachedValue("assetsData", calculated);
       } else {
-        setAssets((prev) => (hasDataChanged(prev, safeFetchedAssets) ? safeFetchedAssets : prev));
+        setAssets((prev) =>
+          hasDataChanged(prev, safeFetchedAssets) ? safeFetchedAssets : prev
+        );
         writeCachedValue("assetsData", safeFetchedAssets);
       }
     } catch (err) {
@@ -313,6 +304,19 @@ const AssetsPage = () => {
       handleCloseModal();
     } catch (err) {
       console.error("Failed to create asset", err);
+      const selectedEmployee = employees?.find((emp) => emp.id === newAsset.employeeId);
+      const assetWithDefaults = {
+        ...newAsset,
+        id: newAsset.accountName,
+        design: newAsset.design || "default-design",
+        paymentSystem: newAsset.paymentSystem || null,
+        turnoverStartBalance: Number(newAsset.turnoverStartBalance) || 0,
+        employeeId: newAsset.employeeId || null,
+        employee: newAsset.employeeName || selectedEmployee?.fullName || "",
+        employeeName: newAsset.employeeName || selectedEmployee?.fullName || "",
+      };
+      setAssets((prevAssets) => [...prevAssets, assetWithDefaults]);
+      handleCloseModal();
     }
   };
 
@@ -323,7 +327,9 @@ const AssetsPage = () => {
       handleCloseModal();
     } catch (err) {
       console.error("Failed to delete asset", err);
-      setAssets((prevAssets) => prevAssets.filter((asset) => asset.id !== idToDelete));
+      setAssets((prevAssets) =>
+        prevAssets.filter((asset) => asset.id !== idToDelete)
+      );
       handleCloseModal();
     }
   };
@@ -354,7 +360,10 @@ const AssetsPage = () => {
   const handleCopyRequisites = (e, requisites) => {
     e.stopPropagation();
     if (requisites && requisites.length > 0) {
-      const requisitesText = requisites.map((req) => `${req.label}: ${req.value}`).join("\n");
+      const requisitesText = requisites
+        .map((req) => `${req.label}: ${req.value}`)
+        .join("\n");
+
       navigator.clipboard
         .writeText(requisitesText)
         .then(() => {
@@ -388,7 +397,9 @@ const AssetsPage = () => {
     } catch (err) {
       console.error("Failed to update asset", err);
       setAssets((prevAssets) =>
-        prevAssets.map((asset) => (asset.id === updatedAsset.id ? updatedAsset : asset))
+        prevAssets.map((asset) =>
+          asset.id === updatedAsset.id ? updatedAsset : asset
+        )
       );
       handleCloseModal();
     }
@@ -406,6 +417,7 @@ const AssetsPage = () => {
         totalTurnoverEndBalance: 0,
       };
     }
+
     acc[asset.currency].items.push(asset);
     acc[asset.currency].totalBalance += Number(asset.balance);
     acc[asset.currency].totalBalanceUAH += Number(asset.balanceUAH);
@@ -413,6 +425,7 @@ const AssetsPage = () => {
     acc[asset.currency].totalTurnoverIncoming += Number(asset.turnoverIncoming);
     acc[asset.currency].totalTurnoverOutgoing += Number(asset.turnoverOutgoing);
     acc[asset.currency].totalTurnoverEndBalance += Number(asset.turnoverEndBalance);
+
     return acc;
   }, {});
 
@@ -529,6 +542,7 @@ const AssetsPage = () => {
                         <td>{formatNumberWithSpaces(data.totalTurnoverOutgoing)}</td>
                         <td>{formatNumberWithSpaces(data.totalTurnoverEndBalance)}</td>
                       </tr>
+
                       {data.items.map((asset) => (
                         <tr
                           key={asset.id}
@@ -571,7 +585,11 @@ const AssetsPage = () => {
                             </div>
                           </td>
                           <td>{asset.employee || "—"}</td>
-                          <td>{asset.limitTurnover ? formatNumberWithSpaces(asset.limitTurnover) : ""}</td>
+                          <td>
+                            {asset.limitTurnover
+                              ? formatNumberWithSpaces(asset.limitTurnover)
+                              : ""}
+                          </td>
                           <td>{formatNumberWithSpaces(asset.turnoverStartBalance)}</td>
                           <td>{formatNumberWithSpaces(asset.turnoverIncoming)}</td>
                           <td>{formatNumberWithSpaces(asset.turnoverOutgoing)}</td>
@@ -622,7 +640,6 @@ const AssetsPage = () => {
             onAdd={handleAddAsset}
             fields={fields}
             employees={employees}
-            onAddNewField={handleAddNewField} 
           />
         )}
 
@@ -635,7 +652,6 @@ const AssetsPage = () => {
             onSave={handleSaveAsset}
             fields={fields}
             employees={employees}
-            onAddNewField={handleAddNewField} 
           />
         )}
       </div>

@@ -19,9 +19,13 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { rid } from "../../api/fields.js";
-
-
-import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
+import { fetchLatestRatesSnapshot } from "../../api/rates";
+import {
+  convertAmountByRates,
+  normalizeCurrencyCode,
+  readLatestRatesSnapshot,
+  writeLatestRatesSnapshot,
+} from "../../utils/exchangeRates";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -78,11 +82,10 @@ const AssetDetailsModal = ({
   onSave,
   fields,
   employees,
-  onAddNewField
 }) => {
   const { transactions } = useTransactions();
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
-  const [exchangeRates, setExchangeRates] = useState(null);
+  const [exchangeRates, setExchangeRates] = useState(() => readLatestRatesSnapshot());
   const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
   const [isEditingRequisites, setIsEditingRequisites] = useState(false);
 
@@ -123,18 +126,27 @@ const AssetDetailsModal = ({
 
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("exchangeRates");
-      if (stored) {
-        setExchangeRates(JSON.parse(stored)[0]);
-      } else {
-        setExchangeRates({
-          UAH: 1, USD: 43, RUB: 0.5, UAH_RUB: 2, UAH_USD: 0.023, USD_UAH: 43, USD_RUB: 16, RUB_UAH: 0.5, RUB_USD: 0.062,
-        });
+    let ignore = false;
+
+    const cached = readLatestRatesSnapshot();
+    if (cached) setExchangeRates(cached);
+
+    const loadLatestRates = async () => {
+      try {
+        const latest = await fetchLatestRatesSnapshot();
+        if (!ignore && latest) {
+          setExchangeRates(latest);
+          writeLatestRatesSnapshot(latest);
+        }
+      } catch (err) {
+        console.error("Error loading exchange rates:", err);
       }
-    } catch (err) {
-      console.error("Error loading exchange rates:", err);
-    }
+    };
+
+    loadLatestRates();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleChange = (e) => {
@@ -151,10 +163,6 @@ const AssetDetailsModal = ({
       }
       return { ...prev, [name]: value };
     });
-  };
-
-  const handleSelectChange = (name, value) => {
-     setEditableAsset((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRequisiteChange = (index, e) => {
@@ -232,7 +240,7 @@ const AssetDetailsModal = ({
     setShowOptionsMenu(false);
   };
 
-  if (!asset || !exchangeRates) return null;
+  if (!asset) return null;
 
   const turnoverLimit = parseFloat(editableAsset.limitTurnover) || 0;
   const incoming = asset.turnoverIncoming || 0;
@@ -249,16 +257,13 @@ const AssetDetailsModal = ({
   };
 
   const convertToCurrency = (amount, from, to) => {
-    if (!exchangeRates) return amount.toFixed(2);
-    if (from === to) return amount.toFixed(2);
-    let inUAH = amount;
-    if (from !== "UAH") {
-      const key = `${from}_UAH`;
-      if (exchangeRates[key]) inUAH = amount * exchangeRates[key];
-    }
-    if (to === "UAH") return inUAH.toFixed(2);
-    const key = `UAH_${to}`;
-    return exchangeRates[key] ? (inUAH * exchangeRates[key]).toFixed(2) : amount.toFixed(2);
+    return convertAmountByRates(
+      amount,
+      normalizeCurrencyCode(from),
+      normalizeCurrencyCode(to),
+      exchangeRates,
+      amount
+    ).toFixed(2);
   };
 
   const currentBalance = asset.balance || 0;
@@ -385,13 +390,23 @@ const AssetDetailsModal = ({
                 <label htmlFor="currency" className="form-label">
                   Валюта
                 </label>
-                <CreatableSelect
+                <select
+                  id="currency"
+                  name="currency"
                   value={editableAsset.currency}
-                  onChange={(val) => handleSelectChange("currency", val)}
-                  options={(fields?.generalFields?.currency || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                  placeholder="Выберите или введите..."
-                  onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
-                />
+                  onChange={handleChange}
+                  className="form-input1"
+                >
+                  <option value="" disabled hidden>Не выбрано</option>
+                  {fields?.generalFields?.currency?.map((item, index) => {
+                    const val = item?.value ?? item;
+                    return (
+                      <option key={item?.id || index} value={val}>
+                        {val}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div className="form-row">
@@ -413,26 +428,44 @@ const AssetDetailsModal = ({
                 <label htmlFor="type" className="form-label">
                   Тип
                 </label>
-                <CreatableSelect
+                <select
+                  name="type"
                   value={editableAsset.type}
-                  onChange={(val) => handleSelectChange("type", val)}
-                  options={(fields?.assetsFields?.type || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                  placeholder="Выберите или введите..."
-                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
-                />
+                  onChange={handleChange}
+                  className="form-input1"
+                >
+                  <option value="" disabled hidden>Не выбрано</option>
+                  {fields?.assetsFields?.type?.map((item, index) => {
+                    const val = item?.value ?? item;
+                    return (
+                      <option key={item?.id || index} value={val}>
+                        {val}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div className="form-row">
                 <label htmlFor="paymentSystem" className="form-label">
                   Платежная система
                 </label>
-                <CreatableSelect
+                <select
+                  name="paymentSystem"
                   value={editableAsset.paymentSystem}
-                  onChange={(val) => handleSelectChange("paymentSystem", val)}
-                  options={(fields?.assetsFields?.paymentSystem || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                  placeholder="Выберите или введите..."
-                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "paymentSystem", val)}
-                />
+                  onChange={handleChange}
+                  className="form-input1"
+                >
+                  <option value="" disabled hidden>Не выбрано</option>
+                  {fields?.assetsFields?.paymentSystem?.map((item, index) => {
+                    const val = item?.value ?? item;
+                    return (
+                      <option key={item?.id || index} value={val}>
+                        {val}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div className="form-row">
@@ -440,14 +473,13 @@ const AssetDetailsModal = ({
                   Дизайн
                 </label>
                 <select
-                  id="design"
                   name="design"
                   value={editableAsset.design}
                   onChange={handleChange}
                   className="form-input1"
                 >
                   <option value="" disabled hidden>Не выбрано</option>
-                  {(fields?.assetsFields?.cardDesigns || []).filter(i=>!i.isDeleted).map((design, index) => (
+                  {fields?.assetsFields?.cardDesigns?.map((design, index) => (
                     <option key={design?.id || index} value={design?.id}>
                       {design?.name}
                     </option>
@@ -492,7 +524,6 @@ const AssetDetailsModal = ({
               </div>
             </div>
           </div>
-
 
           <div className="modal-section requisites-block">
             <div className="requisites-header">

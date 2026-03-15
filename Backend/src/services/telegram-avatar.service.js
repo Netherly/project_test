@@ -1,5 +1,10 @@
 const axios = require('axios');
 const prisma = require('../../prisma/client');
+const {
+  getState,
+  markSyncEnabled,
+  shouldSkipAutoSync,
+} = require('./telegram-avatar-state.service');
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -45,11 +50,27 @@ async function getFilePath(file_id) {
   return data?.ok ? data?.result?.file_path || null : null;
 }
 
-async function fetchAndSaveTelegramAvatar({ employeeId, telegramUserId }) {
+async function fetchAndSaveTelegramAvatar({ employeeId, telegramUserId, telegramLinkedAt = null }) {
   if (!BOT_TOKEN) return { ok: false, reason: 'BOT_TOKEN_MISSING', step: 'env' };
   if (!employeeId || !telegramUserId) return { ok: false, reason: 'ARGS_MISSING', step: 'args' };
 
   try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: {
+        id: true,
+        photoLink: true,
+        telegramLinkedAt: true,
+      },
+    });
+    if (!employee) return { ok: false, reason: 'EMPLOYEE_NOT_FOUND', step: 'employee' };
+
+    const syncState = await getState(employeeId);
+    const linkedAt = telegramLinkedAt || employee.telegramLinkedAt;
+    if (shouldSkipAutoSync(syncState, { linkedAt })) {
+      return { ok: false, reason: 'SYNC_DISABLED', step: 'state' };
+    }
+
     let file_id = await getBestAvatarFileIdByPhotos(telegramUserId);
     if (!file_id) {
       file_id = await getBestAvatarFileIdByChat(telegramUserId);
@@ -62,6 +83,15 @@ async function fetchAndSaveTelegramAvatar({ employeeId, telegramUserId }) {
     if (!file_path) return { ok: false, reason: 'FILE_PATH_NOT_FOUND', step: 'getFile', raw: { file_id } };
 
     const absoluteUrl = tgFileUrl(file_path);
+    const currentPhotoLink = String(employee.photoLink || '').trim();
+
+    if (currentPhotoLink === absoluteUrl) {
+      await markSyncEnabled(employeeId, {
+        linkedAt,
+        lastFilePath: file_path,
+      });
+      return { ok: true, updated: false, photoLink: currentPhotoLink };
+    }
 
     const updated = await prisma.employee.update({
       where: { id: employeeId },
@@ -69,7 +99,12 @@ async function fetchAndSaveTelegramAvatar({ employeeId, telegramUserId }) {
       select: { id: true, photoLink: true },
     });
 
-    return { ok: true, photoLink: updated.photoLink };
+    await markSyncEnabled(employeeId, {
+      linkedAt,
+      lastFilePath: file_path,
+    });
+
+    return { ok: true, updated: true, photoLink: updated.photoLink };
   } catch (e) {
     return { ok: false, reason: 'EXCEPTION', step: 'unknown', raw: { error: e?.message || String(e) } };
   }

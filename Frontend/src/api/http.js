@@ -38,6 +38,9 @@ function normalizeBase(u) {
 }
 _API_BASE = normalizeBase(_API_BASE);
 
+const TECHNICAL_ERROR_RE =
+  /prisma|connectorerror|postgres|sqlstate|invalid `prisma|query execution|provided value for the column|knownrequesterror|<!doctype|<html|[\r\n]+\s+at\s+/i;
+
 /** Позволяет динамически поменять базу API */
 export function setApiBase(base) {
   _API_BASE = normalizeBase(base);
@@ -130,16 +133,57 @@ async function doFetch(url, options = {}, { timeoutMs } = {}) {
 }
 
 /** Единый обработчик ответа */
+function defaultErrorMessage(status) {
+  if (status === 400) return "Не удалось обработать запрос.";
+  if (status === 401) return "Требуется авторизация.";
+  if (status === 403) return "Недостаточно прав.";
+  if (status === 404) return "Запись не найдена.";
+  if (status === 409) return "Конфликт данных.";
+  if (status === 422) return "Не удалось обработать данные.";
+  return "Внутренняя ошибка сервера.";
+}
+
+function sanitizeErrorMessage(message, status) {
+  const text = String(message || "").trim();
+  if (!text) return defaultErrorMessage(status);
+  if (TECHNICAL_ERROR_RE.test(text) || text.length > 400) {
+    return defaultErrorMessage(status);
+  }
+  return text;
+}
+
+async function readErrorBody(res) {
+  let raw = "";
+  try {
+    raw = await res.text();
+  } catch (_) {}
+
+  let payload = null;
+  if (raw) {
+    try {
+      payload = JSON.parse(raw);
+    } catch (_) {}
+  }
+
+  return { raw, payload };
+}
+
 async function handle(res) {
   const status = res.status;
   if (!res.ok) {
-    // попытаемся прочитать тело, чтобы показать причину
-    let body = "";
-    try {
-      body = await res.text();
-    } catch (_) {}
-    const snippet = body ? `: ${body.slice(0, 1000)}` : "";
-    throw new Error(`HTTP ${status} ${res.statusText}${snippet}`);
+    const { raw, payload } = await readErrorBody(res);
+    const candidate =
+      payload?.message ||
+      payload?.error ||
+      raw;
+    const err = new Error(sanitizeErrorMessage(candidate, status));
+    err.status = status;
+    err.payload =
+      payload && typeof payload === "object"
+        ? { status, ...payload }
+        : { status, raw };
+    err.details = raw;
+    throw err;
   }
 
   // 204/205 — пусто

@@ -1,6 +1,9 @@
 const prisma = require('../../prisma/client');
 const fs = require('fs');
 const path = require('path');
+const { hasTable } = require('../utils/db-schema');
+const { buildCountryNames, normalizeIso2, normalizeIso3 } = require('../utils/country-localization');
+const { httpErr } = require('../utils/http-error');
 
 /* ==============================
    FS utils
@@ -14,6 +17,40 @@ const CARD_DIR = path.join(UPLOADS_ROOT, 'card-designs');
 ensureDir(CARD_DIR);
 
 const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+const EXTRA_FIELDS_CONFIG_KEY = 'fields.extra';
+const SIMPLE_DICT_RULES = {
+  currencyDict: {
+    code: {
+      max: 10,
+      label: 'код валюты',
+      normalize: (value) => value.toUpperCase(),
+      validate: (value) => /^[A-Z0-9._-]+$/.test(value),
+      invalidMessage: 'Некорректный код валюты',
+      tooLongMessage: 'Некорректный код валюты',
+    },
+  },
+  orderIntervalDict: { value: { max: 100, label: 'интервал' } },
+  orderStatusDict: { name: { max: 100, label: 'статус заказа' } },
+  orderCloseReasonDict: { name: { max: 150, label: 'причина закрытия' } },
+  orderProjectDict: { name: { max: 255, label: 'проект' } },
+  orderDiscountReasonDict: { name: { max: 255, label: 'причина скидки' } },
+  executorRoleDict: { name: { max: 100, label: 'роль исполнителя' } },
+  clientSourceDict: { name: { max: 100, label: 'источник клиента' } },
+  clientCategoryDict: { name: { max: 100, label: 'категория клиента' } },
+  assetTypeDict: { name: { max: 100, label: 'тип актива' } },
+  paymentSystemDict: { name: { max: 100, label: 'платежная система' } },
+  financeArticleDict: { name: { max: 150, label: 'статья' } },
+  financeSubcategoryDict: { name: { max: 150, label: 'подкатегория' } },
+  sundryTypeWorkDict: { name: { max: 150, label: 'тип работы' } },
+};
+const COUNTRY_FIELD_LIMITS = {
+  name: 100,
+  nameEn: 100,
+  nameRu: 100,
+  nameUk: 100,
+  iso2: 2,
+  iso3: 3,
+};
 
 async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
@@ -61,6 +98,45 @@ const pickStr = (v) => {
   return '';
 };
 
+const ruleFor = (model, field) => SIMPLE_DICT_RULES?.[model]?.[field] || null;
+
+const sanitizeDictValue = (value, options = {}) => {
+  const rule = ruleFor(options?.model, options?.field);
+  let normalized = String(value ?? '').trim();
+  if (rule?.normalize) normalized = rule.normalize(normalized);
+  if (!normalized) return '';
+
+  if (rule?.validate && !rule.validate(normalized)) {
+    throw httpErr(rule.invalidMessage || `Некорректное значение поля "${rule.label || options?.field || 'value'}"`);
+  }
+  if (rule?.max && normalized.length > rule.max) {
+    throw httpErr(rule.tooLongMessage || `Значение поля "${rule.label || options?.field || 'value'}" слишком длинное`);
+  }
+  return normalized;
+};
+
+const sanitizeCountryField = (value, field) => {
+  let normalized = pickStr(value);
+  if (!normalized) return '';
+  if (field === 'iso2' || field === 'iso3') normalized = normalized.toUpperCase();
+  const max = COUNTRY_FIELD_LIMITS[field];
+  if (max && normalized.length > max) {
+    if (field === 'iso2' || field === 'iso3') throw httpErr('Некорректный код страны');
+    throw httpErr('Название страны слишком длинное');
+  }
+  if (field === 'iso2' && !/^[A-Z]{2}$/.test(normalized)) throw httpErr('Некорректный код страны');
+  if (field === 'iso3' && !/^[A-Z]{3}$/.test(normalized)) throw httpErr('Некорректный код страны');
+  return normalized;
+};
+
+const pickCurrencyCode = (value) => {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    return value.code ?? value.value ?? '';
+  }
+  return '';
+};
+
 const arrToUniqueStrings = (list, key = 'name') => {
   const out = new Set();
   (Array.isArray(list) ? list : []).forEach((x) => {
@@ -72,7 +148,7 @@ const arrToUniqueStrings = (list, key = 'name') => {
 
 const isHexColor = (c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(c || ''));
 
-const normalizeSimpleValues = (list) => {
+const normalizeSimpleValues = (list, options = {}) => {
   const out = new Set();
   (Array.isArray(list) ? list : []).forEach((value) => {
     let v = value;
@@ -91,17 +167,70 @@ const normalizeSimpleValues = (list) => {
         '';
     }
     if (v !== undefined && v !== null) {
-      const s = String(v).trim();
+      const s = sanitizeDictValue(v, options);
       if (s) out.add(s);
     }
   });
   return Array.from(out);
 };
 
+const normalizeCountryEntries = (list) => {
+  const out = [];
+  const seen = new Set();
+
+  for (const item of Array.isArray(list) ? list : []) {
+    const source =
+      item && typeof item === 'object'
+        ? item
+        : {
+            name: pickStr(item),
+          };
+
+    const name = sanitizeCountryField(source?.name ?? source?.value, 'name');
+    const nameEn = sanitizeCountryField(source?.nameEn, 'nameEn');
+    const nameRu = sanitizeCountryField(source?.nameRu, 'nameRu');
+    const nameUk = sanitizeCountryField(source?.nameUk, 'nameUk');
+    const iso2 = normalizeIso2(sanitizeCountryField(source?.iso2, 'iso2'));
+    const iso3 = normalizeIso3(sanitizeCountryField(source?.iso3, 'iso3'));
+    const id = pickStr(source?.id);
+
+    const displayName = name || nameEn || nameRu || nameUk || iso2;
+    if (!displayName) continue;
+
+    const key = id || iso2 || displayName.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      id: id || null,
+      name: name || nameEn || nameRu || nameUk || iso2,
+      nameEn: nameEn || '',
+      nameRu: nameRu || '',
+      nameUk: nameUk || '',
+      iso2: iso2 || '',
+      iso3: iso3 || '',
+      order: Number.isFinite(Number(source?.order)) ? Number(source.order) : null,
+    });
+  }
+
+  return out;
+};
+
+const mapCountry = (country) => ({
+  id: country.id,
+  name: country.name,
+  nameEn: country.nameEn || null,
+  nameRu: country.nameRu || null,
+  nameUk: country.nameUk || null,
+  iso2: country.iso2 || null,
+  iso3: country.iso3 || null,
+  order: Number.isFinite(Number(country.order)) ? Number(country.order) : 0,
+});
+
 const syncSimpleDict = async (tx, model, list, opts = {}) => {
   const field = opts.field || 'name';
   const hasIsActive = opts.hasIsActive !== false;
-  const values = normalizeSimpleValues(list);
+  const values = normalizeSimpleValues(list, { model, field });
   const dbModel = tx[model];
 
   if (!dbModel) return;
@@ -136,6 +265,251 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
     });
   }
 };
+
+const syncCountries = async (tx, list) => {
+  const countries = normalizeCountryEntries(list);
+  const dbModel = tx.country;
+
+  if (!dbModel) return;
+
+  if (!countries.length) {
+    await dbModel.updateMany({ data: { isActive: false } });
+    return;
+  }
+
+  const existing = await dbModel.findMany({
+    select: {
+      id: true,
+      name: true,
+      nameEn: true,
+      nameRu: true,
+      nameUk: true,
+      iso2: true,
+      iso3: true,
+      isActive: true,
+      order: true,
+    },
+  });
+  const existingById = new Map(existing.map((item) => [item.id, item]));
+  const existingByIso2 = new Map(
+    existing.map((item) => [normalizeIso2(item.iso2), item]).filter(([key]) => key)
+  );
+  const existingByName = new Map();
+  for (const item of existing) {
+    [item.name, item.nameEn, item.nameRu, item.nameUk]
+      .map((value) => pickStr(value).toLowerCase())
+      .filter(Boolean)
+      .forEach((key) => existingByName.set(key, item));
+  }
+
+  const keepIds = new Set();
+
+  for (const [index, item] of countries.entries()) {
+    const localizedNames = item.iso2 ? buildCountryNames(item.iso2) : null;
+    const merged = {
+      name: item.name || localizedNames?.name || item.iso2,
+      nameEn: item.nameEn || localizedNames?.nameEn || item.name || null,
+      nameRu: item.nameRu || localizedNames?.nameRu || item.name || null,
+      nameUk: item.nameUk || localizedNames?.nameUk || item.name || null,
+      iso2: item.iso2 || localizedNames?.iso2 || null,
+      iso3: item.iso3 || null,
+      order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
+    };
+
+    const existingCountry =
+      (item.id && existingById.get(item.id)) ||
+      (merged.iso2 && existingByIso2.get(merged.iso2)) ||
+      existingByName.get(pickStr(merged.name).toLowerCase()) ||
+      existingByName.get(pickStr(merged.nameEn).toLowerCase()) ||
+      existingByName.get(pickStr(merged.nameRu).toLowerCase()) ||
+      existingByName.get(pickStr(merged.nameUk).toLowerCase()) ||
+      null;
+
+    if (existingCountry?.id) {
+      keepIds.add(existingCountry.id);
+      await dbModel.update({
+        where: { id: existingCountry.id },
+        data: {
+          isActive: true,
+          name: merged.name || existingCountry.name,
+          nameEn: merged.nameEn || existingCountry.nameEn,
+          nameRu: merged.nameRu || existingCountry.nameRu,
+          nameUk: merged.nameUk || existingCountry.nameUk,
+          iso2: merged.iso2 || existingCountry.iso2,
+          iso3: merged.iso3 || existingCountry.iso3,
+          order: merged.order,
+        },
+      });
+      continue;
+    }
+
+    const created = await dbModel.create({
+      data: {
+        id: item.id || rid(),
+        name: merged.name,
+        nameEn: merged.nameEn,
+        nameRu: merged.nameRu,
+        nameUk: merged.nameUk,
+        iso2: merged.iso2,
+        iso3: merged.iso3,
+        isActive: true,
+        order: merged.order,
+      },
+      select: { id: true },
+    });
+    keepIds.add(created.id);
+  }
+
+  await dbModel.updateMany({
+    where: { id: { notIn: Array.from(keepIds) } },
+    data: { isActive: false },
+  });
+};
+
+const normalizeExtraFieldList = (list) => {
+  const out = [];
+  const seen = new Set();
+
+  for (const item of Array.isArray(list) ? list : []) {
+    const value = pickStr(item?.value ?? item?.name ?? item);
+    if (!value) continue;
+
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      id: item?.id || rid(),
+      value,
+      isActive: item?.isActive !== false,
+    });
+  }
+
+  return out;
+};
+
+const emptyExtraFields = () => ({
+  generalFields: { businessLine: [] },
+  orderFields: { minOrderAmount: [], readySolution: [] },
+  clientFields: { business: [] },
+});
+
+function normalizeExtraConfig(raw) {
+  const value = raw && typeof raw === 'object' ? raw : {};
+  return {
+    generalFields: {
+      businessLine: normalizeExtraFieldList(value?.generalFields?.businessLine),
+    },
+    orderFields: {
+      minOrderAmount: normalizeExtraFieldList(value?.orderFields?.minOrderAmount),
+      readySolution: normalizeExtraFieldList(value?.orderFields?.readySolution),
+    },
+    clientFields: {
+      business: normalizeExtraFieldList(value?.clientFields?.business),
+    },
+  };
+}
+
+async function loadExtraConfig(db) {
+  if (!(await hasTable('AppConfig'))) {
+    return emptyExtraFields();
+  }
+
+  const row = await (db || prisma).appConfig.findUnique({
+    where: { key: EXTRA_FIELDS_CONFIG_KEY },
+    select: { value: true },
+  });
+
+  return normalizeExtraConfig(row?.value);
+}
+
+function mergeExtraFieldList(existingList, incomingList) {
+  const current = normalizeExtraFieldList(existingList);
+  const incoming = normalizeExtraFieldList(incomingList).map((item) => ({
+    id: item.id || null,
+    value: item.value,
+  }));
+
+  const currentById = new Map(current.map((item) => [String(item.id), item]));
+  const currentByValue = new Map(current.map((item) => [item.value.toLowerCase(), item]));
+  const active = [];
+  const activeIds = new Set();
+  const activeKeys = new Set();
+
+  for (const item of incoming) {
+    const key = item.value.toLowerCase();
+    if (activeKeys.has(key)) continue;
+    activeKeys.add(key);
+
+    const existing =
+      (item.id && currentById.get(String(item.id))) ||
+      currentByValue.get(key) ||
+      null;
+
+    const next = existing
+      ? { ...existing, value: item.value, isActive: true }
+      : { id: item.id || rid(), value: item.value, isActive: true };
+
+    active.push(next);
+    activeIds.add(String(next.id));
+  }
+
+  const inactive = current
+    .filter((item) => !activeIds.has(String(item.id)))
+    .map((item) => ({ ...item, isActive: false }));
+
+  return [...active, ...inactive];
+}
+
+async function saveExtraConfig(tx, payload) {
+  if (!(await hasTable('AppConfig'))) {
+    return emptyExtraFields();
+  }
+
+  const current = await loadExtraConfig(tx);
+  const next = {
+    generalFields: {
+      businessLine: mergeExtraFieldList(
+        current?.generalFields?.businessLine,
+        payload?.generalFields?.businessLine
+      ),
+    },
+    orderFields: {
+      minOrderAmount: mergeExtraFieldList(
+        current?.orderFields?.minOrderAmount,
+        payload?.orderFields?.minOrderAmount
+      ),
+      readySolution: mergeExtraFieldList(
+        current?.orderFields?.readySolution,
+        payload?.orderFields?.readySolution
+      ),
+    },
+    clientFields: {
+      business: mergeExtraFieldList(
+        current?.clientFields?.business,
+        payload?.clientFields?.business
+      ),
+    },
+  };
+
+  await tx.appConfig.upsert({
+    where: { key: EXTRA_FIELDS_CONFIG_KEY },
+    update: { value: next },
+    create: { key: EXTRA_FIELDS_CONFIG_KEY, value: next },
+  });
+
+  return next;
+}
+
+const activeExtraValues = (list) =>
+  normalizeExtraFieldList(list)
+    .filter((item) => item.isActive !== false)
+    .map((item) => ({ id: item.id, value: item.value }));
+
+const inactiveExtraValues = (list) =>
+  normalizeExtraFieldList(list)
+    .filter((item) => item.isActive === false)
+    .map((item) => ({ id: item.id, value: item.value }));
 
 /* ==============================
    Tags (единая версия)
@@ -188,6 +562,10 @@ async function getAll(db) {
   const _db = db || prisma;
   const whereActive = { where: { isActive: true } };
   const whereActiveHardDelete = {};
+  const [clientGroupsEnabled, extraFields] = await Promise.all([
+    hasTable('ClientGroup'),
+    loadExtraConfig(_db),
+  ]);
 
   const [
     orderCurrencies,
@@ -207,11 +585,11 @@ async function getAll(db) {
     typeWorks,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereActive, orderBy: { code: 'asc' } }),
-    _db.country.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.country.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.executorRoleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
-    _db.clientGroup.findMany({ orderBy: { order: 'asc' } }),
+    clientGroupsEnabled ? _db.clientGroup.findMany({ orderBy: { order: 'asc' } }) : [],
     _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }) : [],
     _db.orderCloseReasonDict
       ? _db.orderCloseReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } })
@@ -236,7 +614,7 @@ async function getAll(db) {
       select: { id: true, value: true, interval: { select: { id: true, value: true } } },
       orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
     }),
-    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: { name: 'asc' } }),
+    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.financeSubarticleDict.findMany({
       ...whereActiveHardDelete,
       select: {
@@ -280,6 +658,8 @@ async function getAll(db) {
   return {
     generalFields: {
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      country: countries.map(mapCountry),
+      businessLine: activeExtraValues(extraFields?.generalFields?.businessLine),
     },
 
     orderFields: {
@@ -295,6 +675,8 @@ async function getAll(db) {
       closeReasons: orderCloseReasons.map((r) => ({ id: r.id, name: r.name })),
       projects: orderProjects.map((p) => ({ id: p.id, name: p.name })),
       discountReason: orderDiscountReasons.map((d) => ({ id: d.id, name: d.name })),
+      minOrderAmount: activeExtraValues(extraFields?.orderFields?.minOrderAmount),
+      readySolution: activeExtraValues(extraFields?.orderFields?.readySolution),
       tags: mapTags(orderTags),
       techTags: mapTags(orderTechTags),
       taskTags: mapTags(orderTaskTags),
@@ -308,7 +690,8 @@ async function getAll(db) {
     clientFields: {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
       category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
+      business: activeExtraValues(extraFields?.clientFields?.business),
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: mapTags(clientTags),
       groups: clientGroups.map((g) => ({ id: g.id, name: g.name, order: g.order })),
@@ -319,7 +702,7 @@ async function getAll(db) {
     },
 
     employeeFields: {
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       tags: mapTags(employeeTags),
     },
 
@@ -327,7 +710,12 @@ async function getAll(db) {
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
       paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
-      cardDesigns: cardDesigns.map((d) => ({ id: d.id, name: d.name, url: d.imageUrl || '' })),
+      cardDesigns: cardDesigns.map((d) => ({
+        id: d.id,
+        name: d.name,
+        url: d.imageUrl || '',
+        order: d.order,
+      })),
     },
 
     financeFields: {
@@ -360,6 +748,7 @@ async function getAll(db) {
 async function getInactive(db) {
   const _db = db || prisma;
   const whereInactive = { where: { isActive: false } };
+  const extraFields = await loadExtraConfig(_db);
 
   const [
     currencies,
@@ -375,7 +764,7 @@ async function getInactive(db) {
     typeWorks,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereInactive, orderBy: { code: 'asc' } }),
-    _db.country.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.country.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.executorRoleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
@@ -396,12 +785,16 @@ async function getInactive(db) {
   return {
     generalFields: {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      country: countries.map(mapCountry),
+      businessLine: inactiveExtraValues(extraFields?.generalFields?.businessLine),
     },
     orderFields: {
       intervals: emptyArr,
       categories: emptyArr,
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       discountReason: discountReasons.map((r) => ({ id: r.id, name: r.name })),
+      minOrderAmount: inactiveExtraValues(extraFields?.orderFields?.minOrderAmount),
+      readySolution: inactiveExtraValues(extraFields?.orderFields?.readySolution),
       tags: emptyArr,
       techTags: emptyArr,
       taskTags: emptyArr,
@@ -416,7 +809,8 @@ async function getInactive(db) {
     clientFields: {
       source: sources.map((s) => ({ id: s.id, name: s.name })),
       category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
+      business: inactiveExtraValues(extraFields?.clientFields?.business),
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       tags: emptyArr,
       groups: emptyArr,
@@ -425,14 +819,22 @@ async function getInactive(db) {
       tags: emptyArr,
     },
     employeeFields: {
-      country: countries.map((c) => ({ id: c.id, name: c.name })),
+      country: countries.map(mapCountry),
       tags: emptyArr,
     },
     assetsFields: {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
       paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
-      cardDesigns: emptyArr,
+      cardDesigns: await _db.cardDesign.findMany({
+        ...whereInactive,
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
+      }).then((items) => items.map((d) => ({
+        id: d.id,
+        name: d.name,
+        url: d.imageUrl || '',
+        order: d.order,
+      }))),
     },
     financeFields: {
       articles: articles.map((a) => ({ id: a.id, name: a.name })),
@@ -455,14 +857,23 @@ async function saveAll(payload) {
   return prisma.$transaction(
     async (tx) => {
       // 1. ВАЛЮТЫ
-      const allCurrencyCodes = new Set([
-        ...arrToUniqueStrings(payload?.generalFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.orderFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.executorFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.clientFields?.currency, 'code'),
-        ...arrToUniqueStrings(payload?.assetsFields?.currency, 'code'),
-      ]);
-      await syncSimpleDict(tx, 'currencyDict', Array.from(allCurrencyCodes), { field: 'code' });
+      const currencyCodes = new Set();
+      [
+        payload?.generalFields?.currency,
+        payload?.orderFields?.currency,
+        payload?.executorFields?.currency,
+        payload?.clientFields?.currency,
+        payload?.assetsFields?.currency,
+      ].forEach((list) => {
+        (Array.isArray(list) ? list : []).forEach((item) => {
+          const code = sanitizeDictValue(pickCurrencyCode(item), {
+            model: 'currencyDict',
+            field: 'code',
+          });
+          if (code) currencyCodes.add(code);
+        });
+      });
+      await syncSimpleDict(tx, 'currencyDict', Array.from(currencyCodes), { field: 'code' });
 
       // 2. ЗАКАЗЫ (Интервалы и категории)
       const intervalValues = (Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [])
@@ -554,7 +965,12 @@ async function saveAll(payload) {
       // 5. CLIENTS
       await syncSimpleDict(tx, 'clientSourceDict', arrToUniqueStrings(payload?.clientFields?.source, 'name'));
       await syncSimpleDict(tx, 'clientCategoryDict', arrToUniqueStrings(payload?.clientFields?.category, 'name'));
-      await syncSimpleDict(tx, 'country', arrToUniqueStrings(payload?.clientFields?.country, 'name'));
+      const allCountries = [
+        ...(Array.isArray(payload?.generalFields?.country) ? payload.generalFields.country : []),
+        ...(Array.isArray(payload?.clientFields?.country) ? payload.clientFields.country : []),
+        ...(Array.isArray(payload?.employeeFields?.country) ? payload.employeeFields.country : []),
+      ];
+      await syncCountries(tx, allCountries);
 
       // 6. TAGS (единая система через TagCategory+Tag)
       await Promise.all([
@@ -575,10 +991,11 @@ async function saveAll(payload) {
       await syncSimpleDict(tx, 'paymentSystemDict', arrToUniqueStrings(payload?.assetsFields?.paymentSystem, 'name'));
 
       const incomingDesigns = (Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [])
-        .map((d) => ({
+        .map((d, index) => ({
           id: d?.id || null,
           name: pickStr(d?.name),
           url: typeof d?.url === 'string' ? d.url : '',
+          order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
         }))
         .filter((d) => d.name);
 
@@ -601,7 +1018,12 @@ async function saveAll(payload) {
 
           await tx.cardDesign.update({
             where: { id: d.id },
-            data: { name: d.name, imageUrl: imageUrl || prev.imageUrl || null, isActive: true },
+            data: {
+              name: d.name,
+              imageUrl: imageUrl || prev.imageUrl || null,
+              isActive: true,
+              order: d.order,
+            },
           });
 
           if (isNew && prev.imageUrl) {
@@ -609,7 +1031,14 @@ async function saveAll(payload) {
             if (abs) await safeUnlink(abs);
           }
         } else {
-          await tx.cardDesign.create({ data: { name: d.name, imageUrl: imageUrl || null, isActive: true } });
+          await tx.cardDesign.create({
+            data: {
+              name: d.name,
+              imageUrl: imageUrl || null,
+              isActive: true,
+              order: d.order,
+            },
+          });
         }
       }
 
@@ -693,6 +1122,8 @@ async function saveAll(payload) {
           arrToUniqueStrings(payload?.sundryFields?.typeWork, 'name')
         );
       }
+
+      await saveExtraConfig(tx, payload);
 
       return getAll(tx);
     },

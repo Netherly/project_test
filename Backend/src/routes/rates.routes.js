@@ -12,6 +12,9 @@ const validate = require('../middlewares/validateRates');
 // последний снэпшот
 router.get('/latest', /*auth,*/ ctrl.getLatest);
 
+// гарантировать запись на сегодня из последнего курса
+router.post('/today', /*auth,*/ ctrl.ensureToday);
+
 // список постранично: /api/rates/list?page=1&pageSize=200
 router.get('/list',   /*auth,*/ ctrl.list);
 
@@ -49,4 +52,3 @@ router.delete('/:id', /*auth,*/ ctrl.remove);
 router.delete('/',    /*auth,*/ ctrl.remove);
 
 module.exports = router;
- 

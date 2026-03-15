@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const app = express();
 
 const routes = require('./routes/index');
+const { toPublicError } = require('./utils/http-error');
 
 function parseCorsOrigins(raw) {
   const fromEnv = String(raw || '')
@@ -46,18 +47,16 @@ app.use('/uploads', express.static(path.join(__dirname,'..', 'uploads')));
 app.use('/api', routes);
 
 app.use((err, _req, res, _next) => {
-  const status = Number(err?.status || err?.statusCode) || 500;
-  const message = String(
-    err?.message ||
-      (status >= 500 ? 'Internal Server Error' : 'Request failed')
-  );
+  const rawMessage = String(err?.message || '').trim();
+  const { status, message } = toPublicError(err);
 
-  if (status >= 500) {
+  if (status >= 500 || (rawMessage && rawMessage !== message)) {
     console.error('[api] unhandled error:', err);
   }
 
   res.status(status).json({
     ok: false,
+    status,
     error: message,
     message,
   });

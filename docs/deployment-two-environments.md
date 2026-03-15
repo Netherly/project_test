@@ -3,7 +3,7 @@
 This project now supports two isolated deployments on one server:
 
 - `prod` (`main` branch) -> `crm-frontend-prod`, `crm-backend-prod`, pm2 app `crm-backend-prod`, backend port `3000`
-- `test` (`develop` branch) -> `crm-frontend-test`, `crm-backend-test`, pm2 app `crm-backend-test`, backend port `3001`
+- `test` (`develope` branch) -> `crm-frontend-test`, `crm-backend-test`, pm2 app `crm-backend-test`, backend port `3001`
 
 ## 1. GitHub Actions workflows
 
@@ -20,6 +20,7 @@ Both workflows require these secrets in each environment:
 - `PRIMARY_DOMAIN`
 - `FRONTEND_ENV`
 - `BACKEND_ENV`
+- optional but recommended: `LETSENCRYPT_EMAIL`
 - optional: `NODE_VERSION`
 
 Important: workflows run backend commands as the SSH user from `VPS_USER` (for your setup, use `root`).
@@ -46,6 +47,14 @@ TELEGRAM_BOT_TOKEN=...
 ```
 
 Use separate `DATABASE_URL` and Telegram token for `prod` and `test`.
+
+Test deploy additionally forces:
+
+```env
+TEST_DEFAULT_ADMIN_ENABLED=true
+TEST_FIELDS_ENABLED=true
+TEST_DEMO_DATA_ENABLED=true
+```
 
 ## 3. One-time server setup
 
@@ -77,6 +86,13 @@ sudo htpasswd -c /etc/nginx/.htpasswd-crm-test YOUR_TEST_USER
 sudo certbot --nginx -d PROD_DOMAIN -d TEST_DOMAIN
 ```
 
+Deploy note:
+
+- each deploy rewrites the nginx vhost from the repo template
+- after that the workflow now runs `certbot --nginx -d PRIMARY_DOMAIN --keep-until-expiring`
+- this re-applies the correct certificate for the environment domain (`prod` or `test`) and verifies that the served cert contains that domain
+- if `LETSENCRYPT_EMAIL` is not set, the workflow falls back to `--register-unsafely-without-email`
+
 5. Validate and reload Nginx:
 
 ```bash
@@ -94,5 +110,5 @@ sudo systemctl reload nginx
 
 ## 5. Branch -> environment flow
 
-- push to `develop` => deploys only `test`
+- push to `develope` => deploys only `test`
 - push to `main` => deploys only `prod`

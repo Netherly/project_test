@@ -145,6 +145,17 @@ const EmployeesController = {
       res.status(err.status || 500).json({ ok: false, error: err.message });
     }
   },
+
+  async createTemporaryPassword(req, res) {
+    try {
+      const { id } = req.params;
+      const data = await EmployeesService.createTemporaryPassword(id, buildActorMeta(req));
+      res.status(201).json({ ok: true, data });
+    } catch (err) {
+      console.error('Employee temporary password error:', err);
+      res.status(err.status || 500).json({ ok: false, error: err.message });
+    }
+  },
 };
 
 module.exports = EmployeesController;
