@@ -309,6 +309,7 @@ jobs:
           out_lines = upsert_env(out_lines, "TEST_GATE_COOKIE_TTL_DAYS", "7")
           out_lines = upsert_env(out_lines, "TEST_DEFAULT_ADMIN_ENABLED", "true")
           out_lines = upsert_env(out_lines, "TEST_FIELDS_ENABLED", "true")
+          out_lines = upsert_env(out_lines, "TEST_DEMO_DATA_ENABLED", "true")
           out_lines = upsert_env(out_lines, "ADMIN_LOGIN", "admin")
           out_lines = upsert_env(out_lines, "ADMIN_PASSWORD", "123456")
           out_lines = upsert_env(out_lines, "ADMIN_NAME", "Test Admin")

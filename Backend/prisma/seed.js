@@ -3,6 +3,8 @@ const bcrypt = require('bcrypt');
 const prisma = require('./client');
 const { ensureTestFields } = require('../src/seeds/test-fields.seed');
 const { ensureDefaultCountries } = require('../src/seeds/countries.seed');
+const { ensureDefaultCurrencies } = require('../src/seeds/currencies.seed');
+const { ensureDemoData, DEMO_PASSWORD } = require('../src/seeds/test-demo-data.seed');
 
 const ACCESS_CONFIG_KEY = 'access_control_v1';
 const FULL_MODULES = [
@@ -86,11 +88,15 @@ async function ensureOwnerAccessForEmployee(employeeId) {
 async function main() {
   const adminEnabled = isEnabled(process.env.TEST_DEFAULT_ADMIN_ENABLED);
   const fieldsEnabled = isEnabled(process.env.TEST_FIELDS_ENABLED);
+  const demoDataEnabled = isEnabled(process.env.TEST_DEMO_DATA_ENABLED);
 
   await ensureDefaultCountries();
   console.log('✔ Default countries ensured');
 
-  if (!adminEnabled && !fieldsEnabled) {
+  await ensureDefaultCurrencies();
+  console.log('✔ Default currencies ensured');
+
+  if (!adminEnabled && !fieldsEnabled && !demoDataEnabled) {
     console.log('ℹ Seed skipped: test seed flags are not enabled');
     return;
   }
@@ -133,6 +139,13 @@ async function main() {
     console.log('✔ Test fields ensured: every visible field has at least 4 values');
   } else {
     console.log('ℹ Test fields seed skipped: TEST_FIELDS_ENABLED is not enabled');
+  }
+
+  if (demoDataEnabled) {
+    await ensureDemoData();
+    console.log(`✔ Demo data ensured: core entities filled for test review (password ${DEMO_PASSWORD})`);
+  } else {
+    console.log('ℹ Demo data seed skipped: TEST_DEMO_DATA_ENABLED is not enabled');
   }
 }
 

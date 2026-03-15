@@ -169,15 +169,21 @@ export function withDefaults(fields) {
   const f = safeObj(fields);
   const sharedCountries =
     f?.generalFields?.country ?? f?.clientFields?.country ?? f?.employeeFields?.country;
+  const sharedCurrencies =
+    f?.generalFields?.currency ??
+    f?.orderFields?.currency ??
+    f?.executorFields?.currency ??
+    f?.clientFields?.currency ??
+    f?.assetsFields?.currency;
 
   return {
     generalFields: {
-      currency: normStrs(f?.generalFields?.currency),
+      currency: normStrs(sharedCurrencies),
       country: normCountries(sharedCountries),
       businessLine: normStrs(f?.generalFields?.businessLine),
     },
     orderFields: {
-      currency: normStrs(f?.orderFields?.currency),
+      currency: normStrs(f?.orderFields?.currency ?? sharedCurrencies),
       intervals: normIntervals(f?.orderFields?.intervals),
       categories: normCategories(f?.orderFields?.categories),
       statuses: normStrs(f?.orderFields?.statuses),
@@ -191,12 +197,14 @@ export function withDefaults(fields) {
       discountReason: normStrs(f?.orderFields?.discountReason),
     },
     executorFields: {
+      currency: normStrs(f?.executorFields?.currency ?? sharedCurrencies),
       role: normStrs(f?.executorFields?.role),
     },
     clientFields: {
       source: normStrs(f?.clientFields?.source),
       category: normStrs(f?.clientFields?.category),
       country: normCountries(f?.clientFields?.country),
+      currency: normStrs(f?.clientFields?.currency ?? sharedCurrencies),
       business: normStrs(f?.clientFields?.business),
       tags: normTags(f?.clientFields?.tags ?? f?.clientFields?.tag),
       groups: Array.isArray(f?.clientFields?.groups) ? f.clientFields.groups : [],
@@ -209,6 +217,7 @@ export function withDefaults(fields) {
       tags: normTags(f?.employeeFields?.tags),
     },
     assetsFields: {
+      currency: normStrs(f?.assetsFields?.currency ?? sharedCurrencies),
       type: normStrs(f?.assetsFields?.type),
       paymentSystem: normStrs(f?.assetsFields?.paymentSystem),
       cardDesigns: normDesigns(f?.assetsFields?.cardDesigns).map((d) => ({
@@ -361,6 +370,7 @@ export function serializeForSave(values) {
       businessLine: serByName(values?.generalFields?.businessLine),
     },
     orderFields: {
+      currency: serByCode(values?.orderFields?.currency),
       intervals: serIntervals(values?.orderFields?.intervals),
       categories: serCategories(values?.orderFields?.categories),
       statuses: serByName(values?.orderFields?.statuses),
@@ -374,12 +384,14 @@ export function serializeForSave(values) {
       taskTags: serTags(values?.orderFields?.taskTags),
     },
     executorFields: {
+      currency: serByCode(values?.executorFields?.currency),
       role: serByName(values?.executorFields?.role),
     },
     clientFields: {
       source: serByName(values?.clientFields?.source),
       category: serByName(values?.clientFields?.category),
       country: serCountries(values?.clientFields?.country),
+      currency: serByCode(values?.clientFields?.currency),
       business: serByName(values?.clientFields?.business),
       tags: serTags(values?.clientFields?.tags),
     },
@@ -391,6 +403,7 @@ export function serializeForSave(values) {
       tags: serTags(values?.employeeFields?.tags),
     },
     assetsFields: {
+      currency: serByCode(values?.assetsFields?.currency),
       type: serByName(values?.assetsFields?.type),
       paymentSystem: serByName(values?.assetsFields?.paymentSystem),
       cardDesigns: serDesigns(values?.assetsFields?.cardDesigns),

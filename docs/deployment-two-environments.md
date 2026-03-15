@@ -53,6 +53,7 @@ Test deploy additionally forces:
 ```env
 TEST_DEFAULT_ADMIN_ENABLED=true
 TEST_FIELDS_ENABLED=true
+TEST_DEMO_DATA_ENABLED=true
 ```
 
 ## 3. One-time server setup
