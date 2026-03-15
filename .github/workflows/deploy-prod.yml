@@ -547,7 +547,10 @@ jobs:
             test -f "$FRONTEND_DIR/index.html"
 
             EXPECTED_INDEX_SHA="$(sha256sum "$FRONTEND_DIR/index.html" | awk '{print $1}')"
-            SERVED_INDEX_SHA="$(curl -s -H "Host: $HOST_HEADER" "http://127.0.0.1/index.html" | sha256sum | awk '{print $1}')"
+            SERVED_INDEX_SHA="$(
+              curl -ksSL --resolve "$HOST_HEADER:443:127.0.0.1" "https://$HOST_HEADER/index.html" \
+              | sha256sum | awk '{print $1}'
+            )"
 
             echo "Expected index sha: $EXPECTED_INDEX_SHA"
             echo "Served   index sha: $SERVED_INDEX_SHA"
@@ -560,7 +563,11 @@ jobs:
 
             ASSET_PATH="$(grep -oE "/assets/[^\"' ]+\\.js" "$FRONTEND_DIR/index.html" | head -n1 || true)"
             if [ -n "$ASSET_PATH" ]; then
-              ASSET_CODE="$(curl -s -o /dev/null -w "%{http_code}" -H "Host: $HOST_HEADER" "http://127.0.0.1$ASSET_PATH" || true)"
+              ASSET_CODE="$(
+                curl -ksS -o /dev/null -w "%{http_code}" \
+                  --resolve "$HOST_HEADER:443:127.0.0.1" \
+                  "https://$HOST_HEADER$ASSET_PATH" || true
+              )"
               echo "Asset check $ASSET_PATH -> $ASSET_CODE"
               if [ "$ASSET_CODE" != "200" ]; then
                 echo "Current frontend asset is not reachable through prod domain" >&2
