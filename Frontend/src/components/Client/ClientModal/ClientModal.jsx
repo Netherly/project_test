@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { clientSchema } from "../validationSchema";
@@ -53,6 +53,15 @@ export default function ClientModal({
   const [formErrors, setFormErrors] = useState(null);
 
   const formId = "client-main-form";
+  const formDefaults = useMemo(
+    () => ({
+      ...safeClient,
+      tags: safeClient.tags ?? [],
+      accesses: safeClient.accesses ?? [],
+      share_info: safeClient.share_info ?? false,
+    }),
+    [safeClient]
+  );
 
   const sampleLogs = [
     { timestamp: "2023-03-07T12:36", author: "Менеджеры", message: "Отримувач: …" },
@@ -130,12 +139,7 @@ export default function ClientModal({
     mode: "onChange",
     reValidateMode: "onChange",
     shouldUnregister: false,
-    defaultValues: {
-      ...safeClient,
-      tags: safeClient.tags ?? [],
-      accesses: safeClient.accesses ?? [],
-      share_info: safeClient.share_info ?? false,
-    },
+    defaultValues: formDefaults,
   });
 
   const {
@@ -147,13 +151,8 @@ export default function ClientModal({
   } = methods;
 
   useEffect(() => {
-    reset({
-      ...safeClient,
-      tags: safeClient.tags ?? [],
-      accesses: safeClient.accesses ?? [],
-      share_info: safeClient.share_info ?? false,
-    });
-  }, [reset, safeClient]);
+    reset(formDefaults);
+  }, [formDefaults, reset]);
 
   const handleAddCompanyDirect = async (companyName) => {
     const clientFullName = getValues("full_name") || getValues("name") || "Новый клиент";
@@ -283,20 +282,21 @@ export default function ClientModal({
             </form>
           </FormProvider>
 
-          <div className="form-actions-bottom">
-            <button
-              className="cancel-order-btn"
-              type="button"
-              onClick={() => reset()}
-              disabled={!isDirty}
-            >
-              Отменить
-            </button>
+          {isDirty && (
+            <div className="form-actions-bottom">
+              <button
+                className="cancel-order-btn"
+                type="button"
+                onClick={() => reset(formDefaults)}
+              >
+                Отменить
+              </button>
 
-            <button className="save-order-btn" type="submit" form={formId}>
-              Сохранить
-            </button>
-          </div>
+              <button className="save-order-btn" type="submit" form={formId}>
+                Сохранить
+              </button>
+            </div>
+          )}
         </div>
 
         {isNew ? (

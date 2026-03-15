@@ -56,7 +56,7 @@ const AssetCard = ({
   const handleDelete = (e) => {
     e.stopPropagation();
     if (!onDeleteClick) return;
-    const confirmed = window.confirm(`Скрыть актив "${accountName || "Без названия"}"?`);
+    const confirmed = window.confirm(`Удалить актив "${accountName || "Без названия"}"?`);
     if (!confirmed) return;
     onDeleteClick();
   };
@@ -176,7 +176,7 @@ const AssetCard = ({
             type="button"
             className="asset-card-delete-button"
             onClick={handleDelete}
-            title="Скрыть актив"
+            title="Удалить актив"
           >
             <X size={16} />
           </button>

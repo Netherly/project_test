@@ -47,6 +47,29 @@ const formatDateShort = (dateString) => {
   return `${day}.${month} ${hours}:${minutes}`;
 };
 
+const normalizeComparableRequisites = (requisites = []) =>
+  (Array.isArray(requisites) ? requisites : [])
+    .map((item) => ({
+      label: String(item?.label ?? "").trim(),
+      value: String(item?.value ?? "").trim(),
+    }))
+    .filter((item) => item.label || item.value);
+
+const getComparableAssetState = (data) => ({
+  accountName: String(data?.accountName ?? "").trim(),
+  currency: String(data?.currency ?? "").trim(),
+  limitTurnover:
+    data?.limitTurnover === "" || data?.limitTurnover === null || data?.limitTurnover === undefined
+      ? ""
+      : String(Number(data.limitTurnover)),
+  type: String(data?.type ?? "").trim(),
+  paymentSystem: String(data?.paymentSystem ?? "").trim(),
+  design: String(data?.design ?? "").trim(),
+  employeeId: String(data?.employeeId ?? data?.employee?.id ?? "").trim(),
+  status: String(data?.status ?? "Активен").trim(),
+  requisites: normalizeComparableRequisites(data?.requisites),
+});
+
 const SortableRequisiteItem = ({ id, children }) => {
   const {
     attributes,
@@ -112,7 +135,8 @@ const AssetDetailsModal = ({
       : [],
   });
 
-  const [editableAsset, setEditableAsset] = useState(getInitialState(asset || {}));
+  const initialEditableAsset = useMemo(() => getInitialState(asset || {}), [asset]);
+  const [editableAsset, setEditableAsset] = useState(initialEditableAsset);
 
   const recentTransactions = useMemo(() => {
     if (!asset || !transactions) return [];
@@ -123,6 +147,12 @@ const AssetDetailsModal = ({
     filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
     return filtered.slice(0, 5);
   }, [transactions, asset]);
+
+  useEffect(() => {
+    setEditableAsset(initialEditableAsset);
+    setIsEditingRequisites(false);
+    setShowOptionsMenu(false);
+  }, [initialEditableAsset]);
 
 
   useEffect(() => {
@@ -148,6 +178,13 @@ const AssetDetailsModal = ({
       ignore = true;
     };
   }, []);
+
+  const hasChanges = useMemo(
+    () =>
+      JSON.stringify(getComparableAssetState(editableAsset)) !==
+      JSON.stringify(getComparableAssetState(initialEditableAsset)),
+    [editableAsset, initialEditableAsset]
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -227,7 +264,7 @@ const AssetDetailsModal = ({
   };
 
   const handleDeleteClick = () => {
-    if (window.confirm(`Скрыть актив "${asset.accountName}"?`)) {
+    if (window.confirm(`Удалить актив "${asset.accountName}"?`)) {
       onDelete(asset.id);
       onClose();
     }
@@ -297,7 +334,7 @@ const AssetDetailsModal = ({
                     <Copy size={14} /> Дублировать
                   </button>
                   <button className="menu-item delete-item" onClick={handleDeleteClick}>
-                    <Trash2 size={14} /> Скрыть
+                    <Trash2 size={14} /> Удалить
                   </button>
                 </div>
               )}
@@ -639,14 +676,22 @@ const AssetDetailsModal = ({
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="cancel-order-btn" onClick={onClose}>
-            Отменить
-          </button>
-          <button className="save-order-btn" onClick={handleSave}>
-            Сохранить
-          </button>
-        </div>
+        {hasChanges && (
+          <div className="modal-footer">
+            <button
+              className="cancel-order-btn"
+              onClick={() => {
+                setEditableAsset(initialEditableAsset);
+                setIsEditingRequisites(false);
+              }}
+            >
+              Отменить
+            </button>
+            <button className="save-order-btn" onClick={handleSave}>
+              Сохранить
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

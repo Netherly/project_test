@@ -72,10 +72,8 @@ async function resolveOptionalByIdOrName(model, { id, name }) {
 }
 
 const AssetsService = {
-  async list(params = {}) {
-    const includeHidden = params?.includeHidden === true || String(params?.includeHidden || '') === 'true';
+  async list() {
     return prisma.asset.findMany({
-      where: includeHidden ? undefined : { isActive: true },
       include: {
         requisites: true,
         currency: true,
@@ -107,11 +105,6 @@ const AssetsService = {
       e.status = 404;
       throw e;
     }
-    if (asset.isActive === false) {
-      const e = new Error('Asset not found');
-      e.status = 404;
-      throw e;
-    }
     return asset;
   },
 
@@ -137,7 +130,6 @@ const AssetsService = {
     return prisma.asset.create({
       data: {
         accountName: payload.accountName,
-        isActive: true,
         currencyId,
         typeId,
         paymentSystemId,
@@ -230,20 +222,25 @@ const AssetsService = {
   },
 
   async remove(id) {
-    await this.byId(id);
-    return prisma.asset.update({
+    const asset = await this.byId(id);
+
+    const [transactionsCount, regularPaymentsCount] = await Promise.all([
+      prisma.transaction.count({ where: { accountId: id } }),
+      prisma.regularPayment.count({ where: { accountId: id } }),
+    ]);
+
+    if (transactionsCount > 0 || regularPaymentsCount > 0) {
+      const e = new Error('Нельзя удалить актив, пока он используется в транзакциях или регулярных платежах');
+      e.status = 400;
+      throw e;
+    }
+
+    await prisma.assetRequisite.deleteMany({ where: { assetId: id } });
+    await prisma.asset.delete({
       where: { id },
-      data: { isActive: false },
-      include: {
-        requisites: true,
-        currency: true,
-        type: true,
-        paymentSystem: true,
-        cardDesign: true,
-        employee: { select: { id: true, full_name: true } },
-        company: { select: { id: true, name: true } },
-      },
     });
+
+    return asset;
   },
 
   async duplicate(id) {
@@ -251,7 +248,6 @@ const AssetsService = {
     return prisma.asset.create({
       data: {
         accountName: `${src.accountName} (Копия)`,
-        isActive: true,
         currencyId: src.currencyId,
         typeId: src.typeId,
         paymentSystemId: src.paymentSystemId,
