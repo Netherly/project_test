@@ -355,10 +355,38 @@ jobs:
             set -e
             TEMPLATE="/tmp/deploy/nginx/prod.conf.template"
             TARGET="/etc/nginx/sites-available/crm-prod.conf"
+            TARGET_ENABLED="/etc/nginx/sites-enabled/crm-prod.conf"
             DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            DOMAIN_WWW="$DOMAIN"
+            if [ "${DOMAIN#www.}" = "$DOMAIN" ]; then
+              DOMAIN_WWW="www.$DOMAIN"
+            fi
+            HAS_DOMAIN_WWW=0
+            if [ "$DOMAIN_WWW" != "$DOMAIN" ]; then
+              if getent ahosts "$DOMAIN_WWW" >/dev/null 2>&1; then
+                HAS_DOMAIN_WWW=1
+              else
+                echo "Optional www-domain $DOMAIN_WWW has no DNS record, skipping from cert."
+              fi
+            fi
             test -f "$TEMPLATE"
-            sed "s/PROD_DOMAIN/$DOMAIN/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
-            sudo ln -sf "$TARGET" /etc/nginx/sites-enabled/crm-prod.conf
+            sed \
+              -e "s/PROD_DOMAIN_WWW/$DOMAIN_WWW/g" \
+              -e "s/PROD_DOMAIN/$DOMAIN/g" \
+              "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
+            sudo ln -sf "$TARGET" "$TARGET_ENABLED"
+
+            for enabled in /etc/nginx/sites-enabled/*; do
+              [ -e "$enabled" ] || continue
+              if [ "$(readlink -f "$enabled")" = "$(readlink -f "$TARGET_ENABLED")" ]; then
+                continue
+              fi
+              if sudo grep -q "$DOMAIN" "$enabled"; then
+                echo "Disabling conflicting nginx site $enabled for domain $DOMAIN"
+                sudo rm -f "$enabled"
+              fi
+            done
+
             sudo nginx -t
             sudo systemctl reload nginx
 
@@ -368,6 +396,9 @@ jobs:
             fi
 
             CERTBOT_ARGS="--nginx --non-interactive --agree-tos --keep-until-expiring -d $DOMAIN"
+            if [ "$HAS_DOMAIN_WWW" = "1" ]; then
+              CERTBOT_ARGS="$CERTBOT_ARGS -d $DOMAIN_WWW"
+            fi
             if [ -n "${LETSENCRYPT_EMAIL:-}" ]; then
               CERTBOT_ARGS="$CERTBOT_ARGS --email $LETSENCRYPT_EMAIL"
             else
@@ -389,8 +420,19 @@ jobs:
           script: |
             set -e
             DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            DOMAIN_WWW="$DOMAIN"
+            if [ "${DOMAIN#www.}" = "$DOMAIN" ]; then
+              DOMAIN_WWW="www.$DOMAIN"
+            fi
+            HAS_DOMAIN_WWW=0
+            if [ "$DOMAIN_WWW" != "$DOMAIN" ] && getent ahosts "$DOMAIN_WWW" >/dev/null 2>&1; then
+              HAS_DOMAIN_WWW=1
+            fi
             CERT_TEXT="$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -text)"
             echo "$CERT_TEXT" | grep -q "DNS:$DOMAIN"
+            if [ "$HAS_DOMAIN_WWW" = "1" ]; then
+              echo "$CERT_TEXT" | grep -q "DNS:$DOMAIN_WWW"
+            fi
 
       - name: Install backend deps, prisma migrate, restart pm2
         uses: appleboy/ssh-action@v1.0.3
@@ -434,6 +476,9 @@ jobs:
                 npx prisma db push
               fi
             fi
+
+            echo 'Running base seed for prod dictionaries...'
+            npm run seed
 
             APP_PORT="$(grep -E '^PORT=' .env | tail -n1 | cut -d= -f2- | tr -d '\r' | xargs || true)"
             TARGET_CWD="$(pwd)"
@@ -514,3 +559,47 @@ jobs:
 
             echo "Backend health check FAILED"
             exit 1
+
+      - name: Verify prod frontend serves current build
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            FRONTEND_DIR="/var/www/${{ env.FRONTEND_TARGET_DIR }}"
+            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN }}"
+
+            test -f "$FRONTEND_DIR/index.html"
+
+            EXPECTED_INDEX_SHA="$(sha256sum "$FRONTEND_DIR/index.html" | awk '{print $1}')"
+            SERVED_INDEX_SHA="$(
+              curl -ksSL --resolve "$HOST_HEADER:443:127.0.0.1" "https://$HOST_HEADER/index.html" \
+              | sha256sum | awk '{print $1}'
+            )"
+
+            echo "Expected index sha: $EXPECTED_INDEX_SHA"
+            echo "Served   index sha: $SERVED_INDEX_SHA"
+
+            if [ "$EXPECTED_INDEX_SHA" != "$SERVED_INDEX_SHA" ]; then
+              echo "Prod domain is not serving the current frontend build from $FRONTEND_DIR" >&2
+              echo "Check nginx server_name/root conflicts and stale enabled sites." >&2
+              exit 1
+            fi
+
+            ASSET_PATH="$(grep -oE "/assets/[^\"' ]+\\.js" "$FRONTEND_DIR/index.html" | head -n1 || true)"
+            if [ -n "$ASSET_PATH" ]; then
+              ASSET_CODE="$(
+                curl -ksS -o /dev/null -w "%{http_code}" \
+                  --resolve "$HOST_HEADER:443:127.0.0.1" \
+                  "https://$HOST_HEADER$ASSET_PATH" || true
+              )"
+              echo "Asset check $ASSET_PATH -> $ASSET_CODE"
+              if [ "$ASSET_CODE" != "200" ]; then
+                echo "Current frontend asset is not reachable through prod domain" >&2
+                exit 1
+              fi
+            fi

@@ -402,10 +402,23 @@ jobs:
             set -e
             TEMPLATE="/tmp/deploy/nginx/test.conf.template"
             TARGET="/etc/nginx/sites-available/crm-test.conf"
+            TARGET_ENABLED="/etc/nginx/sites-enabled/crm-test.conf"
             DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
             test -f "$TEMPLATE"
             sed "s/TEST_DOMAIN/$DOMAIN/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
-            sudo ln -sf "$TARGET" /etc/nginx/sites-enabled/crm-test.conf
+            sudo ln -sf "$TARGET" "$TARGET_ENABLED"
+
+            for enabled in /etc/nginx/sites-enabled/*; do
+              [ -e "$enabled" ] || continue
+              if [ "$(readlink -f "$enabled")" = "$(readlink -f "$TARGET_ENABLED")" ]; then
+                continue
+              fi
+              if sudo grep -q "$DOMAIN" "$enabled"; then
+                echo "Disabling conflicting nginx site $enabled for domain $DOMAIN"
+                sudo rm -f "$enabled"
+              fi
+            done
+
             sudo nginx -t
             sudo systemctl reload nginx
 
