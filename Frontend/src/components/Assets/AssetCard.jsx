@@ -53,12 +53,16 @@ const AssetCard = ({
     if (main) onCopyValue(main);
   };
 
-  const handleDelete = (e) => {
+  const handleDelete = async (e) => {
     e.stopPropagation();
     if (!onDeleteClick) return;
     const confirmed = window.confirm(`Удалить актив "${accountName || "Без названия"}"?`);
     if (!confirmed) return;
-    onDeleteClick();
+    try {
+      await onDeleteClick();
+    } catch (error) {
+      console.error("Не удалось удалить актив:", error);
+    }
   };
 
   const accountName = asset?.accountName || "";

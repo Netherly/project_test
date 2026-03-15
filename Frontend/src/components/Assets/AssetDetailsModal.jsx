@@ -263,12 +263,18 @@ const AssetDetailsModal = ({
     onSave(assetToSave);
   };
 
-  const handleDeleteClick = () => {
-    if (window.confirm(`Удалить актив "${asset.accountName}"?`)) {
-      onDelete(asset.id);
-      onClose();
+  const handleDeleteClick = async () => {
+    if (!window.confirm(`Удалить актив "${asset.accountName}"?`)) {
+      setShowOptionsMenu(false);
+      return;
     }
-    setShowOptionsMenu(false);
+
+    try {
+      await onDelete(asset.id);
+      onClose();
+    } finally {
+      setShowOptionsMenu(false);
+    }
   };
 
   const handleDuplicateClick = () => {

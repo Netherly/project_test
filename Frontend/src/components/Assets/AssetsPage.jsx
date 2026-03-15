@@ -324,13 +324,10 @@ const AssetsPage = () => {
     try {
       await apiDeleteAsset(idToDelete);
       await loadAssets();
-      handleCloseModal();
     } catch (err) {
       console.error("Failed to delete asset", err);
-      setAssets((prevAssets) =>
-        prevAssets.filter((asset) => asset.id !== idToDelete)
-      );
-      handleCloseModal();
+      window.alert(err?.message || "Не удалось удалить актив");
+      throw err;
     }
   };
 
