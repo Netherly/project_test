@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { httpPost, httpPut } from '../../../api/http';
 import { createEmployeeTemporaryPassword } from '../../../api/employees';
-import { Plus, ExternalLink, Copy, LogOut, Link2Off } from 'lucide-react';
+import { Plus, ExternalLink, Copy, Link2Off } from 'lucide-react';
 import {
   buildSyntheticCountryOption,
   getCountryDisplayName,
@@ -558,23 +558,24 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                 <label>Ссылка на привязку</label>
                 <div className="input-with-icon-wrapper">
                   <input 
-                    {...field} 
-                    placeholder="Ссылка..." 
-                    readOnly 
+                    {...field}
+                    placeholder="https://t.me/..."
+                    onChange={(event) => {
+                      setLinkError('');
+                      field.onChange(event);
+                    }}
                   />
                   <div className="input-icons-group">
-                    {/* Кнопка Создать */}
                     <button
                       type="button"
                       className="icon-action-btn"
                       onClick={handleGenerateLink}
-                      disabled={isGeneratingLink || field.value} // Блокируем если уже есть ссылка
-                      title="Создать ссылку"
+                      disabled={isGeneratingLink}
+                      title="Создать или обновить ссылку"
                     >
                       <Plus size={18} />
                     </button>
 
-                    {/* Кнопка Открыть */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -585,7 +586,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                       <ExternalLink size={18} />
                     </button>
 
-                    {/* Кнопка Скопировать */}
                     <button
                       type="button"
                       className="icon-action-btn"
