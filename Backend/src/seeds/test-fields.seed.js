@@ -77,10 +77,10 @@ const DEFAULT_TEST_FIELDS = {
     type: ['Карта', 'Счет', 'Кошелек', 'Касса'],
     paymentSystem: ['Visa', 'Mastercard', 'SWIFT', 'SEPA'],
     cardDesigns: [
-      { name: 'Midnight Blue', url: '' },
-      { name: 'Sunset Coral', url: '' },
-      { name: 'Graphite Minimal', url: '' },
-      { name: 'Emerald Wave', url: '' },
+      { name: 'Midnight Grid', url: '/uploads/card-designs/test-skin-midnight-grid.svg' },
+      { name: 'Sunset Flow', url: '/uploads/card-designs/test-skin-sunset-flow.svg' },
+      { name: 'Emerald Wave', url: '/uploads/card-designs/test-skin-emerald-wave.svg' },
+      { name: 'Carbon Mesh', url: '/uploads/card-designs/test-skin-carbon-mesh.svg' },
     ],
   },
   financeFields: {
@@ -186,6 +186,38 @@ function topUpSubarticles(existing, defaults) {
   });
 }
 
+function topUpCardDesigns(existing, defaults) {
+  const result = Array.isArray(existing) ? existing.map(cloneValue) : [];
+  const byName = new Map(
+    result
+      .map((item, index) => [pickText(item?.name ?? item), index])
+      .filter(([name]) => name)
+      .map(([name, index]) => [name.toLowerCase(), index])
+  );
+
+  for (const design of defaults) {
+    const name = pickText(design?.name);
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const existingIndex = byName.get(key);
+
+    if (existingIndex !== undefined) {
+      const current = result[existingIndex] || {};
+      result[existingIndex] = {
+        ...current,
+        name,
+        url: pickText(current?.url) || pickText(design?.url),
+      };
+      continue;
+    }
+
+    result.push(cloneValue(design));
+    byName.set(key, result.length - 1);
+  }
+
+  return result;
+}
+
 async function ensureTestClientGroups() {
   if (!(await hasTable('ClientGroup'))) return;
 
@@ -282,10 +314,9 @@ async function ensureTestFields() {
         current?.assetsFields?.paymentSystem,
         DEFAULT_TEST_FIELDS.assetsFields.paymentSystem
       ),
-      cardDesigns: topUpList(
+      cardDesigns: topUpCardDesigns(
         current?.assetsFields?.cardDesigns,
-        DEFAULT_TEST_FIELDS.assetsFields.cardDesigns,
-        (item) => pickText(item?.name ?? item)
+        DEFAULT_TEST_FIELDS.assetsFields.cardDesigns
       ),
     },
     financeFields: {

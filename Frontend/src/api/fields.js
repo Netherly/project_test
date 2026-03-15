@@ -113,6 +113,7 @@ export const normDesigns = (arr) =>
     name: tidy(d?.name),
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
+    order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
     isDeleted: d?.isDeleted || false,
   }));
 
@@ -324,7 +325,13 @@ export const serSubarticles = (arr) =>
 export const serDesigns = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((d) => ({ id: d?.id || rid(), name: tidy(d?.name), url: tidy(d?.url), size: d?.size ?? null }))
+    .map((d, index) => ({
+      id: d?.id || rid(),
+      name: tidy(d?.name),
+      url: tidy(d?.url),
+      size: d?.size ?? null,
+      order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
+    }))
     .filter((d) => d.name);
 
 export const serTags = (arr) => {

@@ -541,7 +541,7 @@ async function getAll(db) {
       select: { id: true, value: true, interval: { select: { id: true, value: true } } },
       orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
     }),
-    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: { name: 'asc' } }),
+    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.financeSubarticleDict.findMany({
       ...whereActiveHardDelete,
       select: {
@@ -637,7 +637,12 @@ async function getAll(db) {
       currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
       paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
-      cardDesigns: cardDesigns.map((d) => ({ id: d.id, name: d.name, url: d.imageUrl || '' })),
+      cardDesigns: cardDesigns.map((d) => ({
+        id: d.id,
+        name: d.name,
+        url: d.imageUrl || '',
+        order: d.order,
+      })),
     },
 
     financeFields: {
@@ -748,7 +753,15 @@ async function getInactive(db) {
       currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
       type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
       paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
-      cardDesigns: emptyArr,
+      cardDesigns: await _db.cardDesign.findMany({
+        ...whereInactive,
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
+      }).then((items) => items.map((d) => ({
+        id: d.id,
+        name: d.name,
+        url: d.imageUrl || '',
+        order: d.order,
+      }))),
     },
     financeFields: {
       articles: articles.map((a) => ({ id: a.id, name: a.name })),
@@ -896,10 +909,11 @@ async function saveAll(payload) {
       await syncSimpleDict(tx, 'paymentSystemDict', arrToUniqueStrings(payload?.assetsFields?.paymentSystem, 'name'));
 
       const incomingDesigns = (Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [])
-        .map((d) => ({
+        .map((d, index) => ({
           id: d?.id || null,
           name: pickStr(d?.name),
           url: typeof d?.url === 'string' ? d.url : '',
+          order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
         }))
         .filter((d) => d.name);
 
@@ -922,7 +936,12 @@ async function saveAll(payload) {
 
           await tx.cardDesign.update({
             where: { id: d.id },
-            data: { name: d.name, imageUrl: imageUrl || prev.imageUrl || null, isActive: true },
+            data: {
+              name: d.name,
+              imageUrl: imageUrl || prev.imageUrl || null,
+              isActive: true,
+              order: d.order,
+            },
           });
 
           if (isNew && prev.imageUrl) {
@@ -930,7 +949,14 @@ async function saveAll(payload) {
             if (abs) await safeUnlink(abs);
           }
         } else {
-          await tx.cardDesign.create({ data: { name: d.name, imageUrl: imageUrl || null, isActive: true } });
+          await tx.cardDesign.create({
+            data: {
+              name: d.name,
+              imageUrl: imageUrl || null,
+              isActive: true,
+              order: d.order,
+            },
+          });
         }
       }
 

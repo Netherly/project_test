@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="84" y1="52" x2="900" y2="548" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#052A21"/>
+      <stop offset=".5" stop-color="#0A6C61"/>
+      <stop offset="1" stop-color="#7DE2D1"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="600" rx="36" fill="url(#bg)"/>
+  <path d="M0 446C118 376 204 360 304 390C404 420 488 456 588 458C692 460 794 420 960 328V600H0V446Z" fill="rgba(255,255,255,0.16)"/>
+  <path d="M0 206C136 132 244 128 350 170C470 218 610 244 960 126V0H0V206Z" fill="rgba(255,255,255,0.08)"/>
+  <rect x="642" y="74" width="202" height="202" rx="40" fill="rgba(255,255,255,0.1)"/>
+  <text x="72" y="360" fill="#ECFFF9" font-family="Verdana, sans-serif" font-size="52" font-weight="700">EMERALD WAVE</text>
+  <text x="72" y="420" fill="#C5FFF5" font-family="Verdana, sans-serif" font-size="28" letter-spacing="8">TEST CARD DESIGN</text>
+</svg>
