@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
-import { Plus, X, Minus } from 'lucide-react';
+import { Plus, X, Minus} from 'lucide-react';
 import { createTransaction } from '../../api/transactions';
 
 const getArticleValue = (article) =>
@@ -69,7 +69,7 @@ const formatEmployeeRequisite = (req) => {
   return `Банк: ${bank} (${currency}) Номер карты: ${card} Владелец: ${owner}`;
 };
 
-const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialData = {}, orders = [], counterparties = [] }) => {
+const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialData = {}, orders = [], counterparties = [], onAddNewField }) => {
 
   const getCurrentDateTime = () => {
     const now = new Date();
