@@ -41,14 +41,13 @@ import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lu
 const MAX_IMAGE_BYTES = 500 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
 const VISIBLE_FIELD_CURRENCIES = [
+  { code: "UAH", name: "Ukrainian Hryvnia" },
   { code: "USD", name: "US Dollar" },
   { code: "EUR", name: "Euro" },
   { code: "RUB", name: "Russian Ruble" },
   { code: "USDT", name: "Tether USDT" },
 ];
-const SYSTEM_FIELD_CURRENCIES = [
-  { code: "UAH", name: "Ukrainian Hryvnia" },
-];
+const SYSTEM_FIELD_CURRENCIES = [];
 const CURRENCY_FIELD_GROUPS = [
   "generalFields",
   "orderFields",
