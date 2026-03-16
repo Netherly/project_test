@@ -1511,14 +1511,14 @@ function FieldsPage() {
               <label className="field-label">Страна</label>
               <EditableList
                 items={selectedValues.generalFields?.country || []}
-                onChange={() => {}}
+                onChange={(index, val) => handleStringItemChange("generalFields", "country", index, val)}
                 onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "country", index)}
-                onCommit={() => {}}
+                onAdd={() => handleStringItemAdd("generalFields", "country")}
+                onCommit={(index) => handleStringItemBlur("generalFields", "country", index)}
                 onReorder={(newItems) => handleInputChange("generalFields", "country", newItems)}
                 placeholder="Название страны"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
-                readOnly
               />
             </div>
           ),
