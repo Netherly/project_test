@@ -5,6 +5,7 @@ const { ensureTestFields } = require('../src/seeds/test-fields.seed');
 const { ensureDefaultCountries } = require('../src/seeds/countries.seed');
 const { ensureDefaultCurrencies } = require('../src/seeds/currencies.seed');
 const { ensureDemoData, DEMO_PASSWORD } = require('../src/seeds/test-demo-data.seed');
+const { ensureLatestToDate, getTodayYMDFromEnv } = require('../src/services/rates.autofill.service');
 
 const ACCESS_CONFIG_KEY = 'access_control_v1';
 const FULL_MODULES = [
@@ -95,6 +96,9 @@ async function main() {
 
   await ensureDefaultCurrencies();
   console.log('✔ Default currencies ensured');
+
+  const todayRates = await ensureLatestToDate(getTodayYMDFromEnv());
+  console.log(`✔ Today rates ensured${todayRates?.created ? ' (created)' : ''}`);
 
   if (!adminEnabled && !fieldsEnabled && !demoDataEnabled) {
     console.log('ℹ Seed skipped: test seed flags are not enabled');

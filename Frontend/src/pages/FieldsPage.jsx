@@ -40,6 +40,27 @@ import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lu
 
 const MAX_IMAGE_BYTES = 500 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
+const VISIBLE_FIELD_CURRENCIES = [
+  { code: "USD", name: "US Dollar" },
+  { code: "EUR", name: "Euro" },
+  { code: "RUB", name: "Russian Ruble" },
+  { code: "USDT", name: "Tether USDT" },
+];
+const SYSTEM_FIELD_CURRENCIES = [
+  { code: "UAH", name: "Ukrainian Hryvnia" },
+];
+const CURRENCY_FIELD_GROUPS = [
+  "generalFields",
+  "orderFields",
+  "executorFields",
+  "clientFields",
+  "assetsFields",
+];
+const COUNTRY_FIELD_GROUPS = [
+  "generalFields",
+  "clientFields",
+  "employeeFields",
+];
 
 const safeFileUrl = (u) => {
   if (!u) return "";
@@ -95,6 +116,156 @@ const initialFieldOrders = {
   financeFields: ["articles", "subcategory", "subarticles"],
   sundryFields: ["typeWork"],
   taskFields: ["tags"],
+};
+
+const mergeFieldOrders = (saved = {}) =>
+  Object.fromEntries(
+    Object.entries(initialFieldOrders).map(([groupKey, defaults]) => {
+      const current = Array.isArray(saved?.[groupKey]) ? saved[groupKey] : [];
+      const merged = [
+        ...current.filter((key) => defaults.includes(key)),
+        ...defaults.filter((key) => !current.includes(key)),
+      ];
+      return [groupKey, merged];
+    })
+  );
+
+const buildFixedCurrencyList = (source = [], includeSystem = false) => {
+  const allowedCodes = new Set(
+    (includeSystem
+      ? [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES]
+      : VISIBLE_FIELD_CURRENCIES
+    ).map((item) => item.code)
+  );
+  const orderByCode = new Map(
+    [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES].map((item, index) => [item.code, index])
+  );
+  const existingByCode = new Map(
+    (Array.isArray(source) ? source : [])
+      .map((item) => {
+        const code = tidy(item?.code ?? item?.value).toUpperCase();
+        return code && allowedCodes.has(code) ? [code, item] : null;
+      })
+      .filter(Boolean)
+  );
+  const items = Array.from(existingByCode.values())
+    .map((existing) => {
+      const code = tidy(existing?.code ?? existing?.value).toUpperCase();
+      const fallback =
+        [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES].find((item) => item.code === code) || null;
+      return {
+        ...existing,
+        id: existing?.id || `field-currency-${code.toLowerCase()}`,
+        value: code,
+        code,
+        name: tidy(existing?.name) || fallback?.name || code,
+        label: tidy(existing?.label) || tidy(existing?.name) || fallback?.name || code,
+        order: Number.isFinite(Number(existing?.order))
+          ? Number(existing.order)
+          : (orderByCode.get(code) ?? Number.MAX_SAFE_INTEGER),
+        isDeleted: code === "UAH" ? false : Boolean(existing?.isDeleted),
+      };
+    })
+    .sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+      const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return String(a?.code || "").localeCompare(String(b?.code || ""));
+    });
+
+  if (includeSystem && !existingByCode.has("UAH")) {
+    items.push({
+      id: "field-currency-uah",
+      value: "UAH",
+      code: "UAH",
+      name: "Ukrainian Hryvnia",
+      label: "Ukrainian Hryvnia",
+      order: orderByCode.get("UAH") ?? Number.MAX_SAFE_INTEGER,
+      isDeleted: false,
+    });
+  }
+
+  return items;
+};
+
+const buildSharedCountryList = (source = []) =>
+  (Array.isArray(source) ? source : []).map((item, index) => ({
+    ...item,
+    id: item?.id || `field-country-${index}`,
+    order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
+    isDeleted: Boolean(item?.isDeleted),
+  }));
+
+const applyFieldsPagePreset = (values) => {
+  const next = clone(values);
+  const currencySource =
+    next?.generalFields?.currency ??
+    next?.orderFields?.currency ??
+    next?.executorFields?.currency ??
+    next?.clientFields?.currency ??
+    next?.assetsFields?.currency ??
+    [];
+  const fixedCurrencies = buildFixedCurrencyList(currencySource, false);
+  const countrySource =
+    next?.generalFields?.country ??
+    next?.clientFields?.country ??
+    next?.employeeFields?.country ??
+    [];
+  const sharedCountries = buildSharedCountryList(countrySource);
+
+  for (const groupKey of CURRENCY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      currency: clone(fixedCurrencies),
+    };
+  }
+
+  for (const groupKey of COUNTRY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      country: clone(sharedCountries),
+    };
+  }
+
+  return next;
+};
+
+const prepareFieldsPageSaveValues = (values) => {
+  const next = clone(values);
+  const currencySource =
+    next?.generalFields?.currency ??
+    next?.orderFields?.currency ??
+    next?.executorFields?.currency ??
+    next?.clientFields?.currency ??
+    next?.assetsFields?.currency ??
+    [];
+  const saveCurrencies = buildFixedCurrencyList(currencySource, true);
+  const countrySource =
+    next?.generalFields?.country ??
+    next?.clientFields?.country ??
+    next?.employeeFields?.country ??
+    [];
+  const saveCountries = buildSharedCountryList(countrySource);
+
+  for (const groupKey of CURRENCY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      currency: clone(saveCurrencies),
+    };
+  }
+
+  for (const groupKey of COUNTRY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      country: clone(saveCountries),
+    };
+  }
+
+  return next;
 };
 
 const SortableFieldRow = ({ id, children, isDragEnabled }) => {
@@ -183,7 +354,8 @@ const EditableList = ({
   onReorder,       
   placeholder,
   showHidden,
-  isDragEnabled
+  isDragEnabled,
+  readOnly = false,
 }) => {
   const refs = useRef([]);
 
@@ -227,6 +399,7 @@ const EditableList = ({
                         placeholder={placeholder}
                         className="text-input"
                         disabled={item.isDeleted}
+                        readOnly={readOnly}
                       />
                     </div>
                     <button
@@ -244,9 +417,11 @@ const EditableList = ({
           })}
         </SortableContext>
       </DndContext>
-      <button type="button" className="add-category-btn" onClick={onAdd}>
-        <Plus size={20} color='white'/> Добавить
-      </button>
+      {typeof onAdd === "function" && (
+        <button type="button" className="add-category-btn" onClick={onAdd}>
+          <Plus size={20} color='white'/> Добавить
+        </button>
+      )}
     </div>
   );
 };
@@ -859,12 +1034,12 @@ function FieldsPage() {
       const saved = localStorage.getItem(ORDER_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return { ...initialFieldOrders, ...parsed };
+        return mergeFieldOrders(parsed);
       }
     } catch (e) {
       console.error("Failed to load field orders", e);
     }
-    return initialFieldOrders;
+    return mergeFieldOrders();
   };
 
   const [fieldOrders, setFieldOrders] = useState(loadSavedOrders);
@@ -915,7 +1090,7 @@ function FieldsPage() {
       setForbidden(false);
       try {
         const raw = await fetchFields();
-        const normalized = withDefaults(raw);
+        const normalized = applyFieldsPagePreset(withDefaults(raw));
         if (!mounted) return;
         setSelectedValues(normalized);
         setSavedValues(normalized);
@@ -945,7 +1120,7 @@ function FieldsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = serializeForSave(selectedValues);
+      const payload = serializeForSave(prepareFieldsPageSaveValues(selectedValues));
       await saveFields(payload);
       
       localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
@@ -1319,15 +1494,15 @@ function FieldsPage() {
             <div className="field-row">
               <label className="field-label">Валюта</label>
               <EditableList
-                items={selectedValues.generalFields?.currency || []}
-                onChange={(index, val) => handleStringItemChange("generalFields", "currency", index, val)}
+                items={buildFixedCurrencyList(selectedValues.generalFields?.currency || [], false)}
+                onChange={() => {}}
                 onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "currency", index)}
-                onAdd={() => handleStringItemAdd("generalFields", "currency")}
-                onCommit={(index) => handleStringItemBlur("generalFields", "currency", index)}
+                onCommit={() => {}}
                 onReorder={(newItems) => handleInputChange("generalFields", "currency", newItems)}
-                placeholder="Введите валюту"
+                placeholder="Код валюты"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
+                readOnly
               />
             </div>
           ),
@@ -1336,14 +1511,14 @@ function FieldsPage() {
               <label className="field-label">Страна</label>
               <EditableList
                 items={selectedValues.generalFields?.country || []}
-                onChange={(index, val) => handleStringItemChange("generalFields", "country", index, val)}
+                onChange={() => {}}
                 onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "country", index)}
-                onAdd={() => handleStringItemAdd("generalFields", "country")}
-                onCommit={(index) => handleStringItemBlur("generalFields", "country", index)}
+                onCommit={() => {}}
                 onReorder={(newItems) => handleInputChange("generalFields", "country", newItems)}
-                placeholder="Введите страну"
+                placeholder="Название страны"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
+                readOnly
               />
             </div>
           ),
