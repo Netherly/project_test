@@ -2,7 +2,6 @@
 const bcrypt = require('bcrypt');
 const prisma = require('./client');
 const { ensureTestFields } = require('../src/seeds/test-fields.seed');
-const { ensureDefaultCountries } = require('../src/seeds/countries.seed');
 const { ensureDefaultCurrencies } = require('../src/seeds/currencies.seed');
 const { ensureDemoData, DEMO_PASSWORD } = require('../src/seeds/test-demo-data.seed');
 const { ensureLatestToDate, getTodayYMDFromEnv } = require('../src/services/rates.autofill.service');
@@ -90,9 +89,6 @@ async function main() {
   const adminEnabled = isEnabled(process.env.TEST_DEFAULT_ADMIN_ENABLED);
   const fieldsEnabled = isEnabled(process.env.TEST_FIELDS_ENABLED);
   const demoDataEnabled = isEnabled(process.env.TEST_DEMO_DATA_ENABLED);
-
-  await ensureDefaultCountries();
-  console.log('✔ Default countries ensured');
 
   await ensureDefaultCurrencies();
   console.log('✔ Default currencies ensured');
