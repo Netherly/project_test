@@ -209,12 +209,13 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
           name="techTags"
           control={control}
           render={({ field: { value = [], onChange } }) => (
-            <div className="tags-section">
-              <div className="tag-input-container" ref={techTagInputRef}>
+            <div className="tags-section-header">
+              <div className="tag-input-container-header" ref={techTagInputRef}>
                 <input
                   type="text"
-                  placeholder="Добавить тег технологии"
+                  placeholder="Добавить тег"
                   className="input-tag"
+                  style={{ width: "160px" }}
                   value={customTechTag}
                   onChange={(e) => {
                     setCustomTechTag(e.target.value);
@@ -235,11 +236,11 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                 />
 
                 {showTechTagDropdown && (filteredTechTags.length > 0 || customTechTag.trim()) && (
-                  <div className="tag-dropdown" ref={techTagDropdownRef}>
+                  <div className="tag-dropdown-header" ref={techTagDropdownRef}>
                     {filteredTechTags.map((tag) => (
                       <div
                         key={tag}
-                        className="tag-dropdown-item"
+                        className="tag-dropdown-item-header"
                         onClick={() => {
                           if (!value.includes(tag)) onChange([...value, tag]);
                           setCustomTechTag("");
@@ -254,7 +255,7 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                       !techOptions.includes(customTechTag.trim()) &&
                       !value.includes(customTechTag.trim()) && (
                         <div
-                          className="tag-dropdown-item tag-dropdown-custom"
+                          className="tag-dropdown-item-header tag-dropdown-custom-header"
                           onClick={() => {
                             const next = customTechTag.trim();
                             onChange([...value, next]);
@@ -270,17 +271,15 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                 )}
               </div>
 
-              <div className="tag-chips-container">
-                {value.map((tag, idx) => (
-                  <span
-                    key={`${tag}_${idx}`}
-                    className="tag-chips tag-order-chips"
-                    onClick={() => onChange(value.filter((t) => t !== tag))}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {value.map((tag, idx) => (
+                <span
+                  key={`${tag}_${idx}`}
+                  className="tag-chips tag-order-chips-header"
+                  onClick={() => onChange(value.filter((t) => t !== tag))}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
         />
@@ -292,12 +291,13 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
           name="taskTags"
           control={control}
           render={({ field: { value = [], onChange } }) => (
-            <div className="tags-section">
-              <div className="tag-input-container" ref={taskTagInputRef}>
+            <div className="tags-section-header">
+              <div className="tag-input-container-header" ref={taskTagInputRef}>
                 <input
                   type="text"
-                  placeholder="Добавить тег задачи"
+                  placeholder="Добавить тег"
                   className="input-tag"
+                  style={{ width: "160px" }}
                   value={customTaskTag}
                   onChange={(e) => {
                     setCustomTaskTag(e.target.value);
@@ -318,11 +318,11 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                 />
 
                 {showTaskTagDropdown && (filteredTaskTags.length > 0 || customTaskTag.trim()) && (
-                  <div className="tag-dropdown" ref={taskTagDropdownRef}>
+                  <div className="tag-dropdown-header" ref={taskTagDropdownRef}>
                     {filteredTaskTags.map((tag) => (
                       <div
                         key={tag}
-                        className="tag-dropdown-item"
+                        className="tag-dropdown-item-header"
                         onClick={() => {
                           if (!value.includes(tag)) onChange([...value, tag]);
                           setCustomTaskTag("");
@@ -337,7 +337,7 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                       !taskOptions.includes(customTaskTag.trim()) &&
                       !value.includes(customTaskTag.trim()) && (
                         <div
-                          className="tag-dropdown-item tag-dropdown-custom"
+                          className="tag-dropdown-item-header tag-dropdown-custom-header"
                           onClick={() => {
                             const next = customTaskTag.trim();
                             onChange([...value, next]);
@@ -353,17 +353,15 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
                 )}
               </div>
 
-              <div className="tag-chips-container">
-                {value.map((tag, idx) => (
-                  <span
-                    key={`${tag}_${idx}`}
-                    className="tag-chips tag-order-chips"
-                    onClick={() => onChange(value.filter((t) => t !== tag))}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {value.map((tag, idx) => (
+                <span
+                  key={`${tag}_${idx}`}
+                  className="tag-chips tag-order-chips-header"
+                  onClick={() => onChange(value.filter((t) => t !== tag))}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
         />

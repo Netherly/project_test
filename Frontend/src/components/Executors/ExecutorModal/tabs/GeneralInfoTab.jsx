@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import AutoResizeTextarea from '../../../modals/OrderModal/AutoResizeTextarea';
 import CreatableSelect from "../../../Client/ClientModal/CreatableSelect"; 
+import { Minus, Plus } from 'lucide-react';
 
 const OrderDetailField = ({ label, value }) => (
   <div className="form-field read-only-field">
@@ -157,49 +158,109 @@ export default function GeneralInfoTab({ orders, employees, roleOptions, currenc
       <Controller
         name="hourlyRate"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Ставка в час</label>
-            <input type="number" placeholder="0.00" {...field} />
-            {errors.hourlyRate && <p className="error-message">{errors.hourlyRate.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Ставка в час</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.hourlyRate ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+              {errors.hourlyRate && <p className="error-message">{errors.hourlyRate.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="amountInput"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Сумма ввод</label>
-            <input type="number" placeholder="0.00" {...field} />
-             {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Сумма ввод</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.amountInput ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+               {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="minAmount"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Минимальная сумма</label>
-            <input type="number" placeholder="0.00" {...field} />
-            {errors.minAmount && <p className="error-message">{errors.minAmount.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Минимальная сумма</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.minAmount ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+              {errors.minAmount && <p className="error-message">{errors.minAmount.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="maxAmount"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Сумма макс</label>
-            <input type="number" placeholder="0.00" {...field} />
-            {errors.maxAmount && <p className="error-message">{errors.maxAmount.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Сумма макс</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.maxAmount ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+              {errors.maxAmount && <p className="error-message">{errors.maxAmount.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <div className="checkbox-container-modal" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>

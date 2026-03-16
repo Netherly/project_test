@@ -1082,12 +1082,28 @@
 }
 
 .order-modal-footer {
-    flex-shrink: 0;
-    padding: 5px 30px 20px 30px;
-    border-top: 1px solid var(--border--color);
-    display: flex;
-    justify-content: flex-end; 
-    align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  background-color: #19213A;
+  border-top: 1px solid var(--border-form-color); 
+  padding: 0 24px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: none;
+  transition: all 0.3s ease-in-out;
+  flex-shrink: 0;
+}
+
+
+.order-modal-footer.visible {
+  max-height: 100px;
+  opacity: 1;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid var(--border-form-color); 
 }
 
 

@@ -36,9 +36,11 @@
 }
 
 .add-payment-button {
+    padding: 15px 15px;
     background-color: var(--container-bg);
     color: #fff;
-    padding: 10px 15px;
+    height: 100%;
+    width: 100%;
     border: none;
     font-size: 16px;
     font-weight: 600;
@@ -48,7 +50,13 @@
     justify-content: center;
     align-items: center;
     gap: 15px;
+    box-sizing: border-box;
 }
+
+.add-payment-button:hover {
+    background-color: var(--input-border-focus);
+}
+
 
 .regular-payments-title {
     font-size: var(--font-size-page-title);

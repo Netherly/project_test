@@ -306,6 +306,11 @@
 }
 
 
+.addEntryButton:hover{
+  background-color: var(--input-border-focus);
+}
+
+
 /* Tag Select Component Styles (embedded here for consistency) */
 .tagsSelect { position: relative; width: 100%; }
 .tagsInput {

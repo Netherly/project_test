@@ -171,12 +171,13 @@ export default function InfoTab({
            return (
              <div className="form-field full-width">
                <label>Теги</label>
-               <div className="custom-tags-wrapper">
-                  <div className="tag-input-container" ref={tagInputRef}>
+               <div className="tags-section-header" style={{ flex: 1 }}>
+                  <div className="tag-input-container-header" ref={tagInputRef}>
                       <input
                           type="text"
                           placeholder="Добавить тег"
-                          className="input-tag-control"
+                          className="input-tag"
+                          style={{ width: "160px" }}
                           value={customTag}
                           onChange={handleTagInputChange}
                           onKeyDown={(e) => handleCustomTagAdd(e, onChange, currentTagsValue)}
@@ -185,25 +186,26 @@ export default function InfoTab({
                       />
                       
                       {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
-                          <div className="tag-dropdown" ref={tagDropdownRef}>
+                          <div className="tag-dropdown-header" ref={tagDropdownRef}>
                               {filteredTags.map(tag => (
-                                  <div key={tag} className="tag-dropdown-item" onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}>{tag}</div>
+                                  <div key={tag} className="tag-dropdown-item-header" onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}>{tag}</div>
                               ))}
                               {customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
-                                  <div className="tag-dropdown-item" onClick={() => handleTagSelect(customTag.trim(), onChange, currentTagsValue)}>Добавить: "{customTag.trim()}"</div>
+                                  <div className="tag-dropdown-item-header tag-dropdown-custom-header" onClick={() => handleTagSelect(customTag.trim(), onChange, currentTagsValue)}>Добавить: "{customTag.trim()}"</div>
                               )}
                           </div>
                       )}
                   </div>
 
-                  <div className="selected-tags-list">
-                    {currentTags.map((tag, index) => (
-                        <span key={tag.id || index} className="tag-chip-item">
-                            {tag.name} 
-                            <span className="remove-tag-icon" onClick={() => handleTagRemove(tag, onChange, currentTagsValue)}>×</span>
-                        </span>
-                    ))}
-                  </div>
+                  {currentTags.map((tag, index) => (
+                      <span 
+                        key={tag.id || index} 
+                        className="tag-chips tag-order-chips-header" 
+                        onClick={() => handleTagRemove(tag, onChange, currentTagsValue)}
+                      >
+                          {tag.name} 
+                      </span>
+                  ))}
                </div>
              </div>
            );

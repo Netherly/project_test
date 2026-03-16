@@ -150,6 +150,8 @@ export default function ClientModal({
     try {
       const payload = safeClient?.id ? { ...data, id: safeClient.id } : data;
       await onSave?.(payload);
+      
+      reset(data);
       closeHandler();
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
@@ -193,7 +195,7 @@ export default function ClientModal({
                 <InfoTab
                   companies={companies}
                   categories={fieldOptions.categories} 
-                  sources={fieldOptions.sources}         
+                  sources={fieldOptions.sources}        
                   businesses={fieldOptions.businesses}   
                   tagOptions={fieldOptions.tags}         
                   onAddCompany={handleAddCompanyDirect} 
@@ -222,8 +224,15 @@ export default function ClientModal({
             </form>
           </FormProvider>
           
-          <div className="form-actions-bottom">
-            <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>Отменить</button>
+          
+          <div className={`form-actions-bottom ${isDirty ? "visible" : ""}`}>
+            <button 
+              className="cancel-order-btn" 
+              type="button" 
+              onClick={() => reset()}
+            >
+              Отменить
+            </button>
             <button className="save-order-btn" type="submit" form={formId}>Сохранить</button>
           </div>
         </div>

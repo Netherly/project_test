@@ -74,6 +74,7 @@ export default function ExecutorModal({
         orderDate: data.dateForPerformer,
     };
     onSave(dataToSave);
+    reset(data);
   };
 
   const onInvalid = (err) => {
@@ -159,7 +160,7 @@ export default function ExecutorModal({
                   <GeneralInfoTab 
                     orders={orders} 
                     employees={employees} 
-                    roleOptions={roleOptions}         
+                    roleOptions={roleOptions}        
                     currencyOptions={currencyOptions} 
                     onAddNewField={onAddNewField}     
                   />
@@ -170,7 +171,9 @@ export default function ExecutorModal({
 
             </form>
           </FormProvider>
-          <div className='form-actions-bottom'>
+
+          {/* ДОБАВЛЕН класс visible с условием isDirty */}
+          <div className={`form-actions-bottom ${isDirty ? "visible" : ""}`}>
               <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
                   Сбросить
               </button>

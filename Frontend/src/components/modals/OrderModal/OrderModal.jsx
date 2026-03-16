@@ -166,7 +166,6 @@ function OrderModal({
   const [confirmAction, setConfirmAction] = useState(null);
   const [showStageDropdown, setShowStageDropdown] = useState(false);
 
-
   const [orderFields, setOrderFields] = useState({
     intervals: [],
     categories: [],
@@ -561,6 +560,7 @@ function OrderModal({
         ...data,
       });
     }
+    reset(data);
     onClose?.();
   };
 
@@ -817,17 +817,16 @@ function OrderModal({
               </div>
             </div>
 
-            <div className="order-modal-footer">
-              {isDirty && (
-                <div className="action-buttons">
-                  <button type="button" className="cancel-order-btn" onClick={resetChanges}>
-                    Отменить
-                  </button>
-                  <button type="submit" className="save-order-btn">
-                    Сохранить
-                  </button>
-                </div>
-              )}
+            
+            <div className={`order-modal-footer ${isDirty ? "visible" : ""}`}>
+              <div className="action-buttons">
+                <button type="button" className="cancel-order-btn" onClick={resetChanges}>
+                  Отменить
+                </button>
+                <button type="submit" className="save-order-btn">
+                  Сохранить
+                </button>
+              </div>
             </div>
           </form>
         </FormProvider>
