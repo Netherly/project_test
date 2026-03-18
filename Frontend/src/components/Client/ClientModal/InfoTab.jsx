@@ -204,84 +204,55 @@ export default function InfoTab({
         name="tags"
         control={control}
         render={({ field: { onChange, value: currentTagsValue } }) => {
-          const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
-          const suggestions = [
-            ...defaultTags,
-            ...tagOptions.map((t) => (typeof t === "object" ? t.name : t)),
-          ];
-          const uniqueSuggestions = Array.from(new Set(suggestions));
+           const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
+           const suggestions = tagOptions.map(t => typeof t === 'object' ? t.name : t);
+           const uniqueSuggestions = Array.from(new Set(suggestions));
+           
+           const filteredTags = uniqueSuggestions.filter(
+              tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !currentTags.find(t => t.name === tagString)
+           );
 
-          const filteredTags = uniqueSuggestions.filter(
-            (tagString) =>
-              tagString.toLowerCase().includes(customTag.toLowerCase()) &&
-              !currentTags.find((t) => t.name === tagString)
-          );
-
-          return (
-            <div className="form-field full-width">
-              <label>Теги</label>
-
-              <div className="custom-tags-wrapper">
-                <div className="tag-input-container" ref={tagInputRef}>
-                  <input
-                    type="text"
-                    placeholder="Добавить тег"
-                    className="input-tag-control"
-                    value={customTag}
-                    onChange={handleTagInputChange}
-                    onKeyDown={(e) => handleCustomTagAdd(e, onChange, currentTagsValue)}
-                    onFocus={handleTagInputFocus}
-                    autoComplete="off"
-                  />
-
-                  {showTagDropdown &&
-                    (filteredTags.length > 0 ||
-                      (customTag.trim() &&
-                        !uniqueSuggestions.includes(customTag.trim()) &&
-                        !currentTags.find((t) => t.name === customTag.trim()))) && (
-                      <div className="tag-dropdown" ref={tagDropdownRef}>
-                        {filteredTags.map((tag) => (
-                          <div
-                            key={tag}
-                            className="tag-dropdown-item"
-                            onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}
-                          >
-                            {tag}
+           return (
+             <div className="form-field full-width">
+               <label>Теги</label>
+               <div className="tags-section-header" style={{ flex: 1 }}>
+                  <div className="tag-input-container-header" ref={tagInputRef}>
+                      <input
+                          type="text"
+                          placeholder="Добавить тег"
+                          className="input-tag"
+                          style={{ width: "160px" }}
+                          value={customTag}
+                          onChange={handleTagInputChange}
+                          onKeyDown={(e) => handleCustomTagAdd(e, onChange, currentTagsValue)}
+                          onFocus={handleTagInputFocus}
+                          autoComplete="off"
+                      />
+                      
+                      {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                          <div className="tag-dropdown-header" ref={tagDropdownRef}>
+                              {filteredTags.map(tag => (
+                                  <div key={tag} className="tag-dropdown-item-header" onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}>{tag}</div>
+                              ))}
+                              {customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                  <div className="tag-dropdown-item-header tag-dropdown-custom-header" onClick={() => handleTagSelect(customTag.trim(), onChange, currentTagsValue)}>Добавить: "{customTag.trim()}"</div>
+                              )}
                           </div>
-                        ))}
+                      )}
+                  </div>
 
-                        {customTag.trim() &&
-                          !uniqueSuggestions.includes(customTag.trim()) &&
-                          !currentTags.find((t) => t.name === customTag.trim()) && (
-                            <div
-                              className="tag-dropdown-item"
-                              onClick={() =>
-                                handleTagSelect(customTag.trim(), onChange, currentTagsValue)
-                              }
-                            >
-                              Добавить: "{customTag.trim()}"
-                            </div>
-                          )}
-                      </div>
-                    )}
-                </div>
-
-                <div className="selected-tags-list">
                   {currentTags.map((tag, index) => (
-                    <span key={tag.id || index} className="tag-chip-item">
-                      {tag.name}
-                      <span
-                        className="remove-tag-icon"
+                      <span 
+                        key={tag.id || index} 
+                        className="tag-chips tag-order-chips-header" 
                         onClick={() => handleTagRemove(tag, onChange, currentTagsValue)}
                       >
-                        ×
+                          {tag.name} 
                       </span>
-                    </span>
                   ))}
-                </div>
-              </div>
-            </div>
-          );
+               </div>
+             </div>
+           );
         }}
       />
 

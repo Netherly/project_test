@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "../../styles/AssetDetailsModal.css";
-import { Copy, Pencil, Plus, Trash2, X, GripVertical } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2, X, GripVertical, Minus } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
 import {
   DndContext,
@@ -19,13 +19,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { rid } from "../../api/fields.js";
-import { fetchLatestRatesSnapshot } from "../../api/rates";
-import {
-  convertAmountByRates,
-  normalizeCurrencyCode,
-  readLatestRatesSnapshot,
-  writeLatestRatesSnapshot,
-} from "../../utils/exchangeRates";
+
+import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -456,15 +451,39 @@ const AssetDetailsModal = ({
                 <label htmlFor="limitTurnover" className="form-label">
                   Лимит оборота
                 </label>
-                <input
-                  type="number"
-                  id="limitTurnover"
-                  name="limitTurnover"
-                  value={editableAsset.limitTurnover}
-                  onChange={handleChange}
-                  className="form-input1"
-                  placeholder="0"
-                />
+                <div className="custom-number-input">
+                  <input
+                    type="number"
+                    id="limitTurnover"
+                    name="limitTurnover"
+                    value={editableAsset.limitTurnover}
+                    onChange={handleChange}
+                    className="form-input1"
+                    placeholder="0"
+                    min={0}
+                  />
+                  <button 
+                    type="button" 
+                    className="num-btn minus-btn" 
+                    onClick={() => {
+                      const numValue = parseFloat(editableAsset.limitTurnover) || 0;
+                      handleSelectChange("limitTurnover", Math.max(0, numValue - 1000));
+                    }} 
+                    disabled={(parseFloat(editableAsset.limitTurnover) || 0) <= 0}
+                  >
+                    <Minus />
+                  </button>
+                  <button 
+                    type="button" 
+                    className="num-btn plus-btn" 
+                    onClick={() => {
+                      const numValue = parseFloat(editableAsset.limitTurnover) || 0;
+                      handleSelectChange("limitTurnover", numValue + 1000);
+                    }}
+                  >
+                    <Plus />
+                  </button>
+                </div>
               </div>
 
               <div className="form-row">

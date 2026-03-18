@@ -99,7 +99,7 @@
 }
 
 .add-executor-button:hover {
-    background-color: #335d7a;
+    background-color: var(--input-border-focus);
 }
 
 .executors-table-container {

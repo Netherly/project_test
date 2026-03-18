@@ -81,6 +81,9 @@ export default function ExecutorModal({
         
         onSave(dataToSave);
     };
+    onSave(dataToSave);
+    reset(data);
+  };
 
   const onInvalid = (err) => {
     console.log("Ошибки валидации:", err);
@@ -162,17 +165,26 @@ export default function ExecutorModal({
               
               <div className="tab-content-wrapper">
                 {activeTab === 'dashboard' && <DashboardTab />}
-                {activeTab === 'general'   && <GeneralInfoTab orders={orders} fields={fields} />}
+                {activeTab === 'general'   && (
+                  <GeneralInfoTab 
+                    orders={orders} 
+                    employees={employees} 
+                    roleOptions={roleOptions}        
+                    currencyOptions={currencyOptions} 
+                    onAddNewField={onAddNewField}     
+                  />
+                )}
                 {activeTab === 'journal'   && <JournalTab isNew={isNew} executor={safeExecutor} journalEntries={journalEntries} />}
                 {activeTab === 'finances'  && <FinancesTab isNew={isNew} executor={safeExecutor} transactions={transactions} />}
               </div>
 
             </form>
           </FormProvider>
-          {isDirty && (
-            <div className='form-actions-bottom'>
-              <button className='cancel-order-btn' type="button" onClick={() => reset(formDefaults)}>
-                Отменить
+
+          {/* ДОБАВЛЕН класс visible с условием isDirty */}
+          <div className={`form-actions-bottom ${isDirty ? "visible" : ""}`}>
+              <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
+                  Сбросить
               </button>
               <button className='save-order-btn' type="submit" form={formId}>
                 Сохранить

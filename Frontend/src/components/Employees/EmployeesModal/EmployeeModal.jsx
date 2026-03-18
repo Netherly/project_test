@@ -141,7 +141,8 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       if (typeof onSave === "function") {
         await onSave(data);
       }
-      setFormErrors(null);
+      reset(data);
+      closeHandler();
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       alert(e?.message || "Не удалось сохранить сотрудника");
@@ -223,16 +224,15 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
             </form>
           </FormProvider>
 
-          {isDirty && (
-            <div className="employee-modal-actions">
-              <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
-                Сбросить
-              </button>
-              <button className="save-order-btn" type="submit" form={formId}>
-                Сохранить
-              </button>
-            </div>
-          )}
+          {/* ДОБАВЛЕН класс visible с условием isDirty */}
+          <div className={`employee-modal-actions ${isDirty ? "visible" : ""}`}>
+            <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
+              Сбросить
+            </button>
+            <button className="save-order-btn" type="submit" form={formId}>
+              Сохранить
+            </button>
+          </div>
         </div>
 
         {isNew ? (

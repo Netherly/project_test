@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import "../../styles/AddAssetForm.css";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Minus } from "lucide-react";
 import ConfirmationModal from "../modals/confirm/ConfirmationModal";
 import AutoResizeTextarea from "../modals/OrderModal/AutoResizeTextarea";
 
-const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
+import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
+
+const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +34,11 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
+    handleFormChange();
+  };
+
+  const handleSelectChange = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
     handleFormChange();
   };
 
@@ -174,19 +181,44 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
             </div>
 
             <div className="form-row">
-              <label htmlFor="limitTurnover" className="form-label">
-                Лимит оборота
-              </label>
-              <input
-                type="number"
-                id="limitTurnover"
-                name="limitTurnover"
-                value={formData.limitTurnover}
-                onChange={handleChange}
-                placeholder="Введите лимит оборота"
-                className="form-input1"
-                disabled={isLoading}
-              />
+              <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
+              <div className="custom-number-input">
+                <input
+                  type="number"
+                  id="limitTurnover"
+                  name="limitTurnover"
+                  value={formData.limitTurnover}
+                  onChange={handleChange}
+                  placeholder="Введите лимит оборота"
+                  className="form-input1"
+                  disabled={isLoading}
+                  min={0}
+                />
+                <button 
+                  type="button" 
+                  className="num-btn minus-btn" 
+                  onClick={() => {
+                    const numValue = parseFloat(formData.limitTurnover) || 0;
+                    setFormData(prev => ({ ...prev, limitTurnover: Math.max(0, numValue - 1000) }));
+                    handleFormChange();
+                  }} 
+                  disabled={isLoading || (parseFloat(formData.limitTurnover) || 0) <= 0}
+                >
+                  <Minus />
+                </button>
+                <button 
+                  type="button" 
+                  className="num-btn plus-btn" 
+                  onClick={() => {
+                    const numValue = parseFloat(formData.limitTurnover) || 0;
+                    setFormData(prev => ({ ...prev, limitTurnover: numValue + 1000 }));
+                    handleFormChange();
+                  }}
+                  disabled={isLoading}
+                >
+                  <Plus />
+                </button>
+              </div>
             </div>
 
             <div className="form-row">

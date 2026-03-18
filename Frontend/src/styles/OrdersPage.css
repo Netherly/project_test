@@ -266,7 +266,7 @@
 }
 
 .create-order-btn:hover {
-  background-color: #335d7a;
+  background-color: var(--input-border-focus);
 }
 
 .create-order-btn:disabled {

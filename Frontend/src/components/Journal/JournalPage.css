@@ -462,7 +462,7 @@
     height: 100%;
 }
 .journal-add-entry-button:hover {
-    background-color: #335d7a;
+    background-color: var(--input-border-focus);
 }
 .journal-mass-action-bar {
     position: sticky;

@@ -2,6 +2,7 @@ import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import CustomSelect from "../../ui/CustomSelect";
 import AutoResizeTextarea from "./AutoResizeTextarea";
+import { Minus, Plus } from 'lucide-react';
 
 const Finance = ({ control, orderFields, transactions = [] }) => {
   useFormContext();
@@ -74,45 +75,66 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
         name="share_percent"
         control={control}
         defaultValue=""
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Доля %</div>
-            <input
-              {...field}
-              type="number"
-              min="0"
-              max="100"
-              className="tab-content-input"
-              placeholder="..."
-              onChange={(e) => handlePercentChange(e.target.value, field.onChange)}
-              value={field.value || ""}
-            />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 5, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Доля %</div>
+              <div className="custom-number-input">
+                <input
+                  {...restField}
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="tab-content-input"
+                  placeholder="..."
+                  onChange={(e) => handlePercentChange(e.target.value, onChange)}
+                  value={value || ""}
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => handlePercentChange(Math.max(min, numValue - step), onChange)} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => handlePercentChange(numValue + step, onChange)} disabled={numValue >= 100}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="budget"
         control={control}
         defaultValue=""
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Бюджет</div>
-            <input {...field} type="number" className="tab-content-input" placeholder="..." />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 100, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Бюджет</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} className="tab-content-input" placeholder="..." />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="minOrderAmount"
         control={control}
         defaultValue=""
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Мин. сумма</div>
-            <input {...field} type="number" className="tab-content-input" placeholder="..." />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 100, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Мин. сумма</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} className="tab-content-input" placeholder="..." />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       <Controller
@@ -150,12 +172,19 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
         name="hourly_rate"
         control={control}
         defaultValue=""
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Ставка в час</div>
-            <input {...field} type="number" className="tab-content-input" placeholder="..." />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Ставка в час</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} className="tab-content-input" placeholder="..." />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       <Controller
@@ -179,12 +208,19 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
       <Controller
         name="discount"
         control={control}
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Скидка</div>
-            <input {...field} type="number" className="tab-content-input" placeholder="..." />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 5, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Скидка</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} className="tab-content-input" placeholder="..." />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       <Controller
@@ -207,34 +243,55 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
       <Controller
         name="upsell"
         control={control}
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Апсейл</div>
-            <input {...field} type="number" className="tab-content-input" placeholder="..." />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Апсейл</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} className="tab-content-input" placeholder="..." />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="expenses"
         control={control}
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Расходы</div>
-            <input {...field} type="number" className="tab-content-input" placeholder="..." />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Расходы</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} className="tab-content-input" placeholder="..." />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="tips"
         control={control}
-        render={({ field }) => (
-          <div className="tab-content-row">
-            <div className="tab-content-title">Чаевые</div>
-            <input {...field} type="number" className="tab-content-input" placeholder="..." />
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Чаевые</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} className="tab-content-input" placeholder="..." />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
       />
 
       {Object.entries(maxData).map(([key, value]) => (

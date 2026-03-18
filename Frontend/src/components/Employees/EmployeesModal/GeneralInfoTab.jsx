@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
-import { useFields } from "../../../context/FieldsContext";
+import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
+import { Plus, Minus } from 'lucide-react';
 
 export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
@@ -27,8 +28,9 @@ export default function GeneralInfoTab({ fieldsData }) {
       .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
       .map((s) => String(s || "").trim().toLowerCase())
       .filter(Boolean);
+      
     setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
-  }, [fields]);
+  }, [fieldsData]); 
 
   return (
     <div className="tab-section">
@@ -119,7 +121,8 @@ export default function GeneralInfoTab({ fieldsData }) {
             return (
               <div
                 key={code}
-                className={`currency-row ${mainCurrencyValue === code ? "selected" : ""}`}
+                // ИСПРАВЛЕНО: заменил mainCurrencyValue на selectedMainCurrency
+                className={`currency-row ${selectedMainCurrency === code ? "selected" : ""}`}
               >
                 <span className="currency-label">
                   {code.toUpperCase()}
@@ -128,14 +131,24 @@ export default function GeneralInfoTab({ fieldsData }) {
                   name={`rates.${code}`}
                   control={control}
                   defaultValue=""
-                  render={({ field }) => (
-                    <input
-                      {...field}
-                      type="number"
-                      placeholder="0.00"
-                      className="currency-input"
-                    />
-                  )}
+                  render={({ field: { onChange, value, ...restField } }) => {
+                    const min = 0, step = 10, numValue = parseFloat(value) || 0;
+                    return (
+                      <div className="custom-number-input" style={{ width: '100%' }}>
+                        <input
+                          {...restField}
+                          value={value || ''} 
+                          onChange={onChange} 
+                          type="number"
+                          placeholder="0.00"
+                          className="currency-input"
+                          min={min}
+                        />
+                        <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                        <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+                      </div>
+                    );
+                  }}
                 />
               </div>
             );

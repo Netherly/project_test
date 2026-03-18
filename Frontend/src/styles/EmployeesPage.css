@@ -67,7 +67,7 @@
     color: white;
 }
 
-/* Кнопка добавления */
+
 .add-employee-button {
   background-color: var(--container-bg);
   color: var(--text-color);
@@ -84,11 +84,9 @@
   height: 100%;
 }
 
-.add-employee-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+.add-employee-button:hover{
+  background-color: var(--input-border-focus);
 }
-
 
 /* ==== States ==== */
 .employees-loading,
