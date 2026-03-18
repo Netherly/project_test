@@ -222,9 +222,25 @@ const AssetsService = {
   },
 
   async remove(id) {
-    await this.byId(id);
+    const asset = await this.byId(id);
+
+    const [transactionsCount, regularPaymentsCount] = await Promise.all([
+      prisma.transaction.count({ where: { accountId: id } }),
+      prisma.regularPayment.count({ where: { accountId: id } }),
+    ]);
+
+    if (transactionsCount > 0 || regularPaymentsCount > 0) {
+      const e = new Error('Нельзя удалить актив, пока он используется в транзакциях или регулярных платежах');
+      e.status = 400;
+      throw e;
+    }
+
     await prisma.assetRequisite.deleteMany({ where: { assetId: id } });
-    return prisma.asset.delete({ where: { id } });
+    await prisma.asset.delete({
+      where: { id },
+    });
+
+    return asset;
   },
 
   async duplicate(id) {

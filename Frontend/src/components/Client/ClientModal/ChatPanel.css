@@ -9,13 +9,20 @@
   height: 100%;
   border-radius: 8px;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* ────────── Область прокрутки ────────── */
 .chat-scroll {
   flex: 1;
-  padding: 8px;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px 18px;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+  background:
+    linear-gradient(180deg, rgba(20, 28, 50, 0.28), rgba(14, 20, 38, 0.18));
 }
 
 .chat-empty {
@@ -54,8 +61,11 @@
   padding: 12px;
   margin-bottom: 8px;
   position: relative;
-  overflow: visible;   
+  overflow: visible;   /* чтобы выпадающее меню не обрезалось */
   transition: background .2s, border-color .2s;
+}
+.log-item:hover {
+  background: var(--container-hover-bg);
 }
 /* ────────── Закреплённая карточка ────────── */
 .log-item.pinned {
@@ -178,7 +188,6 @@
   flex-direction: column;
   margin: 8px;
   border-radius: 8px;
-  flex-shrink: 0;
 }
 .chat-textarea {
   resize: none;
@@ -298,4 +307,35 @@
   font-size: 1.2rem;
   cursor: pointer;
   color: var(--chips-color);
+}
+/* ────────── Стилизация скроллбара ────────── */
+/* Для WebKit (Chrome, Safari) */
+.chat-scroll::-webkit-scrollbar {
+  width: 12px;
+}
+
+.chat-scroll::-webkit-scrollbar-track {
+  background: rgba(43, 58, 94, 0.42);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #6f8fe3 0%, #4f6dbd 100%);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #87a4f2 0%, #5f7fd0 100%);
+  background-clip: padding-box;
+}
+
+/* Для Firefox */
+.chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #5e7ac8 rgba(43, 58, 94, 0.42);
 }

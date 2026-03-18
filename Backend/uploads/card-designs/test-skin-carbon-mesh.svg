@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="960" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111111"/>
+      <stop offset="1" stop-color="#3C3C46"/>
+    </linearGradient>
+    <pattern id="mesh" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M0 24H48M24 0V48" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      <circle cx="24" cy="24" r="2" fill="rgba(255,255,255,0.14)"/>
+    </pattern>
+  </defs>
+  <rect width="960" height="600" rx="36" fill="url(#bg)"/>
+  <rect width="960" height="600" rx="36" fill="url(#mesh)"/>
+  <rect x="78" y="86" width="230" height="146" rx="28" fill="rgba(255,255,255,0.08)"/>
+  <rect x="626" y="360" width="230" height="146" rx="28" fill="rgba(255,255,255,0.08)"/>
+  <text x="72" y="360" fill="#F8F8FA" font-family="Verdana, sans-serif" font-size="52" font-weight="700">CARBON MESH</text>
+  <text x="72" y="420" fill="#D0D0D8" font-family="Verdana, sans-serif" font-size="28" letter-spacing="8">TEST CARD DESIGN</text>
+</svg>

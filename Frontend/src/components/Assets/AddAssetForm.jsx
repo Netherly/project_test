@@ -137,7 +137,9 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
 
           <form onSubmit={handleSubmit} className="add-asset-form">
             <div className="form-row">
-              <label htmlFor="accountName" className="form-label">Наименование</label>
+              <label htmlFor="accountName" className="form-label">
+                Наименование
+              </label>
               <input
                 type="text"
                 id="accountName"
@@ -152,15 +154,30 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
             </div>
 
             <div className="form-row">
-              <label htmlFor="currency" className="form-label">Валюта счета</label>
-              <CreatableSelect
+              <label htmlFor="currency" className="form-label">
+                Валюта счета
+              </label>
+              <select
+                id="currency"
+                name="currency"
                 value={formData.currency}
-                onChange={(val) => handleSelectChange("currency", val)}
-                options={(generalFields.currency || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                placeholder="Выберите или введите..."
+                onChange={handleChange}
+                required
+                className="form-input1"
                 disabled={isLoading}
-                onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
-              />
+              >
+                <option value="" disabled hidden>
+                  Не выбрано
+                </option>
+                {(generalFields.currency || []).map((item, index) => {
+                  const val = item?.value ?? item;
+                  return (
+                    <option key={item?.id || index} value={val}>
+                      {val}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             <div className="form-row">
@@ -205,31 +222,60 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
             </div>
 
             <div className="form-row">
-              <label htmlFor="type" className="form-label">Тип</label>
-              <CreatableSelect
+              <label htmlFor="type" className="form-label">
+                Тип
+              </label>
+              <select
+                id="type"
+                name="type"
                 value={formData.type}
-                onChange={(val) => handleSelectChange("type", val)}
-                options={(assetsFields.type || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                placeholder="Выберите или введите..."
+                onChange={handleChange}
+                required
+                className="form-input1"
                 disabled={isLoading}
-                onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
-              />
+              >
+                <option value="" disabled hidden>
+                  Не выбрано
+                </option>
+                {(assetsFields.type || []).map((item, index) => {
+                  const val = item?.value ?? item;
+                  return (
+                    <option key={item?.id || index} value={val}>
+                      {val}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             <div className="form-row">
-              <label htmlFor="paymentSystem" className="form-label">Платежная система</label>
-              <CreatableSelect
+              <label htmlFor="paymentSystem" className="form-label">
+                Платежная система
+              </label>
+              <select
+                id="paymentSystem"
+                name="paymentSystem"
                 value={formData.paymentSystem}
-                onChange={(val) => handleSelectChange("paymentSystem", val)}
-                options={(assetsFields.paymentSystem || []).filter(i=>!i.isDeleted).map(i=>i.value)}
-                placeholder="Выберите или введите..."
+                onChange={handleChange}
+                className="form-input1"
                 disabled={isLoading}
-                onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "paymentSystem", val)}
-              />
+              >
+                <option value="" disabled hidden>Не выбрано</option>
+                {(assetsFields.paymentSystem || []).map((item, index) => {
+                  const val = item?.value ?? item;
+                  return (
+                    <option key={item?.id || index} value={val}>
+                      {val}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
 
             <div className="form-row">
-              <label htmlFor="design" className="form-label">Дизайн</label>
+              <label htmlFor="design" className="form-label">
+                Дизайн
+              </label>
               <select
                 id="design"
                 name="design"
@@ -239,7 +285,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
                 disabled={isLoading}
               >
                 <option value="" disabled hidden>Не выбрано</option>
-                {(assetsFields.cardDesigns || []).filter(i=>!i.isDeleted).map((design, index) => (
+                {(assetsFields.cardDesigns || []).map((design, index) => (
                   <option key={design?.id || index} value={design?.id}>
                     {design?.name}
                   </option>
@@ -248,7 +294,9 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
             </div>
 
             <div className="form-row">
-              <label htmlFor="employeeId" className="form-label">Сотрудник</label>
+              <label htmlFor="employeeId" className="form-label">
+                Сотрудник
+              </label>
               <select
                 id="employeeId"
                 name="employeeId"

@@ -1,29 +1,101 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { httpPost, httpPut } from '../../../api/http';
-import { Plus, ExternalLink, Copy, LogOut, Link2Off } from 'lucide-react';
-import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
+import { createEmployeeTemporaryPassword } from '../../../api/employees';
+import { Plus, ExternalLink, Copy, Link2Off } from 'lucide-react';
+import {
+  buildSyntheticCountryOption,
+  getCountryDisplayName,
+  inferPhoneCountryIso2,
+} from '../../../utils/countryDisplay';
 
-export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewField }) {
-  const { control, setValue, formState: { errors } } = useFormContext();
+export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ru' }) {
+  const { control, getValues, setValue, formState: { errors } } = useFormContext();
   
-  const countries = Array.isArray(fieldsData?.generalFields?.country) ? fieldsData.generalFields.country : [];
+  
+  const countries = Array.isArray(fieldsData?.employeeFields?.country) ? fieldsData.employeeFields.country : [];
+  const [inferredCountryOption, setInferredCountryOption] = useState(null);
 
   const countryOptions = useMemo(() => {
-    return countries
-      .filter(item => !item.isDeleted)
+    const options = countries
       .map((item) => {
         if (typeof item === "string") {
           const name = item.trim();
-          return name ? name : null;
+          return name ? { value: name, label: name, name } : null;
         }
-        const label = String(item?.value ?? item?.name ?? "").trim();
-        return label ? label : null;
+        const label = getCountryDisplayName(item, crmLanguage);
+        const value = String(item?.id ?? label).trim();
+        return label
+          ? {
+              ...item,
+              value,
+              label,
+              iso2: String(item?.iso2 ?? '').trim().toUpperCase(),
+              iso3: String(item?.iso3 ?? '').trim().toUpperCase(),
+            }
+          : null;
       })
       .filter(Boolean);
-  }, [countries]);
 
+    if (
+      inferredCountryOption &&
+      !options.some(
+        (option) =>
+          option.value === inferredCountryOption.value ||
+          (option.iso2 && option.iso2 === inferredCountryOption.iso2)
+      )
+    ) {
+      options.unshift(inferredCountryOption);
+    }
+
+    return options;
+  }, [countries, crmLanguage, inferredCountryOption]);
+
+  const currentCountry = useWatch({ control, name: "country" });
   const currentCountryId = useWatch({ control, name: "countryId" });
+  const phoneValue = useWatch({ control, name: 'phone' });
+
+  useEffect(() => {
+    if (!countryOptions.length || (!currentCountry && !currentCountryId)) return;
+    const matchById = currentCountryId
+      ? countryOptions.find((opt) => opt.value === currentCountryId)
+      : null;
+    const normalizedCurrent = String(currentCountry || '').trim().toLowerCase();
+    const matchByValue = normalizedCurrent
+      ? countryOptions.find((opt) =>
+          [
+            opt.label,
+            opt.name,
+            opt.nameEn,
+            opt.nameRu,
+            opt.nameUk,
+            opt.iso2,
+            opt.iso3,
+          ]
+            .map((value) => String(value || '').trim().toLowerCase())
+            .filter(Boolean)
+            .includes(normalizedCurrent)
+        )
+      : null;
+    const match = matchById || matchByValue;
+
+    if (!match) return;
+
+    if (currentCountryId !== match.value) {
+      setValue("countryId", match.value, { shouldDirty: false });
+    }
+    if (currentCountry !== match.label) {
+      setValue("country", match.label, { shouldDirty: false });
+    }
+    setInferredCountryOption(match.synthetic ? match : null);
+  }, [countryOptions, currentCountry, currentCountryId, setValue]);
+
+  useEffect(() => {
+    setTemporaryPassword(null);
+    setTempPasswordError('');
+    setInferredCountryOption(null);
+  }, [employeeId]);
+ 
 
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [linkError, setLinkError] = useState('');
@@ -31,6 +103,45 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [unlinkError, setUnlinkError] = useState('');
   const [unlinkState, setUnlinkState] = useState('');
+  const [isCreatingTempPassword, setIsCreatingTempPassword] = useState(false);
+  const [tempPasswordError, setTempPasswordError] = useState('');
+  const [temporaryPassword, setTemporaryPassword] = useState(null);
+
+  const applyPhoneCountryAutofill = (nextPhone = phoneValue) => {
+    const selectedCountryId = String(getValues('countryId') || '').trim();
+    const selectedCountry = String(getValues('country') || '').trim();
+    if (selectedCountryId || selectedCountry) return;
+
+    const iso2 = inferPhoneCountryIso2(nextPhone);
+    if (!iso2) return;
+
+    const existingOption = countryOptions.find((option) => String(option?.iso2 || '').trim().toUpperCase() === iso2);
+    const nextOption = existingOption || buildSyntheticCountryOption(iso2, crmLanguage);
+    if (!nextOption) return;
+
+    if (nextOption.synthetic) {
+      setInferredCountryOption(nextOption);
+    } else {
+      setInferredCountryOption(null);
+    }
+
+    setValue('countryId', nextOption.value, { shouldDirty: true, shouldValidate: true });
+    setValue('country', nextOption.label, { shouldDirty: true, shouldValidate: false });
+  };
+
+  const handleCountryChange = (nextValue, onChange) => {
+    onChange(nextValue);
+
+    if (!nextValue) {
+      setValue('country', '', { shouldDirty: true, shouldValidate: false });
+      setInferredCountryOption(null);
+      return;
+    }
+
+    const nextOption = countryOptions.find((option) => option.value === nextValue);
+    setInferredCountryOption(nextOption?.synthetic ? nextOption : null);
+    setValue('country', nextOption?.label || '', { shouldDirty: true, shouldValidate: false });
+  };
 
   const telegramId = useWatch({ control, name: 'telegramId' });
   const telegramNickname = useWatch({ control, name: 'telegramNickname' });
@@ -147,30 +258,74 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
     }
   };
 
+  const handleCreateTemporaryPassword = async () => {
+    if (!employeeId) {
+      setTempPasswordError('Сначала сохраните сотрудника');
+      return;
+    }
+
+    setIsCreatingTempPassword(true);
+    setTempPasswordError('');
+
+    try {
+      const data = await createEmployeeTemporaryPassword(employeeId);
+      setTemporaryPassword({
+        password: String(data?.password || ''),
+      });
+    } catch (error) {
+      console.error('Ошибка создания временного пароля:', error);
+      setTempPasswordError(error?.message || 'Не удалось создать временный пароль');
+    } finally {
+      setIsCreatingTempPassword(false);
+    }
+  };
+
+  const copyTemporaryPassword = async () => {
+    const password = String(temporaryPassword?.password || '').trim();
+    if (!password) return;
+
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('Clipboard API unavailable');
+      }
+      await navigator.clipboard.writeText(password);
+    } catch (error) {
+      console.error('Temporary password copy failed:', error);
+      setTempPasswordError('Не удалось скопировать пароль');
+      setTimeout(() => setTempPasswordError(''), 2000);
+    }
+  };
+
   return (
     <div className="tab-section">
+      
+      
       
       <div className="form-field">
         <label>Страна</label>
         <Controller
-          name="countryId" 
+          name="countryId"
           control={control}
           render={({ field }) => (
-            <CreatableSelect
-              value={field.value}
-              onChange={field.onChange}
-              options={countryOptions}
-              placeholder="Выберите или введите..."
-              error={!!errors.countryId}
-              onAdd={(val) => {
-                if (onAddNewField) onAddNewField("generalFields", "country", val);
-              }}
-            />
+            <select
+              {...field}
+              value={field.value ?? ''}
+              onChange={(event) => handleCountryChange(event.target.value, field.onChange)}
+              className={errors.countryId ? "input-error" : ""}
+            >
+              <option value="">Не выбрано</option>
+              {countryOptions.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           )}
         />
         {errors.countryId && <p className="error">{errors.countryId.message}</p>}
       </div>
 
+      
       <div className="form-field">
         <label>Статус</label>
         <Controller
@@ -186,6 +341,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
         />
       </div>
 
+      
       <Controller
         name="fullName"
         control={control}
@@ -202,6 +358,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
         )}
       />
 
+      
       <Controller
         name="login"
         control={control}
@@ -223,17 +380,52 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Пароль</label>
+            <label>{isNew ? 'Пароль' : 'Основной пароль'}</label>
             <input
               {...field}
               type="password"
-              placeholder="Введите пароль"
+              placeholder={isNew ? 'Введите пароль' : 'Оставьте пустым, если менять не нужно'}
               className={errors.password ? "input-error" : ""}
             />
             {errors.password && <p className="error">{errors.password.message}</p>}
           </div>
         )}
       />
+
+      {!isNew && (
+        <div className="form-field">
+          <label>Временный пароль</label>
+          <div className="input-with-icon-wrapper">
+            <input
+              type="text"
+              readOnly
+              value={temporaryPassword?.password || ''}
+              placeholder="Создать временный пароль"
+            />
+            <div className="input-icons-group">
+              <button
+                type="button"
+                className="icon-action-btn"
+                onClick={handleCreateTemporaryPassword}
+                disabled={isCreatingTempPassword}
+                title="Создать временный пароль"
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                type="button"
+                className="icon-action-btn"
+                onClick={copyTemporaryPassword}
+                disabled={!temporaryPassword?.password}
+                title="Скопировать пароль"
+              >
+                <Copy size={18} />
+              </button>
+            </div>
+          </div>
+          {tempPasswordError && <p className="error">{tempPasswordError}</p>}
+        </div>
+      )}
 
       <Controller
         name="birthDate"
@@ -256,6 +448,10 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
               {...field}
               placeholder="+380..."
               className={errors.phone ? 'input-error' : ''}
+              onBlur={(event) => {
+                field.onBlur();
+                applyPhoneCountryAutofill(event.target.value);
+              }}
             />
             {errors.phone && <p className="error">{errors.phone.message}</p>}
           </div>
@@ -362,17 +558,20 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                 <label>Ссылка на привязку</label>
                 <div className="input-with-icon-wrapper">
                   <input 
-                    {...field} 
-                    placeholder="Ссылка..." 
-                    readOnly 
+                    {...field}
+                    placeholder="https://t.me/..."
+                    onChange={(event) => {
+                      setLinkError('');
+                      field.onChange(event);
+                    }}
                   />
                   <div className="input-icons-group">
                     <button
                       type="button"
                       className="icon-action-btn"
                       onClick={handleGenerateLink}
-                      disabled={isGeneratingLink || field.value} 
-                      title="Создать ссылку"
+                      disabled={isGeneratingLink}
+                      title="Создать или обновить ссылку"
                     >
                       <Plus size={18} />
                     </button>
@@ -404,6 +603,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
             )}
           />
           
+          {/* НОВОЕ ПОЛЕ: Ссылка на чат */}
           <Controller
             name="chatLink"
             control={control}
@@ -417,6 +617,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                     readOnly 
                   />
                   <div className="input-icons-group">
+                    {/* Кнопка Открыть */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -427,6 +628,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                       <ExternalLink size={18} />
                     </button>
 
+                    {/* Кнопка Выйти (Отвязать) */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -434,7 +636,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, onAddNewFie
                       disabled={!isTelegramLinked || isUnlinking}
                       title="Отвязать Telegram"
                     >
-                      <Link2Off size={18} color="#ff6b6b" /> 
+                      <Link2Off size={18} color="#ff6b6b" /> {/* Красная иконка для опасного действия */}
                     </button>
                   </div>
                 </div>

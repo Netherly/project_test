@@ -1,4 +1,6 @@
 // src/api.js
+import { setAuthToken } from './http';
+
 // --- безопасно вычисляем базовый URL ---
 function normalizeBase(v) {
   const s = typeof v === 'string' ? v.trim() : '';
@@ -29,10 +31,12 @@ function getToken() {
 function setToken(token) {
   if (token) {
     localStorage.setItem('token', token);
+    setAuthToken(token);
   }
 }
 function clearAuth() {
   localStorage.removeItem('token');
+  setAuthToken(null);
 }
 function authHeaders(extra = {}) {
   const t = getToken();

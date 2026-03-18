@@ -46,7 +46,8 @@ select option:disabled {
 
 
 .left-panel {
-  flex: 0 0 700px; 
+  flex: 0 1 clamp(820px, 52vw, 980px);
+  min-width: 760px;
   display: flex;
   flex-direction: column; 
 }
@@ -56,6 +57,11 @@ select option:disabled {
   flex: 1 1 auto; 
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  border-left: 1px solid rgba(131, 148, 193, 0.16);
+  background:
+    radial-gradient(circle at top left, rgba(95, 132, 196, 0.14), transparent 42%),
+    linear-gradient(180deg, rgba(24, 33, 58, 0.98), rgba(18, 25, 46, 0.98));
 }
 
 
@@ -102,7 +108,7 @@ select option:disabled {
 
 .general-tab-section {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   padding: 0;
 }
 
@@ -111,7 +117,8 @@ select option:disabled {
   flex-direction: row;
   align-items: flex-start;
   margin: 0;
-  gap: 15px;
+  gap: 22px;
+  min-width: 0;
 }
 .form-field.full-width, .form-fieldset {
   grid-column: 1 / -1;
@@ -119,27 +126,30 @@ select option:disabled {
 }
 .form-field label {
   align-items: center;
-  width: 150px;
+  width: 220px;
   font-weight: 500;
   font-size: 14px;
   color: var(--chips-color);
   flex-shrink: 0;
   padding-top: 4px;
+  white-space: nowrap;
 }
 
 .form-field input,
 .form-field select{
   background-color: #19213A;
-    border: none;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    color: var(--container-text-color);
-    padding: 10px 12px;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.3);
-    min-width: 170px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  border: none;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color: var(--container-text-color);
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  min-width: 0;
+  width: 100%;
+  flex: 1 1 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 .form-field textarea {
@@ -148,6 +158,9 @@ select option:disabled {
   font-size: 14px;
   transition: border-color 0.2s;
   background-color: #19213A;
+  min-width: 0;
+  width: 100%;
+  flex: 1 1 auto;
 }
 .form-field input:focus,
 .form-field select:focus,
@@ -319,6 +332,7 @@ select option:disabled {
   padding: 8px 10px 8px 12px;
   min-height: 38px;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .form-field.read-only-field textarea {

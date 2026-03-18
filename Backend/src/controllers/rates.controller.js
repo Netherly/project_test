@@ -1,5 +1,6 @@
 // src/controllers/rates.controller.js
 const svc = require('../services/rates.service');
+const { ensureLatestToDate, getTodayYMDFromEnv } = require('../services/rates.autofill.service');
 
 // ===== helpers =====
 const US_LABELS = [
@@ -47,14 +48,6 @@ function toYYYYMMDD(input) {
     return `${y}-${m}-${d}`;
   }
   return String(input).slice(0, 10);
-}
-
-/** Для UI: отобразим как en-US дата (по требованию можно сменить) */
-function toUSDate(d) {
-  if (!d) return d;
-  const dt = d instanceof Date ? d : new Date(d);
-  // отрисовка — в локали en-US; хранение — UTC в сервисе
-  return dt.toLocaleDateString('en-US');
 }
 
 const ok = (res, data) => res.status(200).json(data);
@@ -116,8 +109,20 @@ exports.getLatest = async (_req, res, next) => {
     const row = await svc.getLatest();
     if (!row) return res.json({ columns: [], rows: [] });
 
-    const mapped = { ...row, date: toUSDate(row.date) };
+    const mapped = { ...row, date: toYYYYMMDD(row.date) };
     return ok(res, { columns: US_LABELS, rows: [mapped] });
+  } catch (e) { next(e); }
+};
+
+exports.ensureToday = async (_req, res, next) => {
+  try {
+    const ymd = getTodayYMDFromEnv();
+    const result = await ensureLatestToDate(ymd);
+    return ok(res, {
+      date: ymd,
+      created: Boolean(result?.created),
+      exists: Boolean(result?.row),
+    });
   } catch (e) { next(e); }
 };
 
@@ -128,7 +133,7 @@ exports.list = async (req, res, next) => {
     const pageSize = Math.min(200, Math.max(1, Number(req.query.pageSize ?? 20)));
 
     const data = await svc.list({ page, pageSize });
-    data.rows = data.rows.map(r => ({ ...r, date: toUSDate(r.date) }));
+    data.rows = data.rows.map(r => ({ ...r, date: toYYYYMMDD(r.date) }));
     return ok(res, data);
   } catch (e) { next(e); }
 };
@@ -142,7 +147,7 @@ exports.listByRange = async (req, res, next) => {
       return res.status(400).json({ message: 'start and end are required in YYYY-MM-DD format' });
     }
     const rows = await svc.listByRange({ start, end });
-    return ok(res, rows.map(r => ({ ...r, date: toUSDate(r.date) })));
+    return ok(res, rows.map(r => ({ ...r, date: toYYYYMMDD(r.date) })));
   } catch (e) { next(e); }
 };
 

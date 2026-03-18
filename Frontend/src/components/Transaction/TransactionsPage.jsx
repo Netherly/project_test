@@ -9,10 +9,6 @@ import "../../styles/TransactionsPage.css";
 import "../../components/Journal/JournalPage.css";
 import { useTransactions } from "../../context/TransactionsContext";
 
-
-import { fetchFields, saveFields, withDefaults, serializeForSave, rid } from "../../api/fields";
-import { useFields } from "../../context/FieldsContext";
-
 const defaultFilterData = {
   searchGlobal: "",
   searchCategory: [],
@@ -23,81 +19,109 @@ const defaultFilterData = {
   searchCounterparty: [],
 };
 
+const sortTransactionsDesc = (list) =>
+  [...list].sort((a, b) => {
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+    if (dateB - dateA !== 0) return dateB - dateA;
+    if (a.operation === "Зачисление" && b.operation !== "Зачисление") return -1;
+    if (a.operation !== "Зачисление" && b.operation === "Зачисление") return 1;
+    return 0;
+  });
+
+const buildTransactionsWithBalances = (list, assets) => {
+  if (!assets || assets.length === 0) {
+    return list.map((t) => ({ ...t, balanceBefore: 0, balanceAfter: 0 }));
+  }
+
+  const runningBalances = new Map();
+  assets.forEach((asset) => {
+    if (asset.id) runningBalances.set(asset.id, Number(asset.balance) || 0);
+    if (asset.accountName) runningBalances.set(asset.accountName, Number(asset.balance) || 0);
+  });
+
+  return list.map((transaction) => {
+    const accountId =
+      transaction.accountId ||
+      transaction.account?.id ||
+      (typeof transaction.account === "string" ? transaction.account : null);
+    const accountName =
+      transaction.accountName ||
+      transaction.account?.accountName ||
+      (typeof transaction.account === "string" ? transaction.account : "");
+
+    const amount = Number(transaction.amount) || 0;
+    const commission = Number(transaction.commission) || 0;
+    const netDelta =
+      transaction.operation === "Зачисление" ? amount - commission : amount + commission;
+
+    const balanceKey = accountId || accountName;
+    const balanceAfter = runningBalances.get(balanceKey) ?? 0;
+    const balanceBefore =
+      transaction.operation === "Зачисление"
+        ? balanceAfter - netDelta
+        : balanceAfter + netDelta;
+
+    if (balanceKey) runningBalances.set(balanceKey, balanceBefore);
+    if (accountName && !runningBalances.has(accountName)) {
+      runningBalances.set(accountName, balanceBefore);
+    }
+
+    return {
+      ...transaction,
+      accountId,
+      accountName,
+      balanceBefore,
+      balanceAfter,
+    };
+  });
+};
+
+const expandTransactionsForDisplay = (transactions) =>
+  sortTransactionsDesc(transactions).flatMap((transaction) => {
+    const commission = Number(transaction.commission) || 0;
+    if (commission <= 0) {
+      return [{ ...transaction, displayId: transaction.id }];
+    }
+
+    const sourceId = String(transaction.id);
+    const baseDescription = String(transaction.description || "").trim();
+    const commissionRow = {
+      ...transaction,
+      displayId: `${sourceId}__commission`,
+      sourceTransactionId: sourceId,
+      isCommissionRow: true,
+      operation: "Списание",
+      amount: commission,
+      commission: 0,
+      description: baseDescription ? `Комиссия: ${baseDescription}` : "Комиссия",
+    };
+
+    const mainRow = {
+      ...transaction,
+      displayId: sourceId,
+      commission: 0,
+    };
+
+    return [commissionRow, mainRow];
+  });
+
 const TransactionsPage = () => {
   const navigate = useNavigate();
   const { transactionId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { refreshFields } = useFields();
-
   const {
     transactions,
     assets,
+    financeFields,
     addTransaction,
     updateTransaction,
     deleteTransaction,
     duplicateTransaction,
     orders,
     counterparties,
-    refreshAll 
   } = useTransactions();
-
-  
-  const [localFinanceFields, setLocalFinanceFields] = useState({ articles: [], subarticles: [], subcategory: [] });
-
- 
-  const loadFields = async () => {
-    try {
-        const raw = await fetchFields();
-        const norm = withDefaults(raw);
-        setLocalFinanceFields(norm.financeFields || { articles: [], subarticles: [], subcategory: [] });
-    } catch (e) {
-        console.error("Ошибка загрузки полей финансов:", e);
-    }
-  };
-
-  
-  useEffect(() => {
-    if (refreshAll) refreshAll();
-    loadFields(); 
-  }, []);
-
-  
-  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
-    try {
-        const raw = await fetchFields();
-        const normalized = withDefaults(raw);
-        const list = normalized[group]?.[fieldName] || [];
-
-        let exists = false;
-        let newItem = { id: rid(), isDeleted: false };
-
-        if (fieldName === "articles") {
-            exists = list.find(item => item.articleValue && item.articleValue.toLowerCase() === newValue.toLowerCase());
-            newItem.articleValue = newValue;
-        } else if (fieldName === "subarticles") {
-            exists = list.find(item => 
-                item.subarticleValue && item.subarticleValue.toLowerCase() === newValue.toLowerCase() &&
-                item.subarticleInterval === extraData.subarticleInterval
-            );
-            newItem.subarticleInterval = extraData.subarticleInterval;
-            newItem.subarticleValue = newValue;
-        }
-
-        if (!exists) {
-            list.push(newItem);
-            normalized[group][fieldName] = list;
-            const payload = serializeForSave(normalized);
-            await saveFields(payload);
-            
-            await loadFields(); 
-            if (refreshFields) await refreshFields();
-        }
-    } catch (e) {
-        console.error("Ошибка при сохранении нового поля в БД:", e);
-    }
-  };
-  // -----------------------------------------------------
 
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const searchContainerRef = useRef(null);
@@ -157,72 +181,23 @@ const TransactionsPage = () => {
       .catch((err) => console.error("Не удалось скопировать: ", err));
   };
 
-  const transactionsWithBalances = useMemo(() => {
-    if (!assets || assets.length === 0) {
-      return transactions.map((t) => ({ ...t, balanceBefore: 0, balanceAfter: 0 }));
-    }
+  const transactionsWithBalances = useMemo(
+    () => buildTransactionsWithBalances(sortTransactionsDesc(transactions), assets),
+    [transactions, assets]
+  );
 
-    const runningBalances = new Map();
-    assets.forEach((asset) => {
-      if (asset.id) runningBalances.set(asset.id, Number(asset.balance) || 0);
-      if (asset.accountName) runningBalances.set(asset.accountName, Number(asset.balance) || 0);
-    });
+  const displayTransactionsWithBalances = useMemo(
+    () => buildTransactionsWithBalances(expandTransactionsForDisplay(transactions), assets),
+    [transactions, assets]
+  );
 
-    const sortedTransactions = [...transactions];
-    sortedTransactions.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      if (dateB - dateA !== 0) return dateB - dateA;
-      if (a.operation === "Зачисление" && b.operation !== "Зачисление") return -1;
-      if (a.operation !== "Зачисление" && b.operation === "Зачисление") return 1;
-      return 0;
-    });
-
-    return sortedTransactions.map((transaction) => {
-      const accountId =
-        transaction.accountId ||
-        transaction.account?.id ||
-        (typeof transaction.account === "string" ? transaction.account : null);
-      const accountName =
-        transaction.accountName ||
-        transaction.account?.accountName ||
-        (typeof transaction.account === "string" ? transaction.account : "");
-
-      const amount = Number(transaction.amount) || 0;
-      const commission = Number(transaction.commission) || 0;
-      const netDelta =
-        transaction.operation === "Зачисление" ? amount - commission : amount + commission;
-
-      const balanceKey = accountId || accountName;
-      const balanceAfter = runningBalances.get(balanceKey) ?? 0;
-      const balanceBefore =
-        transaction.operation === "Зачисление"
-          ? balanceAfter - netDelta
-          : balanceAfter + netDelta;
-
-      if (balanceKey) runningBalances.set(balanceKey, balanceBefore);
-      if (accountName && !runningBalances.has(accountName)) {
-        runningBalances.set(accountName, balanceBefore);
-      }
-
-      return {
-        ...transaction,
-        accountId,
-        accountName,
-        balanceBefore,
-        balanceAfter,
-      };
-    });
-  }, [transactions, assets]);
-
- 
   const uniqueCategories = useMemo(() => {
-    return localFinanceFields?.articles?.map((a) => a.articleValue).filter(Boolean) || [];
-  }, [localFinanceFields]);
+    return financeFields?.articles?.map((a) => a.articleValue).filter(Boolean) || [];
+  }, [financeFields]);
 
   const uniqueSubcategories = useMemo(() => {
-    return localFinanceFields?.subarticles?.map((s) => s.subarticleValue).filter(Boolean) || [];
-  }, [localFinanceFields]);
+    return financeFields?.subarticles?.map((s) => s.subarticleValue).filter(Boolean) || [];
+  }, [financeFields]);
 
   const uniqueAccounts = useMemo(() => {
     return assets?.map((a) => a.accountName).filter(Boolean) || [];
@@ -252,7 +227,7 @@ const TransactionsPage = () => {
       searchCounterparty,
     } = filterData;
 
-    const filtered = transactionsWithBalances.filter((t) => {
+    const filtered = displayTransactionsWithBalances.filter((t) => {
       let matchesGlobal = true;
       if (searchGlobal) {
         const searchLower = searchGlobal.toLowerCase();
@@ -294,7 +269,7 @@ const TransactionsPage = () => {
 
   useEffect(() => {
     applyFilters();
-  }, [filterData, transactionsWithBalances]);
+  }, [filterData, displayTransactionsWithBalances]);
 
   const updateURLWithFilters = (newFilters) => {
     const params = new URLSearchParams();
@@ -366,7 +341,7 @@ const TransactionsPage = () => {
   const isAddMode = transactionId === "new";
 
   const handleOpenTransaction = (transaction) => {
-    navigate(`/list/${transaction.id}`);
+    navigate(`/list/${transaction.sourceTransactionId || transaction.id}`);
   };
 
   const handleOpenAddModal = () => {
@@ -558,7 +533,7 @@ const TransactionsPage = () => {
               {displayedTransactions.length > 0 ? (
                 displayedTransactions.map((transaction) => (
                   <tr
-                    key={transaction.id}
+                    key={transaction.displayId || transaction.id}
                     className="transaction-row"
                     onClick={() => handleOpenTransaction(transaction)}
                   >
@@ -619,10 +594,9 @@ const TransactionsPage = () => {
           onAdd={handleAddTransaction}
           onClose={handleCloseModal}
           assets={assets}
-          financeFields={localFinanceFields}
+          financeFields={financeFields}
           orders={orders}
           counterparties={counterparties}
-          onAddNewField={handleAddNewField}
         />
       )}
 
@@ -634,10 +608,9 @@ const TransactionsPage = () => {
           onDuplicate={handleDuplicateTransaction}
           onClose={handleCloseModal}
           assets={assets}
-          financeFields={localFinanceFields}
+          financeFields={financeFields}
           orders={orders}
           counterparties={counterparties}
-          onAddNewField={handleAddNewField}
         />
       )}
     </div>

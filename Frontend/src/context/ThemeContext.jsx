@@ -1,11 +1,11 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 
 export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const location = useLocation();
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+  const [theme, setThemeState] = useState(localStorage.getItem("theme") || "dark");
   const [backgroundImage, setBackgroundImage] = useState(
     localStorage.getItem("backgroundImage") || "/gsse-cover.png"
   );
@@ -35,10 +35,16 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [backgroundImage, location.pathname]);
 
-  const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
+  const setTheme = useCallback((nextTheme) => {
+    setThemeState(nextTheme === "light" ? "light" : "dark");
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => (prev === "light" ? "dark" : "light"));
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, backgroundImage, setBackgroundImage }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, backgroundImage, setBackgroundImage }}>
       {children}
     </ThemeContext.Provider>
   );

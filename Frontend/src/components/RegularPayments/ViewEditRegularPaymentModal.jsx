@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import "../../styles/ViewEditTransactionModal.css"; 
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Trash2, Copy, X, Plus, Minus } from 'lucide-react';

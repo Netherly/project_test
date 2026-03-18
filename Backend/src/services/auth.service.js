@@ -3,6 +3,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity } = require('./activity-log.service');
+const { hasColumn, pickExistingColumns } = require('../utils/db-schema');
+const tempPasswordService = require('./employee-temp-password.service');
 
 const ACCESS_TTL = process.env.JWT_ACCESS_TTL || '15m';
 const REFRESH_TTL = process.env.JWT_REFRESH_TTL || '3d';
@@ -20,6 +22,10 @@ function genUserId8() {
 }
 
 async function generateUniqueUserId(maxAttempts = 20) {
+  if (!(await hasColumn('Employee', 'userid'))) {
+    return null;
+  }
+
   for (let i = 0; i < maxAttempts; i++) {
     const candidate = genUserId8();
     const exists = await prisma.employee.findUnique({
@@ -29,6 +35,31 @@ async function generateUniqueUserId(maxAttempts = 20) {
     if (!exists) return candidate;
   }
   httpErr('Не удалось сгенерировать уникальный userid', 500);
+}
+
+async function buildAuthEmployeeSelect() {
+  const select = {
+    id: true,
+    login: true,
+    password: true,
+  };
+
+  if (await hasColumn('Employee', 'full_name')) {
+    select.full_name = true;
+  }
+  if (await hasColumn('Employee', 'userid')) {
+    select.userid = true;
+  }
+
+  return select;
+}
+
+async function buildEmployeeTokenSelect() {
+  const select = { id: true };
+  if (await hasColumn('Employee', 'userid')) {
+    select.userid = true;
+  }
+  return select;
 }
 
 async function register({ full_name, birthDate, phone, email, login, password }) {
@@ -50,16 +81,19 @@ async function register({ full_name, birthDate, phone, email, login, password })
   const userid = await generateUniqueUserId();
   const hashed = await bcrypt.hash(password, 10);
 
+  const data = await pickExistingColumns('Employee', {
+    full_name,
+    birthDate: birthDate ? new Date(birthDate) : null,
+    phone,
+    email,
+    login,
+    password: hashed,
+    userid,
+  });
+
   const employee = await prisma.employee.create({
-    data: {
-      full_name,
-      birthDate: birthDate ? new Date(birthDate) : null,
-      phone,
-      email,
-      login,
-      password: hashed,
-      userid,
-    },
+    data,
+    select: await buildAuthEmployeeSelect(),
   });
 
   try {
@@ -118,10 +152,19 @@ function signRefreshToken(employee, loginAtMs) {
 async function login(identifier, password) {
   const employee = await prisma.employee.findFirst({
     where: { OR: [{ login: identifier }, { email: identifier }] },
+    select: await buildAuthEmployeeSelect(),
   });
   if (!employee) httpErr('Неверный логин или пароль', 401);
 
-  const ok = await bcrypt.compare(password, employee.password);
+  const stored = employee.password || '';
+  const isBcrypt = typeof stored === 'string' && stored.startsWith('$2');
+  let ok = isBcrypt
+    ? await bcrypt.compare(password, stored)
+    : String(password) === String(stored);
+  if (!ok) {
+    const temporary = await tempPasswordService.consumeIfMatches(employee.id, password);
+    ok = temporary.matched === true;
+  }
   if (!ok) httpErr('Неверный логин или пароль', 401);
 
   const loginAtMs = Date.now();
@@ -146,6 +189,7 @@ async function refreshTokens(refreshToken) {
 
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
+    select: await buildEmployeeTokenSelect(),
   });
   if (!employee) httpErr('Employee not found', 401);
 

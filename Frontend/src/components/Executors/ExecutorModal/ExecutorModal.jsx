@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { executorSchema } from './executorSchema'; 
@@ -17,15 +17,12 @@ import '../../../styles/ExecutorModal.css';
 export default function ExecutorModal({
   executor, 
   orders,
-  employees, 
   journalEntries,   
   transactions,
+  fields,  
   onClose,
   onSave,
-  onDelete,
-  roleOptions = [],     
-  currencyOptions = [], 
-  onAddNewField          
+  onDelete
 }) {
   const safeExecutor = executor ?? {};
   const isNew = !safeExecutor.id;
@@ -35,6 +32,21 @@ export default function ExecutorModal({
   const [isOpen, setIsOpen] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const formId = 'executor-form';
+  const formDefaults = useMemo(() => ({
+      orderId: '',
+      orderNumber: '',
+      performer: '',
+      dateForPerformer: new Date().toISOString().split('T')[0],
+      hideClient: false,
+      roundHours: false,
+      currency: fields?.currency?.[0]?.value || '',
+      hourlyRate: '',
+      amountInput: '',
+      maxAmount: '',
+      ...safeExecutor,
+      role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].value : ''),
+  }), [fields, safeExecutor]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsOpen(true), 10);
@@ -42,42 +54,39 @@ export default function ExecutorModal({
   }, []);
 
   const methods = useForm({
-    resolver: yupResolver(executorSchema),
-    mode: 'onChange',
-    defaultValues: {
-        orderId: '',
-        orderNumber: '',
-        performer: '', 
-        dateForPerformer: new Date().toISOString().split('T')[0], 
-        hideClient: false,
-        roundHours: false,
-        currency: safeExecutor.currency || (currencyOptions.length > 0 ? currencyOptions[0] : 'UAH'), 
-        hourlyRate: '',
-        amountInput: '',
-        maxAmount: '',
-        ...safeExecutor,
-        role: safeExecutor.performerRole || (roleOptions.length > 0 ? roleOptions[0] : ''),
-    },
-  });
+        resolver: yupResolver(executorSchema),
+        mode: 'onChange',
+        defaultValues: formDefaults,
+    });
 
   const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
 
+  useEffect(() => {
+    reset(formDefaults);
+  }, [formDefaults, reset]);
+
   const submitHandler = (data) => {
-    const dataToSave = {
-        ...safeExecutor, 
-        ...data,        
-        performerRole: data.role,
-        orderSum: parseFloat(data.amountInput) || 0,
-        hourlyRate: parseFloat(data.hourlyRate) || 0,
-        paymentBalance: parseFloat(data.maxAmount) || 0,
-        clientHidden: data.hideClient,
-        orderDate: data.dateForPerformer,
+        console.log("Данные из формы:", data);
+        
+        const dataToSave = {
+            ...safeExecutor, 
+            ...data,        
+            performerRole: data.role,
+            orderSum: parseFloat(data.amountInput) || 0,
+            hourlyRate: parseFloat(data.hourlyRate) || 0,
+            paymentBalance: parseFloat(data.maxAmount) || 0,
+            clientHidden: data.hideClient,
+            orderDate: data.dateForPerformer,
+        };
+        
+        onSave(dataToSave);
     };
     onSave(dataToSave);
     reset(data);
   };
 
   const onInvalid = (err) => {
+    console.log("Ошибки валидации:", err);
     const firstErrorField = Object.keys(err)[0];
     if (['orderId', 'performer', 'role', 'dateForPerformer'].includes(firstErrorField)) {
         setActiveTab('general');
@@ -135,7 +144,7 @@ export default function ExecutorModal({
         <div className="left-panel">
           <FormProvider {...methods}>
             <form
-              id="executor-form"
+              id={formId}
               className="employee-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
@@ -177,12 +186,14 @@ export default function ExecutorModal({
               <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
                   Сбросить
               </button>
-              <button className='save-order-btn' type="submit" form="executor-form" disabled={!isDirty}>
-                  Сохранить
+              <button className='save-order-btn' type="submit" form={formId}>
+                Сохранить
               </button>
-          </div>
+            </div>
+          )}
         </div>
 
+        
         {isNew ? (
           <div className="chat-panel-wrapper chat-placeholder">
             <p>Сохраните исполнителя, чтобы открыть чат.</p>

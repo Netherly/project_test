@@ -1,0 +1,4 @@
+ALTER TABLE "public"."Country"
+ADD COLUMN "nameEn" VARCHAR(100),
+ADD COLUMN "nameRu" VARCHAR(100),
+ADD COLUMN "nameUk" VARCHAR(100);

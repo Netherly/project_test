@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ClientsPageHeader from "../components/Client/ClientsPageHeader";
+import NoAccessState from "../components/ui/NoAccessState";
 import { useFields } from "../context/FieldsContext";
 import "../styles/ClientsPage.css";
 import {
@@ -11,6 +12,13 @@ import {
 } from "../api/clients";
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
+import { isForbiddenError } from "../utils/isForbiddenError";
+import {
+  CACHE_TTL,
+  hasDataChanged,
+  readCacheSnapshot,
+  writeCachedValue,
+} from "../utils/resourceCache";
 
 
 const statusToEmojiMap = {
@@ -82,29 +90,65 @@ const Ellipsis = ({ value }) => {
 
 const normalizeStr = (value) => String(value ?? "").trim();
 const uniqueList = (arr) => Array.from(new Set(arr));
+const CLIENT_FILTER_DEFAULTS = {
+  query: "",
+  currency: "",
+  status: "",
+  tags: [],
+  source: "",
+  category: "",
+  country: "",
+  share: "",
+  dateFrom: "",
+  dateTo: "",
+};
+
+const parseClientFiltersFromUrl = (searchParams) => ({
+  query: searchParams.get("q") || "",
+  currency: searchParams.get("currency") || "",
+  status: searchParams.get("status") || "",
+  tags: (searchParams.get("tags") || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean),
+  source: searchParams.get("source") || "",
+  category: searchParams.get("category") || "",
+  country: searchParams.get("country") || "",
+  share: searchParams.get("share") || "",
+  dateFrom: searchParams.get("dateFrom") || "",
+  dateTo: searchParams.get("dateTo") || "",
+});
 
 export default function ClientsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { clientCountries = [], currencies = [], clientCategories = [], clientSources = [] } = useFields();
-  
-  /* === фильтры === */
-  const [search, setSearch] = useState("");
-  const [currencyFilter, setCurrencyFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [tagFilter, setTagFilter] = useState([]);
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [countryFilter, setCountryFilter] = useState("");
-  const [shareFilter, setShareFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const appliedFilters = useMemo(
+    () => parseClientFiltersFromUrl(searchParams),
+    [searchParams]
+  );
 
   /* === загрузка данных === */
-  const [loading, setLoading] = useState(true);
-  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(
+    () => !readCacheSnapshot("clientsData", { fallback: [] }).hasData
+  );
+  const [list, setList] = useState(
+    () => readCacheSnapshot("clientsData", { fallback: [] }).data || []
+  );
   const [error, setError] = useState("");
-  const [companiesList, setCompaniesList] = useState([]);
-  const [employeesList, setEmployeesList] = useState([]);
+  const [forbidden, setForbidden] = useState(false);
+  const [companiesList, setCompaniesList] = useState(
+    () => readCacheSnapshot("companiesData", { fallback: [] }).data || []
+  );
+  const [employeesList, setEmployeesList] = useState(() => {
+    const cachedEmployees = readCacheSnapshot("employees", { fallback: [] }).data || [];
+    return Array.isArray(cachedEmployees)
+      ? cachedEmployees.map((e) => ({
+          id: e.id,
+          full_name: e.fullName ?? e.full_name ?? "",
+        }))
+      : [];
+  });
 
   
   const referrerOptions = useMemo(() => {
@@ -151,17 +195,38 @@ export default function ClientsPage() {
 
   useEffect(() => {
     let mounted = true;
+    const snapshot = readCacheSnapshot("employees", {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+
+    if (snapshot.hasData) {
+      const normalized = Array.isArray(snapshot.data)
+        ? snapshot.data.map((e) => ({
+            id: e.id,
+            full_name: e.fullName ?? e.full_name ?? "",
+          }))
+        : [];
+      setEmployeesList((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
+      if (snapshot.isFresh) {
+        return () => {
+          mounted = false;
+        };
+      }
+    }
+
     (async () => {
       try {
         const data = await fetchEmployees();
         if (!mounted) return;
+        writeCachedValue("employees", Array.isArray(data) ? data : []);
         const normalized = Array.isArray(data)
           ? data.map((e) => ({
               id: e.id,
               full_name: e.fullName ?? e.full_name ?? "",
             }))
           : [];
-        setEmployeesList(normalized);
+        setEmployeesList((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
       } catch (e) {
         console.error("fetchEmployees failed:", e);
       }
@@ -173,11 +238,32 @@ export default function ClientsPage() {
 
   useEffect(() => {
     let mounted = true;
+    const snapshot = readCacheSnapshot("companiesData", {
+      fallback: [],
+      ttlMs: CACHE_TTL.companies,
+    });
+
+    if (snapshot.hasData) {
+      const cachedCompanies = Array.isArray(snapshot.data) ? snapshot.data : [];
+      setCompaniesList((prev) =>
+        hasDataChanged(prev, cachedCompanies) ? cachedCompanies : prev
+      );
+      if (snapshot.isFresh) {
+        return () => {
+          mounted = false;
+        };
+      }
+    }
+
     (async () => {
       try {
         const data = await fetchCompanies();
         if (!mounted) return;
-        setCompaniesList(Array.isArray(data) ? data : []);
+        const nextCompanies = Array.isArray(data) ? data : [];
+        writeCachedValue("companiesData", nextCompanies);
+        setCompaniesList((prev) =>
+          hasDataChanged(prev, nextCompanies) ? nextCompanies : prev
+        );
       } catch (e) {
         console.error("fetchCompanies failed:", e);
       }
@@ -189,19 +275,48 @@ export default function ClientsPage() {
 
   useEffect(() => {
     let mounted = true;
+    const snapshot = readCacheSnapshot("clientsData", {
+      fallback: [],
+      ttlMs: CACHE_TTL.lists,
+    });
+
+    if (snapshot.hasData) {
+      const cachedClients = Array.isArray(snapshot.data) ? snapshot.data : [];
+      setList((prev) => (hasDataChanged(prev, cachedClients) ? cachedClients : prev));
+      setLoading(false);
+      if (snapshot.isFresh) {
+        setError("");
+        setForbidden(false);
+        return () => {
+          mounted = false;
+        };
+      }
+    }
+
     (async () => {
-      setLoading(true);
+      if (!snapshot.hasData) {
+        setLoading(true);
+      }
       setError("");
+      setForbidden(false);
       try {
         const data = await fetchClients();
         if (!mounted) return;
-        const normalized = Array.isArray(data) ? data.map(withReferrerNames) : [];
-        setList(normalized);
+        const nextClients = Array.isArray(data) ? data : [];
+        writeCachedValue("clientsData", nextClients);
+        setList((prev) => (hasDataChanged(prev, nextClients) ? nextClients : prev));
       } catch (e) {
         console.error("fetchClients failed:", e);
         if (mounted) {
-          setError(e?.message || "Не удалось загрузить клиентов");
-          setList([]);
+          if (isForbiddenError(e)) {
+            setForbidden(true);
+            setError("");
+          } else {
+            setError(e?.message || "Не удалось загрузить клиентов");
+          }
+          if (!snapshot.hasData) {
+            setList([]);
+          }
         }
       } finally {
         if (mounted) setLoading(false);
@@ -253,9 +368,22 @@ export default function ClientsPage() {
   }, []);
 
   const filteredRows = useMemo(() => {
+    const {
+      query,
+      currency,
+      status,
+      tags,
+      source,
+      category,
+      country,
+      share,
+      dateFrom,
+      dateTo,
+    } = appliedFilters;
+
     return (list || [])
       .filter((c) => {
-        if (!search) return true;
+        if (!query) return true;
         const parts = [
           c.name,
           ...(c.tags || []).map((t) => t.name),
@@ -275,37 +403,37 @@ export default function ClientsPage() {
           ...(c.credentials || []).flatMap((cr) => [cr.login, cr.description]),
         ];
         const text = parts.join(" ").toLowerCase();
-        return text.includes(search.toLowerCase());
+        return text.includes(query.toLowerCase());
       })
       .filter((c) => {
         const curName = c.currency?.name || c.currency;
-        return !currencyFilter || curName === currencyFilter;
+        return !currency || curName === currency;
       })
       .filter((c) => {
-        const status = c.status?.name || c.status;
-        return !statusFilter || status === statusFilter;
+        const clientStatus = c.status?.name || c.status;
+        return !status || clientStatus === status;
       })
       .filter(
         (c) =>
-          !tagFilter.length ||
-          (c.tags || []).some((t) => tagFilter.includes(t.name))
+          !tags.length ||
+          (c.tags || []).some((t) => tags.includes(t.name))
       )
       .filter((c) => {
         const srcName = c.source?.name || c.source;
-        return !sourceFilter || srcName === sourceFilter;
+        return !source || srcName === source;
       })
       .filter((c) => {
         const catName = c.category?.name || c.category;
-        return !categoryFilter || catName === categoryFilter;
+        return !category || catName === category;
       })
       .filter((c) => {
         const countryName = c.country?.name || c.country;
-        return !countryFilter || countryName === countryFilter;
+        return !country || countryName === country;
       })
       .filter((c) => {
-        if (!shareFilter) return true;
-        const share = c.share_info === true || c.share_info === "true";
-        return shareFilter === "yes" ? share : !share;
+        if (!share) return true;
+        const hasShare = c.share_info === true || c.share_info === "true";
+        return share === "yes" ? hasShare : !hasShare;
       })
       .filter((c) => {
         if (
@@ -324,16 +452,7 @@ export default function ClientsPage() {
       });
   }, [
     list,
-    search,
-    currencyFilter,
-    statusFilter,
-    tagFilter,
-    sourceFilter,
-    categoryFilter,
-    countryFilter,
-    shareFilter,
-    dateFrom,
-    dateTo,
+    appliedFilters,
   ]);
 
   const currencyOptions = useMemo(
@@ -415,12 +534,19 @@ export default function ClientsPage() {
   const [active, setActive] = useState(null);
   const [expanded, setExp] = useState({});
   const idMap = useMemo(() => new Map(list.map((c) => [c.id, c])), [list]);
+  const currentSearch = searchParams.toString();
 
   const openEdit = (c) => {
     if (c?.id) {
-      navigate(`/clients/${c.id}`);
+      navigate({
+        pathname: `/clients/${c.id}`,
+        search: currentSearch,
+      });
     } else {
-      navigate("/clients/new");
+      navigate({
+        pathname: "/clients/new",
+        search: currentSearch,
+      });
     }
   };
 
@@ -430,25 +556,58 @@ export default function ClientsPage() {
     if (r) openEdit(r);
   };
 
+  const updateUrlFilters = ({
+    query = "",
+    currency = "",
+    status = "",
+    tags = [],
+    source = "",
+    category = "",
+    country = "",
+    share = "",
+    dateFrom = "",
+    dateTo = "",
+  }) => {
+    const params = new URLSearchParams(searchParams);
+    const nextValues = {
+      q: String(query || "").trim(),
+      currency: String(currency || "").trim(),
+      status: String(status || "").trim(),
+      tags: Array.isArray(tags) ? tags.filter(Boolean).join(",") : "",
+      source: String(source || "").trim(),
+      category: String(category || "").trim(),
+      country: String(country || "").trim(),
+      share: String(share || "").trim(),
+      dateFrom: String(dateFrom || "").trim(),
+      dateTo: String(dateTo || "").trim(),
+    };
+
+    Object.entries(nextValues).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
+
+    setSearchParams(params);
+  };
+
   const save = async (data) => {
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
-      const savedCategory = saved?.category?.name || saved?.category;
-      if (savedCategory) {
-        setCategoriesList((prev) => {
-          const listSafe = Array.isArray(prev) ? prev : [];
-          return Array.from(new Set([...listSafe, savedCategory]));
-        });
-      }
       setList((prev) => {
         const idx = prev.findIndex((x) => x.id === saved.id);
         if (idx !== -1) {
           const copy = [...prev];
           copy[idx] = saved;
+          writeCachedValue("clientsData", copy);
           return copy;
         }
-        return [saved, ...prev];
+        const next = [saved, ...prev];
+        writeCachedValue("clientsData", next);
+        return next;
       });
       return saved;
     } catch (e) {
@@ -463,6 +622,7 @@ export default function ClientsPage() {
     setCompaniesList((prev) => {
       const next = [...prev, created];
       next.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+      writeCachedValue("companiesData", next);
       return next;
     });
     return created;
@@ -472,7 +632,11 @@ export default function ClientsPage() {
     try {
       setError("");
       await deleteClientApi(id);
-      setList((prev) => prev.filter((c) => c.id !== id));
+      setList((prev) => {
+        const next = prev.filter((c) => c.id !== id);
+        writeCachedValue("clientsData", next);
+        return next;
+      });
     } catch (e) {
       console.error("deleteClient failed:", e);
       setError(e?.message || "Не удалось удалить клиента");
@@ -571,43 +735,43 @@ export default function ClientsPage() {
       <div className="clients-page">
         <ClientsPageHeader
           onAdd={() => {
-            navigate("/clients/new");
+            navigate({
+              pathname: "/clients/new",
+              search: currentSearch,
+            });
           }}
-          onSearch={setSearch}
+          onSearch={(query, nextFilters = appliedFilters) => {
+            updateUrlFilters({
+              ...CLIENT_FILTER_DEFAULTS,
+              ...nextFilters,
+              query,
+            });
+          }}
+          queryValue={appliedFilters.query}
           total={filteredRows.length}
+          addDisabled={forbidden}
+          addLabel={forbidden ? "Нет доступа" : "Добавить"}
+          hideAddIcon={forbidden}
           currencyOptions={currencyOptions}
           statusOptions={statusOptions}
           tagOptions={tagOptions}
           sourceOptions={sourceOptions}
           categoryOptions={categoryOptions}
           countryOptions={countryOptions}
-          onFilterChange={({
-            currency,
-            status,
-            tags,
-            source,
-            category,
-            country,
-            share,
-            dateFrom: df,
-            dateTo: dt,
-          }) => {
-            setCurrencyFilter(currency);
-            setStatusFilter(status);
-            setTagFilter(tags);
-            setSourceFilter(source);
-            setCategoryFilter(category);
-            setCountryFilter(country);
-            setShareFilter(share);
-            setDateFrom(df);
-            setDateTo(dt);
-          }}
+          filtersValue={appliedFilters}
         />
 
-        <div ref={wrapRef} className="clients-table-wrapper custom-scrollbar">
-          {loading ? (
-            <div className="table-loader">Загрузка…</div>
-          ) : (
+        {forbidden && !loading ? (
+          <NoAccessState
+            title='Нет доступа к разделу "Клиенты"'
+            description="У вашей учетной записи недостаточно прав для просмотра списка клиентов."
+            note="Если доступ нужен, обратитесь к администратору."
+          />
+        ) : (
+          <div ref={wrapRef} className="clients-table-wrapper custom-scrollbar">
+            {loading ? (
+              <div className="table-loader">Загрузка…</div>
+            ) : (
             <table className="clients-table">
               <thead className="fixed-task-panel">
                 <tr>
@@ -693,10 +857,11 @@ export default function ClientsPage() {
                 })}
               </tbody>
             </table>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {!loading && filteredRows.length === 0 && (
+        {!loading && !forbidden && filteredRows.length === 0 && (
           <div className="empty-state">{error || "Клиенты не найдены"}</div>
         )}
       </div>

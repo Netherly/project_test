@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="96" y1="32" x2="864" y2="568" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8A5B"/>
+      <stop offset=".55" stop-color="#FF5D8F"/>
+      <stop offset="1" stop-color="#6C2BD9"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="600" rx="36" fill="url(#bg)"/>
+  <path d="M-54 448C108 352 212 344 344 402C488 466 628 470 1010 248V646H-54V448Z" fill="rgba(255,255,255,0.13)"/>
+  <path d="M-40 240C134 134 274 116 412 170C538 220 684 252 1002 114V-10H-40V240Z" fill="rgba(255,255,255,0.08)"/>
+  <circle cx="808" cy="116" r="104" fill="#FFF0C2" fill-opacity=".22"/>
+  <text x="72" y="360" fill="#FFF8F3" font-family="Verdana, sans-serif" font-size="52" font-weight="700">SUNSET FLOW</text>
+  <text x="72" y="420" fill="#FFE9DE" font-family="Verdana, sans-serif" font-size="28" letter-spacing="8">TEST CARD DESIGN</text>
+</svg>

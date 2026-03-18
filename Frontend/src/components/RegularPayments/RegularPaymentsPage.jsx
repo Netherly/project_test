@@ -6,11 +6,7 @@ import ViewEditRegularPaymentModal from "./ViewEditRegularPaymentModal";
 import "../../styles/RegularPaymentsPage.css";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 import { fetchAssets } from "../../api/assets";
-
-
-import { fetchFields, withDefaults, saveFields, serializeForSave, rid } from "../../api/fields";
-import { useFields } from "../../context/FieldsContext";
-
+import { fetchFields, withDefaults } from "../../api/fields";
 import {
   fetchRegularPayments,
   createRegularPayment,
@@ -25,9 +21,7 @@ const RegularPaymentsPage = () => {
 
   const [regularPayments, setRegularPayments] = useState([]);
   const [assets, setAssets] = useState([]);
-  const [localFinanceFields, setLocalFinanceFields] = useState({});
-
-  const { refreshFields } = useFields(); 
+  const [financeFields, setFinanceFields] = useState({});
 
   const selectedPayment = useMemo(() => {
     if (!paymentId || paymentId === "new") return null;
@@ -36,61 +30,33 @@ const RegularPaymentsPage = () => {
 
   const isAddMode = paymentId === "new";
 
-  const loadAllData = async () => {
-    try {
-      const [payments, assetsData, fieldsData] = await Promise.all([
-        fetchRegularPayments(),
-        fetchAssets(),
-        fetchFields(),
-      ]);
-      setRegularPayments(Array.isArray(payments) ? payments : []);
-      setAssets(Array.isArray(assetsData) ? assetsData : []);
-      const normalized = withDefaults(fieldsData);
-      setLocalFinanceFields(normalized.financeFields || {});
-    } catch (e) {
-      console.error("Failed to load regular payments data:", e);
-    }
-  };
-
   useEffect(() => {
-    loadAllData();
+    let mounted = true;
+    (async () => {
+      try {
+        const [payments, assetsData, fieldsData] = await Promise.all([
+          fetchRegularPayments(),
+          fetchAssets(),
+          fetchFields(),
+        ]);
+        if (!mounted) return;
+        setRegularPayments(Array.isArray(payments) ? payments : []);
+        setAssets(Array.isArray(assetsData) ? assetsData : []);
+        const normalized = withDefaults(fieldsData);
+        setFinanceFields(normalized.financeFields || {});
+      } catch (e) {
+        console.error("Failed to load regular payments data:", e);
+        if (mounted) {
+          setRegularPayments([]);
+          setAssets([]);
+          setFinanceFields({});
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
-
-  
-  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
-    try {
-        const raw = await fetchFields();
-        const normalized = withDefaults(raw);
-        const list = normalized[group]?.[fieldName] || [];
-
-        let exists = false;
-        let newItem = { id: rid(), isDeleted: false };
-
-        if (fieldName === "articles") {
-            exists = list.find(item => item.articleValue && item.articleValue.toLowerCase() === newValue.toLowerCase());
-            newItem.articleValue = newValue;
-        } else if (fieldName === "subarticles") {
-            exists = list.find(item => 
-                item.subarticleValue && item.subarticleValue.toLowerCase() === newValue.toLowerCase() &&
-                item.subarticleInterval === extraData.subarticleInterval
-            );
-            newItem.subarticleInterval = extraData.subarticleInterval;
-            newItem.subarticleValue = newValue;
-        }
-
-        if (!exists) {
-            list.push(newItem);
-            normalized[group][fieldName] = list;
-            const payload = serializeForSave(normalized);
-            await saveFields(payload);
-            
-            await loadAllData(); 
-            if (refreshFields) await refreshFields(); 
-        }
-    } catch (e) {
-        console.error("Ошибка при сохранении нового поля в БД:", e);
-    }
-  };
 
   const handleCloseModal = () => {
     navigate("/regular");
@@ -236,8 +202,7 @@ const RegularPaymentsPage = () => {
           onAdd={handleAddPayment}
           onClose={handleCloseModal}
           assets={assets}
-          financeFields={localFinanceFields} 
-          onAddNewField={handleAddNewField}  
+          financeFields={financeFields}
         />
       )}
 
@@ -249,8 +214,7 @@ const RegularPaymentsPage = () => {
           onDuplicate={handleDuplicatePayment}
           onClose={handleCloseModal}
           assets={assets}
-          financeFields={localFinanceFields} 
-          onAddNewField={handleAddNewField}  
+          financeFields={financeFields}
         />
       )}
     </div>

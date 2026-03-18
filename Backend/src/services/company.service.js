@@ -1,4 +1,5 @@
 const prisma = require('../../prisma/client');
+const { randomUUID } = require('crypto');
 
 const pickStr = (value) => {
   if (value === undefined || value === null) return '';
@@ -9,7 +10,10 @@ const pickStr = (value) => {
 
 const CompanyService = {
   async list() {
-    return prisma.company.findMany({ orderBy: { name: 'asc' } });
+    return prisma.company.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    });
   },
 
   async create(payload = {}) {
@@ -20,10 +24,32 @@ const CompanyService = {
       throw err;
     }
 
-    const existing = await prisma.company.findFirst({ where: { name } });
+    const existing = await prisma.company.findFirst({
+      where: { name },
+      select: { id: true, name: true },
+    });
     if (existing) return existing;
 
-    return prisma.company.create({ data: { name } });
+    try {
+      return await prisma.company.create({
+        data: { name },
+        select: { id: true, name: true },
+      });
+    } catch (err) {
+      const message = String(err?.message || '');
+      const legacyIdBindingIssue =
+        message.includes('22P03') ||
+        message.includes('incorrect binary data format in bind parameter 1');
+
+      if (!legacyIdBindingIssue) throw err;
+
+      const rows = await prisma.$queryRaw`
+        INSERT INTO "Company" ("id", "name")
+        VALUES (${randomUUID()}, ${name})
+        RETURNING "id", "name"
+      `;
+      return rows[0] || null;
+    }
   },
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { companySchema } from './companySchema'; 
@@ -30,6 +30,14 @@ export default function CompanyModal({
     const [isOpen, setIsOpen] = useState(false);
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const formId = 'company-form';
+    const formDefaults = useMemo(() => ({
+        name: '',
+        phone: '',
+        email: '',
+        tags: [],
+        ...safeCompany,
+    }), [safeCompany]);
 
     useEffect(() => {
         const timer = setTimeout(() => setIsOpen(true), 10);
@@ -39,16 +47,14 @@ export default function CompanyModal({
     const methods = useForm({
         resolver: yupResolver(companySchema),
         mode: 'onChange',
-        defaultValues: {
-            name: '',
-            phone: '',
-            email: '',
-            tags: [], 
-            ...safeCompany,
-        },
+        defaultValues: formDefaults,
     });
 
     const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
+
+    useEffect(() => {
+        reset(formDefaults);
+    }, [formDefaults, reset]);
 
     const companyClients = clients.filter(c => String(c.company_id) === String(safeCompany.id) || c.company === safeCompany.name);
     const firstContactName = companyClients.length > 0 ? (companyClients[0].full_name || companyClients[0].name) : null;
@@ -110,6 +116,7 @@ export default function CompanyModal({
                 <div className="left-panel">
                     <FormProvider {...methods}>
                         <form
+                            id={formId}
                             className="employee-modal-body" 
                             onSubmit={handleSubmit(submitHandler, onInvalid)}
                         >
@@ -145,14 +152,16 @@ export default function CompanyModal({
                         </form>
                     </FormProvider>
                     
-                    <div className='form-actions-bottom'>
-                        <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
-                            Сбросить
-                        </button>
-                        <button className='save-order-btn' type="submit" onClick={handleSubmit(submitHandler, onInvalid)} disabled={!isDirty}>
-                            Сохранить
-                        </button>
-                    </div>
+                    {isDirty && (
+                        <div className='form-actions-bottom'>
+                            <button className='cancel-order-btn' type="button" onClick={() => reset(formDefaults)}>
+                                Отменить
+                            </button>
+                            <button className='save-order-btn' type="submit" form={formId}>
+                                Сохранить
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {isNew ? (

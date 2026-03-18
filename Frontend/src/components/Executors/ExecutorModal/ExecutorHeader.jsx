@@ -5,7 +5,10 @@ import defaultAvatar from '../../../assets/avatar-placeholder.svg';
 import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
 import { Trash2, Save, RotateCcw } from 'lucide-react';
 
-export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagOptions = [] }) {
+
+const defaultTags = ["Срочно", "VIP", "Повторный", "Проблема"];
+
+export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
     const { watch, control } = useFormContext();
 
     
@@ -49,7 +52,7 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagO
         fieldOnChange(currentTags.filter(tag => tag.name !== tagToRemove.name));
     };
 
-    const filteredTags = tagOptions.filter(
+    const filteredTags = defaultTags.filter(
         tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !watchedTags.find(t => t.name === tagString)
     );
     
@@ -115,14 +118,14 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagO
                                             onFocus={handleTagInputFocus}
                                             autoComplete="off"
                                         />
-                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !tagOptions.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
                                             <div className={styles.tagDropdown} ref={tagDropdownRef}>
                                                 {filteredTags.map(tag => (
                                                     <div key={tag} className={styles.tagDropdownItem} onClick={() => handleTagSelect(tag, onChange)}>
                                                         {tag}
                                                     </div>
                                                 ))}
-                                                {customTag.trim() && !tagOptions.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                                {customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
                                                     <div className={styles.tagDropdownItem} onClick={() => handleTagSelect(customTag.trim(), onChange)}>
                                                         Добавить: "{customTag.trim()}"
                                                     </div>
@@ -151,7 +154,7 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagO
             <div className={styles.actions}>
                 <div ref={menuRef} className={styles.actionItem}>
                     <button className={styles.btn} type="button" onClick={() => setMenuOpen(o => !o)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                     </button>
                     {onDelete && (
                         <ul className={`${styles.dropdown} ${menuOpen ? styles.show : ''}`}>
@@ -167,7 +170,7 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagO
                             xmlns="http://www.w3.org/2000/svg" 
                             width="24" 
                             height="24" 
-                            viewBox="0 0 24" 
+                            viewBox="0 0 24 24"
                             fill="none" 
                             stroke="currentColor" 
                             strokeWidth="2" 

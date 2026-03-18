@@ -1,9 +1,21 @@
 const cron = require('node-cron');
 const { OperationType } = require('@prisma/client');
 const prisma = require('../../prisma/client');
+const { hasTable } = require('../utils/db-schema');
 
 const schedule = process.env.REGULAR_PAYMENTS_CRON || '* * * * *';
 const timezone = process.env.REGULAR_PAYMENTS_TZ || 'Europe/Kyiv';
+let regularPaymentsTableReady;
+
+async function canUseRegularPaymentsTable() {
+  if (regularPaymentsTableReady === undefined) {
+    regularPaymentsTableReady = await hasTable('RegularPayment');
+    if (!regularPaymentsTableReady) {
+      console.log('[regular-payments] skipped: table "RegularPayment" not found');
+    }
+  }
+  return regularPaymentsTableReady;
+}
 
 const uiToEnumOperation = (v) => {
   if (!v) return undefined;
@@ -189,6 +201,8 @@ async function prepareTransactionData(input, db) {
 }
 
 async function processDuePayments() {
+  if (!(await canUseRegularPaymentsTable())) return;
+
   const now = new Date();
   const due = await prisma.regularPayment.findMany({
     where: {
@@ -259,9 +273,14 @@ const task = cron.schedule(
   { timezone, scheduled: false }
 );
 
-function initRegularPaymentsJob() {
+async function initRegularPaymentsJob() {
+  if (!(await canUseRegularPaymentsTable())) {
+    return false;
+  }
+
   task.start();
   console.log(`[regular-payments] cron scheduled: "${schedule}" (${timezone})`);
+  return true;
 }
 
 module.exports = { initRegularPaymentsJob };

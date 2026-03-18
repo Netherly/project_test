@@ -9,16 +9,18 @@ const { initTelegramAvatarJob } = require('./jobs/telegram-avatars.job');
 const { initTelegramBot, stopTelegramBot } = require('./bot/bot');
 const { ensureDefaultCompanies } = require('./seeds/companies.seed');
 const { ensureDefaultClientGroups } = require('./seeds/client-groups.seed');
+const { ensureDefaultCountries } = require('./seeds/countries.seed');
+const { ensureDefaultCurrencies } = require('./seeds/currencies.seed');
 const prisma = require('../prisma/client');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-function startJobs() {
+async function startJobs() {
   try {
     initRatesAutofillJob();
     scheduleTokenCleanup(); // Добавили запуск нашей новой задачи
     initTelegramAvatarJob();
-    initRegularPaymentsJob();
+    await initRegularPaymentsJob();
     console.log('[cron] all jobs scheduled');
   } catch (e) {
     console.error('[cron] schedule failed:', e?.message || e);
@@ -78,6 +80,18 @@ function setupGracefulShutdown(server, isBotActive) {
 
 async function boot() {
   try {
+    await ensureDefaultCurrencies();
+    console.log('[seed] default currencies ensured');
+  } catch (e) {
+    console.error('[seed] currencies failed:', e?.message || e);
+  }
+  try {
+    await ensureDefaultCountries();
+    console.log('[seed] default countries ensured');
+  } catch (e) {
+    console.error('[seed] countries failed:', e?.message || e);
+  }
+  try {
     await ensureDefaultCompanies();
     console.log('[seed] default companies ensured');
   } catch (e) {
@@ -94,7 +108,7 @@ async function boot() {
     console.log(`[api] listening on :${PORT}`);
   });
 
-  startJobs();
+  await startJobs();
   const botIsActive = await startBot();
   setupGracefulShutdown(server, botIsActive);
 }

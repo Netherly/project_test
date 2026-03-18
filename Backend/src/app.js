@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const app = express();
 
 const routes = require('./routes/index');
+const { toPublicError } = require('./utils/http-error');
 
 function parseCorsOrigins(raw) {
   const fromEnv = String(raw || '')
@@ -20,6 +21,9 @@ function parseCorsOrigins(raw) {
 }
 
 const allowedOrigins = parseCorsOrigins(process.env.CORS_ORIGINS);
+
+// The app runs behind nginx in both prod and test, so trust X-Forwarded-*.
+app.set('trust proxy', 1);
 
 app.use(
   cors({
@@ -41,5 +45,21 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname,'..', 'uploads')));
 app.use('/api', routes);
+
+app.use((err, _req, res, _next) => {
+  const rawMessage = String(err?.message || '').trim();
+  const { status, message } = toPublicError(err);
+
+  if (status >= 500 || (rawMessage && rawMessage !== message)) {
+    console.error('[api] unhandled error:', err);
+  }
+
+  res.status(status).json({
+    ok: false,
+    status,
+    error: message,
+    message,
+  });
+});
 
 module.exports = app;
