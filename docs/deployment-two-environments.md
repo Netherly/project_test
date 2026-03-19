@@ -56,6 +56,8 @@ TEST_FIELDS_ENABLED=true
 TEST_DEMO_DATA_ENABLED=true
 ```
 
+Prod deploy also runs `npm run seed`, but with test flags disabled it only ensures required base dictionaries such as default countries and currencies. It does not create test/demo business data.
+
 ## 3. One-time server setup
 
 1. Prepare directories:
@@ -112,3 +114,56 @@ sudo systemctl reload nginx
 
 - push to `develope` => deploys only `test`
 - push to `main` => deploys only `prod`
+
+Release rule:
+
+- `test` is the preview of `develope`
+- `prod` is the release of `main`
+- if `develope` is ahead of `main`, `prod` will look older until those commits are merged into `main`
+
+## 6. Promote Test To Prod
+
+Normal release flow:
+
+1. Push changes to `develope`
+2. Verify them on `test`
+3. Merge `develope` into `main`
+4. Let `deploy-prod` run from the merged `main` commit
+
+Do not cherry-pick random app commits to `main` unless you intentionally want prod and test to diverge.
+
+Quick repo checks before prod deploy:
+
+```bash
+git fetch origin
+git log --oneline origin/main..origin/develope
+git log --oneline origin/develope..origin/main
+```
+
+If the first command shows app commits, `test` is ahead and `prod` is expected to be older.
+
+## 7. Detect Stale Legacy Backend
+
+If prod looks much older than the latest `main`, the next thing to check is port ownership:
+
+```bash
+pm2 ls
+ss -ltnp | grep ':3000 '
+ss -ltnp | grep ':3001 '
+readlink /proc/<PID>/cwd
+```
+
+Expected:
+
+- port `3000` -> `/var/www/crm-backend-prod`
+- port `3001` -> `/var/www/crm-backend-test`
+
+If port `3000` points to `/var/www/crm-backend`, then a legacy app is still serving prod traffic.
+
+The workflows now:
+
+- print the exact branch and commit being deployed
+- restart pm2 with `--update-env`
+- kill rogue listeners before restart
+- fail the deploy if the target port is still owned by `/var/www/crm-backend`
+- fail the deploy if the expected app cwd does not own the target port after restart

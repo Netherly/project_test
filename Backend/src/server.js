@@ -11,6 +11,7 @@ const { ensureDefaultCompanies } = require('./seeds/companies.seed');
 const { ensureDefaultClientGroups } = require('./seeds/client-groups.seed');
 const { ensureDefaultCountries } = require('./seeds/countries.seed');
 const { ensureDefaultCurrencies } = require('./seeds/currencies.seed');
+const { ensureRatesExcelImportedOnBoot } = require('./services/rates.excel-import.service');
 const prisma = require('../prisma/client');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -102,6 +103,18 @@ async function boot() {
     console.log('[seed] default client groups ensured');
   } catch (e) {
     console.error('[seed] client groups failed:', e?.message || e);
+  }
+  try {
+    const result = await ensureRatesExcelImportedOnBoot();
+    if (result?.skipped) {
+      console.log(`[rates.import] skipped: ${result.reason}`);
+    } else {
+      console.log(
+        `[rates.import] imported ${result.importedRows} rows from Excel (${result.earliestDate} .. ${result.latestDate})`
+      );
+    }
+  } catch (e) {
+    console.error('[rates.import] failed:', e?.message || e);
   }
 
   const server = app.listen(PORT, () => {

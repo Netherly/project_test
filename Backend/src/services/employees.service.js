@@ -3,13 +3,12 @@ const prisma = require('../../prisma/client');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity, diffObjects } = require('./activity-log.service');
 const tempPasswordService = require('./employee-temp-password.service');
+const { buildTelegramStartLink } = require('./telegram-bot.service');
 const {
   clearState: clearTelegramAvatarState,
   markSyncDisabled,
 } = require('./telegram-avatar-state.service');
 const {
-  buildCountryNames,
-  inferPhoneCountryIso2,
   normalizeIso2,
   normalizeIso3,
 } = require('../utils/country-localization');
@@ -202,62 +201,6 @@ const buildCountryNameMatchers = (text) => [
   { nameUk: { equals: text, mode: 'insensitive' } },
 ];
 
-const updateCountryTranslations = async (country, names) => {
-  if (!country?.id || !names) return country;
-
-  const data = {};
-  if (!toText(country.name) && toText(names.name)) data.name = names.name;
-  if (!toText(country.nameEn) && toText(names.nameEn)) data.nameEn = names.nameEn;
-  if (!toText(country.nameRu) && toText(names.nameRu)) data.nameRu = names.nameRu;
-  if (!toText(country.nameUk) && toText(names.nameUk)) data.nameUk = names.nameUk;
-  if (!toText(country.iso2) && toText(names.iso2)) data.iso2 = names.iso2;
-  if (country.isActive === false) data.isActive = true;
-
-  if (!Object.keys(data).length) return country;
-
-  return prisma.country.update({
-    where: { id: country.id },
-    data,
-    select: COUNTRY_SELECT,
-  });
-};
-
-const ensureCountryByIso2 = async (iso2) => {
-  const normalizedIso2 = normalizeIso2(iso2);
-  if (!normalizedIso2) return null;
-
-  const names = buildCountryNames(normalizedIso2);
-  if (!names) return null;
-
-  let existing = await prisma.country.findFirst({
-    where: {
-      OR: [
-        { iso2: normalizedIso2 },
-        ...buildCountryNameMatchers(names.nameEn),
-        ...buildCountryNameMatchers(names.nameRu),
-        ...buildCountryNameMatchers(names.nameUk),
-      ],
-    },
-    select: COUNTRY_SELECT,
-  });
-
-  if (existing) {
-    return updateCountryTranslations(existing, names);
-  }
-
-  return prisma.country.create({
-    data: {
-      name: names.name,
-      nameEn: names.nameEn,
-      nameRu: names.nameRu,
-      nameUk: names.nameUk,
-      iso2: names.iso2,
-      isActive: true,
-    },
-    select: COUNTRY_SELECT,
-  });
-};
-
 const findCountryByText = async (value) => {
   const text = toText(value);
   if (!text) return null;
@@ -297,22 +240,15 @@ const resolveCountryId = async (payload = {}) => {
     payload.country,
     payload.countryName,
   ]);
-  const phoneIso2 = inferPhoneCountryIso2(payload.phone);
 
   for (const candidate of explicitCandidates) {
     const matched = await findCountryByText(candidate);
     if (matched?.id) {
-      if (phoneIso2) {
-        const enriched = await updateCountryTranslations(matched, buildCountryNames(phoneIso2));
-        return enriched?.id ?? matched.id;
-      }
       return matched.id;
     }
   }
 
-  const explicitIso2 = explicitCandidates.map(normalizeIso2).find(Boolean);
-  const countryByIso = await ensureCountryByIso2(explicitIso2 || phoneIso2);
-  return countryByIso?.id ?? null;
+  return null;
 };
 
 const EmployeesService = {
@@ -475,10 +411,7 @@ const EmployeesService = {
       try {
         const ttlMinutes = Number(payload?.telegramLinkTtlMinutes) || 60;
         const token = await createLinkTokenForEmployee(employee.id, ttlMinutes);
-        const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
-          .trim()
-          .replace(/^@/, '');
-        const link = `https://t.me/${botName}?start=${token.code}`;
+        const link = await buildTelegramStartLink(token.code);
         await prisma.employee.update({
           where: { id: employee.id },
           data: { telegramBindingLink: link },
@@ -562,7 +495,7 @@ const EmployeesService = {
     if (
       payload.countryId !== undefined ||
       payload.country !== undefined ||
-      (payload.phone !== undefined && !before?.countryId)
+      payload.countryName !== undefined
     ) {
       data.countryId = await resolveCountryId(payload);
     }

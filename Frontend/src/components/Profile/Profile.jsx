@@ -469,7 +469,7 @@ function Profile() {
       }, 2000);
     } catch (error) {
       console.error("Не удалось получить ссылку для привязки:", error?.message || error);
-      setErrors({ general: "Не удалось создать ссылку для Telegram." });
+      setErrors({ general: error?.message || "Не удалось создать ссылку для Telegram." });
     }
   };
 

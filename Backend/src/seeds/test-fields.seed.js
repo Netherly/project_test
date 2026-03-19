@@ -6,7 +6,7 @@ const MIN_ITEMS = 4;
 
 const DEFAULT_TEST_FIELDS = {
   generalFields: {
-    currency: ['UAH', 'USD', 'EUR', 'PLN'],
+    currency: ['UAH', 'USD', 'EUR', 'RUB', 'USDT'],
     country: ['Украина', 'Польша', 'Германия', 'Литва'],
     businessLine: ['Лидогенерация', 'Разработка', 'Маркетинг', 'Поддержка'],
   },

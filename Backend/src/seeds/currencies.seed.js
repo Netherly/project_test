@@ -4,12 +4,8 @@ const DEFAULT_CURRENCIES = [
   { code: 'UAH', name: 'Ukrainian Hryvnia', order: 0 },
   { code: 'USD', name: 'US Dollar', order: 1 },
   { code: 'EUR', name: 'Euro', order: 2 },
-  { code: 'USDT', name: 'Tether USDT', order: 3 },
-  { code: 'PLN', name: 'Polish Zloty', order: 4 },
-  { code: 'GBP', name: 'British Pound', order: 5 },
-  { code: 'CHF', name: 'Swiss Franc', order: 6 },
-  { code: 'CZK', name: 'Czech Koruna', order: 7 },
-  { code: 'RUB', name: 'Russian Ruble', order: 8 },
+  { code: 'RUB', name: 'Russian Ruble', order: 3 },
+  { code: 'USDT', name: 'Tether USDT', order: 4 },
 ];
 
 async function ensureDefaultCurrencies() {

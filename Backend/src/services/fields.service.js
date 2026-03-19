@@ -18,6 +18,17 @@ ensureDir(CARD_DIR);
 
 const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const EXTRA_FIELDS_CONFIG_KEY = 'fields.extra';
+const DEFAULT_CURRENCY_ALIASES = {
+  UAH: ['грн', 'гривна', 'гривня', 'hryvnia', 'ukrainian hryvnia', 'украинская гривна', 'українська гривня'],
+  USD: ['$', 'usdollar', 'us dollar', 'dollar', 'доллар', 'долар', 'доллары сша', 'долари сша'],
+  EUR: ['euro', 'евро', 'євро'],
+  USDT: ['tether', 'tether usdt', 'usd tether', 'тезер', 'тетер'],
+  PLN: ['zloty', 'polish zloty', 'zl', 'злотый', 'злотий', 'польский злотый', 'польський злотий'],
+  GBP: ['pound', 'british pound', 'pound sterling', 'фунт', 'британский фунт', 'британський фунт'],
+  CHF: ['swiss franc', 'franc', 'швейцарский франк', 'швейцарський франк'],
+  CZK: ['czech koruna', 'koruna', 'чешская крона', 'чеська крона'],
+  RUB: ['ruble', 'ruble', 'russian ruble', 'рубль', 'рубль рф', 'российский рубль', 'російський рубль'],
+};
 const SIMPLE_DICT_RULES = {
   currencyDict: {
     code: {
@@ -135,6 +146,73 @@ const pickCurrencyCode = (value) => {
     return value.code ?? value.value ?? '';
   }
   return '';
+};
+
+const normalizeCurrencyAliasKey = (value) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9а-яіїєґ$]+/gi, '');
+
+const pickCurrencyCandidates = (value) => {
+  if (typeof value === 'string') return [value];
+  if (value && typeof value === 'object') {
+    return [
+      value.code,
+      value.value,
+      value.name,
+      value.label,
+      value.currency,
+    ].filter((item) => item !== undefined && item !== null && String(item).trim() !== '');
+  }
+  return [];
+};
+
+const buildCurrencyAliasMap = (rows = []) => {
+  const aliases = new Map();
+
+  const addAlias = (alias, code) => {
+    const key = normalizeCurrencyAliasKey(alias);
+    if (!key || !code) return;
+    aliases.set(key, String(code).trim().toUpperCase());
+  };
+
+  rows.forEach((row) => {
+    addAlias(row?.code, row?.code);
+    addAlias(row?.name, row?.code);
+  });
+
+  Object.entries(DEFAULT_CURRENCY_ALIASES).forEach(([code, list]) => {
+    addAlias(code, code);
+    (Array.isArray(list) ? list : []).forEach((alias) => addAlias(alias, code));
+  });
+
+  return aliases;
+};
+
+const resolveCurrencyCode = (value, currencyAliases) => {
+  const candidates = pickCurrencyCandidates(value);
+
+  for (const candidate of candidates) {
+    const key = normalizeCurrencyAliasKey(candidate);
+    if (key && currencyAliases.has(key)) {
+      return currencyAliases.get(key);
+    }
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const normalized = sanitizeDictValue(candidate, {
+        model: 'currencyDict',
+        field: 'code',
+      });
+      if (normalized) return normalized;
+    } catch (_) {}
+  }
+
+  throw httpErr('Некорректный код валюты');
 };
 
 const arrToUniqueStrings = (list, key = 'name') => {
@@ -857,6 +935,10 @@ async function saveAll(payload) {
   return prisma.$transaction(
     async (tx) => {
       // 1. ВАЛЮТЫ
+      const existingCurrencies = await tx.currencyDict.findMany({
+        select: { code: true, name: true },
+      });
+      const currencyAliases = buildCurrencyAliasMap(existingCurrencies);
       const currencyCodes = new Set();
       [
         payload?.generalFields?.currency,
@@ -866,10 +948,7 @@ async function saveAll(payload) {
         payload?.assetsFields?.currency,
       ].forEach((list) => {
         (Array.isArray(list) ? list : []).forEach((item) => {
-          const code = sanitizeDictValue(pickCurrencyCode(item), {
-            model: 'currencyDict',
-            field: 'code',
-          });
+          const code = resolveCurrencyCode(item, currencyAliases);
           if (code) currencyCodes.add(code);
         });
       });
