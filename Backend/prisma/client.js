@@ -20,9 +20,13 @@ const buildDatasourceUrl = () => {
 };
 
 const datasourceUrl = buildDatasourceUrl();
+const shouldLogQueries = ['1', 'true', 'yes', 'on'].includes(
+  String(process.env.PRISMA_LOG_QUERIES || '').trim().toLowerCase()
+);
+const prismaLogs = shouldLogQueries ? ['query', 'error', 'warn'] : ['error', 'warn'];
 
 const prisma = globalForPrisma.prisma || new PrismaClient({
-  log: ['query', 'error', 'warn'],
+  log: prismaLogs,
   ...(datasourceUrl ? { datasources: { db: { url: datasourceUrl } } } : {}),
 });
 

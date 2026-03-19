@@ -3,21 +3,16 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import { httpPost, httpPut } from '../../../api/http';
 import { createEmployeeTemporaryPassword } from '../../../api/employees';
 import { Plus, ExternalLink, Copy, Link2Off } from 'lucide-react';
-import {
-  buildSyntheticCountryOption,
-  getCountryDisplayName,
-  inferPhoneCountryIso2,
-} from '../../../utils/countryDisplay';
+import { getCountryDisplayName } from '../../../utils/countryDisplay';
 
 export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ru' }) {
-  const { control, getValues, setValue, formState: { errors } } = useFormContext();
+  const { control, setValue, formState: { errors } } = useFormContext();
   
   
   const countries = Array.isArray(fieldsData?.employeeFields?.country) ? fieldsData.employeeFields.country : [];
-  const [inferredCountryOption, setInferredCountryOption] = useState(null);
 
   const countryOptions = useMemo(() => {
-    const options = countries
+    return countries
       .map((item) => {
         if (typeof item === "string") {
           const name = item.trim();
@@ -36,24 +31,10 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
           : null;
       })
       .filter(Boolean);
-
-    if (
-      inferredCountryOption &&
-      !options.some(
-        (option) =>
-          option.value === inferredCountryOption.value ||
-          (option.iso2 && option.iso2 === inferredCountryOption.iso2)
-      )
-    ) {
-      options.unshift(inferredCountryOption);
-    }
-
-    return options;
-  }, [countries, crmLanguage, inferredCountryOption]);
+  }, [countries, crmLanguage]);
 
   const currentCountry = useWatch({ control, name: "country" });
   const currentCountryId = useWatch({ control, name: "countryId" });
-  const phoneValue = useWatch({ control, name: 'phone' });
 
   useEffect(() => {
     if (!countryOptions.length || (!currentCountry && !currentCountryId)) return;
@@ -87,13 +68,11 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
     if (currentCountry !== match.label) {
       setValue("country", match.label, { shouldDirty: false });
     }
-    setInferredCountryOption(match.synthetic ? match : null);
   }, [countryOptions, currentCountry, currentCountryId, setValue]);
 
   useEffect(() => {
     setTemporaryPassword(null);
     setTempPasswordError('');
-    setInferredCountryOption(null);
   }, [employeeId]);
  
 
@@ -107,39 +86,15 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
   const [tempPasswordError, setTempPasswordError] = useState('');
   const [temporaryPassword, setTemporaryPassword] = useState(null);
 
-  const applyPhoneCountryAutofill = (nextPhone = phoneValue) => {
-    const selectedCountryId = String(getValues('countryId') || '').trim();
-    const selectedCountry = String(getValues('country') || '').trim();
-    if (selectedCountryId || selectedCountry) return;
-
-    const iso2 = inferPhoneCountryIso2(nextPhone);
-    if (!iso2) return;
-
-    const existingOption = countryOptions.find((option) => String(option?.iso2 || '').trim().toUpperCase() === iso2);
-    const nextOption = existingOption || buildSyntheticCountryOption(iso2, crmLanguage);
-    if (!nextOption) return;
-
-    if (nextOption.synthetic) {
-      setInferredCountryOption(nextOption);
-    } else {
-      setInferredCountryOption(null);
-    }
-
-    setValue('countryId', nextOption.value, { shouldDirty: true, shouldValidate: true });
-    setValue('country', nextOption.label, { shouldDirty: true, shouldValidate: false });
-  };
-
   const handleCountryChange = (nextValue, onChange) => {
     onChange(nextValue);
 
     if (!nextValue) {
       setValue('country', '', { shouldDirty: true, shouldValidate: false });
-      setInferredCountryOption(null);
       return;
     }
 
     const nextOption = countryOptions.find((option) => option.value === nextValue);
-    setInferredCountryOption(nextOption?.synthetic ? nextOption : null);
     setValue('country', nextOption?.label || '', { shouldDirty: true, shouldValidate: false });
   };
 
@@ -448,10 +403,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
               {...field}
               placeholder="+380..."
               className={errors.phone ? 'input-error' : ''}
-              onBlur={(event) => {
-                field.onBlur();
-                applyPhoneCountryAutofill(event.target.value);
-              }}
+              onBlur={field.onBlur}
             />
             {errors.phone && <p className="error">{errors.phone.message}</p>}
           </div>
