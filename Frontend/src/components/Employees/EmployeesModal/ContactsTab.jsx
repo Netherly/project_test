@@ -5,8 +5,11 @@ import { createEmployeeTemporaryPassword } from '../../../api/employees';
 import { Plus, ExternalLink, Copy, Link2Off } from 'lucide-react';
 import { getCountryDisplayName } from '../../../utils/countryDisplay';
 
-export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ru' }) {
-  const { control, setValue, formState: { errors } } = useFormContext();
+
+import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
+
+export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ru', onAddCountry }) {
+  const { control, getValues, setValue, formState: { errors } } = useFormContext();
   
   
   const countries = Array.isArray(fieldsData?.employeeFields?.country) ? fieldsData.employeeFields.country : [];
@@ -86,16 +89,46 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
   const [tempPasswordError, setTempPasswordError] = useState('');
   const [temporaryPassword, setTemporaryPassword] = useState(null);
 
-  const handleCountryChange = (nextValue, onChange) => {
-    onChange(nextValue);
+  const applyPhoneCountryAutofill = (nextPhone = phoneValue) => {
+    const selectedCountryId = String(getValues('countryId') || '').trim();
+    const selectedCountry = String(getValues('country') || '').trim();
+    if (selectedCountryId || selectedCountry) return;
+
+    const iso2 = inferPhoneCountryIso2(nextPhone);
+    if (!iso2) return;
+
+    const existingOption = countryOptions.find((option) => String(option?.iso2 || '').trim().toUpperCase() === iso2);
+    const nextOption = existingOption || buildSyntheticCountryOption(iso2, crmLanguage);
+    if (!nextOption) return;
+
+    if (nextOption.synthetic) {
+      setInferredCountryOption(nextOption);
+    } else {
+      setInferredCountryOption(null);
+    }
+
+    setValue('countryId', nextOption.value, { shouldDirty: true, shouldValidate: true });
+    setValue('country', nextOption.label, { shouldDirty: true, shouldValidate: false });
+  };
+
+  const handleCountryChange = (nextValue) => {
+    setValue('countryId', nextValue, { shouldDirty: true });
 
     if (!nextValue) {
       setValue('country', '', { shouldDirty: true, shouldValidate: false });
       return;
     }
 
-    const nextOption = countryOptions.find((option) => option.value === nextValue);
-    setValue('country', nextOption?.label || '', { shouldDirty: true, shouldValidate: false });
+   
+    const nextOption = countryOptions.find((option) => option.value === nextValue || option.label === nextValue);
+    
+    if (nextOption) {
+      setInferredCountryOption(nextOption.synthetic ? nextOption : null);
+      setValue('country', nextOption.label, { shouldDirty: true, shouldValidate: false });
+      setValue('countryId', nextOption.value, { shouldDirty: true, shouldValidate: false });
+    } else {
+      setValue('country', nextValue, { shouldDirty: true, shouldValidate: false });
+    }
   };
 
   const telegramId = useWatch({ control, name: 'telegramId' });
@@ -256,25 +289,21 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
       
       
       
+      
       <div className="form-field">
         <label>Страна</label>
         <Controller
           name="countryId"
           control={control}
           render={({ field }) => (
-            <select
-              {...field}
-              value={field.value ?? ''}
-              onChange={(event) => handleCountryChange(event.target.value, field.onChange)}
-              className={errors.countryId ? "input-error" : ""}
-            >
-              <option value="">Не выбрано</option>
-              {countryOptions.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            <CreatableSelect
+              value={currentCountry || field.value || ""}
+              onChange={handleCountryChange}
+              options={countryOptions.map(c => c.label)}
+              placeholder="Выберите или введите..."
+              error={!!errors.countryId}
+              onAdd={(val) => onAddCountry && onAddCountry(val)}
+            />
           )}
         />
         {errors.countryId && <p className="error">{errors.countryId.message}</p>}
@@ -555,7 +584,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
             )}
           />
           
-          {/* НОВОЕ ПОЛЕ: Ссылка на чат */}
           <Controller
             name="chatLink"
             control={control}
@@ -569,7 +597,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                     readOnly 
                   />
                   <div className="input-icons-group">
-                    {/* Кнопка Открыть */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -580,7 +607,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                       <ExternalLink size={18} />
                     </button>
 
-                    {/* Кнопка Выйти (Отвязать) */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -588,7 +614,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                       disabled={!isTelegramLinked || isUnlinking}
                       title="Отвязать Telegram"
                     >
-                      <Link2Off size={18} color="#ff6b6b" /> {/* Красная иконка для опасного действия */}
+                      <Link2Off size={18} color="#ff6b6b" /> 
                     </button>
                   </div>
                 </div>

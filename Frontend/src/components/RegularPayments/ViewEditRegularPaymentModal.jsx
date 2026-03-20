@@ -388,7 +388,7 @@ const ViewEditRegularPaymentModal = ({
           )}
         </form>
 
-        <div className="view-transaction-form-actions">
+        <div className="view-transaction-form-actions" style={{marginRight: "15px"}}>
           <button type="button" className="cancel-order-btn" onClick={handleCloseModal}>Отмена</button>
           <button type="submit" form="edit-regular-payment-form" className="save-order-btn">Сохранить</button>
         </div>

@@ -1,10 +1,10 @@
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import CustomSelect from "../../ui/CustomSelect";
 import AutoResizeTextarea from "./AutoResizeTextarea";
 import { Minus, Plus } from 'lucide-react';
+import CreatableSelect from "../../../components/Client/ClientModal/CreatableSelect.jsx";
 
-const Finance = ({ control, orderFields, transactions = [] }) => {
+const Finance = ({ control, orderFields, transactions = [], onAddNewField }) => {
   useFormContext();
 
   const totalIncome = (transactions || [])
@@ -17,12 +17,12 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
 
   const currencyOptions = (orderFields?.currency || [])
     .map((curr) => {
-      const value =
-        (typeof curr === "string" ? curr : curr?.code ?? curr?.value ?? curr?.name) || "";
-      const label =
-        (typeof curr === "string" ? curr : curr?.name ?? curr?.code ?? curr?.value) || "";
-      return value ? { value, label } : null;
+      return (typeof curr === "string" ? curr : curr?.code ?? curr?.value ?? curr?.name) || "";
     })
+    .filter(Boolean);
+
+  const discountReasonOptions = (orderFields?.discountReasons || [])
+    .map((opt) => opt?.value ?? opt?.name ?? "")
     .filter(Boolean);
 
   const maxData = {
@@ -145,11 +145,12 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
           <div className="tab-content-row">
             <div className="tab-content-title">Валюта</div>
             <div style={{ width: "100%" }}>
-              <CustomSelect
-                {...field}
-                value={field.value}
-                onChange={(e) => field.onChange(e.target.value)}
+              <CreatableSelect
+                value={field.value || ""}
+                onChange={field.onChange}
                 options={currencyOptions}
+                placeholder="Выберите или введите валюту..."
+                onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
               />
             </div>
           </div>
@@ -230,12 +231,15 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
         render={({ field }) => (
           <div className="tab-content-row">
             <div className="tab-content-title">Причина скидки</div>
-            <input
-              {...field}
-              type="text"
-              className="tab-content-input"
-              placeholder="Укажите причину..."
-            />
+            <div style={{ width: "100%" }}>
+              <CreatableSelect
+                value={field.value || ""}
+                onChange={field.onChange}
+                options={discountReasonOptions}
+                placeholder="Укажите причину..."
+                onAdd={(val) => onAddNewField && onAddNewField("orderFields", "discountReasons", val)}
+              />
+            </div>
           </div>
         )}
       />

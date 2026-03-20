@@ -3,6 +3,7 @@ import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Plus, X, Minus } from 'lucide-react';
 import { createTransaction } from '../../api/transactions';
+import CreatableSelect from '../Client/ClientModal/CreatableSelect'; 
 
 const getArticleValue = (article) =>
   String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();

@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { Controller, useFieldArray, useWatch, useFormContext } from "react-hook-form";
 import { X, Plus, Copy } from "lucide-react";
 import AutoResizeTextarea from "./AutoResizeTextarea";
+import CreatableSelect from "../../../components/Client/ClientModal/CreatableSelect.jsx";
 
-const WorkPlan = ({ control, orderFields }) => {
+const WorkPlan = ({ control, orderFields, onAddNewField }) => {
   const { getValues, setValue } = useFormContext();
 
   const rawReadySolutions = Array.isArray(orderFields?.readySolution)
@@ -12,7 +13,14 @@ const WorkPlan = ({ control, orderFields }) => {
     ? orderFields.orderFields.readySolution
     : [];
 
-  const readySolutions = rawReadySolutions.filter((item) => !item?.isDeleted);
+  const readySolutionsOptions = rawReadySolutions
+    .filter((item) => !item?.isDeleted)
+    .map(item => item.value ?? item.name ?? item)
+    .filter(Boolean);
+
+  const projectOptions = (orderFields?.projects || [])
+    .map((p) => p?.value ?? p?.name ?? (typeof p === "string" ? p : ""))
+    .filter(Boolean);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -163,17 +171,6 @@ const WorkPlan = ({ control, orderFields }) => {
     }
   };
 
-  const projectOptions = (orderFields?.projects || [])
-    .map((p) => p?.value ?? p?.name ?? (typeof p === "string" ? p : ""))
-    .filter(Boolean);
-
-  const fallbackProjects = [
-    "Проект Альфа",
-    "Разработка CRM",
-    "Интернет-магазин 'Космос'",
-    "Лендинг для конференции",
-  ];
-
   return (
     <div className="tab-content-container workplan-tab-wrapper">
       <div className="tab-content-row">
@@ -182,14 +179,13 @@ const WorkPlan = ({ control, orderFields }) => {
           name="project"
           control={control}
           render={({ field }) => (
-            <select {...field} className="custom-content-input">
-              <option value="" disabled hidden>Не выбрано</option>
-              {(projectOptions.length ? projectOptions : fallbackProjects).map((project, index) => (
-                <option key={index} value={project}>
-                  {project}
-                </option>
-              ))}
-            </select>
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={projectOptions}
+              placeholder="Выберите или введите проект..."
+              onAdd={(val) => onAddNewField && onAddNewField("orderFields", "projects", val)}
+            />
           )}
         />
       </div>
@@ -215,20 +211,13 @@ const WorkPlan = ({ control, orderFields }) => {
           name="readySolution"
           control={control}
           render={({ field }) => (
-            <select {...field} className="custom-content-input">
-              <option value="" disabled hidden>Не выбрано</option>
-              {readySolutions.length > 0 ? (
-                readySolutions.map((item) => (
-                  <option key={item.id || item.value} value={item.value ?? item.name ?? item}>
-                    {item.value ?? item.name ?? item}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>
-                  Список пуст (добавьте в настройках)
-                </option>
-              )}
-            </select>
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={readySolutionsOptions}
+              placeholder="Выберите или введите решение..."
+              onAdd={(val) => onAddNewField && onAddNewField("orderFields", "readySolution", val)}
+            />
           )}
         />
       </div>
@@ -255,7 +244,10 @@ const WorkPlan = ({ control, orderFields }) => {
                     if (e.key === "Enter" && customTechTag.trim()) {
                       e.preventDefault();
                       const next = customTechTag.trim();
-                      if (!value.includes(next)) onChange([...value, next]);
+                      if (!value.includes(next)) {
+                          onChange([...value, next]);
+                          onAddNewField && onAddNewField("orderFields", "techTags", next);
+                      }
                       setCustomTechTag("");
                       setShowTechTagDropdown(false);
                     }
@@ -288,6 +280,7 @@ const WorkPlan = ({ control, orderFields }) => {
                           onClick={() => {
                             const next = customTechTag.trim();
                             onChange([...value, next]);
+                            onAddNewField && onAddNewField("orderFields", "techTags", next);
                             setCustomTechTag("");
                             setShowTechTagDropdown(false);
                           }}
@@ -335,7 +328,10 @@ const WorkPlan = ({ control, orderFields }) => {
                     if (e.key === "Enter" && customTaskTag.trim()) {
                       e.preventDefault();
                       const next = customTaskTag.trim();
-                      if (!value.includes(next)) onChange([...value, next]);
+                      if (!value.includes(next)) {
+                          onChange([...value, next]);
+                          onAddNewField && onAddNewField("orderFields", "taskTags", next);
+                      }
                       setCustomTaskTag("");
                       setShowTaskTagDropdown(false);
                     }
@@ -368,6 +364,7 @@ const WorkPlan = ({ control, orderFields }) => {
                           onClick={() => {
                             const next = customTaskTag.trim();
                             onChange([...value, next]);
+                            onAddNewField && onAddNewField("orderFields", "taskTags", next);
                             setCustomTaskTag("");
                             setShowTaskTagDropdown(false);
                           }}

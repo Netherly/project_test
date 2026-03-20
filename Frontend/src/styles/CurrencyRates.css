@@ -8,7 +8,6 @@
     color: var(--text-color);
 }
 
-
 .currency-rates-header-container {
     display: flex;
     align-items: center;
@@ -18,6 +17,7 @@
     background-color: var(--container-bg);
     border-bottom: 1px solid var(--border--color);
 }
+
 .currency-rates-header-title {
     border-right: 1px solid var(--border--color);
     padding: 0px 15px;
@@ -29,7 +29,6 @@
     text-transform: uppercase;
     margin: 0; 
 }
-
 
 .currency-rates-header-actions{
     display: flex;
@@ -47,17 +46,18 @@
     color: var(--text-color);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); 
     overflow-x: auto; 
+    overflow-y: auto;
+    max-height: calc(100vh - 85px);
 }
-
 
 .currency-rates-table {
     width: 100%;
+    min-width: 1600px;
     border-collapse: separate; 
     border-spacing: 0;
     text-align: left;
     table-layout: fixed;
 }
-
 
 .currency-rates-table thead {
     background-color: var(--container-bg);
@@ -69,10 +69,12 @@
     font-weight: 600;
     position: sticky;
     top: 0;
+    z-index: 10;
     text-align: center;
     border-right: 1px solid var(--bg-color);
+    box-shadow: inset 0 -1px 0 var(--bg-color);
+    background-color: var(--container-bg);
 }
-
 
 .currency-rates-table .table-spacer-row td {
   background-color: transparent;
@@ -86,13 +88,11 @@
   background-color: transparent !important;
 }
 
-
 .currency-rates-table tbody tr {
     transition: background-color 0.2s ease;
 }
 
-
-.currency-rates-table tbody tr:hover {
+.currency-rates-table tbody tr:hover td {
     background-color: var(--input-border-focus);
 }
 
@@ -114,14 +114,15 @@
     border-right: none;
 }
 
-
 .currency-rates-table td.currency-rates-editable-cell {
   position: relative;
   padding: 0 !important;  
+  background-color: var(--input-bg);
 }
 
-
-
+.currency-rates-table tbody tr.row-active td.currency-rates-editable-cell {
+    background-color: #303443 !important;
+}
 
 .currency-rates-table td.currency-rates-editable-cell .currency-rates-editable-input {
   position: absolute;
@@ -136,13 +137,12 @@
   font: inherit;            
   box-sizing: border-box;
   transition: border-color 0.2s, box-shadow 0.2s;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .currency-rates-editable-input:focus {
     outline: none;
 }
-
 
 .action-buttons {
     display: flex;

@@ -19,8 +19,18 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { rid } from "../../api/fields.js";
-
 import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
+
+// Утилиты для курсов валют
+import { 
+  readLatestRatesSnapshot, 
+  writeLatestRatesSnapshot, 
+  convertAmountByRates, 
+  normalizeCurrencyCode 
+} from "../../utils/exchangeRates.js";
+
+// АПИ запрос за курсами валют
+import { fetchLatestRatesSnapshot } from "../../api/rates.js";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -100,6 +110,7 @@ const AssetDetailsModal = ({
   onSave,
   fields,
   employees,
+  onAddNewField, // <-- Добавлен проп для сохранения новых полей в БД
 }) => {
   const { transactions } = useTransactions();
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -142,6 +153,15 @@ const AssetDetailsModal = ({
     filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
     return filtered.slice(0, 5);
   }, [transactions, asset]);
+
+  // Подготавливаем опции для CreatableSelect
+  const currencyOptions = useMemo(() => {
+    return fields?.generalFields?.currency?.map(item => item?.value ?? item) || [];
+  }, [fields]);
+
+  const typeOptions = useMemo(() => {
+    return fields?.assetsFields?.type?.map(item => item?.value ?? item) || [];
+  }, [fields]);
 
   useEffect(() => {
     setEditableAsset(initialEditableAsset);
@@ -424,27 +444,18 @@ const AssetDetailsModal = ({
                 />
               </div>
 
+              {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
               <div className="form-row">
                 <label htmlFor="currency" className="form-label">
                   Валюта
                 </label>
-                <select
-                  id="currency"
-                  name="currency"
+                <CreatableSelect
                   value={editableAsset.currency}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {fields?.generalFields?.currency?.map((item, index) => {
-                    const val = item?.value ?? item;
-                    return (
-                      <option key={item?.id || index} value={val}>
-                        {val}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'currency', value: val } })}
+                  options={currencyOptions}
+                  placeholder="Выберите или введите валюту..."
+                  onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
+                />
               </div>
 
               <div className="form-row">
@@ -467,7 +478,7 @@ const AssetDetailsModal = ({
                     className="num-btn minus-btn" 
                     onClick={() => {
                       const numValue = parseFloat(editableAsset.limitTurnover) || 0;
-                      handleSelectChange("limitTurnover", Math.max(0, numValue - 1000));
+                      handleChange({ target: { name: 'limitTurnover', value: Math.max(0, numValue - 1000) } });
                     }} 
                     disabled={(parseFloat(editableAsset.limitTurnover) || 0) <= 0}
                   >
@@ -478,7 +489,7 @@ const AssetDetailsModal = ({
                     className="num-btn plus-btn" 
                     onClick={() => {
                       const numValue = parseFloat(editableAsset.limitTurnover) || 0;
-                      handleSelectChange("limitTurnover", numValue + 1000);
+                      handleChange({ target: { name: 'limitTurnover', value: numValue + 1000 } });
                     }}
                   >
                     <Plus />
@@ -486,26 +497,18 @@ const AssetDetailsModal = ({
                 </div>
               </div>
 
+              {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
               <div className="form-row">
                 <label htmlFor="type" className="form-label">
                   Тип
                 </label>
-                <select
-                  name="type"
+                <CreatableSelect
                   value={editableAsset.type}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {fields?.assetsFields?.type?.map((item, index) => {
-                    const val = item?.value ?? item;
-                    return (
-                      <option key={item?.id || index} value={val}>
-                        {val}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'type', value: val } })}
+                  options={typeOptions}
+                  placeholder="Выберите или введите тип..."
+                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
+                />
               </div>
 
               <div className="form-row">

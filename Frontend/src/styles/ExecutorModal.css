@@ -178,7 +178,7 @@ select option:disabled {
 
 .form-field-checkbox{
   display: flex;
-  gap: 70px;
+  gap: 90px;
   padding-top: 5px;
   font-size: 13px;
   color: #c0c0c0;

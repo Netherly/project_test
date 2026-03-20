@@ -23,6 +23,9 @@ export default function InfoTab({
   tagOptions = [],
   loadingLists = false,
   onAddCompany,
+  onAddCategory, // Добавлено для сохранения
+  onAddSource,   // Добавлено для сохранения
+  onAddBusiness, // Добавлено для сохранения
 }) {
   const {
     control,
@@ -100,6 +103,7 @@ export default function InfoTab({
         )}
       />
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="category"
         control={control}
@@ -108,20 +112,15 @@ export default function InfoTab({
             <label>
               Категория<span className="req">*</span>
             </label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={categories}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.category ? "input-error" : ""}
-            >
-              <option value="" disabled hidden>
-                Не выбрано
-              </option>
-              {categories.map((c, i) => (
-                <option key={`${c}-${i}`} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              error={!!errors.category}
+              onAdd={(val) => onAddCategory && onAddCategory(val)}
+            />
             {errors.category && (
               <p className="error grid-error">{errors.category.message}</p>
             )}
@@ -129,6 +128,7 @@ export default function InfoTab({
         )}
       />
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="source"
         control={control}
@@ -137,20 +137,15 @@ export default function InfoTab({
             <label>
               Источник<span className="req">*</span>
             </label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={sources}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.source ? "input-error" : ""}
-            >
-              <option value="" disabled hidden>
-                Не выбрано
-              </option>
-              {sources.map((s, i) => (
-                <option key={`${s}-${i}`} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              error={!!errors.source}
+              onAdd={(val) => onAddSource && onAddSource(val)}
+            />
             {errors.source && <p className="error grid-error">{errors.source.message}</p>}
           </div>
         )}
@@ -494,26 +489,22 @@ export default function InfoTab({
         />
       )}
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="business"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Вид деятельности</label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={businesses}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.business ? "input-error" : ""}
-            >
-              <option value="" disabled>
-                {loadingLists ? "Загрузка..." : "-- выбрать --"}
-              </option>
-              {businesses.map((b, i) => (
-                <option key={`${b}-${i}`} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+              error={!!errors.business}
+              onAdd={(val) => onAddBusiness && onAddBusiness(val)}
+            />
             {errors.business && <p className="error grid-error">{errors.business.message}</p>}
           </div>
         )}

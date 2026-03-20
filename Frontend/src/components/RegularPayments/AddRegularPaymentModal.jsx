@@ -321,7 +321,7 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
           </div>
         </form>
 
-        <div className="transaction-form-actions">
+        <div className="transaction-form-actions" style={{marginRight: "15px"}}>
           <button type="button" className="cancel-order-btn" onClick={handleOverlayClose}>Отмена</button>
           <button type="submit" form="add-regular-payment-form" className="save-order-btn">Сохранить</button>
         </div>

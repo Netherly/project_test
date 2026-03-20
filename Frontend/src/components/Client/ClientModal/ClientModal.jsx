@@ -26,6 +26,7 @@ export default function ClientModal({
   referrers = [],
   countries = [],
   currencies = [],
+  clients = [], 
   onClose,
   onSave,
   onAddCompany,
@@ -232,6 +233,12 @@ export default function ClientModal({
     }
   };
 
+  const availableClients = useMemo(() => {
+    if (clients && clients.length > 0) return clients;
+    if (safeClient.id) return [safeClient];
+    return [];
+  }, [clients, safeClient]);
+
   return (
     <div className={`client-modal-overlay${closing ? " closing" : ""}`}>
       <div className="client-modal tri-layout">
@@ -269,6 +276,7 @@ export default function ClientModal({
                 <ContactsTab
                   countries={countries}
                   openImage={() => getValues("photo_link") && setShowImage(true)}
+                  onAddCountry={(val) => handleAddNewField("generalFields", "country", val)}
                 />
               )}
 
@@ -277,6 +285,8 @@ export default function ClientModal({
                   currencies={currencies}
                   referrers={referrers}
                   employees={employees}
+                  clients={availableClients} 
+                  onAddCurrency={(val) => handleAddNewField("generalFields", "currency", val)}
                 />
               )}
 
