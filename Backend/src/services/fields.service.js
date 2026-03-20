@@ -1126,12 +1126,36 @@ async function saveAll(payload) {
       }
 
       const incomingIds = new Set(incomingDesigns.filter((d) => d.id).map((d) => d.id));
-      const toDeactivate = existingDesigns.filter((d) => !incomingIds.has(d.id));
-      if (toDeactivate.length) {
-        await tx.cardDesign.updateMany({
-          where: { id: { in: toDeactivate.map((d) => d.id) } },
-          data: { isActive: false },
+      const removedActiveDesigns = existingDesigns.filter((d) => d.isActive && !incomingIds.has(d.id));
+      if (removedActiveDesigns.length) {
+        const removedIds = removedActiveDesigns.map((d) => d.id);
+        const usedAssets = await tx.asset.findMany({
+          where: { cardDesignId: { in: removedIds } },
+          select: { cardDesignId: true },
+          distinct: ['cardDesignId'],
         });
+        const usedIds = new Set(usedAssets.map((item) => item.cardDesignId).filter(Boolean));
+
+        const toHideIds = removedIds.filter((id) => usedIds.has(id));
+        const toDelete = removedActiveDesigns.filter((d) => !usedIds.has(d.id));
+
+        if (toHideIds.length) {
+          await tx.cardDesign.updateMany({
+            where: { id: { in: toHideIds } },
+            data: { isActive: false },
+          });
+        }
+
+        if (toDelete.length) {
+          await tx.cardDesign.deleteMany({
+            where: { id: { in: toDelete.map((d) => d.id) } },
+          });
+
+          for (const design of toDelete) {
+            const abs = urlToAbsPath(design.imageUrl);
+            if (abs) await safeUnlink(abs);
+          }
+        }
       }
 
       // 8. FINANCE
