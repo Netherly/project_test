@@ -9,12 +9,13 @@ const PAGE_SIZE = 50;
 
 /* ---------- utils ---------- */
 const fmt = (v, digits = 4) => {
+  if (v === null || v === undefined || v === '') return '—';
   const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(digits) : Number(0).toFixed(digits);
+  return Number.isFinite(n) ? n.toFixed(digits) : '—';
 };
 const safeDiv = (a, b) => {
   const x = Number(a), y = Number(b);
-  if (!Number.isFinite(x) || !Number.isFinite(y) || y === 0) return 0;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || y === 0) return null;
   return x / y;
 };
 const calculateRates = (usdToUah, rubToUah) => {
@@ -46,10 +47,6 @@ const calculateRates = (usdToUah, rubToUah) => {
     USDT_UAH, USDT_USD, USDT_RUB,
     RUB_UAH, RUB_USD, RUB_USDT,
   };
-};
-const getNum = (maybe, fallback) => {
-  const n = Number(maybe);
-  return Number.isFinite(n) ? n : fallback;
 };
 const getPureDateTimestamp = (date) => {
   const d = new Date(date);
@@ -99,18 +96,18 @@ const mapServerRows = (rows) =>
         USD,
         RUB,
         USDT: USD, // USDT = USD
-        UAH_RUB:  getNum(row.UAH_RUB  ?? row.uah_rub,  calc.UAH_RUB),
-        UAH_USD:  getNum(row.UAH_USD  ?? row.uah_usd,  calc.UAH_USD),
-        UAH_USDT: getNum(row.UAH_USDT ?? row.uah_usdt, calc.UAH_USDT),
-        USD_UAH:  getNum(row.USD_UAH  ?? row.usd_uah,  calc.USD_UAH),
-        USD_RUB:  getNum(row.USD_RUB  ?? row.usd_rub,  calc.USD_RUB),
-        USD_USDT: getNum(row.USD_USDT ?? row.usd_usdt, calc.USD_USDT),
-        USDT_UAH: getNum(row.USDT_UAH ?? row.usdt_uah, calc.USDT_UAH),
-        USDT_USD: getNum(row.USDT_USD ?? row.usdt_usd, calc.USDT_USD),
-        USDT_RUB: getNum(row.USDT_RUB ?? row.usdt_rub, calc.USDT_RUB),
-        RUB_UAH:  getNum(row.RUB_UAH  ?? row.rub_uah,  calc.RUB_UAH),
-        RUB_USD:  getNum(row.RUB_USD  ?? row.rub_usd,  calc.RUB_USD),
-        RUB_USDT: getNum(row.RUB_USDT ?? row.rub_usdt, calc.RUB_USDT),
+        UAH_RUB: calc.UAH_RUB,
+        UAH_USD: calc.UAH_USD,
+        UAH_USDT: calc.UAH_USDT,
+        USD_UAH: calc.USD_UAH,
+        USD_RUB: calc.USD_RUB,
+        USD_USDT: calc.USD_USDT,
+        USDT_UAH: calc.USDT_UAH,
+        USDT_USD: calc.USDT_USD,
+        USDT_RUB: calc.USDT_RUB,
+        RUB_UAH: calc.RUB_UAH,
+        RUB_USD: calc.RUB_USD,
+        RUB_USDT: calc.RUB_USDT,
       };
     })
     .sort((a, b) => b.date - a.date);
@@ -376,37 +373,17 @@ function CurrencyRates() {
         return;
       }
 
-      const payload = changed.map((row) => {
-        const rec = calculateRates(row.USD, row.RUB);
-        return {
-          date: row.ymd || toYmd(row.date),
-          uah:  1.0,
-          usd:  Number(row.USD),
-          rub:  Number(row.RUB),
-          usdt: Number(row.USD),
-
-          uah_rub:  Number(rec.UAH_RUB),
-          uah_usd:  Number(rec.UAH_USD),
-          uah_usdt: Number(rec.UAH_USDT),
-
-          usd_uah:  Number(rec.USD_UAH),
-          usd_rub:  Number(rec.USD_RUB),
-          usd_usdt: Number(rec.USD_USDT),
-
-          usdt_uah: Number(rec.USDT_UAH),
-          usdt_usd: Number(rec.USDT_USD),
-          usdt_rub: Number(rec.USDT_RUB),
-
-          rub_uah:  Number(rec.RUB_UAH),
-          rub_usd:  Number(rec.RUB_USD),
-          rub_usdt: Number(rec.RUB_USDT),
-        };
-      });
+      const payload = changed.map((row) => ({
+        date: row.ymd || toYmd(row.date),
+        uah: 1,
+        usd: Number(row.USD),
+        rub: Number(row.RUB),
+        usdt: Number(row.USD),
+      }));
 
       await upsertRates(payload);
-      setInitialRates(rates.map((row) => ({ ...row })));
+      await initialLoad();
       setDirtyIds(new Set());
-      debouncedSaveToSession.current(rates);
       stopEditRow();
     } catch (e) {
       console.error(e);
@@ -431,36 +408,6 @@ function CurrencyRates() {
     stopEditRow();
   };
 
-  const handleEnsureToday = async () => {
-    if (isDirty) {
-      openModal('Есть несохранённые изменения', 'Перед добавлением курса на сегодня сохраните или отмените изменения.', 'warning');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      const result = await ensureTodayRates();
-      await initialLoad();
-
-      if (result?.created) {
-        openModal('Курс на сегодня добавлен', 'Создана запись на сегодня на основе последнего курса.', 'success');
-      } else {
-        openModal('Курс на сегодня уже есть', 'Запись на сегодня уже существует.', 'info');
-      }
-    } catch (e) {
-      console.error(e);
-      setError('Не удалось добавить курс на сегодня.');
-      openErrorModal(
-        'Ошибка',
-        'Не удалось подготовить запись курсов на сегодня.',
-        () => { setModal(m => ({ ...m, open: false })); handleEnsureToday(); }
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="currency-rates-page">
       <Sidebar />
@@ -479,30 +426,16 @@ function CurrencyRates() {
           {saving && <span>Сохранение…</span>}
           {error && <span style={{ color: 'salmon' }}>{error}</span>}
 
-          <div className="currency-rates-header-actions">
-            {isDirty && (
-              <>
-                <button type="button" className="cancel-order-btn" onClick={handleCancel}>
-                  Отменить
-                </button>
-                <button type="button" className="save-order-btn" onClick={handleSave} disabled={saving}>
-                  Сохранить
-                </button>
-              </>
-            )}
-
-            {!isDirty && (
-              <button
-                type="button"
-                className="cancel-order-btn"
-                onClick={handleEnsureToday}
-                disabled={loading || saving}
-                title="Создать запись курсов на сегодня"
-              >
-                На сегодня
+          {isDirty && (
+            <div className="currency-rates-header-actions">
+              <button type="button" className="cancel-order-btn" onClick={handleCancel}>
+                Отменить
               </button>
-            )}
-          </div>
+              <button type="button" className="save-order-btn" onClick={handleSave} disabled={saving}>
+                Сохранить
+              </button>
+            </div>
+          )}
         </header>
 
         <div className="currency-rates-table-container">

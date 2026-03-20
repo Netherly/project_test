@@ -25,7 +25,12 @@ export const normStrs = (arr) => {
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), value: v, isDeleted: item?.isDeleted || false });
+      out.push({
+        id: item?.id || rid(),
+        value: v,
+        isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
+        isDeleted: item?.isDeleted || false,
+      });
     }
   }
   return out;
@@ -56,6 +61,7 @@ export const normCodeStrs = (arr) => {
       code,
       name,
       label: name || code,
+      isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
     });
   }
@@ -96,6 +102,7 @@ export const normCountries = (arr) => {
       iso2,
       iso3,
       order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+      isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
     });
   }
@@ -106,6 +113,7 @@ export const normIntervals = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     intervalValue: tidy(it?.intervalValue ?? it?.value ?? it),
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -116,6 +124,7 @@ export const normCategories = (arr) =>
       it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group
     ),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -123,6 +132,7 @@ export const normArticles = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -137,6 +147,7 @@ export const normSubarticles = (arr) =>
         it?.parentSubcategoryName
     ),
     subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -147,6 +158,7 @@ export const normDesigns = (arr) =>
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
     order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
+    isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined,
     isDeleted: d?.isDeleted || false,
   }));
 

@@ -6,8 +6,7 @@ const MIN_ITEMS = 4;
 
 const DEFAULT_TEST_FIELDS = {
   generalFields: {
-    currency: ['UAH', 'USD', 'EUR', 'PLN'],
-    country: ['Украина', 'Польша', 'Германия', 'Литва'],
+    currency: ['UAH', 'USD', 'EUR', 'RUB', 'USDT'],
     businessLine: ['Лидогенерация', 'Разработка', 'Маркетинг', 'Поддержка'],
   },
   orderFields: {
@@ -256,7 +255,6 @@ async function ensureTestFields() {
     generalFields: {
       ...current.generalFields,
       currency: topUpTextList(current?.generalFields?.currency, DEFAULT_TEST_FIELDS.generalFields.currency),
-      country: topUpTextList(current?.generalFields?.country, DEFAULT_TEST_FIELDS.generalFields.country),
       businessLine: topUpTextList(
         current?.generalFields?.businessLine,
         DEFAULT_TEST_FIELDS.generalFields.businessLine
