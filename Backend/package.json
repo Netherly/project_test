@@ -11,6 +11,7 @@
     "build": "echo \"no build step\"",
     "postinstall": "prisma generate",
     "seed": "node prisma/seed.js",
+    "rates:import": "node src/scripts/import-rates-from-excel.js",
     "dev": "npx prisma generate && npx prisma db push && nodemon src/server.js",
     "dev:db": "npx prisma generate && npx prisma db push",
     "test": "jest",
@@ -38,7 +39,8 @@
     "node-cron": "^4.2.1",
     "path": "^0.12.7",
     "telegraf": "^4.16.3",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "dotenv-cli": "^11.0.0",

@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../prisma/client');
 const { fetchAndSaveTelegramAvatar } = require('../services/telegram-avatar.service');
 const { logActivity } = require('../services/activity-log.service');
+const { buildTelegramStartLink } = require('../services/telegram-bot.service');
 
 function minutesFromNow(min) {
   const d = new Date();
@@ -18,11 +19,7 @@ async function createLinkToken(req, res, next) {
     const ticket = await prisma.telegramLinkTicket.create({
       data: { code, employeeId, expiresAt: minutesFromNow(60) },
     });
-
-    const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
-      .trim()
-      .replace(/^@/, '');
-    const link = `https://t.me/${botName}?start=${ticket.code}`;
+    const link = await buildTelegramStartLink(ticket.code);
 
     return res.json({ link, code: ticket.code, ttlMinutes: 60 });
   } catch (e) {

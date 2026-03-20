@@ -3,7 +3,10 @@ const { Prisma } = require('@prisma/client');
 const prisma = require('../../prisma/client');
 
 /** UI округление только для ответа */
-const to4 = (n) => Number(n).toFixed(4);
+const to4 = (n) => {
+  const value = Number(n);
+  return Number.isFinite(value) ? value.toFixed(4) : null;
+};
 
 /** Нормализовать к UTC полночь */
 function toUTCDate(dateLike) {
@@ -28,10 +31,19 @@ function buildRow(s) {
     USDT: Number(s.usdt),
   };
   const row = { date: s.date instanceof Date ? s.date : new Date(s.date) };
-  for (const k of Object.keys(bases)) row[k] = Number(to4(bases[k]));
+  for (const k of Object.keys(bases)) {
+    row[k] = to4(bases[k]) === null ? null : Number(to4(bases[k]));
+  }
   const codes = Object.keys(bases);
+
+  const safeRatio = (a, b) => {
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return null;
+    const rounded = to4(a / b);
+    return rounded === null ? null : Number(rounded);
+  };
+
   for (const a of codes) for (const b of codes) if (a !== b) {
-    row[`${a}:${b}`] = Number(to4(bases[a] / bases[b]));
+    row[`${a}:${b}`] = safeRatio(bases[a], bases[b]);
   }
   return row;
 }
@@ -46,7 +58,10 @@ function calcCrosses({ uah, usd, rub, usdt }) {
   const RUB = Number(rub);
   const USDT = Number(usdt);
 
-  const safeDiv = (a, b) => new Prisma.Decimal(a).div(new Prisma.Decimal(b));
+  const safeDiv = (a, b) => {
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return null;
+    return new Prisma.Decimal(a).div(new Prisma.Decimal(b));
+  };
 
   return {
     // UAH:*
@@ -271,6 +286,10 @@ async function deleteManyByDates(dates = []) {
 }
 
 module.exports = {
+  // helpers
+  toUTCDate,
+  assembleAllFields,
+
   // upsert
   upsertOne,
   upsertMany,

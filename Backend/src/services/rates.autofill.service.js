@@ -2,9 +2,16 @@ const dayjs = require('dayjs');
 require('dotenv').config();
 
 const prisma = require('../../prisma/client');
+const { upsertOne } = require('./rates.service');
 
 const DEFAULT_TZ = 'Europe/Kyiv';
 const DEFAULT_MODE = 'today';
+const DEFAULT_BASE_RATES = {
+  uah: 1,
+  usd: 41.25,
+  rub: 0.44,
+  usdt: 41.25,
+};
 
 function pickSnapshotFields(row = {}) {
   return {
@@ -37,7 +44,13 @@ async function ensureLatestToDate(ymd) {
   const last = await prisma.exchangeRates.findFirst({
     orderBy: { date: 'desc' },
   });
-  if (!last) return { created: false, row: null };
+  if (!last) {
+    const created = await upsertOne({
+      date,
+      ...DEFAULT_BASE_RATES,
+    });
+    return { created: true, row: created };
+  }
 
   const created = await prisma.exchangeRates.create({
     data: {
