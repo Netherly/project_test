@@ -38,7 +38,7 @@ import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
 const VISIBLE_FIELD_CURRENCIES = [
   { code: "UAH", name: "Ukrainian Hryvnia" },
@@ -887,7 +887,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      onError?.({ title: "Слишком большой файл", message: "Максимум 5 МБ." });
+      onError?.({ title: "Слишком большой файл", message: "Максимум 2 МБ." });
       event.target.value = "";
       return;
     }
@@ -989,14 +989,24 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
                     </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="upload-design-btn"
-                    onClick={() => triggerFile(i)}
-                    disabled={design.isDeleted}
-                  >
-                    + Загрузить изображение
-                  </button>
+                  <div className="card-design-actions">
+                    <button
+                      type="button"
+                      className="upload-design-btn"
+                      onClick={() => triggerFile(i)}
+                      disabled={design.isDeleted}
+                    >
+                      + Загрузить изображение
+                    </button>
+                    <button
+                      type="button"
+                      className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
+                      onClick={() => onToggleDelete(i)}
+                      title={design.isDeleted ? "Восстановить" : "Удалить"}
+                    >
+                      {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

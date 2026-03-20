@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 const router = express.Router();
-const MAX_CARD_DESIGN_BYTES = 5 * 1024 * 1024;
+const MAX_CARD_DESIGN_BYTES = 2 * 1024 * 1024;
 
 // директория для сохранения (../.. от src/routes → Backend/uploads/card-designs)
 const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'card-designs');
@@ -39,7 +39,7 @@ const upload = multer({
 router.post('/card-design', (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ ok: false, error: 'Размер файла превышает 5 МБ' });
+      return res.status(400).json({ ok: false, error: 'Размер файла превышает 2 МБ' });
     }
     if (err) {
       return res.status(400).json({ ok: false, error: err.message || 'Не удалось загрузить файл' });
