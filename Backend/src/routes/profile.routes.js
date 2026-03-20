@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const authJwt = require("../middlewares/auth.middleware");
+const { uploadRateLimit } = require("../middlewares/rate-limit.middleware");
 const ctrl = require("../controllers/profile.controller");
 
 const multer = require("multer");
@@ -23,7 +24,7 @@ const upload = multer({ storage });
 
 router.get("/", authJwt, ctrl.getProfile);
 router.put("/", authJwt, express.json(), ctrl.updateProfile);
-router.post("/background", authJwt, upload.single("file"), ctrl.uploadBackground);
+router.post("/background", authJwt, uploadRateLimit, upload.single("file"), ctrl.uploadBackground);
 router.put("/password", authJwt, express.json(), ctrl.changePassword);
 router.post("/telegram/unlink", authJwt, ctrl.unlinkTelegram);
 
