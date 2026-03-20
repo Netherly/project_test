@@ -20,6 +20,7 @@ jobs:
       FRONTEND_TARGET_DIR: crm-frontend-test
       BACKEND_TARGET_DIR: crm-backend-test
       PM2_APP_NAME: crm-backend-test
+      DEPLOY_TMP_DIR: /var/www/.deploy/test
 
     steps:
       - name: Checkout
@@ -168,7 +169,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           source: "frontend.tgz"
-          target: "/var/www"
+          target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
 
       - name: Unpack frontend on server (atomic)
@@ -182,16 +183,17 @@ jobs:
           script: |
             set -e
             cd /var/www
-            mkdir -p "${{ env.FRONTEND_TARGET_DIR }}" .releases
-            rm -rf .releases/frontend_new
-            mkdir -p .releases/frontend_new
-            tar -xzf frontend.tgz -C .releases/frontend_new
-            if [ -d ".releases/frontend_new/${{ env.FE_OUT }}" ]; then
-              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "${{ env.FRONTEND_TARGET_DIR }}/"
+            RELEASE_DIR=".releases/${{ env.FRONTEND_TARGET_DIR }}"
+            mkdir -p "${{ env.FRONTEND_TARGET_DIR }}" "${{ env.DEPLOY_TMP_DIR }}" "$RELEASE_DIR"
+            rm -rf "$RELEASE_DIR/new"
+            mkdir -p "$RELEASE_DIR/new"
+            tar -xzf "${{ env.DEPLOY_TMP_DIR }}/frontend.tgz" -C "$RELEASE_DIR/new"
+            if [ -d "$RELEASE_DIR/new/${{ env.FE_OUT }}" ]; then
+              rsync -a --delete --exclude='.well-known' "$RELEASE_DIR/new/${{ env.FE_OUT }}/" "${{ env.FRONTEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/" "${{ env.FRONTEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude='.well-known' "$RELEASE_DIR/new/" "${{ env.FRONTEND_TARGET_DIR }}/"
             fi
-            rm -f frontend.tgz
+            rm -f "${{ env.DEPLOY_TMP_DIR }}/frontend.tgz"
 
       # ---------- BACKEND ----------
       - name: Pack backend source
@@ -214,7 +216,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           source: "backend.tgz"
-          target: "/var/www"
+          target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
 
       - name: Unpack backend on server (atomic)
@@ -228,18 +230,19 @@ jobs:
           script: |
             set -e
             cd /var/www
-            mkdir -p "${{ env.BACKEND_TARGET_DIR }}" .releases
-            rm -rf .releases/backend_new
-            mkdir -p .releases/backend_new
-            tar -xzf backend.tgz -C .releases/backend_new
-            if [ -d ".releases/backend_new/backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
-            elif [ -d ".releases/backend_new/Backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+            RELEASE_DIR=".releases/${{ env.BACKEND_TARGET_DIR }}"
+            mkdir -p "${{ env.BACKEND_TARGET_DIR }}" "${{ env.DEPLOY_TMP_DIR }}" "$RELEASE_DIR"
+            rm -rf "$RELEASE_DIR/new"
+            mkdir -p "$RELEASE_DIR/new"
+            tar -xzf "${{ env.DEPLOY_TMP_DIR }}/backend.tgz" -C "$RELEASE_DIR/new"
+            if [ -d "$RELEASE_DIR/new/backend" ]; then
+              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+            elif [ -d "$RELEASE_DIR/new/Backend" ]; then
+              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
             fi
-            rm -f backend.tgz
+            rm -f "${{ env.DEPLOY_TMP_DIR }}/backend.tgz"
 
       - name: Prepare backend .env file
         env:
@@ -336,7 +339,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           source: "backend.env"
-          target: "/var/www"
+          target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
 
       - name: Upload nginx test template
@@ -361,11 +364,11 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             set -e
-            cd /var/www
-            test -f backend.env
+            mkdir -p "${{ env.DEPLOY_TMP_DIR }}"
+            test -f "${{ env.DEPLOY_TMP_DIR }}/backend.env"
             mkdir -p "${{ env.BACKEND_TARGET_DIR }}"
             umask 027
-            mv -f backend.env "${{ env.BACKEND_TARGET_DIR }}/.env"
+            mv -f "${{ env.DEPLOY_TMP_DIR }}/backend.env" "${{ env.BACKEND_TARGET_DIR }}/.env"
             chmod 640 "${{ env.BACKEND_TARGET_DIR }}/.env"
             chown "$(id -un)":"$(id -gn)" "${{ env.BACKEND_TARGET_DIR }}/.env"
 
@@ -390,6 +393,7 @@ jobs:
       - name: Sync nginx test config and reload
         env:
           LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -397,13 +401,13 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
-          envs: LETSENCRYPT_EMAIL
+          envs: LETSENCRYPT_EMAIL,TEST_DOMAIN
           script: |
             set -e
             TEMPLATE="/tmp/deploy/nginx/test.conf.template"
             TARGET="/etc/nginx/sites-available/crm-test.conf"
             TARGET_ENABLED="/etc/nginx/sites-enabled/crm-test.conf"
-            DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            DOMAIN="${TEST_DOMAIN:-gsse.dev}"
             test -f "$TEMPLATE"
             sed "s/TEST_DOMAIN/$DOMAIN/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
             sudo ln -sf "$TARGET" "$TARGET_ENABLED"
@@ -439,6 +443,8 @@ jobs:
             sudo systemctl reload nginx
 
       - name: Verify test TLS certificate
+        env:
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -446,9 +452,10 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: TEST_DOMAIN
           script: |
             set -e
-            DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            DOMAIN="${TEST_DOMAIN:-gsse.dev}"
             CERT_TEXT="$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -text)"
             echo "$CERT_TEXT" | grep -q "DNS:$DOMAIN"
 
@@ -483,17 +490,8 @@ jobs:
 
             npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
             npx prisma generate
-            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
-              echo 'Running prisma migrate deploy...'
-              npx prisma migrate deploy
-            else
-              echo 'No migrations found. Running prisma db push...'
-              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'yes' ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'true' ]; then
-                npx prisma db push --accept-data-loss
-              else
-                npx prisma db push
-              fi
-            fi
+            echo 'Running prisma migrate deploy...'
+            npx prisma migrate deploy
 
             echo 'Running seed for test default admin...'
             npm run seed
@@ -554,6 +552,8 @@ jobs:
             fi
 
       - name: Backend health check (follow redirects)
+        env:
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -561,9 +561,10 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: TEST_DOMAIN
           script: |
             set -e
-            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN }}"
+            HOST_HEADER="${TEST_DOMAIN:-gsse.dev}"
 
             for i in {1..20}; do
               code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)

@@ -4,6 +4,7 @@ const path = require('path');
 const { hasTable } = require('../utils/db-schema');
 const { buildCountryNames, normalizeIso2, normalizeIso3 } = require('../utils/country-localization');
 const { httpErr } = require('../utils/http-error');
+const { createTtlCache } = require('../utils/ttl-cache');
 
 /* ==============================
    FS utils
@@ -191,6 +192,10 @@ const EXTRA_FIELD_LINK_CONFIGS = {
     deleteUnused: true,
   },
 };
+const fieldsBundleCache = createTtlCache({
+  ttlMs: Number(process.env.FIELDS_BUNDLE_CACHE_TTL_MS || 60_000),
+  maxEntries: 4,
+});
 
 async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
@@ -1920,9 +1925,13 @@ async function saveAll(payload) {
 }
 
 module.exports = {
-  loadBundle: () => getAll(),
-  saveBundle: (payload) => saveAll(payload),
-  loadInactiveBundle: () => getInactive(),
+  loadBundle: () => fieldsBundleCache.getOrLoad('active', () => getAll()),
+  saveBundle: async (payload) => {
+    const data = await saveAll(payload);
+    fieldsBundleCache.clearAll();
+    return data;
+  },
+  loadInactiveBundle: () => fieldsBundleCache.getOrLoad('inactive', () => getInactive()),
   getAll,
   saveAll,
   getInactive,
