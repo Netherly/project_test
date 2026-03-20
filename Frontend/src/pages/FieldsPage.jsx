@@ -1106,7 +1106,7 @@ function FieldsPage() {
 
   const requestDeleteToggle = ({ item, fieldLabel, onToggle }) => {
     if (!item) return;
-    if (item.isDeleted || item.isLinked !== false) {
+    if (item.isDeleted || item.isLinked === true) {
       onToggle?.();
       return;
     }
