@@ -1093,7 +1093,7 @@ function FieldsPage() {
     setModal({
       open: true,
       title: "Удалить поле?",
-      message: `Поле "${safeFieldLabel}" будет удалено после сохранения.\n\nЕсли это значение уже используется в данных, оно только скроется из списков и останется в существующих записях.\nЕсли значение нигде не используется, система может удалить его окончательно.\n\nВосстановить окончательно удаленное поле нельзя.`,
+      message: `Удалить поле "${safeFieldLabel}"?\n\nПосле сохранения восстановить его будет нельзя.`,
       confirmText: "Удалить",
       cancelText: "Отмена",
       onConfirm: async () => {
@@ -1106,7 +1106,7 @@ function FieldsPage() {
 
   const requestDeleteToggle = ({ item, fieldLabel, onToggle }) => {
     if (!item) return;
-    if (item.isDeleted) {
+    if (item.isDeleted || item.isLinked !== false) {
       onToggle?.();
       return;
     }

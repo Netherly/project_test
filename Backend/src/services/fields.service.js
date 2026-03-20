@@ -696,7 +696,7 @@ async function getAll(db) {
       select: { id: true, value: true, interval: { select: { id: true, value: true } } },
       orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
     }),
-    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.cardDesign.findMany({ where: { isActive: true }, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.financeSubarticleDict.findMany({
       ...whereActiveHardDelete,
       select: {
@@ -734,6 +734,19 @@ async function getAll(db) {
     tagsByCode('employee'),
     tagsByCode('task'),
   ]);
+
+  const activeCardDesignIds = cardDesigns.map((item) => item.id);
+  const linkedCardDesignIds = new Set(
+    activeCardDesignIds.length
+      ? (
+          await _db.asset.findMany({
+            where: { cardDesignId: { in: activeCardDesignIds } },
+            select: { cardDesignId: true },
+            distinct: ['cardDesignId'],
+          })
+        ).map((item) => item.cardDesignId).filter(Boolean)
+      : []
+  );
 
   const mapTags = (list) => list.map((t) => ({ id: t.id, name: t.name, color: t.color }));
 
@@ -797,6 +810,7 @@ async function getAll(db) {
         name: d.name,
         url: d.imageUrl || '',
         order: d.order,
+        isLinked: linkedCardDesignIds.has(d.id),
       })),
     },
 
@@ -911,12 +925,28 @@ async function getInactive(db) {
       cardDesigns: await _db.cardDesign.findMany({
         ...whereInactive,
         orderBy: [{ order: 'asc' }, { name: 'asc' }],
-      }).then((items) => items.map((d) => ({
-        id: d.id,
-        name: d.name,
-        url: d.imageUrl || '',
-        order: d.order,
-      }))),
+      }).then(async (items) => {
+        const ids = items.map((item) => item.id);
+        const linkedIds = new Set(
+          ids.length
+            ? (
+                await _db.asset.findMany({
+                  where: { cardDesignId: { in: ids } },
+                  select: { cardDesignId: true },
+                  distinct: ['cardDesignId'],
+                })
+              ).map((item) => item.cardDesignId).filter(Boolean)
+            : []
+        );
+
+        return items.map((d) => ({
+          id: d.id,
+          name: d.name,
+          url: d.imageUrl || '',
+          order: d.order,
+          isLinked: linkedIds.has(d.id),
+        }));
+      }),
     },
     financeFields: {
       articles: articles.map((a) => ({ id: a.id, name: a.name })),

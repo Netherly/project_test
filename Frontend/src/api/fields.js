@@ -147,6 +147,7 @@ export const normDesigns = (arr) =>
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
     order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
+    isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined,
     isDeleted: d?.isDeleted || false,
   }));
 
