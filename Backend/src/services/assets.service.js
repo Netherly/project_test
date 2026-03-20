@@ -126,6 +126,10 @@ const AssetsService = {
 
     const balance  = Number(payload.balance ?? 0);
     const startBal = Number(payload.turnoverStartBalance ?? balance);
+    const limitTurnover =
+      payload.limitTurnover === undefined || payload.limitTurnover === null || payload.limitTurnover === ''
+        ? null
+        : Number(payload.limitTurnover);
 
     return prisma.asset.create({
       data: {
@@ -139,6 +143,7 @@ const AssetsService = {
         design:     payload.design     ?? null,
 
         balance,
+        limitTurnover,
         turnoverStartBalance: startBal,
         turnoverIncoming: 0,
         turnoverOutgoing: 0,
@@ -203,6 +208,11 @@ const AssetsService = {
 
     if (payload.balance !== undefined)
       data.balance = Number(payload.balance);
+    if (payload.limitTurnover !== undefined)
+      data.limitTurnover =
+        payload.limitTurnover === null || payload.limitTurnover === ''
+          ? null
+          : Number(payload.limitTurnover);
     if (payload.turnoverStartBalance !== undefined)
       data.turnoverStartBalance = Number(payload.turnoverStartBalance);
 
@@ -257,6 +267,7 @@ const AssetsService = {
         design:     src.design,
 
         balance: 0,
+        limitTurnover: src.limitTurnover,
         turnoverStartBalance: 0,
         turnoverIncoming: 0,
         turnoverOutgoing: 0,
