@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import defaultAvatar from '../../../assets/avatar-placeholder.svg';
-import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
+import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css';
 import { Trash2 } from 'lucide-react';
-
-const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
 
 export default function ClientHeader({
   onClose,
-  onDelete // Если null, кнопка удаления скрыта
+  onDelete, 
+  tagOptions = [],
+  onAddNewField
 }) {
   
   const { watch, control } = useFormContext();
@@ -22,6 +22,8 @@ export default function ClientHeader({
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const tagInputRef = useRef(null);
   const tagDropdownRef = useRef(null);
+
+  const availableTags = (tagOptions || []).map(t => typeof t === 'object' ? t.name || t.value : t);
 
   const handleTagInputChange = (e) => setCustomTag(e.target.value);
   const handleTagInputFocus = () => setShowTagDropdown(true);
@@ -38,7 +40,9 @@ export default function ClientHeader({
   const handleCustomTagAdd = (e, fieldOnChange) => {
       if (e.key === 'Enter' && customTag.trim()) {
           e.preventDefault();
-          handleTagSelect(customTag.trim(), fieldOnChange);
+          const newTag = customTag.trim();
+          handleTagSelect(newTag, fieldOnChange);
+          if (onAddNewField) onAddNewField("clientFields", "tags", newTag);
       }
   };
   
@@ -47,7 +51,7 @@ export default function ClientHeader({
       fieldOnChange(currentTags.filter(tag => tag.name !== tagToRemove.name));
   };
 
-  const filteredTags = defaultTags.filter(
+  const filteredTags = availableTags.filter(
       tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !watchedTags.find(t => t.name === tagString)
   );
 
@@ -81,16 +85,11 @@ export default function ClientHeader({
 
   return (
     <div className={styles.employeeHeader}>
-      
-      {/* 1. Аватар */}
       <div className={styles.avatarContainer}>
         <img src={avatarSrc} alt="Аватар клиента" className={styles.avatar} />
       </div>
 
-      {/* 2. Основной контент */}
       <div className={styles.mainContent}>
-        
-        {/* Инфо (Имя + Ник) */}
         <div className={styles.info}>
           <h2 className={clientName === 'Имя клиента' ? styles.placeholder : ''}>
             {clientName}
@@ -100,7 +99,6 @@ export default function ClientHeader({
           </span>
         </div>
         
-        {/* Теги в хедере */}
         <div className={styles.tagsSectionHeader}>
             <Controller
                 control={control}
@@ -122,15 +120,16 @@ export default function ClientHeader({
                                     autoComplete="off"
                                 />
                                 
-                                {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                                {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !availableTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
                                     <div className={styles.tagDropdown} ref={tagDropdownRef}>
                                         {filteredTags.map(tag => (
-                                            <div key={tag} className={styles.tagDropdownItem} onClick={() => handleTagSelect(tag, onChange)}>
-                                                {tag}
-                                            </div>
+                                            <div key={tag} className={styles.tagDropdownItem} onClick={() => handleTagSelect(tag, onChange)}>{tag}</div>
                                         ))}
-                                        {customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
-                                            <div className={styles.tagDropdownItem} onClick={() => handleTagSelect(customTag.trim(), onChange)}>
+                                        {customTag.trim() && !availableTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                            <div className={styles.tagDropdownItem} onClick={() => {
+                                                handleTagSelect(customTag.trim(), onChange);
+                                                if (onAddNewField) onAddNewField("clientFields", "tags", customTag.trim());
+                                            }}>
                                                 Добавить: "{customTag.trim()}"
                                             </div>
                                         )}
@@ -139,10 +138,10 @@ export default function ClientHeader({
                             </div>
 
                             {currentTags.map((tag, index) => (
-                                <span
-                                    key={tag.id || index}
-                                    className={styles.tagChip}
-                                    onClick={() => handleTagRemove(tag, onChange)} 
+                                <span 
+                                  key={tag.id || index} 
+                                  className={styles.tagChip} 
+                                  onClick={() => handleTagRemove(tag, onChange)}
                                 >
                                     {tag.name} <span className={styles.removeTagIcon}>×</span>
                                 </span>
@@ -155,8 +154,6 @@ export default function ClientHeader({
       </div>
 
       <div className={styles.actions}>
-        
-        {/* Кнопка меню (удаление) показывается ТОЛЬКО если есть onDelete */}
         {onDelete && (
           <div ref={menuRef} className={styles.actionItem}>
             <button className={styles.btn} type="button" onClick={() => setMenuOpen(o => !o)}>
@@ -190,7 +187,6 @@ export default function ClientHeader({
             </button>
         </div>
       </div>
-
     </div>
   );
 }

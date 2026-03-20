@@ -30,7 +30,8 @@ export default function ClientDetailsPage() {
   const [forbidden, setForbidden] = useState(false);
   const [companiesList, setCompaniesList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
-  const [referrerOptions, setReferrerOptions] = useState([]);
+  const [clientsList, setClientsList] = useState([]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -70,12 +71,6 @@ export default function ClientDetailsPage() {
   }, []);
 
   useEffect(() => {
-    if (!clientId || clientId === "new") {
-      setClient({});
-      setLoading(false);
-      return;
-    }
-
     let mounted = true;
     (async () => {
       setLoading(true);
@@ -84,12 +79,19 @@ export default function ClientDetailsPage() {
       try {
         const data = await fetchClients();
         if (!mounted) return;
+        
         const normalized = Array.isArray(data) ? data.map(withReferrerNames) : [];
-        const found = normalized.find((c) => c.id === clientId);
-        if (found) {
-          setClient(found);
+        setClientsList(normalized); 
+
+        if (!clientId || clientId === "new") {
+          setClient({});
         } else {
-          setError("Клиент не найден");
+          const found = normalized.find((c) => String(c.id) === String(clientId));
+          if (found) {
+            setClient(found);
+          } else {
+            setError("Клиент не найден");
+          }
         }
       } catch (e) {
         console.error("fetchClients failed:", e);
@@ -200,7 +202,7 @@ export default function ClientDetailsPage() {
           client={client}
           companies={companiesList}
           employees={employeesList}
-          referrers={referrerOptions}
+          clients={clientsList}
           countries={clientCountries}
           currencies={currencies}
           onClose={handleCloseModal}

@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import "../../styles/AddAssetForm.css";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Minus } from "lucide-react";
 import ConfirmationModal from "../modals/confirm/ConfirmationModal";
 import AutoResizeTextarea from "../modals/OrderModal/AutoResizeTextarea";
 
-const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
+import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
+
+const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +34,11 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({ ...prevData, [name]: value }));
+    handleFormChange();
+  };
+
+  const handleSelectChange = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
     handleFormChange();
   };
 
@@ -115,6 +122,10 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
     setShowConfirmationModal(false);
   };
 
+  // Подготовка опций для CreatableSelect
+  const currencyOptions = (generalFields.currency || []).map(item => item?.value ?? item);
+  const typeOptions = (assetsFields.type || []).map(item => item?.value ?? item);
+
   return (
     <>
       <div className="add-asset-overlay" onClick={handleAttemptClose}>
@@ -146,74 +157,75 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
               />
             </div>
 
+            {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
             <div className="form-row">
               <label htmlFor="currency" className="form-label">
                 Валюта счета
               </label>
-              <select
-                id="currency"
-                name="currency"
+              <CreatableSelect
                 value={formData.currency}
-                onChange={handleChange}
-                required
-                className="form-input1"
+                onChange={(val) => handleSelectChange("currency", val)}
+                options={currencyOptions}
+                placeholder="Выберите или введите валюту..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>
-                  Не выбрано
-                </option>
-                {(generalFields.currency || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="form-row">
-              <label htmlFor="limitTurnover" className="form-label">
-                Лимит оборота
-              </label>
-              <input
-                type="number"
-                id="limitTurnover"
-                name="limitTurnover"
-                value={formData.limitTurnover}
-                onChange={handleChange}
-                placeholder="Введите лимит оборота"
-                className="form-input1"
-                disabled={isLoading}
+                onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
               />
             </div>
 
             <div className="form-row">
+              <label htmlFor="limitTurnover" className="form-label">Лимит оборота</label>
+              <div className="custom-number-input">
+                <input
+                  type="number"
+                  id="limitTurnover"
+                  name="limitTurnover"
+                  value={formData.limitTurnover}
+                  onChange={handleChange}
+                  placeholder="Введите лимит оборота"
+                  className="form-input1"
+                  disabled={isLoading}
+                  min={0}
+                />
+                <button 
+                  type="button" 
+                  className="num-btn minus-btn" 
+                  onClick={() => {
+                    const numValue = parseFloat(formData.limitTurnover) || 0;
+                    setFormData(prev => ({ ...prev, limitTurnover: Math.max(0, numValue - 1000) }));
+                    handleFormChange();
+                  }} 
+                  disabled={isLoading || (parseFloat(formData.limitTurnover) || 0) <= 0}
+                >
+                  <Minus />
+                </button>
+                <button 
+                  type="button" 
+                  className="num-btn plus-btn" 
+                  onClick={() => {
+                    const numValue = parseFloat(formData.limitTurnover) || 0;
+                    setFormData(prev => ({ ...prev, limitTurnover: numValue + 1000 }));
+                    handleFormChange();
+                  }}
+                  disabled={isLoading}
+                >
+                  <Plus />
+                </button>
+              </div>
+            </div>
+
+            {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
+            <div className="form-row">
               <label htmlFor="type" className="form-label">
                 Тип
               </label>
-              <select
-                id="type"
-                name="type"
+              <CreatableSelect
                 value={formData.type}
-                onChange={handleChange}
-                required
-                className="form-input1"
+                onChange={(val) => handleSelectChange("type", val)}
+                options={typeOptions}
+                placeholder="Выберите или введите тип..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>
-                  Не выбрано
-                </option>
-                {(assetsFields.type || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
+                onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
+              />
             </div>
 
             <div className="form-row">
@@ -292,7 +304,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields }) => {
                         type="text"
                         name="label"
                         value={req.label}
-                        onInput={(e) => handleRequisiteChange(index, e)}
+                        onChange={(e) => handleRequisiteChange(index, e)}
                         placeholder="Введите название"
                         className="form-input1"
                         disabled={isLoading}

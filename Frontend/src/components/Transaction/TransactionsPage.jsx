@@ -377,8 +377,7 @@ const TransactionsPage = () => {
       <Sidebar />
       <div className="transactions-page-main-container">
         <header className="transactions-header-container">
-          <PageHeaderIcon pageName="Транзакции" />
-          <h1 className="transactions-title">Транзакции</h1>
+          <h1 className="transactions-title"><PageHeaderIcon pageName="Транзакции" /> Транзакции</h1>
 
           <div className="journal-search-container" ref={searchContainerRef}>
             <div className="journal-main-search-bar">

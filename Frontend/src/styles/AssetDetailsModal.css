@@ -157,7 +157,7 @@
   display: flex;
   justify-content: flex-end;
   position: relative;
-  padding: 15px 30px;
+  padding: 10px 30px;
   gap: 10px;
   margin-top: auto;
 }

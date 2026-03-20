@@ -178,7 +178,7 @@ select option:disabled {
 
 .form-field-checkbox{
   display: flex;
-  gap: 70px;
+  gap: 90px;
   padding-top: 5px;
   font-size: 13px;
   color: #c0c0c0;
@@ -348,30 +348,29 @@ select option:disabled {
     line-height: 1.4;
 }
 
-@media (max-width: 1540px) {
-  .left-panel {
-    flex-basis: clamp(740px, 56vw, 900px);
-    min-width: 700px;
-  }
 
-  .form-field label {
-    width: 190px;
-  }
+.form-actions-bottom {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--border-form-color); 
+  background-color: #19213A;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: none;
+  transition: all 0.3s ease-in-out;
+  flex-shrink: 0;
 }
 
-@media (max-width: 1320px) {
-  .left-panel {
-    flex-basis: clamp(680px, 58vw, 820px);
-    min-width: 640px;
-  }
 
-  .form-field {
-    gap: 16px;
-  }
-
-  .form-field label {
-    width: 170px;
-    white-space: normal;
-    line-height: 1.3;
-  }
+.form-actions-bottom.visible {
+  max-height: 100px;
+  opacity: 1;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid var(--border-form-color); 
 }

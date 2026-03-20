@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import AutoResizeTextarea from '../../../modals/OrderModal/AutoResizeTextarea';
+import CreatableSelect from "../../../Client/ClientModal/CreatableSelect"; 
+import { Minus, Plus } from 'lucide-react';
 
-// Вынес компонент поля выше
 const OrderDetailField = ({ label, value }) => (
   <div className="form-field read-only-field">
     <label>{label}</label>
@@ -19,7 +20,7 @@ const OrderDetailField = ({ label, value }) => (
   </div>
 );
 
-export default function GeneralInfoTab({ orders, fields }) {
+export default function GeneralInfoTab({ orders, fields, employees, roleOptions, currencyOptions, onAddNewField }) {
   const { control, setValue, formState: { errors } } = useFormContext();
 
   const watchedOrderId = useWatch({
@@ -44,6 +45,9 @@ export default function GeneralInfoTab({ orders, fields }) {
     setValue('orderNumber', String(label), { shouldDirty: false });
   }, [selectedOrder, setValue]);
 
+  const fallbackRoles = fields?.role?.map(r => r.value || r) || [];
+  const fallbackCurrencies = fields?.currency?.map(c => c.value || c) || [];
+
   return (
     <div className="general-tab-section">
 
@@ -56,19 +60,23 @@ export default function GeneralInfoTab({ orders, fields }) {
         </div>
       )}
 
-      {/* Остальная часть формы */}
       <Controller
         name="orderId"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Номер заказа</label>
-            <select {...field} className={errors.orderId ? 'input-error' : ''}>
+            <select
+              {...field}
+              value={field.value || ""}
+              onChange={(e) => field.onChange(String(e.target.value))}
+              className={errors.orderId ? 'input-error' : ''}
+            >
               <option value="" disabled hidden>Не выбрано</option>
-              {orders.map((order) => {
+              {(orders || []).map((order) => {
                 const label = order.orderSequence ?? order.numberOrder ?? order.id;
                 return (
-                  <option key={order.id} value={order.id}>
+                  <option key={order.id} value={String(order.id)}>
                     Заказ №{label}
                   </option>
                 );
@@ -87,8 +95,8 @@ export default function GeneralInfoTab({ orders, fields }) {
             <label>Исполнитель</label>
             <select {...field} className={errors.performer ? 'input-error' : ''}>
               <option value="" disabled hidden>Не выбрано</option>
-              {fields?.employees?.map((employee) => (
-                <option key={employee.id} value={employee.fullName}>{employee.fullName}</option>
+              {(employees || fields?.employees || []).map((employee) => (
+                <option key={employee.id} value={employee.fullName || employee.full_name}>{employee.fullName || employee.full_name}</option>
               ))}
             </select>
             {errors.performer && <p className="error-message">{errors.performer.message}</p>}
@@ -102,12 +110,14 @@ export default function GeneralInfoTab({ orders, fields }) {
         render={({ field }) => (
           <div className="form-field">
             <label>Роль</label>
-            <select {...field} className={errors.role ? 'input-error' : ''}>
-              <option value="" disabled hidden>Не выбрано</option>
-              {fields?.role?.map((role) => (
-                <option key={role.id} value={role.value}>{role.value}</option>
-              ))}
-            </select>
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={roleOptions || fallbackRoles}
+              placeholder="Выберите или введите роль..."
+              error={!!errors.role}
+              onAdd={(val) => onAddNewField && onAddNewField("executorFields", "role", val)}
+            />
             {errors.role && <p className="error-message">{errors.role.message}</p>}
           </div>
         )}
@@ -124,75 +134,131 @@ export default function GeneralInfoTab({ orders, fields }) {
         )}
       />
 
-      {/* --- ИСПРАВЛЕННЫЙ БЛОК ВАЛЮТЫ --- */}
       <Controller
           name="currency"
           control={control}
           render={({ field }) => (
               <div className="form-field">
                   <label>Валюта</label>
-                  <select {...field} className={errors.currency ? 'input-error' : ''}>
-                      <option value="" disabled hidden>Не выбрано</option>
-                      {fields?.currency?.map((item, index) => {
-                          const val = item.value || item; 
-                          const key = item.id || index;
-                          return (
-                              <option key={key} value={val}>{val}</option> 
-                          );
-                      })}
-                  </select>
+                  <CreatableSelect
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    options={currencyOptions || fallbackCurrencies}
+                    placeholder="Выберите или введите валюту..."
+                    error={!!errors.currency}
+                    onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
+                  />
                   {errors.currency && <p className="error-message">{errors.currency.message}</p>}
               </div>
           )}
       />
-      {/* ---------------------------------- */}
 
       <Controller
         name="hourlyRate"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Ставка в час</label>
-            <input type="number" placeholder="0.00" {...field} />
-            {errors.hourlyRate && <p className="error-message">{errors.hourlyRate.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Ставка в час</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.hourlyRate ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+              {errors.hourlyRate && <p className="error-message">{errors.hourlyRate.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="amountInput"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Сумма ввод</label>
-            <input type="number" placeholder="0.00" {...field} />
-             {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Сумма ввод</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.amountInput ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+               {errors.amountInput && <p className="error-message">{errors.amountInput.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="minAmount"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Минимальная сумма</label>
-            <input type="number" placeholder="0.00" {...field} />
-            {errors.minAmount && <p className="error-message">{errors.minAmount.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Минимальная сумма</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.minAmount ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+              {errors.minAmount && <p className="error-message">{errors.minAmount.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="maxAmount"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Сумма макс</label>
-            <input type="number" placeholder="0.00" {...field} />
-            {errors.maxAmount && <p className="error-message">{errors.maxAmount.message}</p>}
-          </div>
-        )}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="form-field">
+              <label>Сумма макс</label>
+              <div className="custom-number-input">
+                <input 
+                  type="number" 
+                  {...restField} 
+                  value={value || ''} 
+                  onChange={onChange} 
+                  min={min} 
+                  placeholder="0.00" 
+                  className={errors.maxAmount ? 'input-error' : ''} 
+                />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+              {errors.maxAmount && <p className="error-message">{errors.maxAmount.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <div className="checkbox-container-modal" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>

@@ -13,7 +13,7 @@ select option:disabled {
   position: fixed;
   inset: 0;
   background: var(--opacity-container);
-  z-index: 9999;
+  z-index: 87;
 }
 
 /* ------------------- Root Layout ------------------- */
@@ -122,12 +122,31 @@ select option:disabled {
   margin-top: 4px;
 }
 
-/* Bottom Form Buttons */
+
 .form-actions-bottom {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 12px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--border-form-color); 
   background-color: #19213A;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top: none;
+  transition: all 0.3s ease-in-out;
+  flex-shrink: 0;
+}
+
+
+.form-actions-bottom.visible {
+  max-height: 100px;
+  opacity: 1;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid var(--border-form-color); 
 }
 
 
