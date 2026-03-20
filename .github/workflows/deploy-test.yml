@@ -483,17 +483,8 @@ jobs:
 
             npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
             npx prisma generate
-            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
-              echo 'Running prisma migrate deploy...'
-              npx prisma migrate deploy
-            else
-              echo 'No migrations found. Running prisma db push...'
-              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'yes' ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'true' ]; then
-                npx prisma db push --accept-data-loss
-              else
-                npx prisma db push
-              fi
-            fi
+            echo 'Running prisma migrate deploy...'
+            npx prisma migrate deploy
 
             echo 'Running seed for test default admin...'
             npm run seed
