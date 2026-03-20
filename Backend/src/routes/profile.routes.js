@@ -9,6 +9,7 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 
+const MAX_PROFILE_BYTES = 5 * 1024 * 1024;
 const uploadDir = path.join(process.cwd(), "uploads", "profile");
 fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -20,7 +21,7 @@ const storage = multer.diskStorage({
     cb(null, name);
   },
 });
-const upload = multer({ storage });
+const upload = multer({ storage, limits: { fileSize: MAX_PROFILE_BYTES } });
 
 router.get("/", authJwt, ctrl.getProfile);
 router.put("/", authJwt, express.json(), ctrl.updateProfile);
