@@ -15,6 +15,7 @@ const ensureDir = (dir) => {
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const CARD_DIR = path.join(UPLOADS_ROOT, 'card-designs');
 ensureDir(CARD_DIR);
+const MAX_CARD_DESIGN_BYTES = 2 * 1024 * 1024;
 
 const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const EXTRA_FIELDS_CONFIG_KEY = 'fields.extra';
@@ -62,12 +63,143 @@ const COUNTRY_FIELD_LIMITS = {
   iso2: 2,
   iso3: 3,
 };
+const FIELD_LINK_CONFIGS = {
+  country: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [
+      { model: 'client', field: 'countryId' },
+      { model: 'employee', field: 'countryId' },
+    ],
+  },
+  currencyDict: {
+    field: 'code',
+    deleteUnused: true,
+    idRelations: [
+      { model: 'asset', field: 'currencyId' },
+      { model: 'client', field: 'currencyId' },
+      { model: 'employee', field: 'currencyId' },
+      { model: 'employeeSettings', field: 'currencyId' },
+      { model: 'order', field: 'currencyId' },
+    ],
+  },
+  orderIntervalDict: {
+    field: 'value',
+    deleteUnused: true,
+    idRelations: [{ model: 'orderCategoryDict', field: 'intervalId' }],
+    valueRelations: [{ model: 'order', field: 'interval' }],
+  },
+  orderCategoryDict: {
+    field: 'value',
+    deleteUnused: true,
+    custom: async (tx, rows) => collectLinkedOrderCategoryIds(tx, rows),
+  },
+  orderStatusDict: {
+    field: 'name',
+    deleteUnused: true,
+    valueRelations: [{ model: 'order', field: 'orderStatus' }],
+  },
+  orderCloseReasonDict: {
+    field: 'name',
+    deleteUnused: true,
+    valueRelations: [{ model: 'order', field: 'closeReason' }],
+  },
+  orderProjectDict: {
+    field: 'name',
+    deleteUnused: true,
+    valueRelations: [{ model: 'order', field: 'project' }],
+  },
+  orderDiscountReasonDict: {
+    field: 'name',
+    deleteUnused: true,
+    jsonRelations: [{ model: 'order', jsonField: 'meta', path: ['discountReason'] }],
+  },
+  executorRoleDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [{ model: 'employee', field: 'roleId' }],
+  },
+  clientSourceDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [{ model: 'client', field: 'sourceId' }],
+  },
+  clientCategoryDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [{ model: 'client', field: 'categoryId' }],
+  },
+  assetTypeDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [{ model: 'asset', field: 'typeId' }],
+  },
+  paymentSystemDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [{ model: 'asset', field: 'paymentSystemId' }],
+  },
+  cardDesign: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [{ model: 'asset', field: 'cardDesignId' }],
+  },
+  financeArticleDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [
+      { model: 'financeSubarticleDict', field: 'articleId' },
+      { model: 'transaction', field: 'categoryId' },
+      { model: 'regularPayment', field: 'categoryId' },
+    ],
+  },
+  financeSubcategoryDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [{ model: 'financeSubarticleDict', field: 'subcategoryId' }],
+  },
+  financeSubarticleDict: {
+    field: 'name',
+    deleteUnused: true,
+    idRelations: [
+      { model: 'transaction', field: 'subcategoryId' },
+      { model: 'regularPayment', field: 'subcategoryId' },
+    ],
+  },
+  sundryTypeWorkDict: {
+    field: 'name',
+    deleteUnused: true,
+  },
+};
+const EXTRA_FIELD_LINK_CONFIGS = {
+  'generalFields.businessLine': {
+    field: 'value',
+    deleteUnused: true,
+  },
+  'orderFields.minOrderAmount': {
+    field: 'value',
+    deleteUnused: true,
+    jsonRelations: [{ model: 'order', jsonField: 'meta', path: ['minOrderAmount'] }],
+  },
+  'orderFields.readySolution': {
+    field: 'value',
+    deleteUnused: true,
+    jsonRelations: [{ model: 'order', jsonField: 'meta', path: ['readySolution'] }],
+  },
+  'clientFields.business': {
+    field: 'value',
+    deleteUnused: true,
+  },
+};
 
 async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
   if (!m) return null;
   const mime = m[1];
   const buf = Buffer.from(m[2], 'base64');
+  if (buf.length > MAX_CARD_DESIGN_BYTES) {
+    throw httpErr('Размер файла превышает 2 МБ');
+  }
   const ext = (mime.split('/')[1] || 'png').toLowerCase();
   const fileName = `${fileBaseName}.${ext}`;
   const abs = path.join(CARD_DIR, fileName);
@@ -252,6 +384,171 @@ const normalizeSimpleValues = (list, options = {}) => {
   return Array.from(out);
 };
 
+const uniqueStrings = (list = []) =>
+  Array.from(
+    new Set(
+      list
+        .map((item) => pickStr(item))
+        .filter(Boolean)
+    )
+  );
+
+const uniqueIds = (list = []) =>
+  Array.from(
+    new Set(
+      list
+        .map((item) => pickStr(item))
+        .filter(Boolean)
+    )
+  );
+
+const buildRowIdsByValueKey = (rows = [], valueField = 'name') => {
+  const out = new Map();
+
+  for (const row of rows) {
+    const value = pickStr(row?.[valueField]);
+    const id = pickStr(row?.id);
+    if (!value || !id) continue;
+    const key = value.toLowerCase();
+    if (!out.has(key)) out.set(key, new Set());
+    out.get(key).add(id);
+  }
+
+  return out;
+};
+
+const addLinkedIdsByValue = (linkedIds, idsByValueKey, value) => {
+  const key = pickStr(value).toLowerCase();
+  if (!key || !idsByValueKey.has(key)) return;
+  idsByValueKey.get(key).forEach((id) => linkedIds.add(id));
+};
+
+async function collectLinkedOrderCategoryIds(tx, rows = []) {
+  const byKey = new Map();
+  const categoryValues = new Set();
+
+  for (const row of rows) {
+    const value = pickStr(row?.value);
+    const intervalValue = pickStr(row?.intervalValue ?? row?.interval?.value);
+    const id = pickStr(row?.id);
+    if (!value || !intervalValue || !id) continue;
+    const key = `${intervalValue.toLowerCase()}|${value.toLowerCase()}`;
+    if (!byKey.has(key)) byKey.set(key, new Set());
+    byKey.get(key).add(id);
+    categoryValues.add(value);
+  }
+
+  if (!categoryValues.size) return new Set();
+
+  const orders = await tx.order.findMany({
+    where: {
+      orderType: { in: Array.from(categoryValues) },
+      interval: { not: null },
+    },
+    select: { interval: true, orderType: true },
+  });
+
+  const linkedIds = new Set();
+  for (const order of orders) {
+    const intervalValue = pickStr(order?.interval);
+    const orderType = pickStr(order?.orderType);
+    if (!intervalValue || !orderType) continue;
+    const key = `${intervalValue.toLowerCase()}|${orderType.toLowerCase()}`;
+    if (!byKey.has(key)) continue;
+    byKey.get(key).forEach((id) => linkedIds.add(id));
+  }
+
+  return linkedIds;
+}
+
+async function collectLinkedIdsForRows(tx, rows = [], config = {}) {
+  if (!rows.length) return new Set();
+
+  const linkedIds = new Set();
+  const valueField = config?.field || 'name';
+  const rowIds = uniqueIds(rows.map((row) => row?.id));
+  const rowValues = uniqueStrings(rows.map((row) => row?.[valueField]));
+  const idsByValueKey = buildRowIdsByValueKey(rows, valueField);
+
+  for (const relation of Array.isArray(config?.idRelations) ? config.idRelations : []) {
+    if (!rowIds.length || !tx?.[relation.model]) continue;
+    const linkedRows = await tx[relation.model].findMany({
+      where: { [relation.field]: { in: rowIds } },
+      select: { [relation.field]: true },
+      distinct: [relation.field],
+    });
+    linkedRows
+      .map((item) => pickStr(item?.[relation.field]))
+      .filter(Boolean)
+      .forEach((id) => linkedIds.add(id));
+  }
+
+  for (const relation of Array.isArray(config?.valueRelations) ? config.valueRelations : []) {
+    if (!rowValues.length || !tx?.[relation.model]) continue;
+    const linkedRows = await tx[relation.model].findMany({
+      where: { [relation.field]: { in: rowValues } },
+      select: { [relation.field]: true },
+      distinct: [relation.field],
+    });
+    linkedRows.forEach((item) => addLinkedIdsByValue(linkedIds, idsByValueKey, item?.[relation.field]));
+  }
+
+  for (const relation of Array.isArray(config?.jsonRelations) ? config.jsonRelations : []) {
+    if (!rowValues.length || !tx?.[relation.model]) continue;
+    await Promise.all(
+      rowValues.map(async (value) => {
+        const count = await tx[relation.model].count({
+          where: {
+            [relation.jsonField]: {
+              path: relation.path,
+              equals: value,
+            },
+          },
+        });
+        if (count > 0) addLinkedIdsByValue(linkedIds, idsByValueKey, value);
+      })
+    );
+  }
+
+  if (typeof config?.custom === 'function') {
+    const customLinkedIds = await config.custom(tx, rows);
+    (customLinkedIds instanceof Set ? Array.from(customLinkedIds) : customLinkedIds || []).forEach((id) => {
+      const normalized = pickStr(id);
+      if (normalized) linkedIds.add(normalized);
+    });
+  }
+
+  return linkedIds;
+}
+
+async function splitRowsForHideOrDelete(tx, rows = [], config = {}) {
+  if (!rows.length) return { toHideIds: [], toDeleteIds: [], linkedIds: new Set() };
+  if (config?.deleteUnused !== true) {
+    return {
+      toHideIds: uniqueIds(rows.map((row) => row?.id)),
+      toDeleteIds: [],
+      linkedIds: new Set(),
+    };
+  }
+
+  const linkedIds = await collectLinkedIdsForRows(tx, rows, config);
+  const toHideIds = [];
+  const toDeleteIds = [];
+
+  for (const row of rows) {
+    const id = pickStr(row?.id);
+    if (!id) continue;
+    if (linkedIds.has(id)) toHideIds.push(id);
+    else toDeleteIds.push(id);
+  }
+
+  return {
+    toHideIds: uniqueIds(toHideIds),
+    toDeleteIds: uniqueIds(toDeleteIds),
+    linkedIds,
+  };
+}
+
 const normalizeCountryEntries = (list) => {
   const out = [];
   const seen = new Set();
@@ -310,33 +607,47 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
   const hasIsActive = opts.hasIsActive !== false;
   const values = normalizeSimpleValues(list, { model, field });
   const dbModel = tx[model];
+  const linkConfig = FIELD_LINK_CONFIGS[model] || null;
 
   if (!dbModel) return;
 
-  if (!values || !values.length) {
-    if (hasIsActive) {
-      await dbModel.updateMany({ data: { isActive: false } });
-    } else {
-      await dbModel.deleteMany({});
-    }
-    return;
+  const existing = await dbModel.findMany({
+    select: {
+      id: true,
+      [field]: true,
+      ...(hasIsActive ? { isActive: true } : {}),
+    },
+  });
+
+  if (values.length) {
+    await Promise.all(
+      values.map((value) =>
+        dbModel.upsert({
+          where: { [field]: value },
+          update: { ...(hasIsActive ? { isActive: true } : {}) },
+          create: { id: rid(), [field]: value, ...(hasIsActive ? { isActive: true } : {}) },
+        })
+      )
+    );
   }
 
-  await Promise.all(
-    values.map((value) =>
-      dbModel.upsert({
-        where: { [field]: value },
-        update: { ...(hasIsActive ? { isActive: true } : {}) },
-        create: { id: rid(), [field]: value, ...(hasIsActive ? { isActive: true } : {}) },
-      })
-    )
-  );
-
   if (hasIsActive) {
-    await dbModel.updateMany({
-      where: { [field]: { notIn: values } },
-      data: { isActive: false },
-    });
+    const desiredValues = new Set(values);
+    const removedRows = existing.filter((item) => !desiredValues.has(item[field]));
+    const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(tx, removedRows, linkConfig);
+
+    if (toHideIds.length) {
+      await dbModel.updateMany({
+        where: { id: { in: toHideIds } },
+        data: { isActive: false },
+      });
+    }
+
+    if (toDeleteIds.length) {
+      await dbModel.deleteMany({
+        where: { id: { in: toDeleteIds } },
+      });
+    }
   } else {
     await dbModel.deleteMany({
       where: { [field]: { notIn: values } },
@@ -349,11 +660,6 @@ const syncCountries = async (tx, list) => {
   const dbModel = tx.country;
 
   if (!dbModel) return;
-
-  if (!countries.length) {
-    await dbModel.updateMany({ data: { isActive: false } });
-    return;
-  }
 
   const existing = await dbModel.findMany({
     select: {
@@ -438,10 +744,21 @@ const syncCountries = async (tx, list) => {
     keepIds.add(created.id);
   }
 
-  await dbModel.updateMany({
-    where: { id: { notIn: Array.from(keepIds) } },
-    data: { isActive: false },
-  });
+  const removedRows = existing.filter((item) => !keepIds.has(item.id));
+  const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(tx, removedRows, FIELD_LINK_CONFIGS.country);
+
+  if (toHideIds.length) {
+    await dbModel.updateMany({
+      where: { id: { in: toHideIds } },
+      data: { isActive: false },
+    });
+  }
+
+  if (toDeleteIds.length) {
+    await dbModel.deleteMany({
+      where: { id: { in: toDeleteIds } },
+    });
+  }
 };
 
 const normalizeExtraFieldList = (list) => {
@@ -501,7 +818,7 @@ async function loadExtraConfig(db) {
   return normalizeExtraConfig(row?.value);
 }
 
-function mergeExtraFieldList(existingList, incomingList) {
+async function mergeExtraFieldList(tx, existingList, incomingList, configKey) {
   const current = normalizeExtraFieldList(existingList);
   const incoming = normalizeExtraFieldList(incomingList).map((item) => ({
     id: item.id || null,
@@ -536,7 +853,17 @@ function mergeExtraFieldList(existingList, incomingList) {
     .filter((item) => !activeIds.has(String(item.id)))
     .map((item) => ({ ...item, isActive: false }));
 
-  return [...active, ...inactive];
+  const linkConfig = EXTRA_FIELD_LINK_CONFIGS[configKey] || null;
+  if (!linkConfig?.deleteUnused) return [...active, ...inactive];
+
+  const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(tx, inactive, linkConfig);
+  const hiddenIds = new Set(toHideIds);
+  const deletedIds = new Set(toDeleteIds);
+
+  return [
+    ...active,
+    ...inactive.filter((item) => hiddenIds.has(String(item.id)) && !deletedIds.has(String(item.id))),
+  ];
 }
 
 async function saveExtraConfig(tx, payload) {
@@ -547,25 +874,33 @@ async function saveExtraConfig(tx, payload) {
   const current = await loadExtraConfig(tx);
   const next = {
     generalFields: {
-      businessLine: mergeExtraFieldList(
+      businessLine: await mergeExtraFieldList(
+        tx,
         current?.generalFields?.businessLine,
-        payload?.generalFields?.businessLine
+        payload?.generalFields?.businessLine,
+        'generalFields.businessLine'
       ),
     },
     orderFields: {
-      minOrderAmount: mergeExtraFieldList(
+      minOrderAmount: await mergeExtraFieldList(
+        tx,
         current?.orderFields?.minOrderAmount,
-        payload?.orderFields?.minOrderAmount
+        payload?.orderFields?.minOrderAmount,
+        'orderFields.minOrderAmount'
       ),
-      readySolution: mergeExtraFieldList(
+      readySolution: await mergeExtraFieldList(
+        tx,
         current?.orderFields?.readySolution,
-        payload?.orderFields?.readySolution
+        payload?.orderFields?.readySolution,
+        'orderFields.readySolution'
       ),
     },
     clientFields: {
-      business: mergeExtraFieldList(
+      business: await mergeExtraFieldList(
+        tx,
         current?.clientFields?.business,
-        payload?.clientFields?.business
+        payload?.clientFields?.business,
+        'clientFields.business'
       ),
     },
   };
@@ -579,15 +914,15 @@ async function saveExtraConfig(tx, payload) {
   return next;
 }
 
-const activeExtraValues = (list) =>
+const activeExtraValues = (list, linkedIds = new Set()) =>
   normalizeExtraFieldList(list)
     .filter((item) => item.isActive !== false)
-    .map((item) => ({ id: item.id, value: item.value }));
+    .map((item) => ({ id: item.id, value: item.value, isLinked: linkedIds.has(String(item.id)) }));
 
-const inactiveExtraValues = (list) =>
+const inactiveExtraValues = (list, linkedIds = new Set()) =>
   normalizeExtraFieldList(list)
     .filter((item) => item.isActive === false)
-    .map((item) => ({ id: item.id, value: item.value }));
+    .map((item) => ({ id: item.id, value: item.value, isLinked: linkedIds.has(String(item.id)) }));
 
 /* ==============================
    Tags (единая версия)
@@ -639,7 +974,6 @@ async function upsertTags(
 async function getAll(db) {
   const _db = db || prisma;
   const whereActive = { where: { isActive: true } };
-  const whereActiveHardDelete = {};
   const [clientGroupsEnabled, extraFields] = await Promise.all([
     hasTable('ClientGroup'),
     loadExtraConfig(_db),
@@ -686,18 +1020,25 @@ async function getAll(db) {
   ]);
 
   const [intervals, orderCats, cardDesigns, subarticles, tagCategories] = await Promise.all([
-    _db.orderIntervalDict.findMany({ ...whereActiveHardDelete, orderBy: { value: 'asc' } }),
+    _db.orderIntervalDict.findMany({ ...whereActive, orderBy: { value: 'asc' } }),
     _db.orderCategoryDict.findMany({
-      ...whereActiveHardDelete,
-      select: { id: true, value: true, interval: { select: { id: true, value: true } } },
+      ...whereActive,
+      select: {
+        id: true,
+        value: true,
+        intervalId: true,
+        interval: { select: { id: true, value: true } },
+      },
       orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
     }),
-    _db.cardDesign.findMany({ ...whereActiveHardDelete, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.cardDesign.findMany({ where: { isActive: true }, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.financeSubarticleDict.findMany({
-      ...whereActiveHardDelete,
+      ...whereActive,
       select: {
         id: true,
         name: true,
+        articleId: true,
+        subcategoryId: true,
         article: { select: { id: true, name: true } },
         subcategory: { select: { id: true, name: true } },
       },
@@ -731,46 +1072,138 @@ async function getAll(db) {
     tagsByCode('task'),
   ]);
 
+  const extraBusinessLine = normalizeExtraFieldList(extraFields?.generalFields?.businessLine);
+  const extraMinOrderAmount = normalizeExtraFieldList(extraFields?.orderFields?.minOrderAmount);
+  const extraReadySolution = normalizeExtraFieldList(extraFields?.orderFields?.readySolution);
+  const extraClientBusiness = normalizeExtraFieldList(extraFields?.clientFields?.business);
+
+  const [
+    linkedCurrencyIds,
+    linkedCountryIds,
+    linkedIntervalIds,
+    linkedOrderCategoryIds,
+    linkedOrderStatusIds,
+    linkedOrderCloseReasonIds,
+    linkedOrderProjectIds,
+    linkedOrderDiscountReasonIds,
+    linkedRoleIds,
+    linkedSourceIds,
+    linkedClientCategoryIds,
+    linkedAssetTypeIds,
+    linkedPaymentSystemIds,
+    linkedCardDesignIds,
+    linkedArticleIds,
+    linkedSubcategoryIds,
+    linkedSubarticleIds,
+    linkedTypeWorkIds,
+    linkedBusinessLineIds,
+    linkedMinOrderAmountIds,
+    linkedReadySolutionIds,
+    linkedClientBusinessIds,
+  ] = await Promise.all([
+    collectLinkedIdsForRows(_db, orderCurrencies, FIELD_LINK_CONFIGS.currencyDict),
+    collectLinkedIdsForRows(_db, countries, FIELD_LINK_CONFIGS.country),
+    collectLinkedIdsForRows(_db, intervals, FIELD_LINK_CONFIGS.orderIntervalDict),
+    collectLinkedIdsForRows(_db, orderCats, FIELD_LINK_CONFIGS.orderCategoryDict),
+    collectLinkedIdsForRows(_db, orderStatuses, FIELD_LINK_CONFIGS.orderStatusDict),
+    collectLinkedIdsForRows(_db, orderCloseReasons, FIELD_LINK_CONFIGS.orderCloseReasonDict),
+    collectLinkedIdsForRows(_db, orderProjects, FIELD_LINK_CONFIGS.orderProjectDict),
+    collectLinkedIdsForRows(_db, orderDiscountReasons, FIELD_LINK_CONFIGS.orderDiscountReasonDict),
+    collectLinkedIdsForRows(_db, roles, FIELD_LINK_CONFIGS.executorRoleDict),
+    collectLinkedIdsForRows(_db, sources, FIELD_LINK_CONFIGS.clientSourceDict),
+    collectLinkedIdsForRows(_db, clientCategories, FIELD_LINK_CONFIGS.clientCategoryDict),
+    collectLinkedIdsForRows(_db, assetTypes, FIELD_LINK_CONFIGS.assetTypeDict),
+    collectLinkedIdsForRows(_db, paymentSystems, FIELD_LINK_CONFIGS.paymentSystemDict),
+    collectLinkedIdsForRows(_db, cardDesigns, FIELD_LINK_CONFIGS.cardDesign),
+    collectLinkedIdsForRows(_db, articles, FIELD_LINK_CONFIGS.financeArticleDict),
+    collectLinkedIdsForRows(_db, subcategories, FIELD_LINK_CONFIGS.financeSubcategoryDict),
+    collectLinkedIdsForRows(_db, subarticles, FIELD_LINK_CONFIGS.financeSubarticleDict),
+    collectLinkedIdsForRows(_db, typeWorks, FIELD_LINK_CONFIGS.sundryTypeWorkDict),
+    collectLinkedIdsForRows(_db, extraBusinessLine, EXTRA_FIELD_LINK_CONFIGS['generalFields.businessLine']),
+    collectLinkedIdsForRows(_db, extraMinOrderAmount, EXTRA_FIELD_LINK_CONFIGS['orderFields.minOrderAmount']),
+    collectLinkedIdsForRows(_db, extraReadySolution, EXTRA_FIELD_LINK_CONFIGS['orderFields.readySolution']),
+    collectLinkedIdsForRows(_db, extraClientBusiness, EXTRA_FIELD_LINK_CONFIGS['clientFields.business']),
+  ]);
+
   const mapTags = (list) => list.map((t) => ({ id: t.id, name: t.name, color: t.color }));
 
   return {
     generalFields: {
-      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      country: countries.map(mapCountry),
-      businessLine: activeExtraValues(extraFields?.generalFields?.businessLine),
+      currency: orderCurrencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      country: countries.map((country) => ({
+        ...mapCountry(country),
+        isLinked: linkedCountryIds.has(country.id),
+      })),
+      businessLine: activeExtraValues(extraFields?.generalFields?.businessLine, linkedBusinessLineIds),
     },
 
     orderFields: {
-      intervals: intervals.map((x) => ({ id: x.id, value: x.value })),
+      intervals: intervals.map((x) => ({ id: x.id, value: x.value, isLinked: linkedIntervalIds.has(x.id) })),
       categories: orderCats.map((x) => ({
         id: x.id,
         value: x.value,
         intervalId: x.interval?.id || null,
         intervalValue: x.interval?.value || null,
+        isLinked: linkedOrderCategoryIds.has(x.id),
       })),
-      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      statuses: orderStatuses.map((s) => ({ id: s.id, name: s.name })),
-      closeReasons: orderCloseReasons.map((r) => ({ id: r.id, name: r.name })),
-      projects: orderProjects.map((p) => ({ id: p.id, name: p.name })),
-      discountReason: orderDiscountReasons.map((d) => ({ id: d.id, name: d.name })),
-      minOrderAmount: activeExtraValues(extraFields?.orderFields?.minOrderAmount),
-      readySolution: activeExtraValues(extraFields?.orderFields?.readySolution),
+      currency: orderCurrencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      statuses: orderStatuses.map((s) => ({ id: s.id, name: s.name, isLinked: linkedOrderStatusIds.has(s.id) })),
+      closeReasons: orderCloseReasons.map((r) => ({
+        id: r.id,
+        name: r.name,
+        isLinked: linkedOrderCloseReasonIds.has(r.id),
+      })),
+      projects: orderProjects.map((p) => ({ id: p.id, name: p.name, isLinked: linkedOrderProjectIds.has(p.id) })),
+      discountReason: orderDiscountReasons.map((d) => ({
+        id: d.id,
+        name: d.name,
+        isLinked: linkedOrderDiscountReasonIds.has(d.id),
+      })),
+      minOrderAmount: activeExtraValues(extraFields?.orderFields?.minOrderAmount, linkedMinOrderAmountIds),
+      readySolution: activeExtraValues(extraFields?.orderFields?.readySolution, linkedReadySolutionIds),
       tags: mapTags(orderTags),
       techTags: mapTags(orderTechTags),
       taskTags: mapTags(orderTaskTags),
     },
 
     executorFields: {
-      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      role: roles.map((r) => ({ id: r.id, name: r.name })),
+      currency: orderCurrencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      role: roles.map((r) => ({ id: r.id, name: r.name, isLinked: linkedRoleIds.has(r.id) })),
     },
 
     clientFields: {
-      source: sources.map((s) => ({ id: s.id, name: s.name })),
-      category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
-      country: countries.map(mapCountry),
-      business: activeExtraValues(extraFields?.clientFields?.business),
-      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      source: sources.map((s) => ({ id: s.id, name: s.name, isLinked: linkedSourceIds.has(s.id) })),
+      category: clientCategories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        isLinked: linkedClientCategoryIds.has(c.id),
+      })),
+      country: countries.map((country) => ({
+        ...mapCountry(country),
+        isLinked: linkedCountryIds.has(country.id),
+      })),
+      business: activeExtraValues(extraFields?.clientFields?.business, linkedClientBusinessIds),
+      currency: orderCurrencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
       tags: mapTags(clientTags),
       groups: clientGroups.map((g) => ({ id: g.id, name: g.name, order: g.order })),
     },
@@ -780,24 +1213,37 @@ async function getAll(db) {
     },
 
     employeeFields: {
-      country: countries.map(mapCountry),
+      country: countries.map((country) => ({
+        ...mapCountry(country),
+        isLinked: linkedCountryIds.has(country.id),
+      })),
       tags: mapTags(employeeTags),
     },
 
     assetsFields: {
-      currency: orderCurrencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
-      paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
+      currency: orderCurrencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      type: assetTypes.map((t) => ({ id: t.id, name: t.name, isLinked: linkedAssetTypeIds.has(t.id) })),
+      paymentSystem: paymentSystems.map((p) => ({
+        id: p.id,
+        name: p.name,
+        isLinked: linkedPaymentSystemIds.has(p.id),
+      })),
       cardDesigns: cardDesigns.map((d) => ({
         id: d.id,
         name: d.name,
         url: d.imageUrl || '',
         order: d.order,
+        isLinked: linkedCardDesignIds.has(d.id),
       })),
     },
 
     financeFields: {
-      articles: articles.map((a) => ({ id: a.id, name: a.name })),
+      articles: articles.map((a) => ({ id: a.id, name: a.name, isLinked: linkedArticleIds.has(a.id) })),
       subarticles: subarticles.map((s) => ({
         id: s.id,
         name: s.name,
@@ -806,8 +1252,13 @@ async function getAll(db) {
         subcategoryId: s.subcategory?.id || null,
         subcategoryName: s.subcategory?.name || null,
         subarticleInterval: s.article?.name || s.subcategory?.name || null,
+        isLinked: linkedSubarticleIds.has(s.id),
       })),
-      subcategory: subcategories.map((s) => ({ id: s.id, name: s.name })),
+      subcategory: subcategories.map((s) => ({
+        id: s.id,
+        name: s.name,
+        isLinked: linkedSubcategoryIds.has(s.id),
+      })),
     },
 
     taskFields: {
@@ -815,7 +1266,7 @@ async function getAll(db) {
     },
 
     sundryFields: {
-      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name })),
+      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name, isLinked: linkedTypeWorkIds.has(t.id) })),
     },
   };
 }
@@ -831,65 +1282,202 @@ async function getInactive(db) {
   const [
     currencies,
     countries,
+    intervals,
+    orderCategories,
     roles,
     sources,
     clientCategories,
+    statuses,
+    closeReasons,
+    projects,
     assetTypes,
     paymentSystems,
     articles,
     subcategories,
+    subarticles,
     discountReasons,
     typeWorks,
+    cardDesigns,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereInactive, orderBy: { code: 'asc' } }),
     _db.country.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.orderIntervalDict.findMany({ ...whereInactive, orderBy: { value: 'asc' } }),
+    _db.orderCategoryDict.findMany({
+      ...whereInactive,
+      select: {
+        id: true,
+        value: true,
+        intervalId: true,
+        interval: { select: { id: true, value: true } },
+      },
+      orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
+    }),
     _db.executorRoleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientSourceDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }) : [],
+    _db.orderCloseReasonDict
+      ? _db.orderCloseReasonDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
+      : [],
+    _db.orderProjectDict ? _db.orderProjectDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }) : [],
     _db.assetTypeDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.paymentSystemDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.financeArticleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
     _db.financeSubcategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.financeSubarticleDict.findMany({
+      ...whereInactive,
+      select: {
+        id: true,
+        name: true,
+        articleId: true,
+        subcategoryId: true,
+        article: { select: { id: true, name: true } },
+        subcategory: { select: { id: true, name: true } },
+      },
+      orderBy: [{ article: { name: 'asc' } }, { name: 'asc' }],
+    }),
     _db.orderDiscountReasonDict
       ? _db.orderDiscountReasonDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
       : [],
     _db.sundryTypeWorkDict
       ? _db.sundryTypeWorkDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
       : [],
+    _db.cardDesign.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+  ]);
+
+  const extraBusinessLine = normalizeExtraFieldList(extraFields?.generalFields?.businessLine);
+  const extraMinOrderAmount = normalizeExtraFieldList(extraFields?.orderFields?.minOrderAmount);
+  const extraReadySolution = normalizeExtraFieldList(extraFields?.orderFields?.readySolution);
+  const extraClientBusiness = normalizeExtraFieldList(extraFields?.clientFields?.business);
+
+  const [
+    linkedCurrencyIds,
+    linkedCountryIds,
+    linkedIntervalIds,
+    linkedOrderCategoryIds,
+    linkedRoleIds,
+    linkedSourceIds,
+    linkedClientCategoryIds,
+    linkedOrderStatusIds,
+    linkedOrderCloseReasonIds,
+    linkedOrderProjectIds,
+    linkedOrderDiscountReasonIds,
+    linkedAssetTypeIds,
+    linkedPaymentSystemIds,
+    linkedCardDesignIds,
+    linkedArticleIds,
+    linkedSubcategoryIds,
+    linkedSubarticleIds,
+    linkedTypeWorkIds,
+    linkedBusinessLineIds,
+    linkedMinOrderAmountIds,
+    linkedReadySolutionIds,
+    linkedClientBusinessIds,
+  ] = await Promise.all([
+    collectLinkedIdsForRows(_db, currencies, FIELD_LINK_CONFIGS.currencyDict),
+    collectLinkedIdsForRows(_db, countries, FIELD_LINK_CONFIGS.country),
+    collectLinkedIdsForRows(_db, intervals, FIELD_LINK_CONFIGS.orderIntervalDict),
+    collectLinkedIdsForRows(_db, orderCategories, FIELD_LINK_CONFIGS.orderCategoryDict),
+    collectLinkedIdsForRows(_db, roles, FIELD_LINK_CONFIGS.executorRoleDict),
+    collectLinkedIdsForRows(_db, sources, FIELD_LINK_CONFIGS.clientSourceDict),
+    collectLinkedIdsForRows(_db, clientCategories, FIELD_LINK_CONFIGS.clientCategoryDict),
+    collectLinkedIdsForRows(_db, statuses, FIELD_LINK_CONFIGS.orderStatusDict),
+    collectLinkedIdsForRows(_db, closeReasons, FIELD_LINK_CONFIGS.orderCloseReasonDict),
+    collectLinkedIdsForRows(_db, projects, FIELD_LINK_CONFIGS.orderProjectDict),
+    collectLinkedIdsForRows(_db, discountReasons, FIELD_LINK_CONFIGS.orderDiscountReasonDict),
+    collectLinkedIdsForRows(_db, assetTypes, FIELD_LINK_CONFIGS.assetTypeDict),
+    collectLinkedIdsForRows(_db, paymentSystems, FIELD_LINK_CONFIGS.paymentSystemDict),
+    collectLinkedIdsForRows(_db, cardDesigns, FIELD_LINK_CONFIGS.cardDesign),
+    collectLinkedIdsForRows(_db, articles, FIELD_LINK_CONFIGS.financeArticleDict),
+    collectLinkedIdsForRows(_db, subcategories, FIELD_LINK_CONFIGS.financeSubcategoryDict),
+    collectLinkedIdsForRows(_db, subarticles, FIELD_LINK_CONFIGS.financeSubarticleDict),
+    collectLinkedIdsForRows(_db, typeWorks, FIELD_LINK_CONFIGS.sundryTypeWorkDict),
+    collectLinkedIdsForRows(_db, extraBusinessLine, EXTRA_FIELD_LINK_CONFIGS['generalFields.businessLine']),
+    collectLinkedIdsForRows(_db, extraMinOrderAmount, EXTRA_FIELD_LINK_CONFIGS['orderFields.minOrderAmount']),
+    collectLinkedIdsForRows(_db, extraReadySolution, EXTRA_FIELD_LINK_CONFIGS['orderFields.readySolution']),
+    collectLinkedIdsForRows(_db, extraClientBusiness, EXTRA_FIELD_LINK_CONFIGS['clientFields.business']),
   ]);
 
   const emptyArr = [];
 
   return {
     generalFields: {
-      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      country: countries.map(mapCountry),
-      businessLine: inactiveExtraValues(extraFields?.generalFields?.businessLine),
+      currency: currencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      country: countries.map((country) => ({
+        ...mapCountry(country),
+        isLinked: linkedCountryIds.has(country.id),
+      })),
+      businessLine: inactiveExtraValues(extraFields?.generalFields?.businessLine, linkedBusinessLineIds),
     },
     orderFields: {
-      intervals: emptyArr,
-      categories: emptyArr,
-      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      discountReason: discountReasons.map((r) => ({ id: r.id, name: r.name })),
-      minOrderAmount: inactiveExtraValues(extraFields?.orderFields?.minOrderAmount),
-      readySolution: inactiveExtraValues(extraFields?.orderFields?.readySolution),
+      intervals: intervals.map((item) => ({ id: item.id, value: item.value, isLinked: linkedIntervalIds.has(item.id) })),
+      categories: orderCategories.map((item) => ({
+        id: item.id,
+        value: item.value,
+        intervalId: item.interval?.id || null,
+        intervalValue: item.interval?.value || null,
+        isLinked: linkedOrderCategoryIds.has(item.id),
+      })),
+      currency: currencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      discountReason: discountReasons.map((r) => ({
+        id: r.id,
+        name: r.name,
+        isLinked: linkedOrderDiscountReasonIds.has(r.id),
+      })),
+      minOrderAmount: inactiveExtraValues(extraFields?.orderFields?.minOrderAmount, linkedMinOrderAmountIds),
+      readySolution: inactiveExtraValues(extraFields?.orderFields?.readySolution, linkedReadySolutionIds),
       tags: emptyArr,
       techTags: emptyArr,
       taskTags: emptyArr,
-      statuses: emptyArr,
-      closeReasons: emptyArr,
-      projects: emptyArr,
+      statuses: statuses.map((item) => ({ id: item.id, name: item.name, isLinked: linkedOrderStatusIds.has(item.id) })),
+      closeReasons: closeReasons.map((item) => ({
+        id: item.id,
+        name: item.name,
+        isLinked: linkedOrderCloseReasonIds.has(item.id),
+      })),
+      projects: projects.map((item) => ({
+        id: item.id,
+        name: item.name,
+        isLinked: linkedOrderProjectIds.has(item.id),
+      })),
     },
     executorFields: {
-      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      role: roles.map((r) => ({ id: r.id, name: r.name })),
+      currency: currencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      role: roles.map((r) => ({ id: r.id, name: r.name, isLinked: linkedRoleIds.has(r.id) })),
     },
     clientFields: {
-      source: sources.map((s) => ({ id: s.id, name: s.name })),
-      category: clientCategories.map((c) => ({ id: c.id, name: c.name })),
-      country: countries.map(mapCountry),
-      business: inactiveExtraValues(extraFields?.clientFields?.business),
-      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
+      source: sources.map((s) => ({ id: s.id, name: s.name, isLinked: linkedSourceIds.has(s.id) })),
+      category: clientCategories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        isLinked: linkedClientCategoryIds.has(c.id),
+      })),
+      country: countries.map((country) => ({
+        ...mapCountry(country),
+        isLinked: linkedCountryIds.has(country.id),
+      })),
+      business: inactiveExtraValues(extraFields?.clientFields?.business, linkedClientBusinessIds),
+      currency: currencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
       tags: emptyArr,
       groups: emptyArr,
     },
@@ -897,30 +1485,53 @@ async function getInactive(db) {
       tags: emptyArr,
     },
     employeeFields: {
-      country: countries.map(mapCountry),
+      country: countries.map((country) => ({
+        ...mapCountry(country),
+        isLinked: linkedCountryIds.has(country.id),
+      })),
       tags: emptyArr,
     },
     assetsFields: {
-      currency: currencies.map((c) => ({ id: c.id, code: c.code, name: c.name || c.code })),
-      type: assetTypes.map((t) => ({ id: t.id, name: t.name })),
-      paymentSystem: paymentSystems.map((p) => ({ id: p.id, name: p.name })),
-      cardDesigns: await _db.cardDesign.findMany({
-        ...whereInactive,
-        orderBy: [{ order: 'asc' }, { name: 'asc' }],
-      }).then((items) => items.map((d) => ({
+      currency: currencies.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name || c.code,
+        isLinked: linkedCurrencyIds.has(c.id),
+      })),
+      type: assetTypes.map((t) => ({ id: t.id, name: t.name, isLinked: linkedAssetTypeIds.has(t.id) })),
+      paymentSystem: paymentSystems.map((p) => ({
+        id: p.id,
+        name: p.name,
+        isLinked: linkedPaymentSystemIds.has(p.id),
+      })),
+      cardDesigns: cardDesigns.map((d) => ({
         id: d.id,
         name: d.name,
         url: d.imageUrl || '',
         order: d.order,
-      }))),
+        isLinked: linkedCardDesignIds.has(d.id),
+      })),
     },
     financeFields: {
-      articles: articles.map((a) => ({ id: a.id, name: a.name })),
-      subarticles: emptyArr,
-      subcategory: subcategories.map((s) => ({ id: s.id, name: s.name })),
+      articles: articles.map((a) => ({ id: a.id, name: a.name, isLinked: linkedArticleIds.has(a.id) })),
+      subarticles: subarticles.map((s) => ({
+        id: s.id,
+        name: s.name,
+        articleId: s.article?.id || null,
+        articleName: s.article?.name || null,
+        subcategoryId: s.subcategory?.id || null,
+        subcategoryName: s.subcategory?.name || null,
+        subarticleInterval: s.article?.name || s.subcategory?.name || null,
+        isLinked: linkedSubarticleIds.has(s.id),
+      })),
+      subcategory: subcategories.map((s) => ({
+        id: s.id,
+        name: s.name,
+        isLinked: linkedSubcategoryIds.has(s.id),
+      })),
     },
     sundryFields: {
-      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name })),
+      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name, isLinked: linkedTypeWorkIds.has(t.id) })),
     },
     taskFields: {
       tags: emptyArr,
@@ -955,25 +1566,20 @@ async function saveAll(payload) {
       await syncSimpleDict(tx, 'currencyDict', Array.from(currencyCodes), { field: 'code' });
 
       // 2. ЗАКАЗЫ (Интервалы и категории)
-      const intervalValues = (Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [])
+      const intervalValues = uniqueStrings((Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [])
         .map((i) => pickStr(i?.value ?? i?.intervalValue ?? i))
-        .filter(Boolean);
+        .filter(Boolean));
 
-      await syncSimpleDict(tx, 'orderIntervalDict', intervalValues, { field: 'value' });
-
-      const existingIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
-      const keepSet = new Set(intervalValues);
-      const intervalsToDeactivate = existingIntervals.filter((i) => !keepSet.has(i.value));
-      if (intervalsToDeactivate.length) {
-        const toDeactivateIds = intervalsToDeactivate.map((i) => i.id);
-        await tx.orderCategoryDict.updateMany({
-          where: { intervalId: { in: toDeactivateIds } },
-          data: { isActive: false },
-        });
-        await tx.orderIntervalDict.updateMany({
-          where: { id: { in: toDeactivateIds } },
-          data: { isActive: false },
-        });
+      if (intervalValues.length) {
+        await Promise.all(
+          intervalValues.map((value) =>
+            tx.orderIntervalDict.upsert({
+              where: { value },
+              update: { isActive: true },
+              create: { id: rid(), value, isActive: true },
+            })
+          )
+        );
       }
 
       const catsIncoming = (Array.isArray(payload?.orderFields?.categories) ? payload.orderFields.categories : [])
@@ -983,7 +1589,9 @@ async function saveAll(payload) {
         }))
         .filter((c) => c.intervalValue && c.value);
 
-      const finalIntervals = await tx.orderIntervalDict.findMany({ select: { id: true, value: true } });
+      const finalIntervals = await tx.orderIntervalDict.findMany({
+        select: { id: true, value: true, isActive: true },
+      });
       const intervalByValue = new Map(finalIntervals.map((i) => [i.value, i.id]));
 
       for (const c of catsIncoming) {
@@ -1002,17 +1610,78 @@ async function saveAll(payload) {
         }
       }
 
-      for (const [value, intervalId] of intervalByValue.entries()) {
-        const desired = new Set(catsIncoming.filter((c) => c.intervalValue === value).map((c) => c.value));
+      const desiredCategoryKeys = new Set();
+      for (const c of catsIncoming) {
+        const intervalId = intervalByValue.get(c.intervalValue);
+        if (!intervalId) continue;
+        desiredCategoryKeys.add(`${intervalId}|${c.value}`);
+      }
 
+      const allCategories = await tx.orderCategoryDict.findMany({
+        select: {
+          id: true,
+          value: true,
+          intervalId: true,
+          isActive: true,
+          interval: { select: { value: true } },
+        },
+      });
+
+      const removedCategories = allCategories.filter(
+        (item) => !desiredCategoryKeys.has(`${item.intervalId}|${item.value}`)
+      );
+      const categorySplit = await splitRowsForHideOrDelete(
+        tx,
+        removedCategories.map((item) => ({
+          ...item,
+          intervalValue: item.interval?.value || null,
+        })),
+        FIELD_LINK_CONFIGS.orderCategoryDict
+      );
+
+      if (categorySplit.toHideIds.length) {
         await tx.orderCategoryDict.updateMany({
-          where: { intervalId, NOT: { value: { in: Array.from(desired) } } },
+          where: { id: { in: categorySplit.toHideIds } },
           data: { isActive: false },
         });
+      }
 
+      if (categorySplit.toDeleteIds.length) {
+        await tx.orderCategoryDict.deleteMany({
+          where: { id: { in: categorySplit.toDeleteIds } },
+        });
+      }
+
+      const desiredCategoryIds = allCategories
+        .filter((item) => desiredCategoryKeys.has(`${item.intervalId}|${item.value}`))
+        .map((item) => item.id);
+      if (desiredCategoryIds.length) {
         await tx.orderCategoryDict.updateMany({
-          where: { intervalId, value: { in: Array.from(desired) } },
+          where: { id: { in: desiredCategoryIds } },
           data: { isActive: true },
+        });
+      }
+
+      const allIntervals = await tx.orderIntervalDict.findMany({
+        select: { id: true, value: true, isActive: true },
+      });
+      const removedIntervals = allIntervals.filter((item) => !intervalValues.includes(item.value));
+      const intervalSplit = await splitRowsForHideOrDelete(
+        tx,
+        removedIntervals,
+        FIELD_LINK_CONFIGS.orderIntervalDict
+      );
+
+      if (intervalSplit.toHideIds.length) {
+        await tx.orderIntervalDict.updateMany({
+          where: { id: { in: intervalSplit.toHideIds } },
+          data: { isActive: false },
+        });
+      }
+
+      if (intervalSplit.toDeleteIds.length) {
+        await tx.orderIntervalDict.deleteMany({
+          where: { id: { in: intervalSplit.toDeleteIds } },
         });
       }
 
@@ -1122,12 +1791,31 @@ async function saveAll(payload) {
       }
 
       const incomingIds = new Set(incomingDesigns.filter((d) => d.id).map((d) => d.id));
-      const toDeactivate = existingDesigns.filter((d) => !incomingIds.has(d.id));
-      if (toDeactivate.length) {
-        await tx.cardDesign.updateMany({
-          where: { id: { in: toDeactivate.map((d) => d.id) } },
-          data: { isActive: false },
-        });
+      const removedDesigns = existingDesigns.filter((d) => !incomingIds.has(d.id));
+      if (removedDesigns.length) {
+        const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(
+          tx,
+          removedDesigns,
+          FIELD_LINK_CONFIGS.cardDesign
+        );
+
+        if (toHideIds.length) {
+          await tx.cardDesign.updateMany({
+            where: { id: { in: toHideIds } },
+            data: { isActive: false },
+          });
+        }
+
+        if (toDeleteIds.length) {
+          await tx.cardDesign.deleteMany({
+            where: { id: { in: toDeleteIds } },
+          });
+
+          for (const design of removedDesigns.filter((item) => toDeleteIds.includes(item.id))) {
+            const abs = urlToAbsPath(design.imageUrl);
+            if (abs) await safeUnlink(abs);
+          }
+        }
       }
 
       // 8. FINANCE
@@ -1145,10 +1833,9 @@ async function saveAll(payload) {
         }))
         .filter((s) => s.name && s.parentName);
 
-      const [arts, subcats, subsExisting] = await Promise.all([
+      const [arts, subcats] = await Promise.all([
         tx.financeArticleDict.findMany({ select: { id: true, name: true } }),
         tx.financeSubcategoryDict.findMany({ select: { id: true, name: true } }),
-        tx.financeSubarticleDict.findMany({ select: { id: true, name: true, articleId: true, subcategoryId: true } }),
       ]);
 
       const artByName = new Map(arts.map((a) => [a.name, a.id]));
@@ -1177,21 +1864,43 @@ async function saveAll(payload) {
         desiredKeys.add(`${s.name}|${articleId || ''}|${subcategoryId || ''}`);
       }
 
-      const toDeactivateSubs = subsExisting.filter((r) => !desiredKeys.has(keyOf(r)));
-      if (toDeactivateSubs.length) {
+      const allSubarticles = await tx.financeSubarticleDict.findMany({
+        select: { id: true, name: true, articleId: true, subcategoryId: true, isActive: true },
+      });
+      const removedSubs = allSubarticles.filter((r) => !desiredKeys.has(keyOf(r)));
+      const subarticleSplit = await splitRowsForHideOrDelete(
+        tx,
+        removedSubs,
+        FIELD_LINK_CONFIGS.financeSubarticleDict
+      );
+
+      if (subarticleSplit.toHideIds.length) {
         await tx.financeSubarticleDict.updateMany({
-          where: { id: { in: toDeactivateSubs.map((r) => r.id) } },
+          where: { id: { in: subarticleSplit.toHideIds } },
           data: { isActive: false },
         });
       }
 
-      const desiredIds = subsExisting.filter((r) => desiredKeys.has(keyOf(r))).map((r) => r.id);
+      if (subarticleSplit.toDeleteIds.length) {
+        await tx.financeSubarticleDict.deleteMany({
+          where: { id: { in: subarticleSplit.toDeleteIds } },
+        });
+      }
+
+      const desiredIds = allSubarticles.filter((r) => desiredKeys.has(keyOf(r))).map((r) => r.id);
       if (desiredIds.length) {
         await tx.financeSubarticleDict.updateMany({
           where: { id: { in: desiredIds } },
           data: { isActive: true },
         });
       }
+
+      await syncSimpleDict(tx, 'financeArticleDict', arrToUniqueStrings(payload?.financeFields?.articles, 'name'));
+      await syncSimpleDict(
+        tx,
+        'financeSubcategoryDict',
+        arrToUniqueStrings(payload?.financeFields?.subcategory, 'name')
+      );
 
       // 9. SUNDRY
       if (tx.sundryTypeWorkDict) {

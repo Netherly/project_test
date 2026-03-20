@@ -9,6 +9,14 @@ const normalizeOptionalId = (value) => {
   return text ? text : null;
 };
 
+const normalizeRequisites = (requisites) =>
+  (Array.isArray(requisites) ? requisites : [])
+    .map((item) => ({
+      label: String(item?.label ?? '').trim(),
+      value: String(item?.value ?? '').trim(),
+    }))
+    .filter((item) => item.label || item.value);
+
 async function resolveCurrencyId(payload) {
   const { currencyId, currencyCode, currency } = payload || {};
   if (currencyId) {
@@ -126,6 +134,11 @@ const AssetsService = {
 
     const balance  = Number(payload.balance ?? 0);
     const startBal = Number(payload.turnoverStartBalance ?? balance);
+    const limitTurnover =
+      payload.limitTurnover === undefined || payload.limitTurnover === null || payload.limitTurnover === ''
+        ? null
+        : Number(payload.limitTurnover);
+    const requisites = normalizeRequisites(payload.requisites);
 
     return prisma.asset.create({
       data: {
@@ -139,14 +152,15 @@ const AssetsService = {
         design:     payload.design     ?? null,
 
         balance,
+        limitTurnover,
         turnoverStartBalance: startBal,
         turnoverIncoming: 0,
         turnoverOutgoing: 0,
         turnoverEndBalance: balance,
 
         requisites:
-          Array.isArray(payload.requisites) && payload.requisites.length
-            ? { create: payload.requisites.map(r => ({ label: r.label, value: r.value })) }
+          requisites.length
+            ? { create: requisites.map((r) => ({ label: r.label, value: r.value })) }
             : undefined,
       },
       include: { 
@@ -203,21 +217,43 @@ const AssetsService = {
 
     if (payload.balance !== undefined)
       data.balance = Number(payload.balance);
+    if (payload.limitTurnover !== undefined)
+      data.limitTurnover =
+        payload.limitTurnover === null || payload.limitTurnover === ''
+          ? null
+          : Number(payload.limitTurnover);
     if (payload.turnoverStartBalance !== undefined)
       data.turnoverStartBalance = Number(payload.turnoverStartBalance);
+    const hasRequisitesPayload = payload.requisites !== undefined;
+    const requisites = hasRequisitesPayload ? normalizeRequisites(payload.requisites) : null;
 
-    return prisma.asset.update({
-      where: { id },
-      data,
-      include: { 
-        requisites: true, 
-        currency: true, 
-        type: true,
-        paymentSystem: true,
-        cardDesign: true,
-        employee: { select: { id: true, full_name: true } },
-        company: { select: { id: true, name: true } },
-      },
+    return prisma.$transaction(async (tx) => {
+      await tx.asset.update({
+        where: { id },
+        data,
+      });
+
+      if (hasRequisitesPayload) {
+        await tx.assetRequisite.deleteMany({ where: { assetId: id } });
+        if (requisites.length) {
+          await tx.assetRequisite.createMany({
+            data: requisites.map((r) => ({ assetId: id, label: r.label, value: r.value })),
+          });
+        }
+      }
+
+      return tx.asset.findUnique({
+        where: { id },
+        include: {
+          requisites: true,
+          currency: true,
+          type: true,
+          paymentSystem: true,
+          cardDesign: true,
+          employee: { select: { id: true, full_name: true } },
+          company: { select: { id: true, name: true } },
+        },
+      });
     });
   },
 
@@ -257,6 +293,7 @@ const AssetsService = {
         design:     src.design,
 
         balance: 0,
+        limitTurnover: src.limitTurnover,
         turnoverStartBalance: 0,
         turnoverIncoming: 0,
         turnoverOutgoing: 0,
@@ -279,9 +316,10 @@ const AssetsService = {
   async upsertRequisites(id, requisites) {
     await this.byId(id);
     await prisma.assetRequisite.deleteMany({ where: { assetId: id } });
-    if (Array.isArray(requisites) && requisites.length) {
+    const normalized = normalizeRequisites(requisites);
+    if (normalized.length) {
       await prisma.assetRequisite.createMany({
-        data: requisites.map(r => ({ assetId: id, label: r.label, value: r.value })),
+        data: normalized.map((r) => ({ assetId: id, label: r.label, value: r.value })),
       });
     }
     return this.byId(id);

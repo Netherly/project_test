@@ -9,7 +9,6 @@ const { initTelegramAvatarJob } = require('./jobs/telegram-avatars.job');
 const { initTelegramBot, stopTelegramBot } = require('./bot/bot');
 const { ensureDefaultCompanies } = require('./seeds/companies.seed');
 const { ensureDefaultClientGroups } = require('./seeds/client-groups.seed');
-const { ensureDefaultCountries } = require('./seeds/countries.seed');
 const { ensureDefaultCurrencies } = require('./seeds/currencies.seed');
 const { ensureRatesExcelImportedOnBoot } = require('./services/rates.excel-import.service');
 const prisma = require('../prisma/client');
@@ -85,12 +84,6 @@ async function boot() {
     console.log('[seed] default currencies ensured');
   } catch (e) {
     console.error('[seed] currencies failed:', e?.message || e);
-  }
-  try {
-    await ensureDefaultCountries();
-    console.log('[seed] default countries ensured');
-  } catch (e) {
-    console.error('[seed] countries failed:', e?.message || e);
   }
   try {
     await ensureDefaultCompanies();
