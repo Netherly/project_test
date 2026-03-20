@@ -65,6 +65,7 @@
   margin: 0;
   line-height: 1.5;
   color: var(--container-text-color);
+  white-space: pre-line;
 }
 
 .confirmation-modal-footer {

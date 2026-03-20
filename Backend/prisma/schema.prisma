@@ -862,6 +862,7 @@ model Asset {
   employeeId           String?
   companyId            String?
   balance              Decimal            @default(0) @db.Decimal(14, 2)
+  limitTurnover        Decimal?           @db.Decimal(14, 2)
   turnoverStartBalance Decimal            @default(0) @db.Decimal(14, 2)
   turnoverIncoming     Decimal            @default(0) @db.Decimal(14, 2)
   turnoverOutgoing     Decimal            @default(0) @db.Decimal(14, 2)

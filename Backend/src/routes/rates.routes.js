@@ -15,6 +15,9 @@ router.get('/latest', /*auth,*/ ctrl.getLatest);
 // гарантировать запись на сегодня из последнего курса
 router.post('/today', /*auth,*/ ctrl.ensureToday);
 
+// загрузить курсы из Excel-файла бекенда в БД
+router.post('/import', /*auth,*/ ctrl.importFromExcel);
+
 // список постранично: /api/rates/list?page=1&pageSize=200
 router.get('/list',   /*auth,*/ ctrl.list);
 

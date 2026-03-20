@@ -38,8 +38,28 @@ import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
-const MAX_IMAGE_BYTES = 500 * 1024;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
+const VISIBLE_FIELD_CURRENCIES = [
+  { code: "UAH", name: "Ukrainian Hryvnia" },
+  { code: "USD", name: "US Dollar" },
+  { code: "EUR", name: "Euro" },
+  { code: "RUB", name: "Russian Ruble" },
+  { code: "USDT", name: "Tether USDT" },
+];
+const SYSTEM_FIELD_CURRENCIES = [];
+const CURRENCY_FIELD_GROUPS = [
+  "generalFields",
+  "orderFields",
+  "executorFields",
+  "clientFields",
+  "assetsFields",
+];
+const COUNTRY_FIELD_GROUPS = [
+  "generalFields",
+  "clientFields",
+  "employeeFields",
+];
 
 const safeFileUrl = (u) => {
   if (!u) return "";
@@ -47,6 +67,11 @@ const safeFileUrl = (u) => {
   if (s.startsWith("data:")) return s;
   if (/^https?:\/\//i.test(s)) return s;
   try { return fileUrl(s); } catch { return s; }
+};
+
+const joinFieldLabel = (...parts) => {
+  const values = parts.map((part) => tidy(part)).filter(Boolean);
+  return values.join(" / ");
 };
 
 const tabsConfig = [
@@ -95,6 +120,156 @@ const initialFieldOrders = {
   financeFields: ["articles", "subcategory", "subarticles"],
   sundryFields: ["typeWork"],
   taskFields: ["tags"],
+};
+
+const mergeFieldOrders = (saved = {}) =>
+  Object.fromEntries(
+    Object.entries(initialFieldOrders).map(([groupKey, defaults]) => {
+      const current = Array.isArray(saved?.[groupKey]) ? saved[groupKey] : [];
+      const merged = [
+        ...current.filter((key) => defaults.includes(key)),
+        ...defaults.filter((key) => !current.includes(key)),
+      ];
+      return [groupKey, merged];
+    })
+  );
+
+const buildFixedCurrencyList = (source = [], includeSystem = false) => {
+  const allowedCodes = new Set(
+    (includeSystem
+      ? [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES]
+      : VISIBLE_FIELD_CURRENCIES
+    ).map((item) => item.code)
+  );
+  const orderByCode = new Map(
+    [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES].map((item, index) => [item.code, index])
+  );
+  const existingByCode = new Map(
+    (Array.isArray(source) ? source : [])
+      .map((item) => {
+        const code = tidy(item?.code ?? item?.value).toUpperCase();
+        return code && allowedCodes.has(code) ? [code, item] : null;
+      })
+      .filter(Boolean)
+  );
+  const items = Array.from(existingByCode.values())
+    .map((existing) => {
+      const code = tidy(existing?.code ?? existing?.value).toUpperCase();
+      const fallback =
+        [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES].find((item) => item.code === code) || null;
+      return {
+        ...existing,
+        id: existing?.id || `field-currency-${code.toLowerCase()}`,
+        value: code,
+        code,
+        name: tidy(existing?.name) || fallback?.name || code,
+        label: tidy(existing?.label) || tidy(existing?.name) || fallback?.name || code,
+        order: Number.isFinite(Number(existing?.order))
+          ? Number(existing.order)
+          : (orderByCode.get(code) ?? Number.MAX_SAFE_INTEGER),
+        isDeleted: code === "UAH" ? false : Boolean(existing?.isDeleted),
+      };
+    })
+    .sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+      const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return String(a?.code || "").localeCompare(String(b?.code || ""));
+    });
+
+  if (includeSystem && !existingByCode.has("UAH")) {
+    items.push({
+      id: "field-currency-uah",
+      value: "UAH",
+      code: "UAH",
+      name: "Ukrainian Hryvnia",
+      label: "Ukrainian Hryvnia",
+      order: orderByCode.get("UAH") ?? Number.MAX_SAFE_INTEGER,
+      isDeleted: false,
+    });
+  }
+
+  return items;
+};
+
+const buildSharedCountryList = (source = []) =>
+  (Array.isArray(source) ? source : []).map((item, index) => ({
+    ...item,
+    id: item?.id || `field-country-${index}`,
+    order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
+    isDeleted: Boolean(item?.isDeleted),
+  }));
+
+const applyFieldsPagePreset = (values) => {
+  const next = clone(values);
+  const currencySource =
+    next?.generalFields?.currency ??
+    next?.orderFields?.currency ??
+    next?.executorFields?.currency ??
+    next?.clientFields?.currency ??
+    next?.assetsFields?.currency ??
+    [];
+  const fixedCurrencies = buildFixedCurrencyList(currencySource, false);
+  const countrySource =
+    next?.generalFields?.country ??
+    next?.clientFields?.country ??
+    next?.employeeFields?.country ??
+    [];
+  const sharedCountries = buildSharedCountryList(countrySource);
+
+  for (const groupKey of CURRENCY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      currency: clone(fixedCurrencies),
+    };
+  }
+
+  for (const groupKey of COUNTRY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      country: clone(sharedCountries),
+    };
+  }
+
+  return next;
+};
+
+const prepareFieldsPageSaveValues = (values) => {
+  const next = clone(values);
+  const currencySource =
+    next?.generalFields?.currency ??
+    next?.orderFields?.currency ??
+    next?.executorFields?.currency ??
+    next?.clientFields?.currency ??
+    next?.assetsFields?.currency ??
+    [];
+  const saveCurrencies = buildFixedCurrencyList(currencySource, true);
+  const countrySource =
+    next?.generalFields?.country ??
+    next?.clientFields?.country ??
+    next?.employeeFields?.country ??
+    [];
+  const saveCountries = buildSharedCountryList(countrySource);
+
+  for (const groupKey of CURRENCY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      currency: clone(saveCurrencies),
+    };
+  }
+
+  for (const groupKey of COUNTRY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      country: clone(saveCountries),
+    };
+  }
+
+  return next;
 };
 
 const SortableFieldRow = ({ id, children, isDragEnabled }) => {
@@ -183,7 +358,8 @@ const EditableList = ({
   onReorder,       
   placeholder,
   showHidden,
-  isDragEnabled
+  isDragEnabled,
+  readOnly = false,
 }) => {
   const refs = useRef([]);
 
@@ -227,12 +403,13 @@ const EditableList = ({
                         placeholder={placeholder}
                         className="text-input"
                         disabled={item.isDeleted}
+                        readOnly={readOnly}
                       />
                     </div>
                     <button
                       type="button"
                       className={`remove-category-btn ${item.isDeleted ? 'restore' : ''}`}
-                      onClick={() => onToggleDelete(index)}
+                      onClick={() => onToggleDelete(index, item)}
                       title={item.isDeleted ? "Восстановить" : "Удалить"}
                     >
                       {item.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -244,14 +421,16 @@ const EditableList = ({
           })}
         </SortableContext>
       </DndContext>
-      <button type="button" className="add-category-btn" onClick={onAdd}>
-        <Plus size={20} color='white'/> Добавить
-      </button>
+      {typeof onAdd === "function" && (
+        <button type="button" className="add-category-btn" onClick={onAdd}>
+          <Plus size={20} color='white'/> Добавить
+        </button>
+      )}
     </div>
   );
 };
 
-const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
+const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDragEnabled }) => {
   const nameRefs = useRef([]);
    
   const sensors = useSensors(
@@ -370,7 +549,7 @@ const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
                       <button
                         type="button"
                         className={`remove-category-btn ${t.isDeleted ? 'restore' : ''}`}
-                        onClick={() => toggleDelete(t.id)}
+                        onClick={() => (onToggleDelete ? onToggleDelete(t.id, t) : toggleDelete(t.id))}
                         title={t.isDeleted ? "Восстановить" : "Удалить"}
                       >
                         {t.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -431,7 +610,7 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
                       <button
                         type="button"
                         className={`remove-category-btn ${interval.isDeleted ? 'restore' : ''}`}
-                        onClick={() => onToggleDelete(index)}
+                        onClick={() => onToggleDelete(index, interval)}
                         title={interval.isDeleted ? "Восстановить" : "Удалить"}
                       >
                         {interval.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -520,7 +699,7 @@ const CategoryFields = ({
                 <button
                   type="button"
                   className={`remove-category-btn ${category.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i)}
+                  onClick={() => onToggleDelete(i, category)}
                   title={category.isDeleted ? "Восстановить" : "Удалить"}
                 >
                   {category.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -567,7 +746,7 @@ const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArt
                 <button
                   type="button"
                   className={`remove-category-btn ${article.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i)}
+                  onClick={() => onToggleDelete(i, article)}
                   title={article.isDeleted ? "Восстановить" : "Удалить"}
                 >
                   {article.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -662,7 +841,7 @@ const SubarticleFields = ({
                 <button
                   type="button"
                   className={`remove-category-btn ${subarticle.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i)}
+                  onClick={() => onToggleDelete(i, subarticle)}
                   title={subarticle.isDeleted ? "Восстановить" : "Удалить"}
                 >
                   {subarticle.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -713,7 +892,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      onError?.({ title: "Слишком большой файл", message: `Максимум ${(MAX_IMAGE_BYTES / 1024).toFixed(0)} КБ.` });
+      onError?.({ title: "Слишком большой файл", message: "Максимум 2 МБ." });
       event.target.value = "";
       return;
     }
@@ -807,7 +986,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
                       <button
                         type="button"
                         className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
-                        onClick={() => onToggleDelete(i)}
+                        onClick={() => onToggleDelete(i, design)}
                         title={design.isDeleted ? "Восстановить" : "Удалить"}
                       >
                         {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -815,14 +994,24 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
                     </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="upload-design-btn"
-                    onClick={() => triggerFile(i)}
-                    disabled={design.isDeleted}
-                  >
-                    + Загрузить изображение
-                  </button>
+                  <div className="card-design-actions">
+                    <button
+                      type="button"
+                      className="upload-design-btn"
+                      onClick={() => triggerFile(i)}
+                      disabled={design.isDeleted}
+                    >
+                      + Загрузить изображение
+                    </button>
+                    <button
+                      type="button"
+                      className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
+                      onClick={() => onToggleDelete(i, design)}
+                      title={design.isDeleted ? "Восстановить" : "Удалить"}
+                    >
+                      {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -859,12 +1048,12 @@ function FieldsPage() {
       const saved = localStorage.getItem(ORDER_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return { ...initialFieldOrders, ...parsed };
+        return mergeFieldOrders(parsed);
       }
     } catch (e) {
       console.error("Failed to load field orders", e);
     }
-    return initialFieldOrders;
+    return mergeFieldOrders();
   };
 
   const [fieldOrders, setFieldOrders] = useState(loadSavedOrders);
@@ -881,20 +1070,47 @@ function FieldsPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const closeModal = () => setModal((m) => ({ ...m, open: false }));
+
   const openErrorModal = (title, message) => {
     setModal({
       open: true, title, message, confirmText: "OK", cancelText: "Закрыть",
-      onConfirm: () => setModal((m) => ({ ...m, open: false })),
-      onCancel: () => setModal((m) => ({ ...m, open: false })),
+      onConfirm: closeModal,
+      onCancel: closeModal,
     });
   };
 
   const openChoiceModal = ({ title, message, onSave, onDiscard }) => {
     setModal({
       open: true, title, message, confirmText: "Сохранить", cancelText: "Не сохранять",
-      onConfirm: async () => { setModal((m) => ({ ...m, open: false })); await onSave?.(); },
-      onCancel: () => { setModal((m) => ({ ...m, open: false })); onDiscard?.(); },
+      onConfirm: async () => { closeModal(); await onSave?.(); },
+      onCancel: () => { closeModal(); onDiscard?.(); },
     });
+  };
+
+  const openDeleteFieldModal = ({ fieldLabel, onConfirm }) => {
+    const safeFieldLabel = tidy(fieldLabel) || "Без названия";
+    setModal({
+      open: true,
+      title: "Удалить поле?",
+      message: `Удалить поле "${safeFieldLabel}"?\n\nПосле сохранения восстановить его будет нельзя.`,
+      confirmText: "Удалить",
+      cancelText: "Отмена",
+      onConfirm: async () => {
+        closeModal();
+        await onConfirm?.();
+      },
+      onCancel: closeModal,
+    });
+  };
+
+  const requestDeleteToggle = ({ item, fieldLabel, onToggle }) => {
+    if (!item) return;
+    if (item.isDeleted || item.isLinked === true) {
+      onToggle?.();
+      return;
+    }
+    openDeleteFieldModal({ fieldLabel, onConfirm: onToggle });
   };
 
   const checkChanges = (newValues, newOrders) => {
@@ -915,7 +1131,7 @@ function FieldsPage() {
       setForbidden(false);
       try {
         const raw = await fetchFields();
-        const normalized = withDefaults(raw);
+        const normalized = applyFieldsPagePreset(withDefaults(raw));
         if (!mounted) return;
         setSelectedValues(normalized);
         setSavedValues(normalized);
@@ -945,7 +1161,7 @@ function FieldsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = serializeForSave(selectedValues);
+      const payload = serializeForSave(prepareFieldsPageSaveValues(selectedValues));
       await saveFields(payload);
       
       localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
@@ -1094,6 +1310,14 @@ function FieldsPage() {
     copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
     handleInputChange(group, field, copy);
   };
+
+  const requestStringItemToggleDelete = (group, field, index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.code || item?.label || item?.name || item?.value,
+      onToggle: () => handleStringItemToggleDelete(group, field, index),
+    });
+  };
  
   const handleStringItemAdd = (group, field) => {
     const list = selectedValues[group]?.[field] || [];
@@ -1152,6 +1376,14 @@ function FieldsPage() {
     handleInputChange("orderFields", "intervals", copy);
   };
 
+  const requestDeleteInterval = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.intervalValue,
+      onToggle: () => toggleDeleteInterval(index),
+    });
+  };
+
   const updateCategoryValue = (index, field, value) => {
     const categories = selectedValues.orderFields.categories || [];
     const copy = [...categories];
@@ -1191,6 +1423,14 @@ function FieldsPage() {
     handleInputChange("orderFields", "categories", copy);
   };
 
+  const requestDeleteCategory = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.categoryInterval, item?.categoryValue),
+      onToggle: () => toggleDeleteCategory(index),
+    });
+  };
+
   const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { id: rid(), intervalValue: "", isDeleted: false }]);
   const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }]);
 
@@ -1224,6 +1464,14 @@ function FieldsPage() {
     const copy = [...articles];
     copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
     handleInputChange("financeFields", "articles", copy);
+  };
+
+  const requestDeleteArticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.articleValue,
+      onToggle: () => toggleDeleteArticle(index),
+    });
   };
 
   const updateSubarticleValue = (index, field, value) => {
@@ -1261,6 +1509,14 @@ function FieldsPage() {
     copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
     handleInputChange("financeFields", "subarticles", copy);
   };
+
+  const requestDeleteSubarticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.subarticleInterval, item?.subarticleValue),
+      onToggle: () => toggleDeleteSubarticle(index),
+    });
+  };
  
   const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { id: rid(), articleValue: "", isDeleted: false }]);
   const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false }]);
@@ -1271,6 +1527,31 @@ function FieldsPage() {
     const copy = [...designs];
     copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
     handleInputChange("assetsFields", "cardDesigns", copy);
+  };
+
+  const requestDeleteCardDesign = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      onToggle: () => toggleDeleteCardDesign(index),
+    });
+  };
+
+  const toggleTagDelete = (group, field, id) => {
+    const list = selectedValues[group]?.[field] || [];
+    const index = list.findIndex((item) => item.id === id);
+    if (index === -1) return;
+    const copy = [...list];
+    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    handleInputChange(group, field, copy);
+  };
+
+  const requestTagDelete = (group, field, id, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      onToggle: () => toggleTagDelete(group, field, id),
+    });
   };
 
   const toggleCategoryDropdown = (index, e) => {
@@ -1319,15 +1600,15 @@ function FieldsPage() {
             <div className="field-row">
               <label className="field-label">Валюта</label>
               <EditableList
-                items={selectedValues.generalFields?.currency || []}
-                onChange={(index, val) => handleStringItemChange("generalFields", "currency", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "currency", index)}
-                onAdd={() => handleStringItemAdd("generalFields", "currency")}
-                onCommit={(index) => handleStringItemBlur("generalFields", "currency", index)}
+                items={buildFixedCurrencyList(selectedValues.generalFields?.currency || [], false)}
+                onChange={() => {}}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("generalFields", "currency", index, item)}
+                onCommit={() => {}}
                 onReorder={(newItems) => handleInputChange("generalFields", "currency", newItems)}
-                placeholder="Введите валюту"
+                placeholder="Код валюты"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
+                readOnly
               />
             </div>
           ),
@@ -1337,11 +1618,11 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.generalFields?.country || []}
                 onChange={(index, val) => handleStringItemChange("generalFields", "country", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "country", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("generalFields", "country", index, item)}
                 onAdd={() => handleStringItemAdd("generalFields", "country")}
                 onCommit={(index) => handleStringItemBlur("generalFields", "country", index)}
                 onReorder={(newItems) => handleInputChange("generalFields", "country", newItems)}
-                placeholder="Введите страну"
+                placeholder="Название страны"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
               />
@@ -1353,7 +1634,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.generalFields?.businessLine || []}
                 onChange={(index, val) => handleStringItemChange("generalFields", "businessLine", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "businessLine", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("generalFields", "businessLine", index, item)}
                 onAdd={() => handleStringItemAdd("generalFields", "businessLine")}
                 onCommit={(index) => handleStringItemBlur("generalFields", "businessLine", index)}
                 placeholder="Введите направление"
@@ -1373,7 +1654,7 @@ function FieldsPage() {
               onIntervalChange={updateIntervalValue} 
               onIntervalBlur={validateIntervalOnBlur}
               onAddInterval={addInterval}
-              onToggleDelete={toggleDeleteInterval}
+              onToggleDelete={requestDeleteInterval}
               onReorder={(newItems) => handleInputChange("orderFields", "intervals", newItems)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
@@ -1385,7 +1666,7 @@ function FieldsPage() {
               onCategoryChange={updateCategoryValue}
               onCategoryBlur={validateCategoryOnBlur}
               onAddCategory={addCategory}
-              onToggleDelete={toggleDeleteCategory}
+              onToggleDelete={requestDeleteCategory}
               openDropdowns={openDropdowns}
               onToggleDropdown={toggleCategoryDropdown}
               availableIntervals={intervalsOptions}
@@ -1398,7 +1679,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.statuses || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "statuses", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "statuses", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "statuses", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "statuses")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "statuses", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "statuses", newItems)}
@@ -1414,7 +1695,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.closeReasons || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "closeReasons", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "closeReasons", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "closeReasons", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "closeReasons")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "closeReasons", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "closeReasons", newItems)}
@@ -1430,7 +1711,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.projects || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "projects", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "projects", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "projects", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "projects")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "projects", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "projects", newItems)}
@@ -1446,7 +1727,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.discountReason || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "discountReason", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "discountReason", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "discountReason", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "discountReason")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "discountReason", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "discountReason", newItems)}
@@ -1462,7 +1743,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.minOrderAmount || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "minOrderAmount", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "minOrderAmount", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "minOrderAmount", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "minOrderAmount")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "minOrderAmount", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "minOrderAmount", newItems)}
@@ -1478,7 +1759,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.readySolution || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "readySolution", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "readySolution", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "readySolution", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "readySolution")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "readySolution", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "readySolution", newItems)}
@@ -1493,6 +1774,7 @@ function FieldsPage() {
               title="Теги заказа"
               tags={selectedValues.orderFields.tags || []}
               onChange={(v) => handleInputChange("orderFields", "tags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("orderFields", "tags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1502,6 +1784,7 @@ function FieldsPage() {
               title="Теги технологий"
               tags={selectedValues.orderFields.techTags || []}
               onChange={(v) => handleInputChange("orderFields", "techTags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("orderFields", "techTags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1511,6 +1794,7 @@ function FieldsPage() {
               title="Теги задач"
               tags={selectedValues.orderFields.taskTags || []}
               onChange={(v) => handleInputChange("orderFields", "taskTags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("orderFields", "taskTags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1526,7 +1810,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.executorFields.role || []}
                 onChange={(index, val) => handleStringItemChange("executorFields", "role", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("executorFields", "role", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("executorFields", "role", index, item)}
                 onAdd={() => handleStringItemAdd("executorFields", "role")}
                 onCommit={(index) => handleStringItemBlur("executorFields", "role", index)}
                 onReorder={(newItems) => handleInputChange("executorFields", "role", newItems)}
@@ -1547,7 +1831,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.category || []}
                 onChange={(index, val) => handleStringItemChange("clientFields", "category", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "category", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("clientFields", "category", index, item)}
                 onAdd={() => handleStringItemAdd("clientFields", "category")}
                 onCommit={(index) => handleStringItemBlur("clientFields", "category", index)}
                 onReorder={(newItems) => handleInputChange("clientFields", "category", newItems)}
@@ -1563,7 +1847,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.source || []}
                 onChange={(index, val) => handleStringItemChange("clientFields", "source", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "source", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("clientFields", "source", index, item)}
                 onAdd={() => handleStringItemAdd("clientFields", "source")}
                 onCommit={(index) => handleStringItemBlur("clientFields", "source", index)}
                 onReorder={(newItems) => handleInputChange("clientFields", "source", newItems)}
@@ -1579,7 +1863,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.business || []}
                 onChange={(index, val) => handleStringItemChange("clientFields", "business", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "business", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("clientFields", "business", index, item)}
                 onAdd={() => handleStringItemAdd("clientFields", "business")}
                 onCommit={(index) => handleStringItemBlur("clientFields", "business", index)}
                 onReorder={(newItems) => handleInputChange("clientFields", "business", newItems)}
@@ -1594,6 +1878,7 @@ function FieldsPage() {
               title="Теги клиента"
               tags={selectedValues.clientFields.tags || []}
               onChange={(v) => handleInputChange("clientFields", "tags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("clientFields", "tags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1609,6 +1894,7 @@ function FieldsPage() {
                 title="Теги компании"
                 tags={selectedValues.companyFields?.tags || []}
                 onChange={(v) => handleInputChange("companyFields", "tags", v)}
+                onToggleDelete={(id, item) => requestTagDelete("companyFields", "tags", id, item)}
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
               />
@@ -1624,6 +1910,7 @@ function FieldsPage() {
               title="Теги сотрудника"
               tags={selectedValues.employeeFields.tags || []}
               onChange={(v) => handleInputChange("employeeFields", "tags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("employeeFields", "tags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1639,7 +1926,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.assetsFields.type || []}
                 onChange={(index, val) => handleStringItemChange("assetsFields", "type", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("assetsFields", "type", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("assetsFields", "type", index, item)}
                 onAdd={() => handleStringItemAdd("assetsFields", "type")}
                 onCommit={(index) => handleStringItemBlur("assetsFields", "type", index)}
                 onReorder={(newItems) => handleInputChange("assetsFields", "type", newItems)}
@@ -1655,7 +1942,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.assetsFields.paymentSystem || []}
                 onChange={(index, val) => handleStringItemChange("assetsFields", "paymentSystem", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("assetsFields", "paymentSystem", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("assetsFields", "paymentSystem", index, item)}
                 onAdd={() => handleStringItemAdd("assetsFields", "paymentSystem")}
                 onCommit={(index) => handleStringItemBlur("assetsFields", "paymentSystem", index)}
                 onReorder={(newItems) => handleInputChange("assetsFields", "paymentSystem", newItems)}
@@ -1671,7 +1958,7 @@ function FieldsPage() {
               <CardDesignUpload
                 cardDesigns={selectedValues.assetsFields.cardDesigns || []}
                 onAdd={(newItems) => updateCardDesigns(newItems)}
-                onToggleDelete={toggleDeleteCardDesign}
+                onToggleDelete={requestDeleteCardDesign}
                 onError={({ title, message }) => openErrorModal(title, message)}
                 showHidden={showHidden}
               />
@@ -1688,7 +1975,7 @@ function FieldsPage() {
               onArticleChange={updateArticleValue}
               onArticleBlur={validateArticleOnBlur}
               onAddArticle={addArticle}
-              onToggleDelete={toggleDeleteArticle}
+              onToggleDelete={requestDeleteArticle}
               showHidden={showHidden}
             />
           ),
@@ -1698,7 +1985,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.financeFields?.subcategory || []}
                 onChange={(index, val) => handleStringItemChange("financeFields", "subcategory", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("financeFields", "subcategory", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("financeFields", "subcategory", index, item)}
                 onAdd={() => handleStringItemAdd("financeFields", "subcategory")}
                 onCommit={(index) => handleStringItemBlur("financeFields", "subcategory", index)}
                 onReorder={(newItems) => handleInputChange("financeFields", "subcategory", newItems)}
@@ -1714,7 +2001,7 @@ function FieldsPage() {
               onSubarticleChange={updateSubarticleValue}
               onSubarticleBlur={validateSubarticleOnBlur}
               onAddSubarticle={addSubarticle}
-              onToggleDelete={toggleDeleteSubarticle}
+              onToggleDelete={requestDeleteSubarticle}
               openDropdowns={openDropdowns}
               onToggleDropdown={toggleSubarticleDropdown}
               availableArticles={articleOptions}
@@ -1733,7 +2020,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.sundryFields?.typeWork || []} 
                 onChange={(index, val) => handleStringItemChange("sundryFields", "typeWork", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("sundryFields", "typeWork", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("sundryFields", "typeWork", index, item)}
                 onAdd={() => handleStringItemAdd("sundryFields", "typeWork")}
                 onCommit={(index) => handleStringItemBlur("sundryFields", "typeWork", index)}
                 onReorder={(newItems) => handleInputChange("sundryFields", "typeWork", newItems)}
@@ -1754,6 +2041,7 @@ function FieldsPage() {
                 title="Теги задач"
                 tags={selectedValues.taskFields?.tags || []}
                 onChange={(v) => handleInputChange("taskFields", "tags", v)}
+                onToggleDelete={(id, item) => requestTagDelete("taskFields", "tags", id, item)}
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
               />

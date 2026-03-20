@@ -5,6 +5,7 @@ const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity } = require('./activity-log.service');
 const { hasColumn, pickExistingColumns } = require('../utils/db-schema');
 const tempPasswordService = require('./employee-temp-password.service');
+const { buildTelegramStartLink } = require('./telegram-bot.service');
 
 const ACCESS_TTL = process.env.JWT_ACCESS_TTL || '15m';
 const REFRESH_TTL = process.env.JWT_REFRESH_TTL || '3d';
@@ -116,10 +117,7 @@ async function register({ full_name, birthDate, phone, email, login, password })
     const ticket = await createLinkTokenForEmployee(employee.id, 60);
     const code = typeof ticket === 'string' ? ticket : ticket?.code;
     if (code) {
-      const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
-        .trim()
-        .replace(/^@/, '');
-      telegramLink = `https://t.me/${botName}?start=${code}`;
+      telegramLink = await buildTelegramStartLink(code);
     }
   } catch (e) {
     console.warn('[auth] register telegram link skipped:', e?.message || e);
