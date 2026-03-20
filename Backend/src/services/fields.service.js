@@ -16,7 +16,7 @@ const ensureDir = (dir) => {
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const CARD_DIR = path.join(UPLOADS_ROOT, 'card-designs');
 ensureDir(CARD_DIR);
-const MAX_CARD_DESIGN_BYTES = 2 * 1024 * 1024;
+const MAX_CARD_DESIGN_BYTES = 5 * 1024 * 1024;
 
 const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const EXTRA_FIELDS_CONFIG_KEY = 'fields.extra';
@@ -203,7 +203,7 @@ async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const mime = m[1];
   const buf = Buffer.from(m[2], 'base64');
   if (buf.length > MAX_CARD_DESIGN_BYTES) {
-    throw httpErr('Размер файла превышает 2 МБ');
+    throw httpErr('Размер файла превышает 5 МБ');
   }
   const ext = (mime.split('/')[1] || 'png').toLowerCase();
   const fileName = `${fileBaseName}.${ext}`;
