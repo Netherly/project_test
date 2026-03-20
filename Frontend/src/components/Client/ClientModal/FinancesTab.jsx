@@ -6,8 +6,8 @@ import {
 } from 'react-hook-form';
 import './FinancesTab.css';
 import { Plus, Minus } from 'lucide-react';
+import CreatableSelect from "./CreatableSelect"; 
 
-// Утилита форматирования
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
     return '0.00';
@@ -18,18 +18,9 @@ const formatNumberWithSpaces = (num) => {
   return parts.join('.');
 };
 
-export default function FinancesTab({ currencies = [], referrers = [], employees = [] }) {
+export default function FinancesTab({ currencies = [], referrers = [], employees = [], clients = [], onAddCurrency }) {
   const [currencyList, setCurrencyList] = useState(currencies);
-  
-  // ПРАВКА: Убрали хардкод, теперь таблица пустая
   const [transactions, setTransactions] = useState([]);
-
-  const addCurrency = () => {
-    const val = prompt('Новая валюта (пример: CHF):');
-    if (val && val.trim() && !currencyList.includes(val.trim())) {
-      setCurrencyList(prev => [...prev, val.trim()]);
-    }
-  };
 
   useEffect(() => {
     setCurrencyList(Array.isArray(currencies) ? currencies : []);
@@ -43,6 +34,25 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
   } = useFormContext();
 
   const shareInfo = useWatch({ control, name: 'share_info' });
+
+  const allReferrers = useMemo(() => {
+    const existingRefIds = new Set();
+    const result = [];
+
+    const addRef = (id, name, group) => {
+      const strId = String(id);
+      if (!existingRefIds.has(strId)) {
+        existingRefIds.add(strId);
+        result.push({ id: strId, name: name || 'Без имени', group });
+      }
+    };
+
+    (referrers || []).forEach(r => addRef(r.id, r.label || r.name, 'Реферер'));
+    (clients || []).forEach(c => addRef(c.id, c.name || c.full_name, 'Клиент'));
+    (employees || []).forEach(e => addRef(e.id, e.full_name || e.fullName || e.name, 'Сотрудник'));
+
+    return result;
+  }, [referrers, clients, employees]);
 
   useEffect(() => {
     if (shareInfo) {
@@ -60,8 +70,8 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
   );
 
   const referrerById = useMemo(
-    () => new Map((referrers || []).map((r) => [String(r.id), r.name])),
-    [referrers]
+    () => new Map(allReferrers.map((r) => [String(r.id), r.name])),
+    [allReferrers]
   );
 
   const handleReferrerChange = (field, nameField) => (event) => {
@@ -70,8 +80,10 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
     
     const nextName = referrerById.get(String(nextId)) || '';
     setValue(nameField, nextName, { shouldDirty: true });
+    
     if (nextId) {
       setValue('percent', 80, { shouldValidate: true, shouldDirty: true });
+      setValue('share_info', true, { shouldDirty: true });
     } else {
       setValue('percent', 100, { shouldValidate: true, shouldDirty: true });
     }
@@ -90,27 +102,32 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         render={({ field }) => <input type="hidden" {...field} />}
       />
 
-      {/* Валюта */}
       <Controller
         name="currency"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Валюта</label>
-            <div className="select-plus">
-              <select {...field} className={errors.currency ? 'input-error' : ''}>
-                <option value="" disabled hidden>Не выбрано</option>
-                {currencyList.map(cur => (
-                  <option key={cur} value={cur}>{cur}</option>
-                ))}
-              </select>
+            <div className="select-plus" style={{ width: '100%' }}>
+              <CreatableSelect
+                value={field.value || ""}
+                onChange={(val) => {
+                  field.onChange(val);
+                  if (val && !currencyList.includes(val)) {
+                    setCurrencyList(prev => [...prev, val]);
+                  }
+                }}
+                options={currencyList}
+                placeholder="Выберите или введите валюту..."
+                error={!!errors.currency}
+                onAdd={(val) => onAddCurrency && onAddCurrency(val)}
+              />
             </div>
             {errors.currency && <p className="error">{errors.currency.message}</p>}
           </div>
         )}
       />
 
-      {/* Реквизиты для оплаты */}
       <Controller
         name="payment_details"
         control={control}
@@ -122,19 +139,60 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         )}
       />
 
-      {/* Ставка в час */}
       <Controller
         name="hourly_rate"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>В час</label>
-            <input type="number" {...field} value={field.value || ''} min={0} step={0.01} placeholder="0.00" />
-          </div>
-        )}
+        render={({ field }) => {
+          const { onChange, value, ...restField } = field;
+          const min = 0;
+          const step = 10;
+          const numValue = parseFloat(value) || 0;
+
+          const handleDecrement = () => {
+            const newValue = Math.max(min, numValue - step);
+            onChange(newValue);
+          };
+
+          const handleIncrement = () => {
+            const newValue = numValue + step;
+            onChange(newValue);
+          };
+
+          return (
+            <div className="form-field">
+              <label>В час</label>
+              <div className="custom-number-input">
+                <input
+                  type="number"
+                  {...restField}
+                  value={value || ''}
+                  onChange={onChange}
+                  min={min}
+                  step={step}
+                  placeholder="0.00"
+                  className={errors.hourly_rate ? 'input-error' : ''}
+                />
+                <button
+                  type="button"
+                  className="num-btn minus-btn"
+                  onClick={handleDecrement}
+                  disabled={numValue <= min}
+                >
+                  <Minus />
+                </button>
+                <button
+                  type="button"
+                  className="num-btn plus-btn"
+                  onClick={handleIncrement}
+                >
+                  <Plus />
+                </button>
+              </div>
+            </div>
+          );
+        }}
       />
 
-      {/* Процент + Чекбокс */}
       <div className="two-cols">
         <Controller
           name="percent"
@@ -197,29 +255,19 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           name="share_info"
           control={control}
           render={({ field }) => (
-            <div className="form-field">
-              <label>Есть доля?</label>
-              <div
-                className="fake-input-toggle" 
-                onClick={() => field.onChange(!field.value)} 
-                tabIndex={0} 
-                role="switch" 
-                aria-checked={field.value} 
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    field.onChange(!field.value);
-                  }
-                }}
-              >
-                {field.value ? 'Да' : 'Нет'} 
-              </div>
+            <div className="form-field-checkbox" style={{ alignSelf: 'center', marginTop: '20px' }}>
+              <label htmlFor="share_info">Есть доля?</label>
+              <input 
+                type="checkbox" 
+                id="share_info" 
+                {...field} 
+                checked={field.value || false} 
+              />
             </div>
           )}
         />
       </div>
 
-      {/* Реферер */}
       <Controller
         name="referrer_id"
         control={control}
@@ -233,8 +281,10 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
               className={errors.referrer_id ? 'input-error' : ''}
             >
               <option value="" disabled hidden>Не выбрано</option>
-              {referrers.map(r => (
-                <option key={r.id} value={r.id}>{r.label || r.name}</option>
+              {allReferrers.map(r => (
+                <option key={`ref-${r.id}`} value={r.id}>
+                  {r.name} ({r.group})
+                </option>
               ))}
             </select>
             {errors.referrer_id && <p className="error">{errors.referrer_id.message}</p>}
@@ -242,7 +292,6 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         )}
       />
 
-      {/* Первый реферер */}
       <Controller
         name="referrer_first_id"
         control={control}
@@ -250,12 +299,17 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
           <div className="form-field">
             <label>Первый реферер</label>
             <select {...field} onChange={handleReferrerChange(field, 'referrer_first_name')}>
+              <option value="" disabled hidden>Не выбрано</option>
+              {allReferrers.map(r => (
+                <option key={`first-ref-${r.id}`} value={r.id}>
+                  {r.name} ({r.group})
+                </option>
+              ))}
             </select>
           </div>
         )}
       />
 
-      {/* Менеджер */}
       <Controller
         name="manager_id"
         control={control}
@@ -265,7 +319,7 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
             <select {...field}>
               <option value="" disabled hidden>Не выбрано</option>
               {employees.map(e => (
-                <option key={e.id} value={e.id}>{e.full_name}</option>
+                <option key={e.id} value={e.id}>{e.full_name || e.fullName || e.name}</option>
               ))}
             </select>
           </div>

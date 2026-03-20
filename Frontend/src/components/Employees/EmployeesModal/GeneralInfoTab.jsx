@@ -2,12 +2,15 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
 import { Plus, Minus } from 'lucide-react';
+// ДОБАВЛЕН ИМПОРТ (проверь, правильный ли путь до твоего FieldsContext)
+import { useFields } from "../../../context/FieldsContext"; 
 
 export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
   const { fields, loading: fieldsLoading } = useFields();
   const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
+  
   const mainCurrencyValue = useWatch({ control, name: "mainCurrency" });
   const currentCountryId = useWatch({ control, name: "countryId" });
   const currentCountry = useWatch({ control, name: "country" });
@@ -30,7 +33,7 @@ export default function GeneralInfoTab({ fieldsData }) {
       .filter(Boolean);
       
     setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
-  }, [fieldsData]); 
+  }, [fields, fieldsData]); // Добавил fields в зависимости, чтобы хук реагировал на загрузку данных
 
   return (
     <div className="tab-section">
@@ -121,8 +124,8 @@ export default function GeneralInfoTab({ fieldsData }) {
             return (
               <div
                 key={code}
-                // ИСПРАВЛЕНО: заменил mainCurrencyValue на selectedMainCurrency
-                className={`currency-row ${selectedMainCurrency === code ? "selected" : ""}`}
+                // ИСПРАВЛЕНО: используем mainCurrencyValue вместо несуществующей selectedMainCurrency
+                className={`currency-row ${mainCurrencyValue === code ? "selected" : ""}`}
               >
                 <span className="currency-label">
                   {code.toUpperCase()}

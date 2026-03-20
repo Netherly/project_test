@@ -9,7 +9,10 @@ import {
   inferPhoneCountryIso2,
 } from '../../../utils/countryDisplay';
 
-export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ru' }) {
+// ДОБАВЛЕН ИМПОРТ (проверь правильность пути)
+import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
+
+export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage = 'ru', onAddCountry }) {
   const { control, getValues, setValue, formState: { errors } } = useFormContext();
   
   
@@ -129,8 +132,8 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
     setValue('country', nextOption.label, { shouldDirty: true, shouldValidate: false });
   };
 
-  const handleCountryChange = (nextValue, onChange) => {
-    onChange(nextValue);
+  const handleCountryChange = (nextValue) => {
+    setValue('countryId', nextValue, { shouldDirty: true });
 
     if (!nextValue) {
       setValue('country', '', { shouldDirty: true, shouldValidate: false });
@@ -138,9 +141,17 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
       return;
     }
 
-    const nextOption = countryOptions.find((option) => option.value === nextValue);
-    setInferredCountryOption(nextOption?.synthetic ? nextOption : null);
-    setValue('country', nextOption?.label || '', { shouldDirty: true, shouldValidate: false });
+    // Ищем выбранную опцию по value (которое может быть ID или названием)
+    const nextOption = countryOptions.find((option) => option.value === nextValue || option.label === nextValue);
+    
+    if (nextOption) {
+      setInferredCountryOption(nextOption.synthetic ? nextOption : null);
+      setValue('country', nextOption.label, { shouldDirty: true, shouldValidate: false });
+      setValue('countryId', nextOption.value, { shouldDirty: true, shouldValidate: false });
+    } else {
+      // Если это новое значение, введенное вручную
+      setValue('country', nextValue, { shouldDirty: true, shouldValidate: false });
+    }
   };
 
   const telegramId = useWatch({ control, name: 'telegramId' });
@@ -301,25 +312,21 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
       
       
       
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <div className="form-field">
         <label>Страна</label>
         <Controller
           name="countryId"
           control={control}
           render={({ field }) => (
-            <select
-              {...field}
-              value={field.value ?? ''}
-              onChange={(event) => handleCountryChange(event.target.value, field.onChange)}
-              className={errors.countryId ? "input-error" : ""}
-            >
-              <option value="">Не выбрано</option>
-              {countryOptions.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            <CreatableSelect
+              value={currentCountry || field.value || ""}
+              onChange={handleCountryChange}
+              options={countryOptions.map(c => c.label)}
+              placeholder="Выберите или введите..."
+              error={!!errors.countryId}
+              onAdd={(val) => onAddCountry && onAddCountry(val)}
+            />
           )}
         />
         {errors.countryId && <p className="error">{errors.countryId.message}</p>}
@@ -603,7 +610,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
             )}
           />
           
-          {/* НОВОЕ ПОЛЕ: Ссылка на чат */}
           <Controller
             name="chatLink"
             control={control}
@@ -617,7 +623,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                     readOnly 
                   />
                   <div className="input-icons-group">
-                    {/* Кнопка Открыть */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -628,7 +633,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                       <ExternalLink size={18} />
                     </button>
 
-                    {/* Кнопка Выйти (Отвязать) */}
                     <button
                       type="button"
                       className="icon-action-btn"
@@ -636,7 +640,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
                       disabled={!isTelegramLinked || isUnlinking}
                       title="Отвязать Telegram"
                     >
-                      <Link2Off size={18} color="#ff6b6b" /> {/* Красная иконка для опасного действия */}
+                      <Link2Off size={18} color="#ff6b6b" /> 
                     </button>
                   </div>
                 </div>
