@@ -18,6 +18,9 @@ import { useTransactions } from "../../../context/TransactionsContext";
 import { addLogEntry, getEmployees } from "../../Journal/journalApi";
 import { getStageColor } from "../../Orders/stageColors";
 import { fetchClients } from "../../../api/clients";
+import { useFields } from "../../../context/FieldsContext";
+import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { rid } from "../../../utils/rid";
 import "../../../styles/OrderModal.css";
 import { X, Trash2, Copy, MoreVertical } from "lucide-react";
 
@@ -39,8 +42,6 @@ const stages = [
   "Неудачно завершён",
   "Удаленные",
 ];
-
-const defaultTagsFallback = ["Срочный", "В приоритете", "На паузе", "Клиент VIP"];
 
 const tabs = ["Сводка", "Основное", "Планы", "Участники", "Финансы", "Выполнение", "Завершение"];
 
@@ -117,6 +118,8 @@ function OrderModal({
   onDeleteOrder,
   journalEntries,
 }) {
+  const { refreshFields } = useFields();
+
   const formDefaults = useMemo(() => {
     if (mode === "create") return newOrderDefaults;
     return {
@@ -229,7 +232,7 @@ function OrderModal({
     statuses: [],
     closeReasons: [],
     projects: [],
-    discountReason: [],
+    discountReasons: [],
     tags: [],
     techTags: [],
     taskTags: [],
@@ -252,6 +255,48 @@ function OrderModal({
 
   const watchedStage = watch("stage");
   const watchedTags = watch("tags") || [];
+
+  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find(
+        (item) => {
+          const itemVal = typeof item === "string" ? item : (item.value || item.name);
+          return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
+        }
+      );
+
+      if (!exists) {
+        list.push({
+          id: rid(),
+          value: newValue,
+          isDeleted: false,
+          ...extraData
+        });
+
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+
+        await saveFields(payload);
+
+        if (group === "orderFields") {
+          setOrderFields(prev => ({
+            ...prev,
+            [fieldName]: list
+          }));
+        }
+
+        if (refreshFields) {
+          await refreshFields();
+        }
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -337,7 +382,7 @@ function OrderModal({
             statuses: [],
             closeReasons: [],
             projects: [],
-            discountReason: [],
+            discountReasons: [],
             tags: [],
             techTags: [],
             taskTags: [],
@@ -416,11 +461,9 @@ function OrderModal({
     return segments;
   };
 
-  const availableOrderTags = (orderFields?.tags || [])
+  const tagOptions = (orderFields?.tags || [])
     .map((t) => (typeof t === "string" ? t : t?.name))
     .filter(Boolean);
-
-  const tagOptions = availableOrderTags.length ? availableOrderTags : defaultTagsFallback;
 
   const filteredTags = tagOptions.filter(
     (tag) => !watchedTags.includes(tag) && tag.toLowerCase().includes(customTag.toLowerCase())
@@ -436,7 +479,9 @@ function OrderModal({
 
   const handleCustomTagAdd = (e, onChange) => {
     if (e.key === "Enter" && customTag.trim() && !watchedTags.includes(customTag.trim())) {
-      onChange([...watchedTags, customTag.trim()]);
+      const newTag = customTag.trim();
+      onChange([...watchedTags, newTag]);
+      handleAddNewField("orderFields", "tags", newTag);
       setCustomTag("");
       setShowTagDropdown(false);
       e.preventDefault();
@@ -565,6 +610,7 @@ function OrderModal({
         ...data,
       });
     }
+    reset(data);
     onClose?.();
   };
 
@@ -639,7 +685,6 @@ function OrderModal({
                     </button>
                   </div>
                 </div>
-                {/* Убрали кнопки отмены/сохранения из хедера */}
               </div>
 
               <div className="tags-section-header">
@@ -676,7 +721,10 @@ function OrderModal({
                               !watchedTags.includes(customTag.trim()) && (
                                 <div
                                   className="tag-dropdown-item tag-dropdown-custom-header"
-                                  onClick={() => handleTagSelect(customTag.trim(), onChange)}
+                                  onClick={() => {
+                                    handleTagSelect(customTag.trim(), onChange);
+                                    handleAddNewField("orderFields", "tags", customTag.trim());
+                                  }}
                                 >
                                   Добавить: "{customTag}"
                                 </div>
@@ -781,9 +829,9 @@ function OrderModal({
               <div className="tab-content">
                 {activeTab === "Сводка" && <OrderSummary />}
                 {activeTab === "Основное" && (
-                  <GeneralInformation control={control} orderFields={orderFields} mode={mode} />
+                  <GeneralInformation control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewField} />
                 )}
-                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} />}
+                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewField} />}
                 {activeTab === "Участники" && (
                   <Participants
                     control={control}
@@ -794,24 +842,22 @@ function OrderModal({
                   />
                 )}
                 {activeTab === "Финансы" && (
-                  <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions} />
+                  <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions} onAddNewField={handleAddNewField} />
                 )}
                 {activeTab === "Выполнение" && <OrderExecution control={control} mode={mode} />}
                 {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} />}
               </div>
             </div>
 
-            <div className="order-modal-footer">
-              {isDirty && (
-                <div className="action-buttons">
-                  <button type="button" className="cancel-order-btn" onClick={resetChanges}>
-                    Отменить
-                  </button>
-                  <button type="submit" className="save-order-btn">
-                    Сохранить
-                  </button>
-                </div>
-              )}
+            <div className={`order-modal-footer ${isDirty ? "visible" : ""}`}>
+              <div className="action-buttons">
+                <button type="button" className="cancel-order-btn" onClick={resetChanges}>
+                  Отменить
+                </button>
+                <button type="submit" className="save-order-btn">
+                  Сохранить
+                </button>
+              </div>
             </div>
           </form>
         </FormProvider>

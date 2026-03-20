@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { Controller, useFieldArray, useWatch, useFormContext } from "react-hook-form";
 import { X, Plus, Copy } from "lucide-react";
 import AutoResizeTextarea from "./AutoResizeTextarea";
+import CreatableSelect from "../../../components/Client/ClientModal/CreatableSelect.jsx";
 
-const WorkPlan = ({ control, orderFields }) => {
+const WorkPlan = ({ control, orderFields, onAddNewField }) => {
   const { getValues, setValue } = useFormContext();
 
   const rawReadySolutions = Array.isArray(orderFields?.readySolution)
@@ -12,7 +13,14 @@ const WorkPlan = ({ control, orderFields }) => {
     ? orderFields.orderFields.readySolution
     : [];
 
-  const readySolutions = rawReadySolutions.filter((item) => !item?.isDeleted);
+  const readySolutionsOptions = rawReadySolutions
+    .filter((item) => !item?.isDeleted)
+    .map(item => item.value ?? item.name ?? item)
+    .filter(Boolean);
+
+  const projectOptions = (orderFields?.projects || [])
+    .map((p) => p?.value ?? p?.name ?? (typeof p === "string" ? p : ""))
+    .filter(Boolean);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -163,17 +171,6 @@ const WorkPlan = ({ control, orderFields }) => {
     }
   };
 
-  const projectOptions = (orderFields?.projects || [])
-    .map((p) => p?.value ?? p?.name ?? (typeof p === "string" ? p : ""))
-    .filter(Boolean);
-
-  const fallbackProjects = [
-    "Проект Альфа",
-    "Разработка CRM",
-    "Интернет-магазин 'Космос'",
-    "Лендинг для конференции",
-  ];
-
   return (
     <div className="tab-content-container workplan-tab-wrapper">
       <div className="tab-content-row">
@@ -182,14 +179,13 @@ const WorkPlan = ({ control, orderFields }) => {
           name="project"
           control={control}
           render={({ field }) => (
-            <select {...field} className="custom-content-input">
-              <option value="" disabled hidden>Не выбрано</option>
-              {(projectOptions.length ? projectOptions : fallbackProjects).map((project, index) => (
-                <option key={index} value={project}>
-                  {project}
-                </option>
-              ))}
-            </select>
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={projectOptions}
+              placeholder="Выберите или введите проект..."
+              onAdd={(val) => onAddNewField && onAddNewField("orderFields", "projects", val)}
+            />
           )}
         />
       </div>
@@ -215,20 +211,13 @@ const WorkPlan = ({ control, orderFields }) => {
           name="readySolution"
           control={control}
           render={({ field }) => (
-            <select {...field} className="custom-content-input">
-              <option value="" disabled hidden>Не выбрано</option>
-              {readySolutions.length > 0 ? (
-                readySolutions.map((item) => (
-                  <option key={item.id || item.value} value={item.value ?? item.name ?? item}>
-                    {item.value ?? item.name ?? item}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>
-                  Список пуст (добавьте в настройках)
-                </option>
-              )}
-            </select>
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={readySolutionsOptions}
+              placeholder="Выберите или введите решение..."
+              onAdd={(val) => onAddNewField && onAddNewField("orderFields", "readySolution", val)}
+            />
           )}
         />
       </div>
@@ -239,12 +228,13 @@ const WorkPlan = ({ control, orderFields }) => {
           name="techTags"
           control={control}
           render={({ field: { value = [], onChange } }) => (
-            <div className="tags-section">
-              <div className="tag-input-container" ref={techTagInputRef}>
+            <div className="tags-section-header">
+              <div className="tag-input-container-header" ref={techTagInputRef}>
                 <input
                   type="text"
-                  placeholder="Добавить тег технологии"
+                  placeholder="Добавить тег"
                   className="input-tag"
+                  style={{ width: "160px" }}
                   value={customTechTag}
                   onChange={(e) => {
                     setCustomTechTag(e.target.value);
@@ -254,7 +244,10 @@ const WorkPlan = ({ control, orderFields }) => {
                     if (e.key === "Enter" && customTechTag.trim()) {
                       e.preventDefault();
                       const next = customTechTag.trim();
-                      if (!value.includes(next)) onChange([...value, next]);
+                      if (!value.includes(next)) {
+                          onChange([...value, next]);
+                          onAddNewField && onAddNewField("orderFields", "techTags", next);
+                      }
                       setCustomTechTag("");
                       setShowTechTagDropdown(false);
                     }
@@ -264,11 +257,11 @@ const WorkPlan = ({ control, orderFields }) => {
                 />
 
                 {showTechTagDropdown && (filteredTechTags.length > 0 || customTechTag.trim()) && (
-                  <div className="tag-dropdown" ref={techTagDropdownRef}>
+                  <div className="tag-dropdown-header" ref={techTagDropdownRef}>
                     {filteredTechTags.map((tag) => (
                       <div
                         key={tag}
-                        className="tag-dropdown-item"
+                        className="tag-dropdown-item-header"
                         onClick={() => {
                           if (!value.includes(tag)) onChange([...value, tag]);
                           setCustomTechTag("");
@@ -283,10 +276,11 @@ const WorkPlan = ({ control, orderFields }) => {
                       !techOptions.includes(customTechTag.trim()) &&
                       !value.includes(customTechTag.trim()) && (
                         <div
-                          className="tag-dropdown-item tag-dropdown-custom"
+                          className="tag-dropdown-item-header tag-dropdown-custom-header"
                           onClick={() => {
                             const next = customTechTag.trim();
                             onChange([...value, next]);
+                            onAddNewField && onAddNewField("orderFields", "techTags", next);
                             setCustomTechTag("");
                             setShowTechTagDropdown(false);
                           }}
@@ -298,17 +292,15 @@ const WorkPlan = ({ control, orderFields }) => {
                 )}
               </div>
 
-              <div className="tag-chips-container">
-                {value.map((tag, idx) => (
-                  <span
-                    key={`${tag}_${idx}`}
-                    className="tag-chips tag-order-chips"
-                    onClick={() => onChange(value.filter((t) => t !== tag))}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {value.map((tag, idx) => (
+                <span
+                  key={`${tag}_${idx}`}
+                  className="tag-chips tag-order-chips-header"
+                  onClick={() => onChange(value.filter((t) => t !== tag))}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
         />
@@ -320,12 +312,13 @@ const WorkPlan = ({ control, orderFields }) => {
           name="taskTags"
           control={control}
           render={({ field: { value = [], onChange } }) => (
-            <div className="tags-section">
-              <div className="tag-input-container" ref={taskTagInputRef}>
+            <div className="tags-section-header">
+              <div className="tag-input-container-header" ref={taskTagInputRef}>
                 <input
                   type="text"
-                  placeholder="Добавить тег задачи"
+                  placeholder="Добавить тег"
                   className="input-tag"
+                  style={{ width: "160px" }}
                   value={customTaskTag}
                   onChange={(e) => {
                     setCustomTaskTag(e.target.value);
@@ -335,7 +328,10 @@ const WorkPlan = ({ control, orderFields }) => {
                     if (e.key === "Enter" && customTaskTag.trim()) {
                       e.preventDefault();
                       const next = customTaskTag.trim();
-                      if (!value.includes(next)) onChange([...value, next]);
+                      if (!value.includes(next)) {
+                          onChange([...value, next]);
+                          onAddNewField && onAddNewField("orderFields", "taskTags", next);
+                      }
                       setCustomTaskTag("");
                       setShowTaskTagDropdown(false);
                     }
@@ -345,11 +341,11 @@ const WorkPlan = ({ control, orderFields }) => {
                 />
 
                 {showTaskTagDropdown && (filteredTaskTags.length > 0 || customTaskTag.trim()) && (
-                  <div className="tag-dropdown" ref={taskTagDropdownRef}>
+                  <div className="tag-dropdown-header" ref={taskTagDropdownRef}>
                     {filteredTaskTags.map((tag) => (
                       <div
                         key={tag}
-                        className="tag-dropdown-item"
+                        className="tag-dropdown-item-header"
                         onClick={() => {
                           if (!value.includes(tag)) onChange([...value, tag]);
                           setCustomTaskTag("");
@@ -364,10 +360,11 @@ const WorkPlan = ({ control, orderFields }) => {
                       !taskOptions.includes(customTaskTag.trim()) &&
                       !value.includes(customTaskTag.trim()) && (
                         <div
-                          className="tag-dropdown-item tag-dropdown-custom"
+                          className="tag-dropdown-item-header tag-dropdown-custom-header"
                           onClick={() => {
                             const next = customTaskTag.trim();
                             onChange([...value, next]);
+                            onAddNewField && onAddNewField("orderFields", "taskTags", next);
                             setCustomTaskTag("");
                             setShowTaskTagDropdown(false);
                           }}
@@ -379,17 +376,15 @@ const WorkPlan = ({ control, orderFields }) => {
                 )}
               </div>
 
-              <div className="tag-chips-container">
-                {value.map((tag, idx) => (
-                  <span
-                    key={`${tag}_${idx}`}
-                    className="tag-chips tag-order-chips"
-                    onClick={() => onChange(value.filter((t) => t !== tag))}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {value.map((tag, idx) => (
+                <span
+                  key={`${tag}_${idx}`}
+                  className="tag-chips tag-order-chips-header"
+                  onClick={() => onChange(value.filter((t) => t !== tag))}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           )}
         />

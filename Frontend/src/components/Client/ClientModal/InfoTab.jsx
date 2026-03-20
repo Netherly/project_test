@@ -23,6 +23,9 @@ export default function InfoTab({
   tagOptions = [],
   loadingLists = false,
   onAddCompany,
+  onAddCategory, // Добавлено для сохранения
+  onAddSource,   // Добавлено для сохранения
+  onAddBusiness, // Добавлено для сохранения
 }) {
   const {
     control,
@@ -100,6 +103,7 @@ export default function InfoTab({
         )}
       />
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="category"
         control={control}
@@ -108,20 +112,15 @@ export default function InfoTab({
             <label>
               Категория<span className="req">*</span>
             </label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={categories}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.category ? "input-error" : ""}
-            >
-              <option value="" disabled hidden>
-                Не выбрано
-              </option>
-              {categories.map((c, i) => (
-                <option key={`${c}-${i}`} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              error={!!errors.category}
+              onAdd={(val) => onAddCategory && onAddCategory(val)}
+            />
             {errors.category && (
               <p className="error grid-error">{errors.category.message}</p>
             )}
@@ -129,6 +128,7 @@ export default function InfoTab({
         )}
       />
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="source"
         control={control}
@@ -137,20 +137,15 @@ export default function InfoTab({
             <label>
               Источник<span className="req">*</span>
             </label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={sources}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.source ? "input-error" : ""}
-            >
-              <option value="" disabled hidden>
-                Не выбрано
-              </option>
-              {sources.map((s, i) => (
-                <option key={`${s}-${i}`} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              error={!!errors.source}
+              onAdd={(val) => onAddSource && onAddSource(val)}
+            />
             {errors.source && <p className="error grid-error">{errors.source.message}</p>}
           </div>
         )}
@@ -204,84 +199,55 @@ export default function InfoTab({
         name="tags"
         control={control}
         render={({ field: { onChange, value: currentTagsValue } }) => {
-          const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
-          const suggestions = [
-            ...defaultTags,
-            ...tagOptions.map((t) => (typeof t === "object" ? t.name : t)),
-          ];
-          const uniqueSuggestions = Array.from(new Set(suggestions));
+           const currentTags = Array.isArray(currentTagsValue) ? currentTagsValue : [];
+           const suggestions = tagOptions.map(t => typeof t === 'object' ? t.name : t);
+           const uniqueSuggestions = Array.from(new Set(suggestions));
+           
+           const filteredTags = uniqueSuggestions.filter(
+              tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !currentTags.find(t => t.name === tagString)
+           );
 
-          const filteredTags = uniqueSuggestions.filter(
-            (tagString) =>
-              tagString.toLowerCase().includes(customTag.toLowerCase()) &&
-              !currentTags.find((t) => t.name === tagString)
-          );
-
-          return (
-            <div className="form-field full-width">
-              <label>Теги</label>
-
-              <div className="custom-tags-wrapper">
-                <div className="tag-input-container" ref={tagInputRef}>
-                  <input
-                    type="text"
-                    placeholder="Добавить тег"
-                    className="input-tag-control"
-                    value={customTag}
-                    onChange={handleTagInputChange}
-                    onKeyDown={(e) => handleCustomTagAdd(e, onChange, currentTagsValue)}
-                    onFocus={handleTagInputFocus}
-                    autoComplete="off"
-                  />
-
-                  {showTagDropdown &&
-                    (filteredTags.length > 0 ||
-                      (customTag.trim() &&
-                        !uniqueSuggestions.includes(customTag.trim()) &&
-                        !currentTags.find((t) => t.name === customTag.trim()))) && (
-                      <div className="tag-dropdown" ref={tagDropdownRef}>
-                        {filteredTags.map((tag) => (
-                          <div
-                            key={tag}
-                            className="tag-dropdown-item"
-                            onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}
-                          >
-                            {tag}
+           return (
+             <div className="form-field full-width">
+               <label>Теги</label>
+               <div className="tags-section-header" style={{ flex: 1 }}>
+                  <div className="tag-input-container-header" ref={tagInputRef}>
+                      <input
+                          type="text"
+                          placeholder="Добавить тег"
+                          className="input-tag"
+                          style={{ width: "160px" }}
+                          value={customTag}
+                          onChange={handleTagInputChange}
+                          onKeyDown={(e) => handleCustomTagAdd(e, onChange, currentTagsValue)}
+                          onFocus={handleTagInputFocus}
+                          autoComplete="off"
+                      />
+                      
+                      {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                          <div className="tag-dropdown-header" ref={tagDropdownRef}>
+                              {filteredTags.map(tag => (
+                                  <div key={tag} className="tag-dropdown-item-header" onClick={() => handleTagSelect(tag, onChange, currentTagsValue)}>{tag}</div>
+                              ))}
+                              {customTag.trim() && !uniqueSuggestions.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                  <div className="tag-dropdown-item-header tag-dropdown-custom-header" onClick={() => handleTagSelect(customTag.trim(), onChange, currentTagsValue)}>Добавить: "{customTag.trim()}"</div>
+                              )}
                           </div>
-                        ))}
+                      )}
+                  </div>
 
-                        {customTag.trim() &&
-                          !uniqueSuggestions.includes(customTag.trim()) &&
-                          !currentTags.find((t) => t.name === customTag.trim()) && (
-                            <div
-                              className="tag-dropdown-item"
-                              onClick={() =>
-                                handleTagSelect(customTag.trim(), onChange, currentTagsValue)
-                              }
-                            >
-                              Добавить: "{customTag.trim()}"
-                            </div>
-                          )}
-                      </div>
-                    )}
-                </div>
-
-                <div className="selected-tags-list">
                   {currentTags.map((tag, index) => (
-                    <span key={tag.id || index} className="tag-chip-item">
-                      {tag.name}
-                      <span
-                        className="remove-tag-icon"
+                      <span 
+                        key={tag.id || index} 
+                        className="tag-chips tag-order-chips-header" 
                         onClick={() => handleTagRemove(tag, onChange, currentTagsValue)}
                       >
-                        ×
+                          {tag.name} 
                       </span>
-                    </span>
                   ))}
-                </div>
-              </div>
-            </div>
-          );
+               </div>
+             </div>
+           );
         }}
       />
 
@@ -523,26 +489,22 @@ export default function InfoTab({
         />
       )}
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="business"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Вид деятельности</label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={businesses}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.business ? "input-error" : ""}
-            >
-              <option value="" disabled>
-                {loadingLists ? "Загрузка..." : "-- выбрать --"}
-              </option>
-              {businesses.map((b, i) => (
-                <option key={`${b}-${i}`} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+              error={!!errors.business}
+              onAdd={(val) => onAddBusiness && onAddBusiness(val)}
+            />
             {errors.business && <p className="error grid-error">{errors.business.message}</p>}
           </div>
         )}
