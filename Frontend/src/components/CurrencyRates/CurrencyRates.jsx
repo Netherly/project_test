@@ -7,22 +7,24 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon';
 
 const PAGE_SIZE = 50;
 
-/* ---------- utils ---------- */
 const fmt = (v, digits = 4) => {
   if (v === null || v === undefined || v === '') return '—';
   const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(digits) : '—';
+  return Number.isFinite(n) ? parseFloat(n.toFixed(digits)).toString() : '0';
 };
+
 const safeDiv = (a, b) => {
   const x = Number(a), y = Number(b);
   if (!Number.isFinite(x) || !Number.isFinite(y) || y === 0) return null;
   return x / y;
 };
+
+/*
 const calculateRates = (usdToUah, rubToUah) => {
   const C4 = 1;
   const D4 = parseFloat(usdToUah) || 0;
   const E4 = parseFloat(rubToUah) || 0;
-  const F4 = D4; // USDT = USD
+  const F4 = D4;
 
   const UAH_RUB  = safeDiv(C4, E4);
   const UAH_USD  = safeDiv(C4, D4);
@@ -48,11 +50,19 @@ const calculateRates = (usdToUah, rubToUah) => {
     RUB_UAH, RUB_USD, RUB_USDT,
   };
 };
+*/
+
+const getNum = (maybe, fallback) => {
+  const n = Number(maybe);
+  return Number.isFinite(n) ? n : fallback;
+};
+
 const getPureDateTimestamp = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 };
+
 const toYmd = (value) => {
   if (!value) return '';
   if (typeof value === 'string') {
@@ -74,11 +84,13 @@ const toYmd = (value) => {
   const d = String(parsed.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+
 const formatDisplayDate = (value) => {
   if (!value) return '';
   const parsed = new Date(`${toYmd(value)}T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString();
 };
+
 const mapServerRows = (rows) =>
   rows
     .map((row) => {
@@ -87,7 +99,7 @@ const mapServerRows = (rows) =>
       const USD = Number(row.USD ?? row.usd ?? 0);
       const RUB = Number(row.RUB ?? row.rub ?? 0);
       const UAH = Number(row.UAH ?? row.uah ?? 1);
-      const calc = calculateRates(USD, RUB);
+      
       return {
         id: ymd || String(ts),
         ymd,
@@ -95,19 +107,19 @@ const mapServerRows = (rows) =>
         UAH,
         USD,
         RUB,
-        USDT: USD, // USDT = USD
-        UAH_RUB: calc.UAH_RUB,
-        UAH_USD: calc.UAH_USD,
-        UAH_USDT: calc.UAH_USDT,
-        USD_UAH: calc.USD_UAH,
-        USD_RUB: calc.USD_RUB,
-        USD_USDT: calc.USD_USDT,
-        USDT_UAH: calc.USDT_UAH,
-        USDT_USD: calc.USDT_USD,
-        USDT_RUB: calc.USDT_RUB,
-        RUB_UAH: calc.RUB_UAH,
-        RUB_USD: calc.RUB_USD,
-        RUB_USDT: calc.RUB_USDT,
+        USDT: Number(row.USDT ?? row.usdt ?? 0),
+        UAH_RUB:  getNum(row.UAH_RUB  ?? row.uah_rub,  0),
+        UAH_USD:  getNum(row.UAH_USD  ?? row.uah_usd,  0),
+        UAH_USDT: getNum(row.UAH_USDT ?? row.uah_usdt, 0),
+        USD_UAH:  getNum(row.USD_UAH  ?? row.usd_uah,  0),
+        USD_RUB:  getNum(row.USD_RUB  ?? row.usd_rub,  0),
+        USD_USDT: getNum(row.USD_USDT ?? row.usd_usdt, 0),
+        USDT_UAH: getNum(row.USDT_UAH ?? row.usdt_uah, 0),
+        USDT_USD: getNum(row.USDT_USD ?? row.usdt_usd, 0),
+        USDT_RUB: getNum(row.USDT_RUB ?? row.usdt_rub, 0),
+        RUB_UAH:  getNum(row.RUB_UAH  ?? row.rub_uah,  0),
+        RUB_USD:  getNum(row.RUB_USD  ?? row.rub_usd,  0),
+        RUB_USDT: getNum(row.RUB_USDT ?? row.rub_usdt, 0),
       };
     })
     .sort((a, b) => b.date - a.date);
@@ -115,6 +127,7 @@ const mapServerRows = (rows) =>
 function isClose(a, b, eps = 1e-9) {
   return Math.abs(Number(a) - Number(b)) <= eps;
 }
+
 function debounce(fn, wait = 300) {
   let t, lastArgs, lastThis;
   const debounced = function (...args) {
@@ -130,7 +143,6 @@ function debounce(fn, wait = 300) {
   return debounced;
 }
 
-/* ---------- component ---------- */
 function CurrencyRates() {
   const [rates, setRates] = useState([]);
   const [initialRates, setInitialRates] = useState([]);
@@ -209,7 +221,7 @@ function CurrencyRates() {
             t = refreshed.total;
           }
         } catch (todayError) {
-          console.error('Не удалось добавить курс на сегодня:', todayError);
+          console.error(todayError);
         }
       }
 
@@ -324,32 +336,48 @@ function CurrencyRates() {
     });
   };
 
+  const isRowChanged = (r, b) => {
+    if (!b) return true;
+    return !isClose(r.USD, b.USD) || !isClose(r.RUB, b.RUB) || !isClose(r.USDT, b.USDT) ||
+           !isClose(r.UAH_RUB, b.UAH_RUB) || !isClose(r.UAH_USD, b.UAH_USD) || !isClose(r.UAH_USDT, b.UAH_USDT) ||
+           !isClose(r.USD_UAH, b.USD_UAH) || !isClose(r.USD_RUB, b.USD_RUB) || !isClose(r.USD_USDT, b.USD_USDT) ||
+           !isClose(r.USDT_UAH, b.USDT_UAH) || !isClose(r.USDT_USD, b.USDT_USD) || !isClose(r.USDT_RUB, b.USDT_RUB) ||
+           !isClose(r.RUB_UAH, b.RUB_UAH) || !isClose(r.RUB_USD, b.RUB_USD) || !isClose(r.RUB_USDT, b.RUB_USDT);
+  };
+
   const handleInputChange = (e, rowIndex, key) => {
     e.stopPropagation();
-    const raw = e.target.value;
-    const val = raw === '' ? '' : parseFloat(raw);
+    const raw = e.target.value.replace(',', '.');
+
+    if (raw !== '' && !/^\d*\.?\d{0,4}$/.test(raw)) {
+      return;
+    }
 
     setRates((prev) => {
       const arr = [...prev];
       const before = arr[rowIndex];
 
-      const nextUSD = key === 'USD' ? (val === '' ? '' : Number(val)) : before.USD;
-      const nextRUB = key === 'RUB' ? (val === '' ? '' : Number(val)) : before.RUB;
+      let nextRow = { ...before, [key]: raw };
 
-      const usdNum = nextUSD === '' ? 0 : nextUSD;
-      const rubNum = nextRUB === '' ? 0 : nextRUB;
+      /*
+      if (key === 'USD' || key === 'RUB') {
+        const usdNum = key === 'USD' ? (raw === '' ? 0 : parseFloat(raw) || 0) : Number(before.USD || 0);
+        const rubNum = key === 'RUB' ? (raw === '' ? 0 : parseFloat(raw) || 0) : Number(before.RUB || 0);
+        const recalculated = calculateRates(usdNum, rubNum);
+        nextRow = { 
+          ...nextRow, 
+          ...recalculated, 
+          USD: key === 'USD' ? raw : usdNum, 
+          RUB: key === 'RUB' ? raw : rubNum, 
+          USDT: usdNum 
+        };
+      }
+      */
 
-      const recalculated = { ...calculateRates(usdNum, rubNum) };
-      arr[rowIndex] = { ...before, ...recalculated, USD: usdNum, RUB: rubNum };
+      arr[rowIndex] = nextRow;
 
       const base = initialRates.find(r => r.id === before.id);
-      const changed =
-        !base ||
-        !isClose(arr[rowIndex].USD, base.USD) ||
-        !isClose(arr[rowIndex].RUB, base.RUB) ||
-        !isClose(arr[rowIndex].USDT, base.USDT);
-
-      markDirty(before.id, changed);
+      markDirty(before.id, isRowChanged(arr[rowIndex], base));
       debouncedSaveToSession.current(arr);
       return arr;
     });
@@ -363,9 +391,7 @@ function CurrencyRates() {
       const baseById = new Map(initialRates.map((r) => [r.id, r]));
       const changed = rates.filter((r) => {
         if (!dirtyIds.has(r.id)) return false;
-        const b = baseById.get(r.id);
-        if (!b) return true;
-        return !isClose(r.USD, b.USD) || !isClose(r.RUB, b.RUB) || !isClose(r.USDT, b.USDT);
+        return isRowChanged(r, baseById.get(r.id));
       });
 
       if (changed.length === 0) {
@@ -375,10 +401,22 @@ function CurrencyRates() {
 
       const payload = changed.map((row) => ({
         date: row.ymd || toYmd(row.date),
-        uah: 1,
-        usd: Number(row.USD),
-        rub: Number(row.RUB),
-        usdt: Number(row.USD),
+        uah:  1.0,
+        usd:  Number(row.USD),
+        rub:  Number(row.RUB),
+        usdt: Number(row.USDT),
+        uah_rub:  Number(row.UAH_RUB),
+        uah_usd:  Number(row.UAH_USD),
+        uah_usdt: Number(row.UAH_USDT),
+        usd_uah:  Number(row.USD_UAH),
+        usd_rub:  Number(row.USD_RUB),
+        usd_usdt: Number(row.USD_USDT),
+        usdt_uah: Number(row.USDT_UAH),
+        usdt_usd: Number(row.USDT_USD),
+        usdt_rub: Number(row.USDT_RUB),
+        rub_uah:  Number(row.RUB_UAH),
+        rub_usd:  Number(row.RUB_USD),
+        rub_usdt: Number(row.RUB_USDT),
       }));
 
       await upsertRates(payload);
@@ -399,10 +437,7 @@ function CurrencyRates() {
   };
 
   const handleCancel = () => {
-    const restored = initialRates.map(r => {
-      const base = { ...r, USDT: r.USD };
-      return { ...base, ...calculateRates(base.USD, base.RUB) };
-    });
+    const restored = initialRates.map(r => ({ ...r }));
     setRates(restored);
     setDirtyIds(new Set());
     stopEditRow();
@@ -420,8 +455,6 @@ function CurrencyRates() {
             Курсы валют
             </h2>
 
-
-
           {loading && <span>Загрузка…</span>}
           {saving && <span>Сохранение…</span>}
           {error && <span style={{ color: 'salmon' }}>{error}</span>}
@@ -438,15 +471,15 @@ function CurrencyRates() {
           )}
         </header>
 
-        <div className="currency-rates-table-container">
+        <div className="currency-rates-table-container custom-scrollbar">
           <div className="currency-rates-table-wrapper">
             <table className="currency-rates-table">
               <thead>
                 <tr>
                   <th>Дата</th>
                   <th>UAH</th>
-                  <th>USD ✎</th>
-                  <th>RUB ✎</th>
+                  <th>USD</th>
+                  <th>RUB</th>
                   <th>USDT</th>
                   <th>UAH:RUB</th>
                   <th>UAH:USD</th>
@@ -463,9 +496,37 @@ function CurrencyRates() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="table-spacer-row"><td colSpan={15}></td></tr>
+                <tr className="table-spacer-row"><td colSpan={17}></td></tr>
                 {rates.map((row, rowIndex) => {
                   const isActive = activeRowId === row.id;
+
+                  const renderEditable = (key) => {
+                    let val = row[key];
+                    if (typeof val === 'number') {
+                      val = fmt(val);
+                    } else if (val === undefined) {
+                      val = '';
+                    } else {
+                      val = String(val);
+                    }
+
+                    return (
+                      <td className="currency-rates-editable-cell">
+                        {isActive ? (
+                          <input
+                            type="text"
+                            value={val}
+                            onChange={(e) => handleInputChange(e, rowIndex, key)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="currency-rates-editable-input"
+                          />
+                        ) : (
+                          fmt(row[key])
+                        )}
+                      </td>
+                    );
+                  };
+
                   return (
                     <tr
                       key={row.id}
@@ -474,54 +535,24 @@ function CurrencyRates() {
                     >
                       <td>{formatDisplayDate(row.ymd || row.date)}</td>
                       <td>{fmt(row.UAH)}</td>
-
-                      {/* USD editable */}
-                      <td className="currency-rates-editable-cell">
-                        {isActive ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={String(row.USD ?? '')}          // без toFixed
-                            onChange={(e) => handleInputChange(e, rowIndex, 'USD')}
-                            onClick={(e) => e.stopPropagation()}
-                            className="currency-rates-editable-input"
-                          />
-                        ) : (
-                          Number(row.USD).toFixed(2)
-                        )}
-                      </td>
-
-                      {/* RUB editable */}
-                      <td className="currency-rates-editable-cell">
-                        {isActive ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={String(row.RUB ?? '')}          // без toFixed
-                            onChange={(e) => handleInputChange(e, rowIndex, 'RUB')}
-                            onClick={(e) => e.stopPropagation()}
-                            className="currency-rates-editable-input"
-                          />
-                        ) : (
-                          Number(row.RUB).toFixed(2)
-                        )}
-                      </td>
-
-                      {/* USDT not editable = USD */}
+                      
+                      {renderEditable('USD')}
+                      {renderEditable('RUB')}
+                      
                       <td>{fmt(row.USDT)}</td>
 
-                      <td>{fmt(row.UAH_RUB)}</td>
-                      <td>{fmt(row.UAH_USD)}</td>
-                      <td>{fmt(row.UAH_USDT)}</td>
-                      <td>{fmt(row.USD_UAH)}</td>
-                      <td>{fmt(row.USD_RUB)}</td>
-                      <td>{fmt(row.USD_USDT)}</td>
-                      <td>{fmt(row.USDT_UAH)}</td>
-                      <td>{fmt(row.USDT_USD)}</td>
-                      <td>{fmt(row.USDT_RUB)}</td>
-                      <td>{fmt(row.RUB_UAH)}</td>
-                      <td>{fmt(row.RUB_USD)}</td>
-                      <td>{fmt(row.RUB_USDT)}</td>
+                      {renderEditable('UAH_RUB')}
+                      {renderEditable('UAH_USD')}
+                      {renderEditable('UAH_USDT')}
+                      {renderEditable('USD_UAH')}
+                      {renderEditable('USD_RUB')}
+                      {renderEditable('USD_USDT')}
+                      {renderEditable('USDT_UAH')}
+                      {renderEditable('USDT_USD')}
+                      {renderEditable('USDT_RUB')}
+                      {renderEditable('RUB_UAH')}
+                      {renderEditable('RUB_USD')}
+                      {renderEditable('RUB_USDT')}
                     </tr>
                   );
                 })}
@@ -529,7 +560,6 @@ function CurrencyRates() {
             </table>
           </div>
 
-          {/* sentinel for infinite scroll */}
           <div ref={sentinelRef} style={{ height: 1 }} />
           {loadingMore && <div style={{ padding: 12, opacity: 0.7 }}>Загрузка…</div>}
         </div>

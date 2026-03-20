@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Controller,  useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import CustomSelect from '../../ui/CustomSelect';
 import AddExecutorModal from '../../Executors/AddExecutorModal'; 
 import PerformerCard from '../../ui/PerformerCard';
 import ConfirmationModal from '../confirm/ConfirmationModal';
 import * as executorService from '../../Executors/executorService';
+import { Minus, Plus } from 'lucide-react';
 
-const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorModal }) => {
-  
+const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorModal }) => {
   const allPerformers = ["Иван Иванов", "Петр Петров", "Сидор Сидоров", "Анна Кузнецова"];
   const [customPerformer, setCustomPerformer] = useState('');
   const [showPerformerDropdown, setShowPerformerDropdown] = useState(false);
@@ -21,7 +21,6 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
   const thirdPartyDropdownRef = useRef(null);
   const [isExecutorModalOpen, setIsExecutorModalOpen] = useState(false);
   const [performerToDelete, setPerformerToDelete] = useState(null);
-
 
   const safeClients = Array.isArray(clientsData) ? clientsData : [];
   const allClientsOptions = safeClients.map(client => ({
@@ -48,7 +47,6 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
       label: partner.name,
     }));
 
- 
   const selectedClientId = watch('order_client'); 
 
   useEffect(() => {
@@ -75,21 +73,17 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
   const handleConfirmDelete = () => {
         if (!performerToDelete) return; 
 
-        
         executorService.deleteExecutor(performerToDelete.id);
 
-        
         const currentPerformers = getValues('performers') || [];
         const updatedPerformers = currentPerformers.filter(p => p.id !== performerToDelete.id);
         setValue('performers', updatedPerformers, { shouldDirty: true });
 
-        
         setPerformerToDelete(null);
     };
  
   const clientInfo = {
     country: selectedClientInfo?.country || '—',
-    
     category: selectedClientInfo?.tags[0]?.name || '—',
     source: selectedClientInfo?.source || '—',
     referer: selectedClientInfo?.referrer_name || '—',
@@ -97,7 +91,6 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
     manager: 'Дядя Exzibit',
     isFirstOrder: false 
   };
-
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -302,21 +295,23 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
         />
       </div>
 
-      <div className="tab-content-row">
-        <div className="tab-content-title">Партнер оплата</div>
-        <Controller
-          name="partner_payment"
-          control={control}
-          render={({ field }) => (
-            <input
-              type="number"
-              placeholder="..."
-              className='tab-content-input modal-content-span-info'
-              {...field}
-            />
-          )}
-        />
-      </div>
+      <Controller
+        name="partner_payment"
+        control={control}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Партнер оплата</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} placeholder="..." className="tab-content-input modal-content-span-info" />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
+      />
 
       <div className="tab-content-row">
         <div className="tab-content-title">Партнер план</div>
@@ -334,53 +329,59 @@ const Participants = ({ control, clientsData, employeesData,  onOpenAddExecutorM
         />
       </div>
 
-      <div className="tab-content-row">
-        <div className="tab-content-title">Партнер % план</div>
-        <Controller
-          name="partner_percent_plan"
-          control={control}
-          render={({ field }) => (
-            <input
-              type="number"
-              placeholder="..."
-              className='tab-content-input modal-content-span-info'
-              {...field}
-            />
-          )}
-        />
-      </div>
+      <Controller
+        name="partner_percent_plan"
+        control={control}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 5, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Партнер % план</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} placeholder="..." className="tab-content-input modal-content-span-info" />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
+      />
 
-      <div className="tab-content-row">
-        <div className="tab-content-title">Партнер сумма план</div>
-        <Controller
-          name="partner_sum_plan"
-          control={control}
-          render={({ field }) => (
-            <input
-              type="number"
-              placeholder="..."
-              className='tab-content-input modal-content-span-info'
-              {...field}
-            />
-          )}
-        />
-      </div>
+      <Controller
+        name="partner_sum_plan"
+        control={control}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Партнер сумма план</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} placeholder="..." className="tab-content-input modal-content-span-info" />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
+      />
 
-      <div className="tab-content-row">
-        <div className="tab-content-title">Партнер недоплата</div>
-        <Controller
-          name="partner_underpayment"
-          control={control}
-          render={({ field }) => (
-            <input
-              type="number"
-              placeholder="..."
-              className='tab-content-input modal-content-span-info'
-              {...field}
-            />
-          )}
-        />
-      </div>
+      <Controller
+        name="partner_underpayment"
+        control={control}
+        render={({ field: { onChange, value, ...restField } }) => {
+          const min = 0, step = 10, numValue = parseFloat(value) || 0;
+          return (
+            <div className="tab-content-row">
+              <div className="tab-content-title">Партнер недоплата</div>
+              <div className="custom-number-input">
+                <input type="number" {...restField} value={value || ''} onChange={onChange} min={min} placeholder="..." className="tab-content-input modal-content-span-info" />
+                <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+              </div>
+            </div>
+          );
+        }}
+      />
       
            <div className="performers-section">
 

@@ -1,12 +1,16 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
-import { useFields } from "../../../context/FieldsContext";
+import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
+import { Plus, Minus } from 'lucide-react';
+// ДОБАВЛЕН ИМПОРТ (проверь, правильный ли путь до твоего FieldsContext)
+import { useFields } from "../../../context/FieldsContext"; 
 
 export default function GeneralInfoTab({ fieldsData }) {
   const { control, setValue, formState: { errors } } = useFormContext();
   const { fields, loading: fieldsLoading } = useFields();
   const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
+  
   const mainCurrencyValue = useWatch({ control, name: "mainCurrency" });
   const currentCountryId = useWatch({ control, name: "countryId" });
   const currentCountry = useWatch({ control, name: "country" });
@@ -27,8 +31,9 @@ export default function GeneralInfoTab({ fieldsData }) {
       .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
       .map((s) => String(s || "").trim().toLowerCase())
       .filter(Boolean);
+      
     setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
-  }, [fields]);
+  }, [fields, fieldsData]); // Добавил fields в зависимости, чтобы хук реагировал на загрузку данных
 
   return (
     <div className="tab-section">
@@ -119,6 +124,7 @@ export default function GeneralInfoTab({ fieldsData }) {
             return (
               <div
                 key={code}
+                // ИСПРАВЛЕНО: используем mainCurrencyValue вместо несуществующей selectedMainCurrency
                 className={`currency-row ${mainCurrencyValue === code ? "selected" : ""}`}
               >
                 <span className="currency-label">
@@ -128,14 +134,24 @@ export default function GeneralInfoTab({ fieldsData }) {
                   name={`rates.${code}`}
                   control={control}
                   defaultValue=""
-                  render={({ field }) => (
-                    <input
-                      {...field}
-                      type="number"
-                      placeholder="0.00"
-                      className="currency-input"
-                    />
-                  )}
+                  render={({ field: { onChange, value, ...restField } }) => {
+                    const min = 0, step = 10, numValue = parseFloat(value) || 0;
+                    return (
+                      <div className="custom-number-input" style={{ width: '100%' }}>
+                        <input
+                          {...restField}
+                          value={value || ''} 
+                          onChange={onChange} 
+                          type="number"
+                          placeholder="0.00"
+                          className="currency-input"
+                          min={min}
+                        />
+                        <button type="button" className="num-btn minus-btn" onClick={() => onChange(Math.max(min, numValue - step))} disabled={numValue <= min}><Minus/></button>
+                        <button type="button" className="num-btn plus-btn" onClick={() => onChange(numValue + step)}><Plus/></button>
+                      </div>
+                    );
+                  }}
                 />
               </div>
             );

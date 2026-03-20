@@ -12,6 +12,10 @@ import DashboardTab from './tabs/DashboardTab';
 import ChatPanel from '../../Client/ClientModal/ChatPanel';
 import ConfirmationModal from '../../modals/confirm/ConfirmationModal';
 
+import { useFields } from "../../../context/FieldsContext";
+import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { rid } from "../../../utils/rid";
+
 import '../../../styles/ExecutorModal.css';
 
 export default function ExecutorModal({
@@ -22,10 +26,15 @@ export default function ExecutorModal({
   fields,  
   onClose,
   onSave,
-  onDelete
+  onDelete,
+  employees,      
+  roleOptions,    
+  currencyOptions,
 }) {
   const safeExecutor = executor ?? {};
   const isNew = !safeExecutor.id;
+
+  const { refreshFields } = useFields();
 
   const [activeTab, setActiveTab] = useState('general');
   const [closing, setClosing] = useState(false);
@@ -33,6 +42,7 @@ export default function ExecutorModal({
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const formId = 'executor-form';
+  
   const formDefaults = useMemo(() => ({
       orderId: '',
       orderNumber: '',
@@ -53,6 +63,38 @@ export default function ExecutorModal({
     return () => clearTimeout(timer);
   }, []);
 
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find((item) => {
+        const itemVal = typeof item === "string" ? item : (item.value || item.name);
+        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
+      });
+
+      if (!exists) {
+        list.push({
+          id: rid(),
+          value: newValue,
+          isDeleted: false,
+        });
+
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+
+        await saveFields(payload);
+
+        if (refreshFields) {
+          await refreshFields();
+        }
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
+
   const methods = useForm({
         resolver: yupResolver(executorSchema),
         mode: 'onChange',
@@ -61,13 +103,13 @@ export default function ExecutorModal({
 
   const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
 
+  const defaultsString = JSON.stringify(formDefaults);
+
   useEffect(() => {
-    reset(formDefaults);
-  }, [formDefaults, reset]);
+    reset(JSON.parse(defaultsString));
+  }, [defaultsString, reset]);
 
   const submitHandler = (data) => {
-        console.log("Данные из формы:", data);
-        
         const dataToSave = {
             ...safeExecutor, 
             ...data,        
@@ -80,10 +122,10 @@ export default function ExecutorModal({
         };
         
         onSave(dataToSave);
+        reset(data);
     };
 
   const onInvalid = (err) => {
-    console.log("Ошибки валидации:", err);
     const firstErrorField = Object.keys(err)[0];
     if (['orderId', 'performer', 'role', 'dateForPerformer'].includes(firstErrorField)) {
         setActiveTab('general');
@@ -162,26 +204,33 @@ export default function ExecutorModal({
               
               <div className="tab-content-wrapper">
                 {activeTab === 'dashboard' && <DashboardTab />}
-                {activeTab === 'general'   && <GeneralInfoTab orders={orders} fields={fields} />}
+                {activeTab === 'general'   && (
+                  <GeneralInfoTab 
+                    orders={orders} 
+                    employees={employees} 
+                    roleOptions={roleOptions}        
+                    currencyOptions={currencyOptions} 
+                    fields={fields}
+                    onAddNewField={handleAddNewField}     
+                  />
+                )}
                 {activeTab === 'journal'   && <JournalTab isNew={isNew} executor={safeExecutor} journalEntries={journalEntries} />}
                 {activeTab === 'finances'  && <FinancesTab isNew={isNew} executor={safeExecutor} transactions={transactions} />}
               </div>
 
             </form>
           </FormProvider>
-          {isDirty && (
-            <div className='form-actions-bottom'>
-              <button className='cancel-order-btn' type="button" onClick={() => reset(formDefaults)}>
-                Отменить
+
+          <div className={`form-actions-bottom ${isDirty ? "visible" : ""}`}>
+              <button className='cancel-order-btn' type="button" onClick={() => reset(JSON.parse(defaultsString))} disabled={!isDirty}>
+                  Сбросить
               </button>
               <button className='save-order-btn' type="submit" form={formId}>
                 Сохранить
               </button>
-            </div>
-          )}
+          </div>
         </div>
 
-        
         {isNew ? (
           <div className="chat-panel-wrapper chat-placeholder">
             <p>Сохраните исполнителя, чтобы открыть чат.</p>
@@ -203,28 +252,29 @@ export default function ExecutorModal({
         </div>
 
       </div>
+
       {showCloseConfirm && (
-                <ConfirmationModal
-                    title="Сообщение"
-                    message="У вас есть несохраненные изменения. Вы уверены, что хотите закрыть без сохранения?"
-                    confirmText="Да, закрыть"
-                    cancelText="Отмена"
-                    onConfirm={handleConfirmClose}
-                    onCancel={handleCancelClose}
-                />
-            )}
-            
-            {showDeleteConfirm && (
-                <ConfirmationModal
-                    title="Подтверждение удаления"
-                    message={`Вы уверены, что хотите удалить исполнителя "${safeExecutor.performer}" из заказа №${safeExecutor.orderNumber}?`}
-                    confirmText="Удалить"
-                    cancelText="Отмена"
-                    onConfirm={handleConfirmDelete}
-                    onCancel={handleCancelDelete}
-                    isDelete={true} 
-                />
-            )}
+          <ConfirmationModal
+              title="Сообщение"
+              message="У вас есть несохраненные изменения. Вы уверены, что хотите закрыть без сохранения?"
+              confirmText="Да, закрыть"
+              cancelText="Отмена"
+              onConfirm={handleConfirmClose}
+              onCancel={handleCancelClose}
+          />
+      )}
+      
+      {showDeleteConfirm && (
+          <ConfirmationModal
+              title="Подтверждение удаления"
+              message={`Вы уверены, что хотите удалить исполнителя "${safeExecutor.performer}" из заказа №${safeExecutor.orderNumber}?`}
+              confirmText="Удалить"
+              cancelText="Отмена"
+              onConfirm={handleConfirmDelete}
+              onCancel={handleCancelDelete}
+              isDelete={true} 
+          />
+      )}
     </div>
   );
 }

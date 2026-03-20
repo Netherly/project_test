@@ -307,13 +307,13 @@
     transform: scale(1.1);
 }
 
-/* Кнопка "добавить" - акцентная */
+
 .access-modal-add-role-input button:first-of-type {
     background-color: var(--input-border-focus);
     color: var(--text-color);
 }
 
-/* Кнопка "отмена" - нейтральная */
+
 .access-modal-add-role-input button:last-of-type {
     background-color: var(--chips-color);
     color: var(--bg-color);
@@ -425,12 +425,12 @@
     align-items: center;
 }
 
-/* Стили для футера */
+
 .access-modal-footer {
     position: sticky;
     bottom: 0;
     right: 0;
-    padding: 15px 0px;
+    padding: 10px 0px;
     background-color: var(--bg-menu-color);
     display: flex;
     justify-content: flex-end;
