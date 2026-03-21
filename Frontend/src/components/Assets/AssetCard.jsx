@@ -85,10 +85,10 @@ const AssetCard = ({
     : "card-design-default";
 
   const rawDesignUrl = resolveCardDesignUrl(
-    asset?.cardDesign?.imageUrl ??
-      asset?.cardDesign?.url ??
+    designObj?.viewUrl ??
       designObj?.url ??
-      designObj?.viewUrl ??
+      asset?.cardDesign?.imageUrl ??
+      asset?.cardDesign?.url ??
       ""
   );
   const designImageVersion =
