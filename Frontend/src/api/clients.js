@@ -59,7 +59,6 @@ const normTags = (arr) =>
       };
     })
     .filter((t) => t?.name);
-
 const normalizeAccesses = (arr) => {
   if (!Array.isArray(arr)) return [];
   return arr.map((item) => ({
