@@ -320,37 +320,222 @@
 }
 
 
-/* Tag Select Component Styles (embedded here for consistency) */
+/*Тег селект*/
 .tagsSelect { position: relative; width: 100%; }
+
+/* Поле-кнопка */
 .tagsInput {
-  display: flex; align-items: center; justify-content: space-between;
-  min-height: 40px; padding: 4px 30px 4px 10px;
-  background: var(--bg-color); border: 1px solid var(--border--color);
-  border-radius: 8px; cursor: pointer; box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 4px 54px 4px 10px;
+  background: var(--bg-color);
+  border: 1px solid var(--border--color);
+  border-radius: 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.tagsChips { display: flex; flex-wrap: wrap; gap: 4px; overflow: hidden; height: 28px; }
+.tagsInput.isOpen {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+/* Чипсы тегов */
+.tagsChips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow: hidden;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
 .tagsPlaceholder { color: var(--chips-color); font-size: 14px; opacity: 0.7; }
+
 .tagChip {
-  background: var(--input-border-focus); color: var(--text-color);
-  border-radius: 4px; padding: 2px 6px; font-size: 12px; display: flex; align-items: center; gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--input-border-focus);
+  color: var(--text-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.tagChipRemove { background: none; border: none; color: var(--chips-color); cursor: pointer; padding: 0; line-height: 1; }
-.tagChipRemove:hover { color: #ff4d4f; }
-.tagsCaret { position: absolute; right: 10px; color: var(--chips-color); font-size: 10px; }
+.tagChipText { white-space: nowrap; }
+.tagChipCount {
+  background: var(--accent-color, #6366f1);
+  color: #fff;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 1px 8px;
+}
+.tagChipRemove {
+  background: none;
+  border: none;
+  color: var(--chips-color);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.15s, color 0.15s;
+}
+.tagChipRemove:hover { color: #ff4d4f; opacity: 1; }
+
+/* Стрелка */
+.tagsCaret {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--chips-color);
+  font-size: 11px;
+  pointer-events: none;
+  transition: transform 0.2s;
+}
+.tagsInput.isOpen .tagsCaret {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* Кнопка «Очистить всё» */
+.tagsClear {
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--chips-color);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+  z-index: 5;
+}
+.tagsClear:hover {
+  color: var(--text-color);
+  background: rgba(255, 255, 255, 0.12);
+}
+.clearBeforeCaret { z-index: 5; }
+
+/* Выпадающий список */
 .tagsDropdown {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 1300;
-  background: var(--bg-menu-color); border: 1px solid var(--border--color);
-  border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  margin-top: 4px; max-height: 250px; overflow-y: auto;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1300;
+  background: var(--bg-menu-color);
+  border: 1px solid var(--border--color);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  margin-top: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border--color) transparent;
 }
+
+/* Вариант через портал — независимый дропдаун */
+.tagsDropdownPortal {
+  border-top: 1px solid var(--border--color);
+  border-radius: 10px;
+}
+
+/* Липкая шапка дропдауна */
+.tagsSticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-menu-color);
+  border-bottom: 1px solid var(--border--color);
+  padding: 8px 8px 6px;
+}
+
+/* Поиск внутри дропдауна */
 .tagsSearch {
-  width: 95%; margin: 5px 2.5%; padding: 6px; background: var(--bg-color);
-  border: 1px solid var(--border--color); color: var(--text-color); border-radius: 4px;
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg-color);
+  border: 1px solid var(--border--color);
+  border-radius: 6px;
+  color: var(--text-color);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
 }
-.tagsOptions { padding: 5px 0; }
-.tagsOption { display: flex; align-items: center; padding: 8px 12px; cursor: pointer; }
+.tagsSearch:focus { border-color: var(--accent-color); }
+
+/* «Выбрать всё» / «Очистить» */
+.tagsActions {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0 0;
+  justify-content: flex-end;
+}
+.tagsActions button {
+  background: transparent;
+  border: 1px solid var(--border--color);
+  color: var(--chips-color);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.tagsActions button:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+.tagsActions button:last-child:hover {
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+/* Список опций */
+.tagsOptions { padding: 6px 8px; }
+
+/* Пустой результат поиска */
+.tagsEmpty {
+  padding: 20px 12px;
+  text-align: center;
+  color: var(--chips-color);
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* Строка опции */
+.tagsOption {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+  gap: 8px;
+  border-radius: 6px;
+}
 .tagsOption:hover { background: var(--input-border-focus); }
-.tagsOption input { margin-right: 8px; width: auto; height: auto; }
+.tagsOption.isChecked {
+  background: var(--input-border-focus);
+  color: var(--accent-color);
+}
+.tagsOption input[type="checkbox"] {
+  margin: 0;
+  width: auto;
+  height: auto;
+  cursor: pointer;
+  accent-color: var(--accent-color);
+}
+.tagsOptionText { flex: 1; font-size: 14px; }
 
 @media (max-width: 900px) {
   .clientsHeaderContainer { flex-wrap: wrap; height: auto; }
