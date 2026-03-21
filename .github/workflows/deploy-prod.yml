@@ -21,6 +21,8 @@ jobs:
       BACKEND_TARGET_DIR: crm-backend-prod
       PM2_APP_NAME: crm-backend-prod
       DEPLOY_TMP_DIR: /var/www/.deploy/prod
+      BACKUP_ROOT: /var/www/.deploy/backups/prod
+      BACKUP_KEEP: 14
 
     steps:
       - name: Checkout
@@ -171,6 +173,80 @@ jobs:
           target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
 
+      - name: Backup current deployment on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -euo pipefail
+
+            STAMP="$(date +%Y%m%d_%H%M%S)"
+            BACKUP_ROOT="${{ env.BACKUP_ROOT }}"
+            FILES_DIR="$BACKUP_ROOT/files"
+            DB_DIR="$BACKUP_ROOT/db"
+            META_DIR="$BACKUP_ROOT/meta"
+            KEEP="${{ env.BACKUP_KEEP }}"
+            FRONTEND_DIR="/var/www/${{ env.FRONTEND_TARGET_DIR }}"
+            BACKEND_DIR="/var/www/${{ env.BACKEND_TARGET_DIR }}"
+
+            mkdir -p "$FILES_DIR" "$DB_DIR" "$META_DIR"
+
+            if [ -d "$FRONTEND_DIR" ] && [ "$(find "$FRONTEND_DIR" -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
+              tar -C /var/www -czf "$FILES_DIR/frontend_${STAMP}.tgz" "${{ env.FRONTEND_TARGET_DIR }}"
+            else
+              echo "Frontend dir missing or empty, skipping frontend backup"
+            fi
+
+            if [ -d "$BACKEND_DIR" ] && [ "$(find "$BACKEND_DIR" -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
+              tar \
+                --exclude="${{ env.BACKEND_TARGET_DIR }}/node_modules" \
+                --exclude="${{ env.BACKEND_TARGET_DIR }}/.git" \
+                -C /var/www \
+                -czf "$FILES_DIR/backend_${STAMP}.tgz" \
+                "${{ env.BACKEND_TARGET_DIR }}"
+            else
+              echo "Backend dir missing or empty, skipping backend backup"
+            fi
+
+            if [ -f "$BACKEND_DIR/.env" ]; then
+              if ! command -v pg_dump >/dev/null 2>&1; then
+                echo "pg_dump is not installed on server" >&2
+                exit 1
+              fi
+
+              DB_URL="$(grep -E '^DATABASE_URL=' "$BACKEND_DIR/.env" | tail -n1 | cut -d= -f2- | tr -d '\r')"
+              DB_URL="${DB_URL#\"}"
+              DB_URL="${DB_URL%\"}"
+              DB_URL="${DB_URL#\'}"
+              DB_URL="${DB_URL%\'}"
+              DB_URL="${DB_URL%%\?*}"
+              if [ -z "$DB_URL" ]; then
+                echo "DATABASE_URL missing in $BACKEND_DIR/.env" >&2
+                exit 1
+              fi
+
+              pg_dump "$DB_URL" | gzip -9 > "$DB_DIR/db_${STAMP}.sql.gz"
+            else
+              echo "Backend .env missing, skipping DB backup"
+            fi
+
+            {
+              echo "timestamp=$STAMP"
+              echo "frontend=$FILES_DIR/frontend_${STAMP}.tgz"
+              echo "backend=$FILES_DIR/backend_${STAMP}.tgz"
+              echo "db=$DB_DIR/db_${STAMP}.sql.gz"
+            } > "$META_DIR/latest.env"
+
+            ls -1dt "$FILES_DIR"/frontend_*.tgz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+            ls -1dt "$FILES_DIR"/backend_*.tgz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+            ls -1dt "$DB_DIR"/db_*.sql.gz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+
+            echo "Backup completed: $STAMP"
+
       - name: Unpack frontend on server (atomic)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -235,11 +311,11 @@ jobs:
             mkdir -p "$RELEASE_DIR/new"
             tar -xzf "${{ env.DEPLOY_TMP_DIR }}/backend.tgz" -C "$RELEASE_DIR/new"
             if [ -d "$RELEASE_DIR/new/backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             elif [ -d "$RELEASE_DIR/new/Backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
             fi
             rm -f "${{ env.DEPLOY_TMP_DIR }}/backend.tgz"
 
@@ -279,7 +355,23 @@ jobs:
           if missing:
               raise SystemExit(f"BACKEND_ENV missing keys: {', '.join(missing)}")
 
-          Path("backend.env").write_text(data.rstrip("\n") + "\n", encoding="utf-8")
+          out_lines = []
+          for raw_line in data.split("\n"):
+              stripped = raw_line.strip()
+              if stripped.startswith("TELEGRAM_BOT_TOKEN="):
+                  key, value = raw_line.split("=", 1)
+                  value = value.strip()
+                  if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                      quote = value[0]
+                      inner = value[1:-1].strip().lstrip(".")
+                      out_lines.append(f"{key}={quote}{inner}{quote}")
+                  else:
+                      out_lines.append(f"{key}={value.lstrip('.')}")
+              else:
+                  out_lines.append(raw_line)
+
+          normalized = "\n".join(out_lines).rstrip("\n") + "\n"
+          Path("backend.env").write_text(normalized, encoding="utf-8")
           PY
 
       - name: Upload backend env file

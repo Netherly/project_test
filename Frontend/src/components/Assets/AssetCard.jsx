@@ -1,25 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../../styles/AssetCard.css";
-import { fileUrl } from "../../api/http";
 import { X } from "lucide-react";
+import { withCacheVersion } from "../../api/http";
+import {
+  getCardDesignFallback,
+  normalizeCardDesignName,
+  resolveCardDesignUrl,
+} from "../../utils/cardDesigns";
 
 import visaLogo from "../../assets/assets-card/visa.png";
 import mastercardLogo from "../../assets/assets-card/mastercard.png";
 import mirLogo from "../../assets/assets-card/mir.png";
 import cryptoLogo from "../../assets/assets-card/cryptologo.png";
 import cardChip from "../../assets/assets-card/cardchip.png";
-
-const designNameMap = {
-  Монобанк: "monobank-black",
-  ПриватБанк: "privatbank-green",
-  Сбербанк: "sberbank-light-green",
-  Bybit: "bybit-white",
-  Рубин: "ruby",
-  Сапфир: "saphire",
-  Атлас: "atlas",
-  "3Д": "3d",
-  Красный: "red",
-};
 
 const AssetCard = ({
   asset,
@@ -72,21 +65,61 @@ const AssetCard = ({
 
   const designValue =
     asset?.designRaw?.id ?? asset?.designRaw?.name ?? asset?.design ?? "";
-  const designNameValue = asset?.designRaw?.name ?? asset?.design ?? "";
+  const designNameValue =
+    asset?.designRaw?.name ?? asset?.cardDesign?.name ?? asset?.design ?? "";
 
-  const designObj = cardDesigns.find(
-    (d) =>
-      d?.id === designValue ||
-      d?.name === designValue ||
-      designNameMap[d?.name] === designValue ||
-      designNameMap[d?.name] === designNameValue
+  const designObj =
+    cardDesigns.find((d) => d?.id && designValue && d.id === designValue) ||
+    cardDesigns.find(
+      (d) =>
+        normalizeCardDesignName(d?.name) &&
+        normalizeCardDesignName(d?.name) === normalizeCardDesignName(designNameValue)
+    );
+
+  const designFallback = getCardDesignFallback(
+    designObj?.name || asset?.cardDesign?.name || designNameValue || designValue
   );
 
-  const designClass = designValue ? `card-design-${designValue}` : "card-design-default";
+  const designClass = designFallback
+    ? `card-design-${designFallback.key}`
+    : "card-design-default";
 
-  const designUrl = asset?.cardDesign?.url
-    ? fileUrl(asset.cardDesign.url)
-    : designObj?.viewUrl || (designObj?.url ? fileUrl(designObj.url) : null);
+  const rawDesignUrl = resolveCardDesignUrl(
+    asset?.cardDesign?.imageUrl ??
+      asset?.cardDesign?.url ??
+      designObj?.url ??
+      designObj?.viewUrl ??
+      ""
+  );
+  const designImageVersion =
+    designObj?.imageVersion ??
+    asset?.cardDesign?.imageVersion ??
+    "";
+  const versionedDesignUrl = withCacheVersion(rawDesignUrl, designImageVersion);
+
+  const [designUrl, setDesignUrl] = useState("");
+
+  useEffect(() => {
+    if (!versionedDesignUrl || typeof window === "undefined") {
+      setDesignUrl("");
+      return undefined;
+    }
+
+    let active = true;
+    const image = new window.Image();
+
+    image.onload = () => {
+      if (active) setDesignUrl(versionedDesignUrl);
+    };
+    image.onerror = () => {
+      if (active) setDesignUrl("");
+    };
+    image.src = versionedDesignUrl;
+
+    return () => {
+      active = false;
+    };
+  }, [versionedDesignUrl]);
 
   const getCardTypeLogo = () => {
     const ps =
@@ -166,9 +199,9 @@ const AssetCard = ({
       onClick={onCardClick}
       style={{
         backgroundImage: designUrl ? `url(${designUrl})` : "none",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundColor: !designUrl ? "#333" : "transparent",
+        backgroundSize: designUrl ? "cover" : undefined,
+        backgroundPosition: designUrl ? "center" : undefined,
+        backgroundColor: !designUrl && !designFallback ? "#333" : undefined,
       }}
     >
       <div className="asset-card-inner">

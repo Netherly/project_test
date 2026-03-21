@@ -45,7 +45,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
     );
   }, [formData.category, financeFields]);
 
-  
   useEffect(() => {
     setFormData(prev => ({ ...prev, subcategory: "" }));
   }, [formData.category]);
@@ -149,7 +148,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
 
         <form id="add-regular-payment-form" onSubmit={handleSubmit} className="add-transaction-form custom-scrollbar">
           
-          
           <div className="form-row">
             <label htmlFor="category" className="form-label">Статья</label>
             <CreatableSelect
@@ -161,7 +159,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             />
           </div>
 
-          
           {(availableSubcategories.length > 0 || formData.category) && (
             <div className="form-row">
               <label htmlFor="subcategory" className="form-label">Подстатья</label>
@@ -179,13 +176,11 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             </div>
           )}
 
-         
           <div className="form-row">
             <label htmlFor="description" className="form-label">Описание</label>
             <input type="text" id="description" name="description" value={formData.description} onChange={handleChange} placeholder="Введите описание" className="form-input1" />
           </div>
 
-          
           <div className="form-row">
             <label htmlFor="account" className="form-label">
               Счет {formData.accountCurrency && `(${formData.accountCurrency})`}
@@ -198,7 +193,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             </select>
           </div>
 
-          
           <div className="form-row">
             <label htmlFor="operation" className="form-label">Операция</label>
             <select id="operation" name="operation" value={formData.operation} onChange={handleChange} required className="form-input1">
@@ -208,7 +202,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             </select>
           </div>
 
-          
           <div className="form-row">
             <label htmlFor="amount" className="form-label">Сумма операции</label>
             <div className="custom-number-input">
@@ -247,8 +240,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
               </button>
             </div>
           </div>
-
-    
           
           <div className="form-row">
             <label htmlFor="period" className="form-label">Период</label>
@@ -261,7 +252,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             </select>
           </div>
 
-          
           {formData.period === "Еженедельно" && (
             <div className="form-row">
               <label htmlFor="cycleDay" className="form-label">День недели (1-7)</label>
@@ -279,7 +269,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             </div>
           )}
 
-          
           {formData.period === "Ежемесячно" && (
             <div className="form-row">
               <label htmlFor="cycleDay" className="form-label">Число месяца (1-31)</label>
@@ -297,7 +286,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             </div>
           )}
 
-          
           {formData.period === "Ежегодно" && (
             <div className="form-row">
               <label htmlFor="cycleDay" className="form-label">Дата (в формате ДД.ММ)</label>
@@ -314,7 +302,6 @@ const AddRegularPaymentModal = ({ onAdd, onClose, assets = [], financeFields = {
             </div>
           )}
 
-          
           <div className="form-row">
             <label htmlFor="time" className="form-label">Время</label>
             <input type="time" id="time" name="time" value={formData.time} onChange={handleChange} required className="form-input1" />

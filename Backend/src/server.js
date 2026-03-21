@@ -1,5 +1,5 @@
 // src/server.js
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const app =require('./app');
 const { initRatesAutofillJob } = require('./jobs/rates.autofill.job');
@@ -8,6 +8,7 @@ const { initRegularPaymentsJob } = require('./jobs/regular-payments.job');
 const { initTelegramAvatarJob } = require('./jobs/telegram-avatars.job');
 const { initTelegramBot, stopTelegramBot } = require('./bot/bot');
 const { parseBool, runStartupBootstrap } = require('./bootstrap/runtime-bootstrap');
+const { getTelegramBotToken } = require('./utils/telegram-token');
 const prisma = require('../prisma/client');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -26,7 +27,7 @@ async function startJobs() {
 
 async function startBot() {
   const isDisabled = String(process.env.BOT_DISABLED || '') === '1';
-  const hasToken = !!process.env.TELEGRAM_BOT_TOKEN;
+  const hasToken = !!getTelegramBotToken();
 
   if (isDisabled) {
     console.log('[bot] disabled via BOT_DISABLED=1');

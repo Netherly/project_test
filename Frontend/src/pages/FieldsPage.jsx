@@ -36,10 +36,12 @@ import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
+import { getCardDesignFallback } from "../utils/cardDesigns";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
+const ACTIVE_TAB_STORAGE_KEY = "crm_active_field_tab";
 const VISIBLE_FIELD_CURRENCIES = [
   { code: "UAH", name: "Ukrainian Hryvnia" },
   { code: "USD", name: "US Dollar" },
@@ -61,17 +63,58 @@ const COUNTRY_FIELD_GROUPS = [
   "employeeFields",
 ];
 
-const safeFileUrl = (u) => {
+const safeFileUrl = (u, version = "") => {
   if (!u) return "";
   const s = tidy(u);
   if (s.startsWith("data:")) return s;
   if (/^https?:\/\//i.test(s)) return s;
-  try { return fileUrl(s); } catch { return s; }
+  try { return fileUrl(s, version); } catch { return s; }
 };
 
 const joinFieldLabel = (...parts) => {
   const values = parts.map((part) => tidy(part)).filter(Boolean);
   return values.join(" / ");
+};
+
+const CardDesignPreviewMedia = ({ design, onClick, disabled }) => {
+  const [hasImageError, setHasImageError] = useState(false);
+  const previewUrl = design?.viewUrl || safeFileUrl(design?.url, design?.imageVersion);
+  const fallback = getCardDesignFallback(design?.name);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [design?.url, design?.name]);
+
+  const showImage = Boolean(previewUrl) && !hasImageError;
+  const previewClass = [
+    "card-design-preview",
+    !showImage ? "card-design-preview--fallback" : "",
+    fallback ? `card-design-preview--${fallback.key}` : "card-design-preview--generic",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className={previewClass}
+      title={disabled ? design?.name : "Кликните, чтобы заменить"}
+      onClick={() => !disabled && onClick?.()}
+      style={{ position: "relative" }}
+    >
+      {showImage ? (
+        <img
+          src={previewUrl}
+          alt={design?.name || "design"}
+          className="card-design-image"
+          onError={() => setHasImageError(true)}
+        />
+      ) : (
+        <div className="card-design-fallback-label">
+          {design?.name || fallback?.label || "Дизайн"}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const tabsConfig = [
@@ -90,8 +133,8 @@ const tabsConfig = [
 const initialValues = {
   generalFields: { currency: [], country: [], businessLine: [] },
   orderFields: {
-    intervals: [{ id: rid(), intervalValue: "", isDeleted: false }],
-    categories: [{ id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }],
+    intervals: [{ id: rid(), intervalValue: "", isDeleted: false, order: 0 }],
+    categories: [{ id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false, order: 0 }],
     statuses: [], closeReasons: [], projects: [], tags: [], techTags: [], taskTags: [], discountReason: [], minOrderAmount: [], readySolution: [],
   },
   executorFields: { role: [] },
@@ -100,8 +143,8 @@ const initialValues = {
   employeeFields: { country: [], tags: [] },
   assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
   financeFields: {
-    articles: [{ id: rid(), articleValue: "", isDeleted: false }],
-    subarticles: [{ id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false }],
+    articles: [{ id: rid(), articleValue: "", isDeleted: false, order: 0 }],
+    subarticles: [{ id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: 0 }],
     subcategory: [],
   },
   sundryFields:{ typeWork: [] },
@@ -362,6 +405,7 @@ const EditableList = ({
   readOnly = false,
 }) => {
   const refs = useRef([]);
+  const dndId = useMemo(() => rid(), []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
@@ -374,17 +418,18 @@ const EditableList = ({
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((item) => item.id === active.id);
       const newIndex = items.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(items, oldIndex, newIndex);
+      const newItems = arrayMove(items, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
       onReorder?.(newItems);
     }
   };
 
   return (
     <div className="category-fields-container">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((item, index) => {
             if (item.isDeleted && !showHidden) return null;
@@ -432,6 +477,7 @@ const EditableList = ({
 
 const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDragEnabled }) => {
   const nameRefs = useRef([]);
+  const dndId = useMemo(() => rid(), []);
    
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -440,15 +486,17 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       const oldIndex = tags.findIndex((t) => t.id === active.id);
       const newIndex = tags.findIndex((t) => t.id === over.id);
-      onChange(arrayMove(tags, oldIndex, newIndex));
+      const newItems = arrayMove(tags, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onChange(newItems);
     }
   };
 
   const add = () => {
-    const next = [...(tags || []), { id: rid(), name: "", color: "#ffffff", isDeleted: false }];
+    const next = [...(tags || []), { id: rid(), name: "", color: "#ffffff", isDeleted: false, order: (tags || []).length }];
     onChange(next);
     setTimeout(() => nameRefs.current[next.length - 1]?.focus(), 0);
   };
@@ -499,7 +547,7 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
     <div className="field-row">
       {title && <label className="field-label">{title}</label>}
       <div className="category-fields-container">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={tags.map(t => t.id)} strategy={verticalListSortingStrategy}>
             {tags.map((t, i) => {
               if (t.isDeleted && !showHidden) return null;
@@ -570,6 +618,7 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
 };
 
 const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAddInterval, onToggleDelete, onReorder, showHidden, isDragEnabled }) => {
+  const dndId = useMemo(() => rid(), []);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -577,21 +626,29 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       const oldIndex = intervals.findIndex((item) => item.id === active.id);
       const newIndex = intervals.findIndex((item) => item.id === over.id);
-      onReorder?.(arrayMove(intervals, oldIndex, newIndex));
+      const newItems = arrayMove(intervals, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
     }
   };
+
+  const visibleItems = useMemo(
+    () => intervals.map((item, index) => ({ ...item, originalIndex: index }))
+                   .filter(item => !item.isDeleted || showHidden),
+    [intervals, showHidden]
+  );
 
   return (
     <div className="field-row">
       <label className="field-label">Интервал</label>
       <div className="category-fields-container">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={intervals.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            {intervals.map((interval, index) => {
-              if (interval.isDeleted && !showHidden) return null;
+            {visibleItems.map((interval) => {
+              const originalIndex = interval.originalIndex;
               return (
                 <SortableItem key={interval.id} id={interval.id} disabled={interval.isDeleted} showHandle={isDragEnabled}>
                    <div className={`category-field-group ${interval.isDeleted ? 'is-hidden-item' : ''}`}>
@@ -600,8 +657,8 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
                         <input
                           type="text"
                           value={interval?.intervalValue || ""}
-                          onChange={(e) => onIntervalChange(index, e.target.value)}
-                          onBlur={() => onIntervalBlur(index)}
+                          onChange={(e) => onIntervalChange(originalIndex, e.target.value)}
+                          onBlur={() => onIntervalBlur(originalIndex)}
                           placeholder="Введите интервал"
                           className="text-input"
                           disabled={interval.isDeleted}
@@ -610,7 +667,7 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
                       <button
                         type="button"
                         className={`remove-category-btn ${interval.isDeleted ? 'restore' : ''}`}
-                        onClick={() => onToggleDelete(index, interval)}
+                        onClick={() => onToggleDelete(originalIndex)}
                         title={interval.isDeleted ? "Восстановить" : "Удалить"}
                       >
                         {interval.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -639,8 +696,27 @@ const CategoryFields = ({
   openDropdowns = {},
   onToggleDropdown,
   availableIntervals = [],
-  showHidden
+  showHidden,
+  isDragEnabled,
+  onReorder
 }) => {
+  const dndId = useMemo(() => rid(), []);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = categories.findIndex((item) => item.id === active.id);
+      const newIndex = categories.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(categories, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
+
   const visibleItems = useMemo(
     () => categories.map((item, index) => ({ ...item, originalIndex: index }))
                 .filter(item => !item.isDeleted || showHidden),
@@ -651,63 +727,69 @@ const CategoryFields = ({
     <div className="field-row category-field">
       <label className="field-label">Категория</label>
       <div className="category-fields-container">
-        {visibleItems.map((category) => {
-          const i = category.originalIndex;
-          return (
-            <div key={category.id} className={`category-field-group ${category.isDeleted ? 'is-hidden-item' : ''}`}>
-              <div className="category-container">
-                <div className="category-left">
-                  <div className="dropdown-container">
-                    <div
-                      className={`dropdown-trigger-category ${category.categoryInterval ? "has-value" : ""} ${category.isDeleted ? 'disabled' : ''}`}
-                      onClick={(e) => !category.isDeleted && onToggleDropdown(i, e)}
-                    >
-                      <span className="dropdown-value">{category.categoryInterval || "Выберите интервал"}</span>
-                      <span className={`dropdown-arrow ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>▼</span>
-                    </div>
-                    <div className={`dropdown-menu ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>
-                      {(availableIntervals || []).length > 0 ? (
-                        availableIntervals.map((option, optionIndex) => (
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+            {visibleItems.map((category) => {
+              const i = category.originalIndex;
+              return (
+                <SortableItem key={category.id} id={category.id} disabled={category.isDeleted} showHandle={isDragEnabled}>
+                  <div className={`category-field-group ${category.isDeleted ? 'is-hidden-item' : ''}`}>
+                    <div className="category-container">
+                      <div className="category-left">
+                        <div className="dropdown-container">
                           <div
-                            key={optionIndex}
-                            className={`dropdown-option ${category.categoryInterval === option ? "selected" : ""}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCategoryChange(i, "categoryInterval", option);
-                            }}
+                            className={`dropdown-trigger-category ${category.categoryInterval ? "has-value" : ""} ${category.isDeleted ? 'disabled' : ''}`}
+                            onClick={(e) => !category.isDeleted && onToggleDropdown(i, e)}
                           >
-                            {option}
+                            <span className="dropdown-value">{category.categoryInterval || "Выберите интервал"}</span>
+                            <span className={`dropdown-arrow ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>▼</span>
                           </div>
-                        ))
-                      ) : (
-                        <div className="dropdown-option disabled-option">Сначала добавьте интервалы</div>
-                      )}
+                          <div className={`dropdown-menu ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>
+                            {(availableIntervals || []).length > 0 ? (
+                              availableIntervals.map((option, optionIndex) => (
+                                <div
+                                  key={optionIndex}
+                                  className={`dropdown-option ${category.categoryInterval === option ? "selected" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCategoryChange(i, "categoryInterval", option);
+                                  }}
+                                >
+                                  {option}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="dropdown-option disabled-option">Сначала добавьте интервалы</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="category-right">
+                        <input
+                          type="text"
+                          value={category.categoryValue || ""}
+                          onChange={(e) => onCategoryChange(i, "categoryValue", e.target.value)}
+                          onBlur={() => onCategoryBlur(i)}
+                          placeholder="Введите значение"
+                          className="text-input"
+                          disabled={category.isDeleted}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={`remove-category-btn ${category.isDeleted ? 'restore' : ''}`}
+                        onClick={() => onToggleDelete(i)}
+                        title={category.isDeleted ? "Восстановить" : "Удалить"}
+                      >
+                        {category.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                      </button>
                     </div>
                   </div>
-                </div>
-                <div className="category-right">
-                  <input
-                    type="text"
-                    value={category.categoryValue || ""}
-                    onChange={(e) => onCategoryChange(i, "categoryValue", e.target.value)}
-                    onBlur={() => onCategoryBlur(i)}
-                    placeholder="Введите значение"
-                    className="text-input"
-                    disabled={category.isDeleted}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={`remove-category-btn ${category.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i, category)}
-                  title={category.isDeleted ? "Восстановить" : "Удалить"}
-                >
-                  {category.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
         <button type="button" className="add-category-btn" onClick={onAddCategory}>
           <Plus size={20} color='white'/> Добавить
         </button>
@@ -716,7 +798,24 @@ const CategoryFields = ({
   );
 };
 
-const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArticle, onToggleDelete, showHidden }) => {
+const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArticle, onToggleDelete, showHidden, isDragEnabled, onReorder }) => {
+  const dndId = useMemo(() => rid(), []);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = articles.findIndex((item) => item.id === active.id);
+      const newIndex = articles.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(articles, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
+
   const visibleItems = useMemo(
     () => articles.map((item, index) => ({ ...item, originalIndex: index }))
                 .filter(item => !item.isDeleted || showHidden),
@@ -727,34 +826,40 @@ const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArt
     <div className="field-row">
       <label className="field-label">Статья</label>
       <div className="category-fields-container">
-        {visibleItems.map((article) => {
-          const i = article.originalIndex;
-          return (
-            <div key={article.id} className={`category-field-group ${article.isDeleted ? 'is-hidden-item' : ''}`}>
-              <div className="category-container">
-                <div className="category-full">
-                  <input
-                    type="text"
-                    value={article.articleValue || ""}
-                    onChange={(e) => onArticleChange(i, e.target.value)}
-                    onBlur={() => onArticleBlur(i)}
-                    placeholder="Введите статью"
-                    className="text-input"
-                    disabled={article.isDeleted}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={`remove-category-btn ${article.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i, article)}
-                  title={article.isDeleted ? "Восстановить" : "Удалить"}
-                >
-                  {article.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={articles.map(a => a.id)} strategy={verticalListSortingStrategy}>
+            {visibleItems.map((article) => {
+              const i = article.originalIndex;
+              return (
+                <SortableItem key={article.id} id={article.id} disabled={article.isDeleted} showHandle={isDragEnabled}>
+                  <div className={`category-field-group ${article.isDeleted ? 'is-hidden-item' : ''}`}>
+                    <div className="category-container">
+                      <div className="category-full">
+                        <input
+                          type="text"
+                          value={article.articleValue || ""}
+                          onChange={(e) => onArticleChange(i, e.target.value)}
+                          onBlur={() => onArticleBlur(i)}
+                          placeholder="Введите статью"
+                          className="text-input"
+                          disabled={article.isDeleted}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={`remove-category-btn ${article.isDeleted ? 'restore' : ''}`}
+                        onClick={() => onToggleDelete(i)}
+                        title={article.isDeleted ? "Восстановить" : "Удалить"}
+                      >
+                        {article.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
         <button type="button" className="add-category-btn" onClick={onAddArticle}>
           <Plus size={20} color='white'/> Добавить
         </button>
@@ -773,8 +878,27 @@ const SubarticleFields = ({
   onToggleDropdown,
   availableArticles = [],
   availableSubcategories = [],
-  showHidden
+  showHidden,
+  isDragEnabled,
+  onReorder
 }) => {
+  const dndId = useMemo(() => rid(), []);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = subarticles.findIndex((item) => item.id === active.id);
+      const newIndex = subarticles.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(subarticles, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
+
   const visibleItems = useMemo(
     () => subarticles.map((item, index) => ({ ...item, originalIndex: index }))
                        .filter(item => !item.isDeleted || showHidden),
@@ -785,71 +909,77 @@ const SubarticleFields = ({
     <div className="field-row article-field">
       <label className="field-label">Подстатья</label>
       <div className="category-fields-container">
-        {visibleItems.map((subarticle) => {
-          const i = subarticle.originalIndex;
-          return (
-            <div key={subarticle.id} className={`category-field-group ${subarticle.isDeleted ? 'is-hidden-item' : ''}`}>
-              <div className="category-container">
-                <div className="category-left">
-                  <div className="dropdown-container">
-                    <div
-                      className={`dropdown-trigger-article ${subarticle.subarticleInterval ? "has-value" : ""} ${subarticle.isDeleted ? 'disabled' : ''}`}
-                      onClick={(e) => !subarticle.isDeleted && onToggleDropdown(i, e)}
-                    >
-                      <span className="dropdown-value">{subarticle.subarticleInterval || "Выберите статью/подкатегорию"}</span>
-                      <span className={`dropdown-arrow ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>▼</span>
-                    </div>
-                    <div className={`dropdown-menu ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>
-                      {(availableArticles || []).map((option, optionIndex) => (
-                        <div
-                          key={`art-${optionIndex}`}
-                          className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSubarticleChange(i, "subarticleInterval", option);
-                          }}
-                        >
-                          {option}
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={subarticles.map(s => s.id)} strategy={verticalListSortingStrategy}>
+            {visibleItems.map((subarticle) => {
+              const i = subarticle.originalIndex;
+              return (
+                <SortableItem key={subarticle.id} id={subarticle.id} disabled={subarticle.isDeleted} showHandle={isDragEnabled}>
+                  <div className={`category-field-group ${subarticle.isDeleted ? 'is-hidden-item' : ''}`}>
+                    <div className="category-container">
+                      <div className="category-left">
+                        <div className="dropdown-container">
+                          <div
+                            className={`dropdown-trigger-article ${subarticle.subarticleInterval ? "has-value" : ""} ${subarticle.isDeleted ? 'disabled' : ''}`}
+                            onClick={(e) => !subarticle.isDeleted && onToggleDropdown(i, e)}
+                          >
+                            <span className="dropdown-value">{subarticle.subarticleInterval || "Выберите статью/подкатегорию"}</span>
+                            <span className={`dropdown-arrow ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>▼</span>
+                          </div>
+                          <div className={`dropdown-menu ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>
+                            {(availableArticles || []).map((option, optionIndex) => (
+                              <div
+                                key={`art-${optionIndex}`}
+                                className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSubarticleChange(i, "subarticleInterval", option);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
+                            {(availableSubcategories || []).map((option, optionIndex) => (
+                              <div
+                                key={`subcat-${optionIndex}`}
+                                className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSubarticleChange(i, "subarticleInterval", option);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                      {(availableSubcategories || []).map((option, optionIndex) => (
-                        <div
-                          key={`subcat-${optionIndex}`}
-                          className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSubarticleChange(i, "subarticleInterval", option);
-                          }}
-                        >
-                          {option}
-                        </div>
-                      ))}
+                      </div>
+                      <div className="category-right">
+                        <input
+                          type="text"
+                          value={subarticle.subarticleValue || ""}
+                          onChange={(e) => onSubarticleChange(i, "subarticleValue", e.target.value)}
+                          onBlur={() => onSubarticleBlur(i)}
+                          placeholder="Введите значение"
+                          className="text-input"
+                          disabled={subarticle.isDeleted}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={`remove-category-btn ${subarticle.isDeleted ? 'restore' : ''}`}
+                        onClick={() => onToggleDelete(i)}
+                        title={subarticle.isDeleted ? "Восстановить" : "Удалить"}
+                      >
+                        {subarticle.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                      </button>
                     </div>
                   </div>
-                </div>
-                <div className="category-right">
-                  <input
-                    type="text"
-                    value={subarticle.subarticleValue || ""}
-                    onChange={(e) => onSubarticleChange(i, "subarticleValue", e.target.value)}
-                    onBlur={() => onSubarticleBlur(i)}
-                    placeholder="Введите значение"
-                    className="text-input"
-                    disabled={subarticle.isDeleted}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={`remove-category-btn ${subarticle.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i, subarticle)}
-                  title={subarticle.isDeleted ? "Восстановить" : "Удалить"}
-                >
-                  {subarticle.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
         <button type="button" className="add-category-btn" onClick={onAddSubarticle}>
           <Plus size={20} color='white'/> Добавить
         </button>
@@ -858,14 +988,25 @@ const SubarticleFields = ({
   );
 };
 
-const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, showHidden }) => {
+const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, showHidden, isDragEnabled, onReorder }) => {
   const fileInputRefs = useRef([]);
+  const dndId = useMemo(() => rid(), []);
 
-  const visibleItems = useMemo(
-    () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index }))
-                     .filter(item => !item.isDeleted || showHidden),
-    [cardDesigns, showHidden]
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = cardDesigns.findIndex((item) => item.id === active.id);
+      const newIndex = cardDesigns.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(cardDesigns, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
 
   const ensureDesign = (arr, index) => {
     const copy = [...arr];
@@ -921,103 +1062,106 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
     onAdd(next);
   };
 
-  const addEmpty = () => onAdd([...(cardDesigns || []), { id: rid(), name: "", url: "", size: null, isDeleted: false }]);
+  const addEmpty = () => onAdd([...(cardDesigns || []), { id: rid(), name: "", url: "", size: null, isDeleted: false, order: (cardDesigns || []).length }]);
+
+  const visibleItems = useMemo(
+    () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index }))
+                     .filter(item => !item.isDeleted || showHidden),
+    [cardDesigns, showHidden]
+  );
 
   return (
     <div className="category-fields-container">
-      {visibleItems.map((design, visibleIndex) => {
-        const i = design.originalIndex;
-        return (
-          <div
-            key={design.id}
-            className={`category-field-group ${design.isDeleted ? 'is-hidden-item' : ''}`}
-          >
-            <div className="card-design-row">
-              <div className="card-design-input">
-                <input
-                  type="text"
-                  value={design.name || ""}
-                  onChange={(e) => handleNameChange(i, e.target.value)}
-                  placeholder="Введите название дизайна"
-                  className="text-input"
-                  disabled={design.isDeleted}
-                />
-              </div>
-              <div className="card-design-upload">
-                <input
-                  ref={(el) => (fileInputRefs.current[i] = el)}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, i)}
-                  style={{ display: "none" }}
-                  disabled={design.isDeleted}
-                />
-                {design.url ? (
-                  <div className="card-design-item">
-                    <div
-                      className="card-design-preview"
-                      title={design.isDeleted ? design.name : "Кликните, чтобы заменить"}
-                      onClick={() => !design.isDeleted && triggerFile(i)}
-                      style={{ position: 'relative' }} 
-                    >
-                      <img src={safeFileUrl(design.url)} alt={design.name || "design"} className="card-design-image" />
-                       
-                      {!design.isDeleted && (
-                        <button 
+      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={cardDesigns.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          {visibleItems.map((design) => {
+            const i = design.originalIndex;
+            return (
+              <SortableItem key={design.id} id={design.id} disabled={design.isDeleted} showHandle={isDragEnabled}>
+                <div className={`category-field-group ${design.isDeleted ? 'is-hidden-item' : ''}`}>
+                  <div className="card-design-row">
+                    <div className="card-design-input">
+                      <input
+                        type="text"
+                        value={design.name || ""}
+                        onChange={(e) => handleNameChange(i, e.target.value)}
+                        placeholder="Введите название дизайна"
+                        className="text-input"
+                        disabled={design.isDeleted}
+                      />
+                    </div>
+                    <div className="card-design-upload">
+                      <input
+                        ref={(el) => (fileInputRefs.current[i] = el)}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, i)}
+                        style={{ display: "none" }}
+                        disabled={design.isDeleted}
+                      />
+                      {design.url ? (
+                        <div className="card-design-item">
+                          <div
+                            className="card-design-preview"
+                            title={design.isDeleted ? design.name : "Кликните, чтобы заменить"}
+                            onClick={() => !design.isDeleted && triggerFile(i)}
+                            style={{ position: 'relative' }} 
+                          >
+                            <img
+                              src={design?.viewUrl || safeFileUrl(design.url, design?.imageVersion)}
+                              alt={design.name || "design"}
+                              className="card-design-image"
+                            />
+                             
+                            {!design.isDeleted && (
+                              <button 
+                                type="button"
+                                className="remove-image-overlay-btn"
+                                onClick={(e) => handleRemoveImage(e, i)}
+                                title="Удалить изображение"
+                              >
+                                 <X size={14} color="white" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="card-design-actions">
+                            <button
+                              type="button"
+                              className="upload-design-btn"
+                              onClick={() => triggerFile(i)}
+                              disabled={design.isDeleted}
+                            >
+                              Заменить
+                            </button>
+                            <button
+                              type="button"
+                              className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
+                              onClick={() => onToggleDelete(i)}
+                              title={design.isDeleted ? "Восстановить" : "Удалить"}
+                            >
+                              {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
                           type="button"
-                          className="remove-image-overlay-btn"
-                          onClick={(e) => handleRemoveImage(e, i)}
-                          title="Удалить изображение"
+                          className="upload-design-btn"
+                          onClick={() => triggerFile(i)}
+                          disabled={design.isDeleted}
                         >
-                           <X size={14} color="white" />
+                          + Загрузить изображение
                         </button>
                       )}
                     </div>
-
-                    <div className="card-design-actions">
-                      <button
-                        type="button"
-                        className="upload-design-btn"
-                        onClick={() => triggerFile(i)}
-                        disabled={design.isDeleted}
-                      >
-                        Заменить
-                      </button>
-                      <button
-                        type="button"
-                        className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
-                        onClick={() => onToggleDelete(i, design)}
-                        title={design.isDeleted ? "Восстановить" : "Удалить"}
-                      >
-                        {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                      </button>
-                    </div>
                   </div>
-                ) : (
-                  <div className="card-design-actions">
-                    <button
-                      type="button"
-                      className="upload-design-btn"
-                      onClick={() => triggerFile(i)}
-                      disabled={design.isDeleted}
-                    >
-                      + Загрузить изображение
-                    </button>
-                    <button
-                      type="button"
-                      className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
-                      onClick={() => onToggleDelete(i, design)}
-                      title={design.isDeleted ? "Восстановить" : "Удалить"}
-                    >
-                      {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+                </div>
+              </SortableItem>
+            );
+          })}
+        </SortableContext>
+      </DndContext>
       <button type="button" className="add-category-btn" onClick={addEmpty}>
         <Plus size={20} color='white'/> Добавить
       </button>
@@ -1032,7 +1176,15 @@ function FieldsPage() {
   const [selectedValues, setSelectedValues] = useState(initialValues);
   const [savedValues, setSavedValues] = useState(initialValues);
   const [hasChanges, setHasChanges] = useState(false);
-  const [activeTab, setActiveTab] = useState("generalFields");
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    return saved || "generalFields";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
   const [openDropdowns, setOpenDropdowns] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1064,6 +1216,7 @@ function FieldsPage() {
   });
 
   const containerRef = useRef(null);
+  const pageDndId = useMemo(() => rid(), []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1177,6 +1330,7 @@ function FieldsPage() {
 
       if (pendingTab) {
         setActiveTab(pendingTab);
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, pendingTab);
         setPendingTab(null);
       }
     } catch (e) {
@@ -1199,6 +1353,7 @@ function FieldsPage() {
     if (tabKey === activeTab) return;
     if (!hasChanges) {
       setActiveTab(tabKey);
+      localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
       setOpenDropdowns({});
       return;
     }
@@ -1212,6 +1367,7 @@ function FieldsPage() {
         setFieldOrders(savedFieldOrders);
         setHasChanges(false);
         setActiveTab(tabKey);
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
         setPendingTab(null);
         setOpenDropdowns({});
         setShowHidden(false);
@@ -1229,7 +1385,6 @@ function FieldsPage() {
     };
     applyAndCheck(next);
   };
-
 
   useEffect(() => {
   if (showHidden && !inactiveLoaded && !loadingInactive) {
@@ -1296,32 +1451,23 @@ function FieldsPage() {
   }
 }, [showHidden, inactiveLoaded, loadingInactive]);
 
- 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
     const copy = [...list];
     copy[index] = { ...copy[index], value: newValue };
     handleInputChange(group, field, copy);
   };
- 
+  
   const handleStringItemToggleDelete = (group, field, index) => {
     const list = selectedValues[group]?.[field] || [];
     const copy = [...list];
     copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
     handleInputChange(group, field, copy);
   };
-
-  const requestStringItemToggleDelete = (group, field, index, item) => {
-    requestDeleteToggle({
-      item,
-      fieldLabel: item?.code || item?.label || item?.name || item?.value,
-      onToggle: () => handleStringItemToggleDelete(group, field, index),
-    });
-  };
- 
+  
   const handleStringItemAdd = (group, field) => {
     const list = selectedValues[group]?.[field] || [];
-    const newItem = { id: rid(), value: "", isDeleted: false };
+    const newItem = { id: rid(), value: "", isDeleted: false, order: list.length };
     handleInputChange(group, field, [...list, newItem]);
   };
 
@@ -1345,181 +1491,149 @@ function FieldsPage() {
     }
   };
 
-  const updateIntervalValue = (index, value) => {
+  const updateIntervalValue = (originalIndex, value) => {
     const intervals = selectedValues.orderFields.intervals || [];
     const copy = [...intervals];
-    copy[index] = { ...copy[index], intervalValue: value };
+    copy[originalIndex] = { ...copy[originalIndex], intervalValue: value };
     handleInputChange("orderFields", "intervals", copy);
   };
 
-  const validateIntervalOnBlur = (index) => {
+  const validateIntervalOnBlur = (originalIndex) => {
     const intervals = selectedValues.orderFields.intervals || [];
-    const item = intervals[index];
+    const item = intervals[originalIndex];
     const value = tidy(item.intervalValue);
     if (!value && !item.isDeleted) {
-      handleInputChange("orderFields", "intervals", intervals.filter((_, i) => i !== index));
+      handleInputChange("orderFields", "intervals", intervals.filter((_, i) => i !== originalIndex));
       return;
     }
-    const isDuplicate = intervals.some((it, i) => i !== index && !it.isDeleted && tidy(it.intervalValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = intervals.some((it, i) => i !== originalIndex && !it.isDeleted && tidy(it.intervalValue).toLowerCase() === value.toLowerCase());
     if (isDuplicate) {
       alert("Такой интервал уже существует!");
       const copy = [...intervals];
-      copy[index] = { ...copy[index], intervalValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], intervalValue: "" };
       handleInputChange("orderFields", "intervals", copy);
     }
   };
 
-  const toggleDeleteInterval = (index) => {
+  const toggleDeleteInterval = (originalIndex) => {
     const intervals = selectedValues.orderFields.intervals || [];
     const copy = [...intervals];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
     handleInputChange("orderFields", "intervals", copy);
   };
 
-  const requestDeleteInterval = (index, item) => {
-    requestDeleteToggle({
-      item,
-      fieldLabel: item?.intervalValue,
-      onToggle: () => toggleDeleteInterval(index),
-    });
-  };
-
-  const updateCategoryValue = (index, field, value) => {
+  const updateCategoryValue = (originalIndex, field, value) => {
     const categories = selectedValues.orderFields.categories || [];
     const copy = [...categories];
-    copy[index] = { ...copy[index], [field]: value };
+    copy[originalIndex] = { ...copy[originalIndex], [field]: value };
     handleInputChange("orderFields", "categories", copy);
     if (field === "categoryInterval") {
-      setOpenDropdowns((prev) => ({ ...prev, [`category-${index}-interval`]: false }));
+      setOpenDropdowns((prev) => ({ ...prev, [`category-${originalIndex}-interval`]: false }));
     }
   };
 
-  const validateCategoryOnBlur = (index) => {
+  const validateCategoryOnBlur = (originalIndex) => {
     const categories = selectedValues.orderFields.categories || [];
-    const current = categories[index];
+    const current = categories[originalIndex];
     const value = tidy(current?.categoryValue);
     const interval = tidy(current?.categoryInterval);
 
     if (!value && !interval && !current.isDeleted) {
-      handleInputChange("orderFields", "categories", categories.filter((_, i) => i !== index));
+      handleInputChange("orderFields", "categories", categories.filter((_, i) => i !== originalIndex));
       return;
     }
     if (!value) return; 
 
-    const isDuplicate = categories.some((item, i) => i !== index && !item.isDeleted && tidy(item.categoryInterval).toLowerCase() === interval.toLowerCase() && tidy(item.categoryValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = categories.some((item, i) => i !== originalIndex && !item.isDeleted && tidy(item.categoryInterval).toLowerCase() === interval.toLowerCase() && tidy(item.categoryValue).toLowerCase() === value.toLowerCase());
 
     if (isDuplicate) {
       alert("Такая категория уже существует в этом интервале!");
       const copy = [...categories];
-      copy[index] = { ...copy[index], categoryValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], categoryValue: "" };
       handleInputChange("orderFields", "categories", copy);
     }
   };
- 
-  const toggleDeleteCategory = (index) => {
+  
+  const toggleDeleteCategory = (originalIndex) => {
     const categories = selectedValues.orderFields.categories || [];
     const copy = [...categories];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
     handleInputChange("orderFields", "categories", copy);
   };
 
-  const requestDeleteCategory = (index, item) => {
-    requestDeleteToggle({
-      item,
-      fieldLabel: joinFieldLabel(item?.categoryInterval, item?.categoryValue),
-      onToggle: () => toggleDeleteCategory(index),
-    });
-  };
+  const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { id: rid(), intervalValue: "", isDeleted: false, order: (selectedValues.orderFields.intervals || []).length }]);
+  const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false, order: (selectedValues.orderFields.categories || []).length }]);
 
-  const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { id: rid(), intervalValue: "", isDeleted: false }]);
-  const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }]);
-
- const updateArticleValue = (index, value) => {
+  const updateArticleValue = (originalIndex, value) => {
     const articles = selectedValues.financeFields.articles || [];
     const copy = [...articles];
-    copy[index] = { ...copy[index], articleValue: value };
+    copy[originalIndex] = { ...copy[originalIndex], articleValue: value };
     handleInputChange("financeFields", "articles", copy);
   };
 
-  const validateArticleOnBlur = (index) => {
+  const validateArticleOnBlur = (originalIndex) => {
     const articles = selectedValues.financeFields.articles || [];
-    const item = articles[index];
+    const item = articles[originalIndex];
     const value = tidy(item.articleValue);
 
     if (!value && !item.isDeleted) {
-      handleInputChange("financeFields", "articles", articles.filter((_, i) => i !== index));
+      handleInputChange("financeFields", "articles", articles.filter((_, i) => i !== originalIndex));
       return;
     }
-    const isDuplicate = articles.some((it, i) => i !== index && !it.isDeleted && tidy(it.articleValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = articles.some((it, i) => i !== originalIndex && !it.isDeleted && tidy(it.articleValue).toLowerCase() === value.toLowerCase());
     if (isDuplicate) {
       alert("Такая статья уже существует!");
       const copy = [...articles];
-      copy[index] = { ...copy[index], articleValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], articleValue: "" };
       handleInputChange("financeFields", "articles", copy);
     }
   };
- 
-  const toggleDeleteArticle = (index) => {
+  
+  const toggleDeleteArticle = (originalIndex) => {
     const articles = selectedValues.financeFields.articles || [];
     const copy = [...articles];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
     handleInputChange("financeFields", "articles", copy);
   };
 
-  const requestDeleteArticle = (index, item) => {
-    requestDeleteToggle({
-      item,
-      fieldLabel: item?.articleValue,
-      onToggle: () => toggleDeleteArticle(index),
-    });
-  };
-
-  const updateSubarticleValue = (index, field, value) => {
+  const updateSubarticleValue = (originalIndex, field, value) => {
     const subs = selectedValues.financeFields.subarticles || [];
     const copy = [...subs];
-    copy[index] = { ...copy[index], [field]: value };
+    copy[originalIndex] = { ...copy[originalIndex], [field]: value };
     handleInputChange("financeFields", "subarticles", copy);
     if (field === "subarticleInterval") {
-      setOpenDropdowns((prev) => ({ ...prev, [`subarticle-${index}-interval`]: false }));
+      setOpenDropdowns((prev) => ({ ...prev, [`subarticle-${originalIndex}-interval`]: false }));
     }
   };
 
-  const validateSubarticleOnBlur = (index) => {
+  const validateSubarticleOnBlur = (originalIndex) => {
     const subs = selectedValues.financeFields.subarticles || [];
-    const current = subs[index];
+    const current = subs[originalIndex];
     const value = tidy(current?.subarticleValue);
     const interval = tidy(current?.subarticleInterval);
     if (!value && !interval && !current.isDeleted) {
-      handleInputChange("financeFields", "subarticles", subs.filter((_, i) => i !== index));
+      handleInputChange("financeFields", "subarticles", subs.filter((_, i) => i !== originalIndex));
       return;
     }
     if (!value) return;
-    const isDuplicate = subs.some((item, i) => i !== index && !item.isDeleted && tidy(item.subarticleInterval).toLowerCase() === interval.toLowerCase() && tidy(item.subarticleValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = subs.some((item, i) => i !== originalIndex && !item.isDeleted && tidy(item.subarticleInterval).toLowerCase() === interval.toLowerCase() && tidy(item.subarticleValue).toLowerCase() === value.toLowerCase());
     if (isDuplicate) {
       alert("Такая подстатья уже существует!");
       const copy = [...subs];
-      copy[index] = { ...copy[index], subarticleValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], subarticleValue: "" };
       handleInputChange("financeFields", "subarticles", copy);
     }
   };
- 
-  const toggleDeleteSubarticle = (index) => {
+  
+  const toggleDeleteSubarticle = (originalIndex) => {
     const subs = selectedValues.financeFields.subarticles || [];
     const copy = [...subs];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
     handleInputChange("financeFields", "subarticles", copy);
   };
-
-  const requestDeleteSubarticle = (index, item) => {
-    requestDeleteToggle({
-      item,
-      fieldLabel: joinFieldLabel(item?.subarticleInterval, item?.subarticleValue),
-      onToggle: () => toggleDeleteSubarticle(index),
-    });
-  };
- 
-  const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { id: rid(), articleValue: "", isDeleted: false }]);
-  const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false }]);
+  
+  const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { id: rid(), articleValue: "", isDeleted: false, order: (selectedValues.financeFields.articles || []).length }]);
+  const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: (selectedValues.financeFields.subarticles || []).length }]);
 
   const updateCardDesigns = (newItems) => handleInputChange("assetsFields", "cardDesigns", newItems);
   const toggleDeleteCardDesign = (index) => {
@@ -1567,6 +1681,7 @@ function FieldsPage() {
 
   const handleSectionDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       setFieldOrders((prevOrders) => {
         const currentOrder = prevOrders[activeTab] || [];
@@ -1637,6 +1752,7 @@ function FieldsPage() {
                 onToggleDelete={(index, item) => requestStringItemToggleDelete("generalFields", "businessLine", index, item)}
                 onAdd={() => handleStringItemAdd("generalFields", "businessLine")}
                 onCommit={(index) => handleStringItemBlur("generalFields", "businessLine", index)}
+                onReorder={(newItems) => handleInputChange("generalFields", "businessLine", newItems)}
                 placeholder="Введите направление"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
@@ -1671,6 +1787,8 @@ function FieldsPage() {
               onToggleDropdown={toggleCategoryDropdown}
               availableIntervals={intervalsOptions}
               showHidden={showHidden}
+              isDragEnabled={isDragEnabled}
+              onReorder={(newItems) => handleInputChange("orderFields", "categories", newItems)}
             />
           ),
           statuses: (
@@ -1961,6 +2079,8 @@ function FieldsPage() {
                 onToggleDelete={requestDeleteCardDesign}
                 onError={({ title, message }) => openErrorModal(title, message)}
                 showHidden={showHidden}
+                isDragEnabled={isDragEnabled}
+                onReorder={(newItems) => handleInputChange("assetsFields", "cardDesigns", newItems)}
               />
             </div>
           )
@@ -1977,6 +2097,8 @@ function FieldsPage() {
               onAddArticle={addArticle}
               onToggleDelete={requestDeleteArticle}
               showHidden={showHidden}
+              isDragEnabled={isDragEnabled}
+              onReorder={(newItems) => handleInputChange("financeFields", "articles", newItems)}
             />
           ),
           subcategory: (
@@ -2007,6 +2129,8 @@ function FieldsPage() {
               availableArticles={articleOptions}
               availableSubcategories={subcategoryOptions} 
               showHidden={showHidden}
+              isDragEnabled={isDragEnabled}
+              onReorder={(newItems) => handleInputChange("financeFields", "subarticles", newItems)}
             />
           )
         };
@@ -2056,7 +2180,7 @@ function FieldsPage() {
 
     return (
       <div className="fields-vertical-grid" style={{ transition: 'padding 0.2s' }}>
-         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+         <DndContext id={pageDndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
           <SortableContext items={currentOrder} strategy={verticalListSortingStrategy}>
             {currentOrder.map((key) => {
               if (!componentsMap[key]) return null;
@@ -2085,9 +2209,10 @@ function FieldsPage() {
               </h1>
             </div>
             
+            <div className="fields-view-toggle-buttons">
               <button
                 type="button"
-                className={`header-action-btn ${isDragEnabled ? 'active' : ''}`}
+                className={`fields-view-mode-button ${isDragEnabled ? 'active' : ''}`}
                 title={isDragEnabled ? "Выключить сортировку" : "Включить сортировку"}
                 onClick={() => setIsDragEnabled(!isDragEnabled)}
                 disabled={saving || loading || forbidden}
@@ -2097,13 +2222,15 @@ function FieldsPage() {
 
               <button
                 type="button"
-                className={`header-action-btn ${showHidden ? 'active' : ''}`}
+                className={`fields-view-mode-button ${showHidden ? 'active' : ''}`}
                 title={showHidden ? "Скрыть удаленные" : "Показать удаленные"}
                 onClick={() => setShowHidden(!showHidden)}
                 disabled={saving || loading || forbidden}
               >
                 {showHidden ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
+            </div>
+
             <div className="header-actions">
               {loading && <span className="loading-label">Загрузка…</span>}
               {saving && <span className="loading-label">Сохранение…</span>}
