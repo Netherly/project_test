@@ -141,6 +141,14 @@ const safeActivityLog = async (payload) => {
   }
 };
 
+const buildTransactionTargetMeta = (trx, target) => ({
+  target: {
+    type: 'transaction',
+    id: trx?.id || null,
+    label: trx?.description || target?.accountName || null,
+  },
+});
+
 const getTargetLabel = (target) => target?.employeeName || target?.employeeId || 'сотрудник';
 
 const formatTransactionAmount = (trx) => {
@@ -239,6 +247,7 @@ async function emitEmployeeTransactionLogs({ before, after, verb, actorMeta }) {
       entityId: employeeId,
       action: buildTransactionAction(target?.kind, currentVerb),
       message: buildTransactionMessage({ trx, target, verb: currentVerb }),
+      meta: buildTransactionTargetMeta(trx, target),
       ...actorMeta,
     });
   }
