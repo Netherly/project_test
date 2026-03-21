@@ -192,20 +192,25 @@ const AssetCard = ({
 
   const balance = Number.isFinite(Number(asset?.balance)) ? Number(asset.balance) : 0;
   const shouldShowCardElements = true;
+  const designImageStyle = designUrl
+    ? {
+        backgroundImage: `url(${designUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }
+    : undefined;
 
   return (
     <div
       className={`asset-card-wrapper ${isFlipped ? "flipped" : ""} ${designClass}`}
       onClick={onCardClick}
       style={{
-        backgroundImage: designUrl ? `url(${designUrl})` : "none",
-        backgroundSize: designUrl ? "cover" : undefined,
-        backgroundPosition: designUrl ? "center" : undefined,
         backgroundColor: !designUrl && !designFallback ? "#333" : undefined,
       }}
     >
       <div className="asset-card-inner">
-        <div className="asset-card-front">
+        <div className="asset-card-front" style={designImageStyle}>
           <button
             type="button"
             className="asset-card-delete-button"
@@ -254,7 +259,7 @@ const AssetCard = ({
           </div>
         </div>
 
-        <div className="asset-card-back">
+        <div className="asset-card-back" style={designImageStyle}>
           <div className="magnetic-stripe"></div>
 
           <div className="card-back-details">

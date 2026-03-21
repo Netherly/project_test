@@ -1315,14 +1315,14 @@ function FieldsPage() {
     setSaving(true);
     try {
       const payload = serializeForSave(prepareFieldsPageSaveValues(selectedValues));
-      await saveFields(payload);
+      const savedRaw = await saveFields(payload);
+      const normalizedSavedValues = applyFieldsPagePreset(withDefaults(savedRaw));
       
       localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
       setSavedFieldOrders(fieldOrders);
 
-      const nextSavedValues = clone(selectedValues); 
-      setSelectedValues(nextSavedValues);
-      setSavedValues(nextSavedValues); 
+      setSelectedValues(normalizedSavedValues);
+      setSavedValues(normalizedSavedValues);
       setHasChanges(false);
       setOpenDropdowns({});
 
