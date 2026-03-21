@@ -21,6 +21,8 @@ jobs:
       BACKEND_TARGET_DIR: crm-backend-prod
       PM2_APP_NAME: crm-backend-prod
       DEPLOY_TMP_DIR: /var/www/.deploy/prod
+      BACKUP_ROOT: /var/www/.deploy/backups/prod
+      BACKUP_KEEP: 14
 
     steps:
       - name: Checkout
@@ -170,6 +172,105 @@ jobs:
           source: "frontend.tgz"
           target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
+
+      - name: Backup current deployment on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -euo pipefail
+
+            STAMP="$(date +%Y%m%d_%H%M%S)"
+            BACKUP_ROOT="${{ env.BACKUP_ROOT }}"
+            FILES_DIR="$BACKUP_ROOT/files"
+            DB_DIR="$BACKUP_ROOT/db"
+            META_DIR="$BACKUP_ROOT/meta"
+            KEEP="${{ env.BACKUP_KEEP }}"
+            FRONTEND_DIR="/var/www/${{ env.FRONTEND_TARGET_DIR }}"
+            BACKEND_DIR="/var/www/${{ env.BACKEND_TARGET_DIR }}"
+
+            mkdir -p "$FILES_DIR" "$DB_DIR" "$META_DIR"
+
+            if [ -d "$FRONTEND_DIR" ] && [ "$(find "$FRONTEND_DIR" -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
+              tar -C /var/www -czf "$FILES_DIR/frontend_${STAMP}.tgz" "${{ env.FRONTEND_TARGET_DIR }}"
+            else
+              echo "Frontend dir missing or empty, skipping frontend backup"
+            fi
+
+            if [ -d "$BACKEND_DIR" ] && [ "$(find "$BACKEND_DIR" -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
+              tar \
+                --exclude="${{ env.BACKEND_TARGET_DIR }}/node_modules" \
+                --exclude="${{ env.BACKEND_TARGET_DIR }}/.git" \
+                -C /var/www \
+                -czf "$FILES_DIR/backend_${STAMP}.tgz" \
+                "${{ env.BACKEND_TARGET_DIR }}"
+            else
+              echo "Backend dir missing or empty, skipping backend backup"
+            fi
+
+            if [ -f "$BACKEND_DIR/.env" ]; then
+              if ! command -v pg_dump >/dev/null 2>&1; then
+                echo "pg_dump is not installed on server" >&2
+                exit 1
+              fi
+
+              DB_URL="$(python3 - "$BACKEND_DIR/.env" <<'PY'
+import sys
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+
+env_path = Path(sys.argv[1])
+raw = ""
+
+for source_line in env_path.read_text(encoding="utf-8").splitlines():
+    line = source_line.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    if key.strip() != "DATABASE_URL":
+        continue
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        value = value[1:-1]
+    raw = value
+    break
+
+if not raw:
+    raise SystemExit(0)
+
+parts = urlsplit(raw)
+if parts.scheme and parts.netloc:
+    print(urlunsplit((parts.scheme, parts.netloc, parts.path, "", "")), end="")
+else:
+    print(raw.split("?", 1)[0], end="")
+PY
+)"
+              if [ -z "$DB_URL" ]; then
+                echo "DATABASE_URL missing in $BACKEND_DIR/.env" >&2
+                exit 1
+              fi
+
+              pg_dump "$DB_URL" | gzip -9 > "$DB_DIR/db_${STAMP}.sql.gz"
+            else
+              echo "Backend .env missing, skipping DB backup"
+            fi
+
+            {
+              echo "timestamp=$STAMP"
+              echo "frontend=$FILES_DIR/frontend_${STAMP}.tgz"
+              echo "backend=$FILES_DIR/backend_${STAMP}.tgz"
+              echo "db=$DB_DIR/db_${STAMP}.sql.gz"
+            } > "$META_DIR/latest.env"
+
+            ls -1dt "$FILES_DIR"/frontend_*.tgz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+            ls -1dt "$FILES_DIR"/backend_*.tgz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+            ls -1dt "$DB_DIR"/db_*.sql.gz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+
+            echo "Backup completed: $STAMP"
 
       - name: Unpack frontend on server (atomic)
         uses: appleboy/ssh-action@v1.0.3
