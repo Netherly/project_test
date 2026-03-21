@@ -28,7 +28,7 @@ const getEmployeeLabel = (employee) =>
   employee?.full_name || employee?.login || employee?.email || employee?.id || 'сотрудник';
 const getAssetLabel = (asset) => asset?.accountName || asset?.externalId || asset?.id || 'актив';
 
-async function safeEmployeeLog({ employeeId, action, message, actor }) {
+async function safeEmployeeLog({ employeeId, action, message, actor, target }) {
   if (!employeeId) return null;
 
   try {
@@ -37,6 +37,7 @@ async function safeEmployeeLog({ employeeId, action, message, actor }) {
       entityId: employeeId,
       action,
       message,
+      meta: target ? { target } : undefined,
       ...normalizeActorMeta(actor),
     });
   } catch (error) {
@@ -207,6 +208,11 @@ const AssetsService = {
         employeeId: created.employeeId,
         action: 'asset_attached',
         message: `К сотруднику "${getEmployeeLabel(created.employee)}" привязан актив "${getAssetLabel(created)}"`,
+        target: {
+          type: 'asset',
+          id: created.id,
+          label: getAssetLabel(created),
+        },
         actor,
       });
     }
@@ -301,6 +307,11 @@ const AssetsService = {
           employeeId: before.employeeId,
           action: 'asset_detached',
           message: `От сотрудника "${getEmployeeLabel(before.employee)}" отвязан актив "${getAssetLabel(before)}"`,
+          target: {
+            type: 'asset',
+            id: before.id,
+            label: getAssetLabel(before),
+          },
           actor,
         });
       }
@@ -310,6 +321,11 @@ const AssetsService = {
           employeeId: updated.employeeId,
           action: 'asset_attached',
           message: `К сотруднику "${getEmployeeLabel(updated.employee)}" привязан актив "${getAssetLabel(updated)}"`,
+          target: {
+            type: 'asset',
+            id: updated.id,
+            label: getAssetLabel(updated),
+          },
           actor,
         });
       }
@@ -342,6 +358,11 @@ const AssetsService = {
         employeeId: asset.employeeId,
         action: 'asset_removed',
         message: `Удалён актив "${getAssetLabel(asset)}" сотрудника "${getEmployeeLabel(asset.employee)}"`,
+        target: {
+          type: 'asset',
+          id: asset.id,
+          label: getAssetLabel(asset),
+        },
         actor,
       });
     }

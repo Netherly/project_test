@@ -9,7 +9,6 @@ import {
   deleteEmployee as apiDeleteEmployee,
   createEmployee as apiCreateEmployee,
   normalizeEmployee,
-  serializeEmployee,
 } from "../../api/employees";
 import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import "../../styles/EmployeesPage.css";
@@ -59,14 +58,13 @@ export default function EmployeeDetailsPage() {
   }, [employeeId]);
 
   const handleSaveEmployee = async (formData) => {
-    const outgoing = serializeEmployee(formData);
     try {
       if (employeeId && employeeId !== "new") {
-        const saved = await apiUpdateEmployee(employeeId, outgoing);
+        const saved = await apiUpdateEmployee(employeeId, formData);
         setEmployee(normalizeEmployee(saved));
         return saved;
       } else {
-        const created = await apiCreateEmployee(outgoing);
+        const created = await apiCreateEmployee(formData);
         setEmployee(normalizeEmployee(created));
         // Перенаправляем на страницу с ID нового сотрудника
         navigate(`/employees/${created.id}`, { replace: true });

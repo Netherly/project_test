@@ -39,6 +39,28 @@ const sanitizeIp = (value) => {
 const jsonReplacer = (_key, value) => (typeof value === 'bigint' ? value.toString() : value);
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
+const normalizeMessageParts = (value) => {
+  if (!Array.isArray(value)) return null;
+
+  const parts = value
+    .map((part) => {
+      if (!isPlainObject(part)) return null;
+
+      const text = part.text === undefined || part.text === null ? '' : String(part.text);
+      if (!text) return null;
+
+      return {
+        type: part.type === 'link' ? 'link' : 'text',
+        text,
+        targetType: part.targetType ? String(part.targetType) : null,
+        id: part.id ? String(part.id) : null,
+      };
+    })
+    .filter(Boolean);
+
+  return parts.length ? parts : null;
+};
+
 const toPlain = (value) => {
   if (value === undefined) return undefined;
   if (value === null) return null;
@@ -135,11 +157,13 @@ const logActivity = async ({
   actorName,
   message,
   changes,
+  meta,
   ip,
   userAgent,
 }) => {
   if (!entityType || !entityId || !action) return null;
   const resolvedActorName = await resolveActorName(actorId, actorName);
+  const preparedChanges = meta ? applyLogMeta(changes, meta) : changes ?? null;
 
   return prisma.activityLog.create({
     data: {
@@ -150,7 +174,7 @@ const logActivity = async ({
       actorId: actorId || null,
       actorName: resolvedActorName,
       message: message ?? null,
-      changes: changes ?? null,
+      changes: preparedChanges,
       ip: sanitizeIp(ip),
       userAgent: sanitizeUserAgent(userAgent),
     },
@@ -172,6 +196,8 @@ const decorateLog = (log) => {
   return {
     ...log,
     changes: cleanChanges,
+    target: isPlainObject(meta?.target) ? meta.target : null,
+    messageParts: normalizeMessageParts(meta?.messageParts),
     pinned: Boolean(meta?.pinned),
     important: presentation === 'important',
     presentation,

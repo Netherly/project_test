@@ -24,22 +24,31 @@ function parseCorsOrigins(raw) {
 
 const allowedOrigins = parseCorsOrigins(process.env.CORS_ORIGINS);
 const uploadsDir = path.join(__dirname, '..', 'uploads');
+const TEST_ACCESS_API_PREFIX = '/api/test-access';
 
 // The app runs behind nginx in both prod and test, so trust X-Forwarded-*.
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      // curl/health checks/server-to-server requests can have no Origin header.
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error(`CORS blocked origin: ${origin}`));
-    },
-    credentials: true,
-  })
-);
+app.use((req, res, next) => {
+  cors(
+    {
+      origin(origin, callback) {
+        // curl/health checks/server-to-server requests can have no Origin header.
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        // The test gate password form can be submitted by the browser with Origin: null.
+        if (origin === 'null' && req.path.startsWith(TEST_ACCESS_API_PREFIX)) {
+          return callback(null, true);
+        }
+
+        return callback(new Error(`CORS blocked origin: ${origin}`));
+      },
+      credentials: true,
+    }
+  )(req, res, next);
+});
 
 app.use(
   helmet({

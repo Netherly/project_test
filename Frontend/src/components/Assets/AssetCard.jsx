@@ -66,9 +66,6 @@ const AssetCard = ({
   };
 
   const accountName = asset?.accountName || "";
-  const displayAccountName = accountName.includes("Binance")
-    ? accountName.replace("Binance", "CRYPTO")
-    : accountName;
 
   const paymentSystemValue = asset?.paymentSystemRaw ?? asset?.paymentSystem;
   const currencyValue = asset?.currencyRaw ?? asset?.currency;
@@ -186,7 +183,7 @@ const AssetCard = ({
           </button>
 
           <div className="card-top-left-name">
-            <span className="asset-name-top-left">{displayAccountName}</span>
+            <span className="asset-name-top-left">{accountName}</span>
             <span>{asset?.employee}</span>
           </div>
 

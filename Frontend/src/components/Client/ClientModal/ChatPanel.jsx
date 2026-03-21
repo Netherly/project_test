@@ -129,28 +129,28 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
       const entries = Object.entries(log?.changes || {});
       if (!entries.length) return 'Изменены данные';
       return entries
-        .map(([field, change]) => {
+        .flatMap(([field, change]) => {
           const label = getFieldLabel(field);
           if (change && (Array.isArray(change.added) || Array.isArray(change.removed))) {
             const added = Array.isArray(change.added) ? change.added : [];
             const removed = Array.isArray(change.removed) ? change.removed : [];
             const parts = [];
-            if (added.length) parts.push(`добавлено ${formatValue(added)}`);
-            if (removed.length) parts.push(`удалено ${formatValue(removed)}`);
-            return parts.length ? `Поле «${label}»: ${parts.join('; ')}` : `Поле «${label}»: —`;
+            if (added.length) parts.push(`${label} добавлено "${formatValue(added)}"`);
+            if (removed.length) parts.push(`${label} удалено "${formatValue(removed)}"`);
+            return parts.length ? parts : [`${label} изменено`];
           }
 
           const from = formatValue(change?.from);
           const to = formatValue(change?.to);
           if ((change?.from === null || change?.from === undefined || change?.from === '') && to !== '—') {
-            return `Для поля «${label}» установлено значение «${to}»`;
+            return `${label} добавлено "${to}"`;
           }
           if (change?.to === null || change?.to === undefined || change?.to === '') {
-            return `Поле «${label}» очищено. Было «${from}»`;
+            return `${label} очищено`;
           }
-          return `Изменено поле «${label}»: «${from}» → «${to}»`;
+          return `${label} было "${from}" стало "${to}"`;
         })
-        .join('; ');
+        .join('\n');
     }
     return 'Событие';
   };
@@ -167,9 +167,11 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     author: log.actorName || (log.source === 'self' ? 'Самостоятельно' : 'Система'),
     actorId: log.actorId || null,
     message: buildMessage(log),
+    messageParts: Array.isArray(log.messageParts) ? log.messageParts : null,
     action: log.action,
     source: log.source,
     changes: log.changes,
+    target: log.target || null,
     pinned: Boolean(log.pinned),
     important: Boolean(log.important ?? getRemotePresentation(log) !== 'inline'),
     presentation: getRemotePresentation(log),
@@ -391,12 +393,100 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     return <span>{log.author}</span>;
   };
 
+  const getTargetRoute = (target) => {
+    if (!target?.id) return null;
+    if (target.type === 'transaction') return `/list/${target.id}`;
+    if (target.type === 'asset') return `/assets/${target.id}`;
+    if (target.type === 'employee') return `/employees/${target.id}`;
+    return null;
+  };
+
   const getImportantLogIcon = (log) => {
     if (log.action === 'note') return { symbol: '✓', tone: 'note' };
     if (String(log.action || '').includes('transaction')) return { symbol: '₴', tone: 'transaction' };
     if (String(log.action || '').includes('asset')) return { symbol: '◆', tone: 'asset' };
     if (String(log.action || '').includes('deleted')) return { symbol: '−', tone: 'danger' };
     return { symbol: '+', tone: 'create' };
+  };
+
+  const renderLinkedText = (text, target, keyPrefix) => {
+    const route = getTargetRoute(target);
+    const rawText = String(text || '');
+    const rawLabel = String(target?.label || '').trim();
+    if (!route || !rawText || !rawLabel) return rawText;
+
+    const quotedLabel = `"${rawLabel}"`;
+    const matchText = rawText.includes(quotedLabel) ? quotedLabel : rawLabel;
+    if (!rawText.includes(matchText)) return rawText;
+
+    const chunks = [];
+    let cursor = 0;
+    let partIndex = 0;
+
+    while (cursor < rawText.length) {
+      const foundIndex = rawText.indexOf(matchText, cursor);
+      if (foundIndex === -1) break;
+
+      if (foundIndex > cursor) {
+        chunks.push(
+          <React.Fragment key={`${keyPrefix}-text-${partIndex}`}>
+            {rawText.slice(cursor, foundIndex)}
+          </React.Fragment>
+        );
+        partIndex += 1;
+      }
+
+      chunks.push(
+        <button
+          key={`${keyPrefix}-link-${partIndex}`}
+          type="button"
+          className="log-actor-link log-inline-link"
+          onClick={() => navigate(route)}
+        >
+          {matchText}
+        </button>
+      );
+      partIndex += 1;
+      cursor = foundIndex + matchText.length;
+    }
+
+    if (cursor < rawText.length) {
+      chunks.push(
+        <React.Fragment key={`${keyPrefix}-tail-${partIndex}`}>
+          {rawText.slice(cursor)}
+        </React.Fragment>
+      );
+    }
+
+    return chunks.length ? chunks : rawText;
+  };
+
+  const renderLogMessageContent = (log) => {
+    if (!Array.isArray(log?.messageParts) || !log.messageParts.length) {
+      return renderLinkedText(log.message, log.target, `${log.id}-fallback`);
+    }
+
+    return log.messageParts.map((part, index) => {
+      if (part?.type !== 'link') {
+        return <React.Fragment key={`${log.id}-text-${index}`}>{part?.text || ''}</React.Fragment>;
+      }
+
+      const route = getTargetRoute({ type: part.targetType, id: part.id });
+      if (!route) {
+        return <React.Fragment key={`${log.id}-linktext-${index}`}>{part?.text || ''}</React.Fragment>;
+      }
+
+      return (
+        <button
+          key={`${log.id}-link-${part.targetType || 'target'}-${part.id || index}`}
+          type="button"
+          className="log-actor-link log-inline-link"
+          onClick={() => navigate(route)}
+        >
+          {part.text}
+        </button>
+      );
+    });
   };
 
   const renderImportantActions = (log) => {
@@ -438,7 +528,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   const renderEmployeeImportantLog = (log) => {
     const icon = getImportantLogIcon(log);
     return (
-      <div key={log.id} className={`log-item employee-important-log${log.pinned ? ' pinned' : ''}`}>
+      <div key={log.id} className={`log-item log-item--with-actions employee-important-log${log.pinned ? ' pinned' : ''}`}>
         <div className={`log-item__icon employee-important-log__icon tone-${icon.tone}`}>{icon.symbol}</div>
         <div className="log-item__body">
           <div className="log-header">
@@ -459,7 +549,9 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
               onChange={e => setEditText(e.target.value)}
             />
           ) : (
-            <div className="log-message">{log.message}</div>
+            <>
+              <div className="log-message">{renderLogMessageContent(log)}</div>
+            </>
           )}
         </div>
         {renderImportantActions(log)}
