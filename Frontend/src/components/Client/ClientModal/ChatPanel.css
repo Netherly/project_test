@@ -62,9 +62,9 @@
   margin-bottom: 8px;
   position: relative;
   overflow: visible;   /* чтобы выпадающее меню не обрезалось */
-  transition: background .2s, border-color .2s;
+  transition: background .2s, border-color .2s, box-shadow .2s;
 }
-.log-item:hover {
+.log-item:not(.employee-important-log):hover {
   background: var(--container-hover-bg);
 }
 /* ────────── Закреплённая карточка ────────── */
@@ -74,6 +74,100 @@
   top: 0;                           
   z-index: 1;                       
   /* чуть светлее фон, чтобы выделить */
+}
+
+.employee-important-log {
+  background: linear-gradient(180deg, rgba(28, 46, 73, 0.92), rgba(21, 35, 58, 0.92));
+  border-color: rgba(122, 166, 227, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(74, 116, 175, 0.12);
+}
+
+.employee-important-log:hover {
+  background: linear-gradient(180deg, rgba(28, 46, 73, 0.92), rgba(21, 35, 58, 0.92));
+  border-color: rgba(160, 194, 241, 0.62);
+  box-shadow:
+    inset 0 0 0 1px rgba(110, 152, 214, 0.18),
+    0 0 0 1px rgba(110, 152, 214, 0.12);
+}
+
+.employee-important-log.pinned {
+  border-color: rgba(244, 196, 48, 0.72);
+}
+
+.employee-important-log.pinned:hover {
+  border-color: rgba(244, 208, 96, 0.88);
+  box-shadow:
+    inset 0 0 0 1px rgba(244, 196, 48, 0.16),
+    0 0 0 1px rgba(244, 196, 48, 0.1);
+}
+
+.employee-important-log .log-message {
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.employee-important-log .log-target-link {
+  margin-top: 10px;
+}
+
+.employee-important-log .log-actions {
+  top: 12px;
+}
+
+.log-item--with-actions {
+  padding-right: 212px;
+}
+
+.employee-important-log__icon {
+  border-radius: 999px;
+  width: 38px;
+  height: 38px;
+  font-weight: 700;
+  border-width: 2px;
+}
+
+.employee-important-log__icon.tone-note {
+  color: #57d78c;
+  border-color: rgba(87, 215, 140, 0.5);
+}
+
+.employee-important-log__icon.tone-transaction {
+  color: #6db5ff;
+  border-color: rgba(109, 181, 255, 0.5);
+}
+
+.employee-important-log__icon.tone-asset {
+  color: #f4c430;
+  border-color: rgba(244, 196, 48, 0.45);
+}
+
+.employee-important-log__icon.tone-danger {
+  color: #ff8d8d;
+  border-color: rgba(255, 141, 141, 0.45);
+}
+
+.employee-important-log__icon.tone-create {
+  color: #92b8ff;
+  border-color: rgba(146, 184, 255, 0.45);
+}
+
+.employee-log-row {
+  padding: 6px 4px 8px;
+  margin-bottom: 8px;
+  color: rgba(227, 233, 244, 0.82);
+}
+
+.employee-log-row__meta {
+  font-size: 0.92rem;
+  color: rgba(176, 190, 215, 0.9);
+  margin-bottom: 3px;
+}
+
+.employee-log-row__message {
+  font-size: 0.97rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 
@@ -115,6 +209,27 @@
   opacity: 0.85;
 }
 
+.log-inline-link {
+  display: inline;
+  vertical-align: baseline;
+}
+
+.log-target-link {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #9fc4ff;
+  font-size: 0.92rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.log-target-link:hover {
+  color: #c3dcff;
+}
+
 /* ────────── Текст сообщения ────────── */
 .log-message,
 .log-edit-textarea {
@@ -136,11 +251,14 @@
   position: absolute;
   top: 40px;
   right: 12px;
-  background: var(--container-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 6px;
-  padding: 4px 0;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  width: min(176px, calc(100% - 24px));
+  min-width: 176px;
+  background: linear-gradient(180deg, rgba(34, 39, 59, 0.98), rgba(23, 28, 45, 0.98));
+  border: 1px solid rgba(126, 138, 164, 0.34);
+  border-radius: 10px;
+  padding: 6px 0;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
   list-style: none;
   opacity: 0;
   visibility: hidden;
@@ -168,16 +286,33 @@
   font-size: 0.9rem;
   color: var(--container-text-color);
   cursor: pointer;
-  transition: background .2s;
+  transition: background .2s, color .2s;
 }
 .log-actions .action-btn:hover {
-  background: var(--container-hover-bg);
+  background: rgba(47, 54, 79, 0.9);
+}
+.log-actions .action-btn.pin:hover {
+  background: rgba(244, 196, 48, 0.12);
+}
+.log-actions .action-btn.delete:hover {
+  background: rgba(255, 107, 107, 0.12);
+}
+.log-actions .action-btn.edit:hover,
+.log-actions .action-btn.save:hover,
+.log-actions .action-btn.cancel:hover {
+  background: rgba(98, 156, 255, 0.12);
 }
 .log-actions .action-btn.pin    { color: #ffd700; }
 .log-actions .action-btn.delete { color: #ff6b6b; }
 .log-actions .action-btn.edit   { color: var(--chips-color); }
-.log-actions .action-btn.save   { color: var(--button-text); }
+.log-actions .action-btn.save   { color: var(--text-color); }
 .log-actions .action-btn.cancel { color: var(--chips-color); }
+
+@media (max-width: 860px) {
+  .log-item--with-actions {
+    padding-right: 12px;
+  }
+}
 
 /* ────────── Поле ввода внизу ────────── */
 .chat-input-wrapper {

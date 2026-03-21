@@ -4,6 +4,7 @@ const path = require('path');
 const { hasTable } = require('../utils/db-schema');
 const { buildCountryNames, normalizeIso2, normalizeIso3 } = require('../utils/country-localization');
 const { httpErr } = require('../utils/http-error');
+const { createTtlCache } = require('../utils/ttl-cache');
 
 /* ==============================
    FS utils
@@ -15,7 +16,7 @@ const ensureDir = (dir) => {
 const UPLOADS_ROOT = path.join(__dirname, '..', '..', 'uploads');
 const CARD_DIR = path.join(UPLOADS_ROOT, 'card-designs');
 ensureDir(CARD_DIR);
-const MAX_CARD_DESIGN_BYTES = 2 * 1024 * 1024;
+const MAX_CARD_DESIGN_BYTES = 5 * 1024 * 1024;
 
 const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const EXTRA_FIELDS_CONFIG_KEY = 'fields.extra';
@@ -191,6 +192,10 @@ const EXTRA_FIELD_LINK_CONFIGS = {
     deleteUnused: true,
   },
 };
+const fieldsBundleCache = createTtlCache({
+  ttlMs: Number(process.env.FIELDS_BUNDLE_CACHE_TTL_MS || 60_000),
+  maxEntries: 4,
+});
 
 async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(dataUrl || '');
@@ -198,7 +203,7 @@ async function saveDataUrlToFile(dataUrl, fileBaseName) {
   const mime = m[1];
   const buf = Buffer.from(m[2], 'base64');
   if (buf.length > MAX_CARD_DESIGN_BYTES) {
-    throw httpErr('Размер файла превышает 2 МБ');
+    throw httpErr('Размер файла превышает 5 МБ');
   }
   const ext = (mime.split('/')[1] || 'png').toLowerCase();
   const fileName = `${fileBaseName}.${ext}`;
@@ -953,19 +958,23 @@ async function upsertTags(
 
     await tx.tag.upsert({
       where: { name_categoryId: { name, categoryId: tagCategory.id } },
-      update: { color },
-      create: { id: rid(), name, color, categoryId: tagCategory.id },
+      update: { color, isActive: true },
+      create: { id: rid(), name, color, categoryId: tagCategory.id, isActive: true },
     });
   }
 
-  await tx.tag.deleteMany({
+  await tx.tag.updateMany({
     where: {
       categoryId: tagCategory.id,
       name: { notIn: Array.from(desiredNames) },
     },
+    data: { isActive: false },
   });
 
-  return tx.tag.findMany({ where: { categoryId: tagCategory.id }, orderBy: { name: 'asc' } });
+  return tx.tag.findMany({
+    where: { categoryId: tagCategory.id, isActive: true },
+    orderBy: { name: 'asc' },
+  });
 }
 
 /* ==============================
@@ -1051,7 +1060,7 @@ async function getAll(db) {
   const tagsByCode = async (code) => {
     const categoryId = tagCategoryByCode.get(code);
     if (!categoryId) return [];
-    return _db.tag.findMany({ where: { categoryId }, orderBy: { name: 'asc' } });
+    return _db.tag.findMany({ where: { categoryId, isActive: true }, orderBy: { name: 'asc' } });
   };
 
   const [
@@ -1298,6 +1307,7 @@ async function getInactive(db) {
     discountReasons,
     typeWorks,
     cardDesigns,
+    tagCategories,
   ] = await Promise.all([
     _db.currencyDict.findMany({ ...whereInactive, orderBy: { code: 'asc' } }),
     _db.country.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
@@ -1343,6 +1353,7 @@ async function getInactive(db) {
       ? _db.sundryTypeWorkDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
       : [],
     _db.cardDesign.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.tagCategory.findMany({ select: { id: true, code: true } }),
   ]);
 
   const extraBusinessLine = normalizeExtraFieldList(extraFields?.generalFields?.businessLine);
@@ -1398,6 +1409,32 @@ async function getInactive(db) {
     collectLinkedIdsForRows(_db, extraClientBusiness, EXTRA_FIELD_LINK_CONFIGS['clientFields.business']),
   ]);
 
+  const tagCategoryByCode = new Map(tagCategories.map((c) => [c.code, c.id]));
+  const tagsByCode = async (code) => {
+    const categoryId = tagCategoryByCode.get(code);
+    if (!categoryId) return [];
+    return _db.tag.findMany({ where: { categoryId, isActive: false }, orderBy: { name: 'asc' } });
+  };
+
+  const [
+    orderTags,
+    orderTechTags,
+    orderTaskTags,
+    clientTags,
+    companyTags,
+    employeeTags,
+    taskTags,
+  ] = await Promise.all([
+    tagsByCode('order'),
+    tagsByCode('order-tech'),
+    tagsByCode('order-task'),
+    tagsByCode('client'),
+    tagsByCode('company'),
+    tagsByCode('employee'),
+    tagsByCode('task'),
+  ]);
+
+  const mapTags = (list) => list.map((t) => ({ id: t.id, name: t.name, color: t.color }));
   const emptyArr = [];
 
   return {
@@ -1436,9 +1473,9 @@ async function getInactive(db) {
       })),
       minOrderAmount: inactiveExtraValues(extraFields?.orderFields?.minOrderAmount, linkedMinOrderAmountIds),
       readySolution: inactiveExtraValues(extraFields?.orderFields?.readySolution, linkedReadySolutionIds),
-      tags: emptyArr,
-      techTags: emptyArr,
-      taskTags: emptyArr,
+      tags: mapTags(orderTags),
+      techTags: mapTags(orderTechTags),
+      taskTags: mapTags(orderTaskTags),
       statuses: statuses.map((item) => ({ id: item.id, name: item.name, isLinked: linkedOrderStatusIds.has(item.id) })),
       closeReasons: closeReasons.map((item) => ({
         id: item.id,
@@ -1478,18 +1515,18 @@ async function getInactive(db) {
         name: c.name || c.code,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
-      tags: emptyArr,
+      tags: mapTags(clientTags),
       groups: emptyArr,
     },
     companyFields: {
-      tags: emptyArr,
+      tags: mapTags(companyTags),
     },
     employeeFields: {
       country: countries.map((country) => ({
         ...mapCountry(country),
         isLinked: linkedCountryIds.has(country.id),
       })),
-      tags: emptyArr,
+      tags: mapTags(employeeTags),
     },
     assetsFields: {
       currency: currencies.map((c) => ({
@@ -1534,7 +1571,7 @@ async function getInactive(db) {
       typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name, isLinked: linkedTypeWorkIds.has(t.id) })),
     },
     taskFields: {
-      tags: emptyArr,
+      tags: mapTags(taskTags),
     },
   };
 }
@@ -1920,9 +1957,13 @@ async function saveAll(payload) {
 }
 
 module.exports = {
-  loadBundle: () => getAll(),
-  saveBundle: (payload) => saveAll(payload),
-  loadInactiveBundle: () => getInactive(),
+  loadBundle: () => fieldsBundleCache.getOrLoad('active', () => getAll()),
+  saveBundle: async (payload) => {
+    const data = await saveAll(payload);
+    fieldsBundleCache.clearAll();
+    return data;
+  },
+  loadInactiveBundle: () => fieldsBundleCache.getOrLoad('inactive', () => getInactive()),
   getAll,
   saveAll,
   getInactive,

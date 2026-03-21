@@ -55,6 +55,13 @@ function activityPath(entityType, entityId) {
   throw new Error(`Unsupported entityType: ${entityType}`);
 }
 
+function activityLogPath(entityType, entityId, logId) {
+  const basePath = activityPath(entityType, entityId);
+  const id = String(logId || '').trim();
+  if (!id) throw new Error('logId is required');
+  return `${basePath}/${id}`;
+}
+
 export const api = {
   // === AUTH ===
   async login({ login, password }) {
@@ -171,6 +178,56 @@ export const api = {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = new Error(data?.message || data?.error || 'Ошибка добавления заметки');
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data?.data ?? null;
+  },
+
+  async updateActivityNote({ entityType, entityId, logId, message }) {
+    const res = await fetch(url(activityLogPath(entityType, entityId, logId)), {
+      method: 'PATCH',
+      headers: authHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ message }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.error || 'Ошибка обновления заметки');
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data?.data ?? null;
+  },
+
+  async deleteActivityNote({ entityType, entityId, logId }) {
+    const res = await fetch(url(activityLogPath(entityType, entityId, logId)), {
+      method: 'DELETE',
+      headers: authHeaders(),
+      credentials: 'include',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.error || 'Ошибка удаления заметки');
+      err.status = res.status;
+      err.payload = data;
+      throw err;
+    }
+    return data?.ok === true;
+  },
+
+  async pinActivityLog({ entityType, entityId, logId, pinned }) {
+    const res = await fetch(url(`${activityLogPath(entityType, entityId, logId)}/pin`), {
+      method: 'PATCH',
+      headers: authHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ pinned }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.error || 'Ошибка закрепления заметки');
       err.status = res.status;
       err.payload = data;
       throw err;

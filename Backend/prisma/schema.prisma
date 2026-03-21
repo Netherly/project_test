@@ -23,6 +23,7 @@ model Tag {
   name       String        @db.VarChar(100)
   color      String        @db.VarChar(16)
   categoryId String
+  isActive   Boolean       @default(true)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -359,6 +360,11 @@ model Employee {
   clients              Client[]          @relation("ManagerClients")
 
   tasks                Task[]
+
+  @@index([companyId])
+  @@index([roleId])
+  @@index([countryId])
+  @@index([currencyId])
 }
 
 model AppConfig {
@@ -499,6 +505,14 @@ model Client {
   tasks             Task[]
   transactions      Transaction[]        @relation("ClientTransactions")
   tags              ClientTag[]
+
+  @@index([groupId])
+  @@index([categoryId])
+  @@index([sourceId])
+  @@index([countryId])
+  @@index([currencyId])
+  @@index([managerId])
+  @@index([companyId])
 }
 
 model Credential {
@@ -611,6 +625,7 @@ model Order {
 
   @@index([clientId, createdAt])
   @@index([currencyId])
+  @@index([employeeId])
   @@index([stage, stageIndex])
   @@index([orderSequence])
   @@map("orders")
@@ -685,6 +700,10 @@ model Task {
   client             Client?  @relation(fields: [clientId], references: [id])
   company            Company? @relation(fields: [companyId], references: [id])
   employee           Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([clientId])
+  @@index([companyId])
 }
 
 
@@ -770,6 +789,7 @@ model Transaction {
   @@index([operation])
   @@index([categoryId])
   @@index([subcategoryId])
+  @@index([orderId])
   @@index([employeeId])
 }
 
@@ -807,6 +827,9 @@ model RegularPayment {
   @@index([nextPaymentDate])
   @@index([status])
   @@index([accountId])
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([orderId])
 }
 
 /* =========================
@@ -885,6 +908,9 @@ model Asset {
   regularPayments      RegularPayment[]
 
   @@index([currencyId])
+  @@index([typeId])
+  @@index([paymentSystemId])
+  @@index([cardDesignId])
   @@index([employeeId])
   @@index([companyId])
 }
