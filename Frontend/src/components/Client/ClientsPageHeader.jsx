@@ -367,6 +367,7 @@ export default function ClientsPageHeader({
             </div>
 
             <div className={styles.searchFieldGroup}>
+              {/* ИСПРАВЛЕНО */}
               <label>Теги</label>
               <MultiTagSelect
                 options={tagOptions}
@@ -374,13 +375,6 @@ export default function ClientsPageHeader({
                 onChange={handleChange("tags")}
                 placeholder="Выберите теги"
               />
-              {!!filters.tags.length && (
-                <span
-                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
-                  onClick={() => setFilters(f => ({ ...f, tags: [] }))}
-                  title="Очистить"
-                >×</span>
-              )}
             </div>
 
             <div className={styles.searchFieldGroup}>
