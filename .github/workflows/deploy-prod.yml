@@ -336,11 +336,11 @@ PY
             mkdir -p "$RELEASE_DIR/new"
             tar -xzf "${{ env.DEPLOY_TMP_DIR }}/backend.tgz" -C "$RELEASE_DIR/new"
             if [ -d "$RELEASE_DIR/new/backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             elif [ -d "$RELEASE_DIR/new/Backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude=".schema.sha256" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
             fi
             rm -f "${{ env.DEPLOY_TMP_DIR }}/backend.tgz"
 
