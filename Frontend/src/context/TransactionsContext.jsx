@@ -15,6 +15,7 @@ import {
   hasDataChanged,
   readCacheSnapshot,
   readCachedValue,
+  RESOURCE_CACHE_EVENT,
   writeCachedValue,
 } from '../utils/resourceCache';
 
@@ -373,6 +374,25 @@ export const TransactionsProvider = ({ children, authReady, isAuthenticated }) =
       mounted = false;
     };
   }, [authReady, isAuthenticated]);
+
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== 'fieldsData') return;
+
+      try {
+        const nextFinanceFields =
+          withDefaults(event.detail.value).financeFields || EMPTY_FINANCE_FIELDS;
+        setFinanceFields((prev) =>
+          hasDataChanged(prev, nextFinanceFields) ? nextFinanceFields : prev
+        );
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!cacheWriteStateRef.current.transactions) {

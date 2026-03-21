@@ -14,7 +14,7 @@ import ActionsBar from "./ActionsBar";
 import ImagePreviewModal from "../ImagePreviewModal";
 
 import { useFields } from "../../../context/FieldsContext";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../../api/fields";
 import { rid } from "../../../utils/rid";
 
 import "../../../styles/ClientModal.css";
@@ -105,30 +105,10 @@ export default function ClientModal({
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find(
-        (item) => item.value && item.value.toLowerCase() === newValue.toLowerCase()
-      );
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          isDeleted: false,
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-        await loadFields();
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      await addFieldOption(group, fieldName, newValue);
+      await loadFields();
+      if (refreshFields) {
+        await refreshFields();
       }
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
@@ -244,7 +224,12 @@ export default function ClientModal({
       <div className="client-modal tri-layout">
         <div className="left-panel">
           <FormProvider {...methods}>
-            <ClientHeader onClose={closeHandler} onDelete={onDelete ? deleteHandler : null} />
+            <ClientHeader
+              onClose={closeHandler}
+              onDelete={onDelete ? deleteHandler : null}
+              tagOptions={fieldOptions.tags}
+              onAddNewField={handleAddNewField}
+            />
           </FormProvider>
 
           <TabsNav

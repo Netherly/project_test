@@ -19,6 +19,7 @@ import {
   readCacheSnapshot,
   writeCachedValue,
 } from "../utils/resourceCache";
+import { buildEntityPath } from "../utils/entityRoutes";
 
 
 const statusToEmojiMap = {
@@ -539,7 +540,7 @@ export default function ClientsPage() {
   const openEdit = (c) => {
     if (c?.id) {
       navigate({
-        pathname: `/clients/${c.id}`,
+        pathname: buildEntityPath("/clients", c),
         search: currentSearch,
       });
     } else {

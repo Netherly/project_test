@@ -11,6 +11,8 @@ import SummaryTab from './tabs/SummaryTab';
 import CompanyEmployeesTab from './tabs/CompanyEmployeesTab';
 import AccessTab from './tabs/AccessTab';
 import CompanyFinancesTab from './tabs/CompanyFinancesTab';
+import { useFields } from '../../../context/FieldsContext';
+import { addFieldOption, withDefaults } from '../../../api/fields';
 
 import '../../../styles/ExecutorModal.css'; 
 
@@ -24,6 +26,7 @@ export default function CompanyModal({
 }) {
     const safeCompany = company ?? {};
     const isNew = !safeCompany.id;
+    const { fields, refreshFields } = useFields();
 
     const [activeTab, setActiveTab] = useState('summary'); 
     const [closing, setClosing] = useState(false);
@@ -109,6 +112,22 @@ export default function CompanyModal({
         setShowDeleteConfirm(false);
     };
 
+    const companyTagOptions = useMemo(
+        () => withDefaults(fields || {}).companyFields?.tags || [],
+        [fields]
+    );
+
+    const handleAddNewField = async (group, fieldName, newValue) => {
+        try {
+            await addFieldOption(group, fieldName, newValue);
+            if (refreshFields) {
+                await refreshFields();
+            }
+        } catch (error) {
+            console.error("Ошибка при сохранении нового поля в БД:", error);
+        }
+    };
+
     return (
         <div className={`employee-modal-overlay ${isOpen ? 'open' : ''} ${closing ? 'closing' : ''}`} onClick={closeHandler}>
             <div className="employee-modal tri-layout" onClick={(e) => e.stopPropagation()}>
@@ -127,6 +146,8 @@ export default function CompanyModal({
                                 isDirty={isDirty}
                                 reset={reset}
                                 firstContactName={firstContactName} 
+                                tagOptions={companyTagOptions}
+                                onAddNewField={handleAddNewField}
                             />
 
                             <CompanyTabsNav

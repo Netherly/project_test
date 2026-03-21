@@ -15,7 +15,7 @@ import ChatPanel from "../../Client/ClientModal/ChatPanel";
 
 import { normalizeEmployee } from "../../../api/employees";
 import { useFields } from "../../../context/FieldsContext";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../../api/fields";
 import { fetchTransactions } from "../../../api/transactions";
 import { fetchAssets } from "../../../api/assets";
 import { fetchOrders } from "../../../api/orders";
@@ -55,30 +55,13 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          isDeleted: false,
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      const normalized = await addFieldOption(group, fieldName, newValue);
+      setAppData((prev) => ({
+        ...prev,
+        fields: normalized || prev.fields,
+      }));
+      if (refreshFields) {
+        await refreshFields();
       }
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
@@ -216,6 +199,8 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 onDelete={!isNew && onDelete ? deleteHandler : null}
                 isDirty={isDirty}
                 reset={reset}
+                tagOptions={appData.fields?.employeeFields?.tags || []}
+                onAddNewField={handleAddNewField}
               />
 
               <TabsNav activeTab={activeTab} setActiveTab={setActiveTab} errors={groupErrors(errors)} isNew={isNew} />

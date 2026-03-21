@@ -12,6 +12,7 @@ import {
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 import { isForbiddenError } from "../utils/isForbiddenError";
+import { buildEntityPath, matchesEntityRouteParam } from "../utils/entityRoutes";
 import "../styles/ClientsPage.css";
 
 const withReferrerNames = (client) => {
@@ -86,7 +87,7 @@ export default function ClientDetailsPage() {
         if (!clientId || clientId === "new") {
           setClient({});
         } else {
-          const found = normalized.find((c) => String(c.id) === String(clientId));
+          const found = normalized.find((c) => matchesEntityRouteParam(c, clientId));
           if (found) {
             setClient(found);
           } else {
@@ -118,6 +119,15 @@ export default function ClientDetailsPage() {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
       setClient(saved);
+      if (clientId === "new" && saved?.id) {
+        navigate(
+          {
+            pathname: buildEntityPath("/clients", saved),
+            search: location.search,
+          },
+          { replace: true }
+        );
+      }
       return saved;
     } catch (e) {
       console.error("saveClient failed:", e);

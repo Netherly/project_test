@@ -18,6 +18,7 @@ import {
   readCacheSnapshot,
   writeCachedValue,
 } from "../../utils/resourceCache";
+import { buildEntityPath } from "../../utils/entityRoutes";
 
 const formatDate = (dateString) => {
   if (!dateString) return "";
@@ -186,7 +187,7 @@ const EmployeePage = () => {
 
   const handleOpenEmployee = (employee = null) => {
     if (employee?.id) {
-      navigate(`/employees/${employee.id}`);
+      navigate(buildEntityPath("/employees", employee));
     } else {
       navigate("/employees/new");
     }
