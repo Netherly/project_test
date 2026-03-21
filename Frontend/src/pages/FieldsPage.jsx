@@ -1651,6 +1651,38 @@ function FieldsPage() {
     });
   };
 
+  const requestDeleteInterval = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.intervalValue),
+      onToggle: () => toggleDeleteInterval(index),
+    });
+  };
+
+  const requestDeleteCategory = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.categoryInterval, item?.categoryValue),
+      onToggle: () => toggleDeleteCategory(index),
+    });
+  };
+
+  const requestDeleteArticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.articleValue),
+      onToggle: () => toggleDeleteArticle(index),
+    });
+  };
+
+  const requestDeleteSubarticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.subarticleInterval, item?.subarticleValue),
+      onToggle: () => toggleDeleteSubarticle(index),
+    });
+  };
+
   const toggleTagDelete = (group, field, id) => {
     const list = selectedValues[group]?.[field] || [];
     const index = list.findIndex((item) => item.id === id);
