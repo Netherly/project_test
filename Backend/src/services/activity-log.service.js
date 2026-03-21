@@ -135,11 +135,13 @@ const logActivity = async ({
   actorName,
   message,
   changes,
+  meta,
   ip,
   userAgent,
 }) => {
   if (!entityType || !entityId || !action) return null;
   const resolvedActorName = await resolveActorName(actorId, actorName);
+  const preparedChanges = meta ? applyLogMeta(changes, meta) : changes ?? null;
 
   return prisma.activityLog.create({
     data: {
@@ -150,7 +152,7 @@ const logActivity = async ({
       actorId: actorId || null,
       actorName: resolvedActorName,
       message: message ?? null,
-      changes: changes ?? null,
+      changes: preparedChanges,
       ip: sanitizeIp(ip),
       userAgent: sanitizeUserAgent(userAgent),
     },
@@ -172,6 +174,7 @@ const decorateLog = (log) => {
   return {
     ...log,
     changes: cleanChanges,
+    target: isPlainObject(meta?.target) ? meta.target : null,
     pinned: Boolean(meta?.pinned),
     important: presentation === 'important',
     presentation,

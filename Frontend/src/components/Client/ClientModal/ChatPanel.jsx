@@ -170,6 +170,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     action: log.action,
     source: log.source,
     changes: log.changes,
+    target: log.target || null,
     pinned: Boolean(log.pinned),
     important: Boolean(log.important ?? getRemotePresentation(log) !== 'inline'),
     presentation: getRemotePresentation(log),
@@ -391,6 +392,21 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     return <span>{log.author}</span>;
   };
 
+  const getTargetRoute = (target) => {
+    if (!target?.id) return null;
+    if (target.type === 'transaction') return `/list/${target.id}`;
+    if (target.type === 'asset') return `/assets/${target.id}`;
+    if (target.type === 'employee') return `/employees/${target.id}`;
+    return null;
+  };
+
+  const getTargetLabel = (target) => {
+    if (target?.type === 'transaction') return 'Открыть транзакцию';
+    if (target?.type === 'asset') return 'Открыть актив';
+    if (target?.type === 'employee') return 'Открыть сотрудника';
+    return 'Открыть';
+  };
+
   const getImportantLogIcon = (log) => {
     if (log.action === 'note') return { symbol: '✓', tone: 'note' };
     if (String(log.action || '').includes('transaction')) return { symbol: '₴', tone: 'transaction' };
@@ -437,6 +453,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
 
   const renderEmployeeImportantLog = (log) => {
     const icon = getImportantLogIcon(log);
+    const targetRoute = getTargetRoute(log.target);
     return (
       <div key={log.id} className={`log-item log-item--with-actions employee-important-log${log.pinned ? ' pinned' : ''}`}>
         <div className={`log-item__icon employee-important-log__icon tone-${icon.tone}`}>{icon.symbol}</div>
@@ -459,7 +476,18 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
               onChange={e => setEditText(e.target.value)}
             />
           ) : (
-            <div className="log-message">{log.message}</div>
+            <>
+              <div className="log-message">{log.message}</div>
+              {targetRoute && (
+                <button
+                  type="button"
+                  className="log-target-link"
+                  onClick={() => navigate(targetRoute)}
+                >
+                  {getTargetLabel(log.target)}
+                </button>
+              )}
+            </>
           )}
         </div>
         {renderImportantActions(log)}
