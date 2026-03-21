@@ -32,7 +32,6 @@ const normalizeNullableId = (value) => {
   if (value === null || value === "") return null;
   return isUuid(value) ? value : null;
 };
-
 const normalizeNullableString = (value) => {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
@@ -73,11 +72,15 @@ const normalizeAccesses = (arr) => {
 };
 
 const normalizeGroup = (value) => {
-  if (value === undefined || value === null || value === "") return null;
-  if (typeof value === "object") {
-    const order = value.order ?? value.value ?? value.code;
-    return order ?? null;
+  if (value === undefined || value === null || value === "" || value === 0 || value === "0") {
+    return 2;
   }
+  if (typeof value === "object") {
+    const order = Number(value.order ?? value.value ?? value.code);
+    return Number.isFinite(order) && order > 0 ? order : 2;
+  }
+  const asNumber = Number(value);
+  if (Number.isFinite(asNumber) && asNumber <= 0) return 2;
   return value;
 };
 
@@ -175,7 +178,9 @@ export const serializeClient = (payload = {}) => {
   delete data.referrerName;
   delete data.referrerFirstName;
   delete data.shareInfo;
-
+  delete data.group;
+  delete data.groupOrder;
+  delete data.group_order;
   return data;
 };
 
