@@ -80,7 +80,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     sendLion: transaction.sendLion || false,
     receivedCounterparty: transaction.receivedCounterparty || false,
   });
-  
 
   const [currentRates, setCurrentRates] = useState(null);
   const [showCommissionField, setShowCommissionField] = useState(false);
@@ -90,7 +89,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [showUnsavedChangesConfirmation, setShowUnsavedChangesConfirmation] = useState(false);
 
-  
   const availableSubcategories = useMemo(() => {
     if (!formData.category || !financeFields?.subarticles) {
       return [];
@@ -99,9 +97,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
       (sub) => getSubarticleInterval(sub) === formData.category
     );
   }, [formData.category, financeFields]);
-
-
-
 
   useEffect(() => {
     try {
@@ -112,9 +107,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
           setCurrentRates(rates[0]);
         }
       }
-    } catch (error) {
-      console.error("Ошибка загрузки курсов из localStorage:", error);
-    }
+    } catch (error) {}
   }, []);
 
   const formatRequisite = (req) => {
@@ -149,7 +142,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     }
 
     if (rate === undefined) {
-      console.warn(`Курс для ${fromCurrency} -> ${toCurrency} не найден.`);
       return "";
     }
 
@@ -177,13 +169,11 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     }
   }, [formData.amount, formData.accountCurrency, currentRates]);
 
-
   useEffect(() => {
     setShowCommissionField(formData.category === "Смена счета" && parseFloat(formData.amount) > 0);
     setShowOrderBlock(!!formData.orderId);
     setShowSecondAccountBlock(formData.category === "Смена счета");
   }, [formData.category, formData.amount, formData.orderId]);
-  
   
   const hasUnsavedChanges = () => {
     const currentData = { ...formData, date: formData.date.replace("T", " ") };
@@ -192,7 +182,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     for (const key in originalData) {
       if (key in currentData) {
         if (key === "date") {
-          
           if (new Date(currentData[key]).setSeconds(0,0) !== new Date(originalData[key]).setSeconds(0,0)) {
             return true;
           }
@@ -207,7 +196,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     }
     return false;
   };
-
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -397,7 +385,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     setShowOptionsMenu(false);
   };
 
-  
   const handleCloseModal = () => {
     if (hasUnsavedChanges()) {
       setShowUnsavedChangesConfirmation(true);
@@ -440,7 +427,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
     return availableSubcategories.filter(s => !s.isDeleted).map(getSubarticleValue).filter(Boolean);
   }, [availableSubcategories]);
 
-
   return (
     <div className="add-transaction-overlay" onClick={handleCloseModal}>
       <div className="add-transaction-modal" onClick={(e) => e.stopPropagation()}>
@@ -448,7 +434,7 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
           <h2>Информация о транзакции</h2>
           <div className="add-transaction-actions">
                <button className="options-button" onClick={handleMenuToggle}>
-                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" color="white" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" color="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-ellipsis-vertical-icon lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                </button>
                {showOptionsMenu && (
                  <div className="options-menu">
@@ -476,7 +462,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             />
           </div>
 
-          
           <div className="form-row">
             <label htmlFor="category" className="form-label">Статья</label>
             <CreatableSelect
@@ -520,7 +505,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             />
           </div>
           
-          
           <div className="form-row">
             <label htmlFor="account" className="form-label">
               {showSecondAccountBlock ? "Счет списания" : "Счет"} 
@@ -541,14 +525,12 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             </select>
           </div>
 
-
           <div className="form-row">
                 <label className="form-label">Баланс до</label>
                 <span className="form-input1">
                   {formatNumberWithSpaces(transaction.balanceBefore)}
                 </span>
           </div>
-
           
           <div className="form-row">
               <label htmlFor="operation" className="form-label">
@@ -616,7 +598,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
                 </button>
               </div>
             </div>
-
 
             {formData.amount && (
               <div className="currency-recalculation-block">
@@ -749,7 +730,6 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
               </select>
             </div>
 
-
             {showOrderBlock && (
               <div className="order-details-block">
                 <div className="form-row">
@@ -822,16 +802,15 @@ const ViewEditTransactionModal = ({ transaction, onUpdate, onClose, onDelete, on
             </div>
 
             <div className="form-row second-checkbox-row">
-              <label htmlFor="receivedCounterparty" className="form-label">
+              <label htmlFor="inArchive" className="form-label">
                 В архиве
               </label>
               <input
                 type="checkbox"
-                id="receivedCounterparty"
-                name="receivedCounterparty"
+                id="inArchive"
+                name="inArchive"
                 checked={true} 
                 disabled={true}
-                onChange={handleChange}
                 className="form-checkbox"
               />
             </div>

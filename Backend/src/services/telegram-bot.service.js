@@ -1,4 +1,5 @@
 const { httpErr } = require('../utils/http-error');
+const { getTelegramBotToken } = require('../utils/telegram-token');
 
 const BOT_USERNAME_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -13,7 +14,7 @@ function isBotDisabled() {
 }
 
 function getBotToken() {
-  return String(process.env.TELEGRAM_BOT_TOKEN || '').trim();
+  return getTelegramBotToken();
 }
 
 function getConfiguredBotName() {

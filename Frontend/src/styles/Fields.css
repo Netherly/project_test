@@ -34,27 +34,41 @@
     position: relative;
 }
 
-.header-action-btn {
+/* --- СТИЛИ ДЛЯ НОВЫХ КНОПОК (ИДЕНТИЧНО ЖУРНАЛУ) --- */
+.fields-view-toggle-buttons {
+    display: flex;
+    gap: 5px; 
+    padding: 0 15px;
+    height: 100%;
+    align-items: center;
+    border-left: 1px solid var(--border--color);
+}
+
+.fields-view-mode-button {
     background-color: transparent;
     border: none;
-    color: white;
-    padding: 0 15px;
-    border-right: 1px solid var(--border--color);
+    padding: 8px 12px;
+    border-radius: 6px; 
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    font-size: 1.2em;
+    color: var(--chips-color);
+    transition: background-color 0.2s, color 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 40px;
+    height: 40px;
 }
 
-.header-action-btn:hover {
-    background-color: var(--input-border-focus);
+.fields-view-mode-button:hover {
+    color: var(--text-color);
 }
 
-.header-action-btn.active {
+.fields-view-mode-button.active {
     background-color: #478cff;
     color: white;
 }
+/* --------------------------------------------------- */
 
 .header-title{
     font-size: 22px;
@@ -71,16 +85,6 @@
     align-items: center;
     position: relative;
     padding: 0px 15px 0px 15px;
-}
-
-.header-left::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
-    width: 1px;
-    background-color: var(--border--color);
 }
 
 .header-actions {

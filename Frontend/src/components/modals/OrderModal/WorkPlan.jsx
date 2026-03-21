@@ -57,28 +57,8 @@ const WorkPlan = ({ control, orderFields, onAddNewField }) => {
     .map((t) => (typeof t === "string" ? t : t?.name))
     .filter(Boolean);
 
-  const fallbackTechTags = [
-    "React",
-    "Node.js",
-    "JavaScript",
-    "Python",
-    "Vue",
-    "TypeScript",
-    "MongoDB",
-    "PostgreSQL",
-  ];
-
-  const fallbackTaskTags = [
-    "Разработка",
-    "Тестирование",
-    "Дизайн",
-    "Реализация",
-    "Аналитика",
-    "Документация",
-  ];
-
-  const techOptions = defaultTechTags.length ? defaultTechTags : fallbackTechTags;
-  const taskOptions = defaultTaskTags.length ? defaultTaskTags : fallbackTaskTags;
+  const techOptions = defaultTechTags;
+  const taskOptions = defaultTaskTags;
 
   const descriptionOptions = ["Описание 1", "Описание 2", "Описание 3"];
 

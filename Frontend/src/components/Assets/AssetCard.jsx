@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "../../styles/AssetCard.css";
 import { X } from "lucide-react";
+import { withCacheVersion } from "../../api/http";
 import {
   getCardDesignFallback,
   normalizeCardDesignName,
@@ -20,6 +21,7 @@ const AssetCard = ({
   onCopyValue,
   onCopyRequisites,
   cardDesigns = [],
+  designVersion = "",
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -90,11 +92,12 @@ const AssetCard = ({
       designObj?.viewUrl ??
       ""
   );
+  const versionedDesignUrl = withCacheVersion(rawDesignUrl, designVersion);
 
   const [designUrl, setDesignUrl] = useState("");
 
   useEffect(() => {
-    if (!rawDesignUrl || typeof window === "undefined") {
+    if (!versionedDesignUrl || typeof window === "undefined") {
       setDesignUrl("");
       return undefined;
     }
@@ -103,17 +106,17 @@ const AssetCard = ({
     const image = new window.Image();
 
     image.onload = () => {
-      if (active) setDesignUrl(rawDesignUrl);
+      if (active) setDesignUrl(versionedDesignUrl);
     };
     image.onerror = () => {
       if (active) setDesignUrl("");
     };
-    image.src = rawDesignUrl;
+    image.src = versionedDesignUrl;
 
     return () => {
       active = false;
     };
-  }, [rawDesignUrl]);
+  }, [versionedDesignUrl]);
 
   const getCardTypeLogo = () => {
     const ps =

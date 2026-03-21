@@ -89,6 +89,14 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
     }
   };
 
+  const referrerOptionsList = useMemo(() => {
+    return allReferrers.map(r => `${r.name} (${r.group})`);
+  }, [allReferrers]);
+
+  const managerOptionsList = useMemo(() => {
+    return employees.map(e => e.full_name || e.fullName || e.name).filter(Boolean);
+  }, [employees]);
+
   return (
     <div className="tab-section finances-tab">
       <Controller
@@ -272,58 +280,42 @@ export default function FinancesTab({ currencies = [], referrers = [], employees
         name="referrer_id"
         control={control}
         rules={referrerRules}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Реферер{shareInfo && <span className="req">*</span>}</label>
-            <select
-              {...field}
-              onChange={handleReferrerChange(field, 'referrer_name')}
-              className={errors.referrer_id ? 'input-error' : ''}
-            >
-              <option value="" disabled hidden>Не выбрано</option>
-              {allReferrers.map(r => (
-                <option key={`ref-${r.id}`} value={r.id}>
-                  {r.name} ({r.group})
-                </option>
-              ))}
-            </select>
-            {errors.referrer_id && <p className="error">{errors.referrer_id.message}</p>}
-          </div>
-        )}
+        render={({ field }) => {
+          const selectedObj = allReferrers.find(r => String(r.id) === String(field.value));
+          const displayValue = selectedObj ? `${selectedObj.name} (${selectedObj.group})` : "";
+
+          return (
+            <div className="form-field">
+              <label>Реферер{shareInfo && <span className="req">*</span>}</label>
+              <CreatableSelect
+                value={displayValue}
+                onChange={(val) => {
+                  const selected = allReferrers.find(r => `${r.name} (${r.group})` === val);
+                  handleReferrerChange(field, 'referrer_name')({ target: { value: selected ? selected.id : "" } });
+                }}
+                options={referrerOptionsList}
+                placeholder="Выберите реферера..."
+                error={!!errors.referrer_id}
+              />
+              {errors.referrer_id && <p className="error">{errors.referrer_id.message}</p>}
+            </div>
+          );
+        }}
       />
 
       <Controller
         name="referrer_first_id"
         control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Первый реферер</label>
-            <select {...field} onChange={handleReferrerChange(field, 'referrer_first_name')}>
-              <option value="" disabled hidden>Не выбрано</option>
-              {allReferrers.map(r => (
-                <option key={`first-ref-${r.id}`} value={r.id}>
-                  {r.name} ({r.group})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      />
+        render={({ field }) => {
+          const selectedObj = allReferrers.find(r => String(r.id) === String(field.value));
+          const displayValue = selectedObj ? `${selectedObj.name} (${selectedObj.group})` : "";
 
-      <Controller
-        name="manager_id"
-        control={control}
-        render={({ field }) => (
-          <div className="form-field">
-            <label>Менеджер</label>
-            <select {...field}>
-              <option value="" disabled hidden>Не выбрано</option>
-              {employees.map(e => (
-                <option key={e.id} value={e.id}>{e.full_name || e.fullName || e.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+          return (
+            <div className="form-field">
+              <label>Первый реферер</label>
+            </div>
+          );
+        }}
       />
       
       <div className="tab-content-title full-width">Журнал операций</div>
