@@ -167,6 +167,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     author: log.actorName || (log.source === 'self' ? 'Самостоятельно' : 'Система'),
     actorId: log.actorId || null,
     message: buildMessage(log),
+    messageParts: Array.isArray(log.messageParts) ? log.messageParts : null,
     action: log.action,
     source: log.source,
     changes: log.changes,
@@ -400,6 +401,10 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     return null;
   };
 
+  const hasInlineMessageTargets = (log) =>
+    Array.isArray(log?.messageParts) &&
+    log.messageParts.some((part) => part?.type === 'link' && getTargetRoute({ type: part.targetType, id: part.id }));
+
   const getTargetLabel = (target) => {
     if (target?.type === 'transaction') return 'Открыть транзакцию';
     if (target?.type === 'asset') return 'Открыть актив';
@@ -413,6 +418,34 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     if (String(log.action || '').includes('asset')) return { symbol: '◆', tone: 'asset' };
     if (String(log.action || '').includes('deleted')) return { symbol: '−', tone: 'danger' };
     return { symbol: '+', tone: 'create' };
+  };
+
+  const renderLogMessageContent = (log) => {
+    if (!Array.isArray(log?.messageParts) || !log.messageParts.length) {
+      return log.message;
+    }
+
+    return log.messageParts.map((part, index) => {
+      if (part?.type !== 'link') {
+        return <React.Fragment key={`${log.id}-text-${index}`}>{part?.text || ''}</React.Fragment>;
+      }
+
+      const route = getTargetRoute({ type: part.targetType, id: part.id });
+      if (!route) {
+        return <React.Fragment key={`${log.id}-linktext-${index}`}>{part?.text || ''}</React.Fragment>;
+      }
+
+      return (
+        <button
+          key={`${log.id}-link-${part.targetType || 'target'}-${part.id || index}`}
+          type="button"
+          className="log-actor-link log-inline-link"
+          onClick={() => navigate(route)}
+        >
+          {part.text}
+        </button>
+      );
+    });
   };
 
   const renderImportantActions = (log) => {
@@ -454,6 +487,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   const renderEmployeeImportantLog = (log) => {
     const icon = getImportantLogIcon(log);
     const targetRoute = getTargetRoute(log.target);
+    const showGenericTargetLink = Boolean(targetRoute) && !hasInlineMessageTargets(log);
     return (
       <div key={log.id} className={`log-item log-item--with-actions employee-important-log${log.pinned ? ' pinned' : ''}`}>
         <div className={`log-item__icon employee-important-log__icon tone-${icon.tone}`}>{icon.symbol}</div>
@@ -477,8 +511,8 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
             />
           ) : (
             <>
-              <div className="log-message">{log.message}</div>
-              {targetRoute && (
+              <div className="log-message">{renderLogMessageContent(log)}</div>
+              {showGenericTargetLink && (
                 <button
                   type="button"
                   className="log-target-link"
