@@ -1,5 +1,5 @@
 // src/server.js
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const app =require('./app');
 const { initRatesAutofillJob } = require('./jobs/rates.autofill.job');
