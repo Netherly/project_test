@@ -21,7 +21,6 @@ const AssetCard = ({
   onCopyValue,
   onCopyRequisites,
   cardDesigns = [],
-  designVersion = "",
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -92,7 +91,11 @@ const AssetCard = ({
       asset?.cardDesign?.url ??
       ""
   );
-  const versionedDesignUrl = withCacheVersion(rawDesignUrl, designVersion);
+  const designImageVersion =
+    designObj?.imageVersion ??
+    asset?.cardDesign?.imageVersion ??
+    "";
+  const versionedDesignUrl = withCacheVersion(rawDesignUrl, designImageVersion);
 
   const [designUrl, setDesignUrl] = useState("");
 
