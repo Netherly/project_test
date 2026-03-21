@@ -353,40 +353,67 @@ const resolveCurrencyCode = (value, currencyAliases) => {
 };
 
 const arrToUniqueStrings = (list, key = 'name') => {
-  const out = new Set();
-  (Array.isArray(list) ? list : []).forEach((x) => {
-    const s = pickStr(x?.[key] ?? x);
-    if (s) out.add(s);
+  const out = [];
+  const seen = new Set();
+
+  (Array.isArray(list) ? list : []).forEach((x, index) => {
+    const source = x && typeof x === 'object' ? x : { [key]: x };
+    const raw = source?.[key] ?? source?.value ?? source?.name ?? source?.code ?? source;
+    const value = pickStr(raw);
+    if (!value) return;
+
+    const normalizedKey = value.toLowerCase();
+    if (seen.has(normalizedKey)) return;
+    seen.add(normalizedKey);
+
+    out.push({
+      id: pickStr(source?.id) || null,
+      [key]: value,
+      order: Number.isFinite(Number(source?.order)) ? Number(source.order) : index,
+    });
   });
-  return Array.from(out);
+
+  return out;
 };
 
 const isHexColor = (c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(c || ''));
 
 const normalizeSimpleValues = (list, options = {}) => {
-  const out = new Set();
-  (Array.isArray(list) ? list : []).forEach((value) => {
-    let v = value;
-    if (v && typeof v === 'object') {
-      v =
-        v.value ??
-        v.name ??
-        v.code ??
-        v.articleValue ??
-        v.categoryValue ??
-        v.subarticleValue ??
-        v.intervalValue ??
-        v.categoryInterval ??
-        v.subarticleInterval ??
-        v.label ??
-        '';
-    }
-    if (v !== undefined && v !== null) {
-      const s = sanitizeDictValue(v, options);
-      if (s) out.add(s);
-    }
+  const out = [];
+  const seen = new Set();
+
+  (Array.isArray(list) ? list : []).forEach((value, index) => {
+    const source = value && typeof value === 'object' ? value : { value };
+    const raw =
+      source.value ??
+      source.name ??
+      source.code ??
+      source.articleValue ??
+      source.categoryValue ??
+      source.subarticleValue ??
+      source.intervalValue ??
+      source.categoryInterval ??
+      source.subarticleInterval ??
+      source.label ??
+      '';
+
+    if (raw === undefined || raw === null) return;
+
+    const sanitized = sanitizeDictValue(raw, options);
+    if (!sanitized) return;
+
+    const key = sanitized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    out.push({
+      id: pickStr(source?.id) || null,
+      value: sanitized,
+      order: Number.isFinite(Number(source?.order)) ? Number(source.order) : index,
+    });
   });
-  return Array.from(out);
+
+  return out;
 };
 
 const uniqueStrings = (list = []) =>
@@ -620,24 +647,33 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
     select: {
       id: true,
       [field]: true,
+      order: true,
       ...(hasIsActive ? { isActive: true } : {}),
     },
   });
 
   if (values.length) {
     await Promise.all(
-      values.map((value) =>
+      values.map((entry, index) =>
         dbModel.upsert({
-          where: { [field]: value },
-          update: { ...(hasIsActive ? { isActive: true } : {}) },
-          create: { id: rid(), [field]: value, ...(hasIsActive ? { isActive: true } : {}) },
+          where: { [field]: entry.value },
+          update: {
+            ...(hasIsActive ? { isActive: true } : {}),
+            order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+          },
+          create: {
+            id: entry.id || rid(),
+            [field]: entry.value,
+            order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+            ...(hasIsActive ? { isActive: true } : {}),
+          },
         })
       )
     );
   }
 
   if (hasIsActive) {
-    const desiredValues = new Set(values);
+    const desiredValues = new Set(values.map((item) => item.value));
     const removedRows = existing.filter((item) => !desiredValues.has(item[field]));
     const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(tx, removedRows, linkConfig);
 
@@ -770,7 +806,7 @@ const normalizeExtraFieldList = (list) => {
   const out = [];
   const seen = new Set();
 
-  for (const item of Array.isArray(list) ? list : []) {
+  for (const [index, item] of (Array.isArray(list) ? list : []).entries()) {
     const value = pickStr(item?.value ?? item?.name ?? item);
     if (!value) continue;
 
@@ -782,6 +818,7 @@ const normalizeExtraFieldList = (list) => {
       id: item?.id || rid(),
       value,
       isActive: item?.isActive !== false,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
     });
   }
 
@@ -828,6 +865,7 @@ async function mergeExtraFieldList(tx, existingList, incomingList, configKey) {
   const incoming = normalizeExtraFieldList(incomingList).map((item) => ({
     id: item.id || null,
     value: item.value,
+    order: Number.isFinite(Number(item.order)) ? Number(item.order) : 0,
   }));
 
   const currentById = new Map(current.map((item) => [String(item.id), item]));
@@ -847,8 +885,8 @@ async function mergeExtraFieldList(tx, existingList, incomingList, configKey) {
       null;
 
     const next = existing
-      ? { ...existing, value: item.value, isActive: true }
-      : { id: item.id || rid(), value: item.value, isActive: true };
+      ? { ...existing, value: item.value, isActive: true, order: item.order }
+      : { id: item.id || rid(), value: item.value, isActive: true, order: item.order };
 
     active.push(next);
     activeIds.add(String(next.id));
@@ -922,12 +960,24 @@ async function saveExtraConfig(tx, payload) {
 const activeExtraValues = (list, linkedIds = new Set()) =>
   normalizeExtraFieldList(list)
     .filter((item) => item.isActive !== false)
-    .map((item) => ({ id: item.id, value: item.value, isLinked: linkedIds.has(String(item.id)) }));
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+    .map((item) => ({
+      id: item.id,
+      value: item.value,
+      order: item.order,
+      isLinked: linkedIds.has(String(item.id)),
+    }));
 
 const inactiveExtraValues = (list, linkedIds = new Set()) =>
   normalizeExtraFieldList(list)
     .filter((item) => item.isActive === false)
-    .map((item) => ({ id: item.id, value: item.value, isLinked: linkedIds.has(String(item.id)) }));
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+    .map((item) => ({
+      id: item.id,
+      value: item.value,
+      order: item.order,
+      isLinked: linkedIds.has(String(item.id)),
+    }));
 
 /* ==============================
    Tags (единая версия)
@@ -1005,11 +1055,11 @@ async function getAll(db) {
     subcategories,
     typeWorks,
   ] = await Promise.all([
-    _db.currencyDict.findMany({ ...whereActive, orderBy: { code: 'asc' } }),
+    _db.currencyDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { code: 'asc' }] }),
     _db.country.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
-    _db.executorRoleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
-    _db.clientSourceDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
-    _db.clientCategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.executorRoleDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.clientSourceDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.clientCategoryDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     clientGroupsEnabled ? _db.clientGroup.findMany({ orderBy: { order: 'asc' } }) : [],
     _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereActive, orderBy: { order: 'asc' } }) : [],
     _db.orderCloseReasonDict
@@ -1019,26 +1069,27 @@ async function getAll(db) {
     _db.orderDiscountReasonDict
       ? _db.orderDiscountReasonDict.findMany({ ...whereActive, orderBy: { order: 'asc' } })
       : [],
-    _db.assetTypeDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
-    _db.paymentSystemDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
-    _db.financeArticleDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
-    _db.financeSubcategoryDict.findMany({ ...whereActive, orderBy: { name: 'asc' } }),
+    _db.assetTypeDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.paymentSystemDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.financeArticleDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.financeSubcategoryDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.sundryTypeWorkDict
-      ? _db.sundryTypeWorkDict.findMany({ ...whereActive, orderBy: { name: 'asc' } })
+      ? _db.sundryTypeWorkDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { name: 'asc' }] })
       : [],
   ]);
 
   const [intervals, orderCats, cardDesigns, subarticles, tagCategories] = await Promise.all([
-    _db.orderIntervalDict.findMany({ ...whereActive, orderBy: { value: 'asc' } }),
+    _db.orderIntervalDict.findMany({ ...whereActive, orderBy: [{ order: 'asc' }, { value: 'asc' }] }),
     _db.orderCategoryDict.findMany({
       ...whereActive,
       select: {
         id: true,
         value: true,
+        order: true,
         intervalId: true,
-        interval: { select: { id: true, value: true } },
+        interval: { select: { id: true, value: true, order: true } },
       },
-      orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
+      orderBy: [{ interval: { order: 'asc' } }, { order: 'asc' }, { value: 'asc' }],
     }),
     _db.cardDesign.findMany({ where: { isActive: true }, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.financeSubarticleDict.findMany({
@@ -1046,12 +1097,13 @@ async function getAll(db) {
       select: {
         id: true,
         name: true,
+        order: true,
         articleId: true,
         subcategoryId: true,
-        article: { select: { id: true, name: true } },
-        subcategory: { select: { id: true, name: true } },
+        article: { select: { id: true, name: true, order: true } },
+        subcategory: { select: { id: true, name: true, order: true } },
       },
-      orderBy: [{ article: { name: 'asc' } }, { name: 'asc' }],
+      orderBy: [{ article: { order: 'asc' } }, { subcategory: { order: 'asc' } }, { order: 'asc' }, { name: 'asc' }],
     }),
     _db.tagCategory.findMany({ select: { id: true, code: true } }),
   ]);
@@ -1142,6 +1194,7 @@ async function getAll(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
       country: countries.map((country) => ({
@@ -1152,10 +1205,16 @@ async function getAll(db) {
     },
 
     orderFields: {
-      intervals: intervals.map((x) => ({ id: x.id, value: x.value, isLinked: linkedIntervalIds.has(x.id) })),
+      intervals: intervals.map((x) => ({
+        id: x.id,
+        value: x.value,
+        order: x.order,
+        isLinked: linkedIntervalIds.has(x.id),
+      })),
       categories: orderCats.map((x) => ({
         id: x.id,
         value: x.value,
+        order: x.order,
         intervalId: x.interval?.id || null,
         intervalValue: x.interval?.value || null,
         isLinked: linkedOrderCategoryIds.has(x.id),
@@ -1164,18 +1223,31 @@ async function getAll(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
-      statuses: orderStatuses.map((s) => ({ id: s.id, name: s.name, isLinked: linkedOrderStatusIds.has(s.id) })),
+      statuses: orderStatuses.map((s) => ({
+        id: s.id,
+        name: s.name,
+        order: s.order,
+        isLinked: linkedOrderStatusIds.has(s.id),
+      })),
       closeReasons: orderCloseReasons.map((r) => ({
         id: r.id,
         name: r.name,
+        order: r.order,
         isLinked: linkedOrderCloseReasonIds.has(r.id),
       })),
-      projects: orderProjects.map((p) => ({ id: p.id, name: p.name, isLinked: linkedOrderProjectIds.has(p.id) })),
+      projects: orderProjects.map((p) => ({
+        id: p.id,
+        name: p.name,
+        order: p.order,
+        isLinked: linkedOrderProjectIds.has(p.id),
+      })),
       discountReason: orderDiscountReasons.map((d) => ({
         id: d.id,
         name: d.name,
+        order: d.order,
         isLinked: linkedOrderDiscountReasonIds.has(d.id),
       })),
       minOrderAmount: activeExtraValues(extraFields?.orderFields?.minOrderAmount, linkedMinOrderAmountIds),
@@ -1190,16 +1262,28 @@ async function getAll(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
-      role: roles.map((r) => ({ id: r.id, name: r.name, isLinked: linkedRoleIds.has(r.id) })),
+      role: roles.map((r) => ({
+        id: r.id,
+        name: r.name,
+        order: r.order,
+        isLinked: linkedRoleIds.has(r.id),
+      })),
     },
 
     clientFields: {
-      source: sources.map((s) => ({ id: s.id, name: s.name, isLinked: linkedSourceIds.has(s.id) })),
+      source: sources.map((s) => ({
+        id: s.id,
+        name: s.name,
+        order: s.order,
+        isLinked: linkedSourceIds.has(s.id),
+      })),
       category: clientCategories.map((c) => ({
         id: c.id,
         name: c.name,
+        order: c.order,
         isLinked: linkedClientCategoryIds.has(c.id),
       })),
       country: countries.map((country) => ({
@@ -1211,6 +1295,7 @@ async function getAll(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
       tags: mapTags(clientTags),
@@ -1234,12 +1319,19 @@ async function getAll(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
-      type: assetTypes.map((t) => ({ id: t.id, name: t.name, isLinked: linkedAssetTypeIds.has(t.id) })),
+      type: assetTypes.map((t) => ({
+        id: t.id,
+        name: t.name,
+        order: t.order,
+        isLinked: linkedAssetTypeIds.has(t.id),
+      })),
       paymentSystem: paymentSystems.map((p) => ({
         id: p.id,
         name: p.name,
+        order: p.order,
         isLinked: linkedPaymentSystemIds.has(p.id),
       })),
       cardDesigns: cardDesigns.map((d) => ({
@@ -1252,10 +1344,16 @@ async function getAll(db) {
     },
 
     financeFields: {
-      articles: articles.map((a) => ({ id: a.id, name: a.name, isLinked: linkedArticleIds.has(a.id) })),
+      articles: articles.map((a) => ({
+        id: a.id,
+        name: a.name,
+        order: a.order,
+        isLinked: linkedArticleIds.has(a.id),
+      })),
       subarticles: subarticles.map((s) => ({
         id: s.id,
         name: s.name,
+        order: s.order,
         articleId: s.article?.id || null,
         articleName: s.article?.name || null,
         subcategoryId: s.subcategory?.id || null,
@@ -1266,6 +1364,7 @@ async function getAll(db) {
       subcategory: subcategories.map((s) => ({
         id: s.id,
         name: s.name,
+        order: s.order,
         isLinked: linkedSubcategoryIds.has(s.id),
       })),
     },
@@ -1275,7 +1374,12 @@ async function getAll(db) {
     },
 
     sundryFields: {
-      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name, isLinked: linkedTypeWorkIds.has(t.id) })),
+      typeWork: typeWorks.map((t) => ({
+        id: t.id,
+        name: t.name,
+        order: t.order,
+        isLinked: linkedTypeWorkIds.has(t.id),
+      })),
     },
   };
 }
@@ -1309,48 +1413,50 @@ async function getInactive(db) {
     cardDesigns,
     tagCategories,
   ] = await Promise.all([
-    _db.currencyDict.findMany({ ...whereInactive, orderBy: { code: 'asc' } }),
+    _db.currencyDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { code: 'asc' }] }),
     _db.country.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
-    _db.orderIntervalDict.findMany({ ...whereInactive, orderBy: { value: 'asc' } }),
+    _db.orderIntervalDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { value: 'asc' }] }),
     _db.orderCategoryDict.findMany({
       ...whereInactive,
       select: {
         id: true,
         value: true,
+        order: true,
         intervalId: true,
-        interval: { select: { id: true, value: true } },
+        interval: { select: { id: true, value: true, order: true } },
       },
-      orderBy: [{ interval: { value: 'asc' } }, { value: 'asc' }],
+      orderBy: [{ interval: { order: 'asc' } }, { order: 'asc' }, { value: 'asc' }],
     }),
-    _db.executorRoleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.clientSourceDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }) : [],
+    _db.executorRoleDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.clientSourceDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.clientCategoryDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.orderStatusDict ? _db.orderStatusDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }) : [],
     _db.orderCloseReasonDict
-      ? _db.orderCloseReasonDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
+      ? _db.orderCloseReasonDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] })
       : [],
-    _db.orderProjectDict ? _db.orderProjectDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }) : [],
-    _db.assetTypeDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.paymentSystemDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.financeArticleDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
-    _db.financeSubcategoryDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } }),
+    _db.orderProjectDict ? _db.orderProjectDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }) : [],
+    _db.assetTypeDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.paymentSystemDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.financeArticleDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
+    _db.financeSubcategoryDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.financeSubarticleDict.findMany({
       ...whereInactive,
       select: {
         id: true,
         name: true,
+        order: true,
         articleId: true,
         subcategoryId: true,
-        article: { select: { id: true, name: true } },
-        subcategory: { select: { id: true, name: true } },
+        article: { select: { id: true, name: true, order: true } },
+        subcategory: { select: { id: true, name: true, order: true } },
       },
-      orderBy: [{ article: { name: 'asc' } }, { name: 'asc' }],
+      orderBy: [{ article: { order: 'asc' } }, { subcategory: { order: 'asc' } }, { order: 'asc' }, { name: 'asc' }],
     }),
     _db.orderDiscountReasonDict
-      ? _db.orderDiscountReasonDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
+      ? _db.orderDiscountReasonDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] })
       : [],
     _db.sundryTypeWorkDict
-      ? _db.sundryTypeWorkDict.findMany({ ...whereInactive, orderBy: { name: 'asc' } })
+      ? _db.sundryTypeWorkDict.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] })
       : [],
     _db.cardDesign.findMany({ ...whereInactive, orderBy: [{ order: 'asc' }, { name: 'asc' }] }),
     _db.tagCategory.findMany({ select: { id: true, code: true } }),
@@ -1443,6 +1549,7 @@ async function getInactive(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
       country: countries.map((country) => ({
@@ -1452,10 +1559,16 @@ async function getInactive(db) {
       businessLine: inactiveExtraValues(extraFields?.generalFields?.businessLine, linkedBusinessLineIds),
     },
     orderFields: {
-      intervals: intervals.map((item) => ({ id: item.id, value: item.value, isLinked: linkedIntervalIds.has(item.id) })),
+      intervals: intervals.map((item) => ({
+        id: item.id,
+        value: item.value,
+        order: item.order,
+        isLinked: linkedIntervalIds.has(item.id),
+      })),
       categories: orderCategories.map((item) => ({
         id: item.id,
         value: item.value,
+        order: item.order,
         intervalId: item.interval?.id || null,
         intervalValue: item.interval?.value || null,
         isLinked: linkedOrderCategoryIds.has(item.id),
@@ -1464,11 +1577,13 @@ async function getInactive(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
       discountReason: discountReasons.map((r) => ({
         id: r.id,
         name: r.name,
+        order: r.order,
         isLinked: linkedOrderDiscountReasonIds.has(r.id),
       })),
       minOrderAmount: inactiveExtraValues(extraFields?.orderFields?.minOrderAmount, linkedMinOrderAmountIds),
@@ -1476,15 +1591,22 @@ async function getInactive(db) {
       tags: mapTags(orderTags),
       techTags: mapTags(orderTechTags),
       taskTags: mapTags(orderTaskTags),
-      statuses: statuses.map((item) => ({ id: item.id, name: item.name, isLinked: linkedOrderStatusIds.has(item.id) })),
+      statuses: statuses.map((item) => ({
+        id: item.id,
+        name: item.name,
+        order: item.order,
+        isLinked: linkedOrderStatusIds.has(item.id),
+      })),
       closeReasons: closeReasons.map((item) => ({
         id: item.id,
         name: item.name,
+        order: item.order,
         isLinked: linkedOrderCloseReasonIds.has(item.id),
       })),
       projects: projects.map((item) => ({
         id: item.id,
         name: item.name,
+        order: item.order,
         isLinked: linkedOrderProjectIds.has(item.id),
       })),
     },
@@ -1493,15 +1615,27 @@ async function getInactive(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
-      role: roles.map((r) => ({ id: r.id, name: r.name, isLinked: linkedRoleIds.has(r.id) })),
+      role: roles.map((r) => ({
+        id: r.id,
+        name: r.name,
+        order: r.order,
+        isLinked: linkedRoleIds.has(r.id),
+      })),
     },
     clientFields: {
-      source: sources.map((s) => ({ id: s.id, name: s.name, isLinked: linkedSourceIds.has(s.id) })),
+      source: sources.map((s) => ({
+        id: s.id,
+        name: s.name,
+        order: s.order,
+        isLinked: linkedSourceIds.has(s.id),
+      })),
       category: clientCategories.map((c) => ({
         id: c.id,
         name: c.name,
+        order: c.order,
         isLinked: linkedClientCategoryIds.has(c.id),
       })),
       country: countries.map((country) => ({
@@ -1513,6 +1647,7 @@ async function getInactive(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
       tags: mapTags(clientTags),
@@ -1533,12 +1668,19 @@ async function getInactive(db) {
         id: c.id,
         code: c.code,
         name: c.name || c.code,
+        order: c.order,
         isLinked: linkedCurrencyIds.has(c.id),
       })),
-      type: assetTypes.map((t) => ({ id: t.id, name: t.name, isLinked: linkedAssetTypeIds.has(t.id) })),
+      type: assetTypes.map((t) => ({
+        id: t.id,
+        name: t.name,
+        order: t.order,
+        isLinked: linkedAssetTypeIds.has(t.id),
+      })),
       paymentSystem: paymentSystems.map((p) => ({
         id: p.id,
         name: p.name,
+        order: p.order,
         isLinked: linkedPaymentSystemIds.has(p.id),
       })),
       cardDesigns: cardDesigns.map((d) => ({
@@ -1550,10 +1692,16 @@ async function getInactive(db) {
       })),
     },
     financeFields: {
-      articles: articles.map((a) => ({ id: a.id, name: a.name, isLinked: linkedArticleIds.has(a.id) })),
+      articles: articles.map((a) => ({
+        id: a.id,
+        name: a.name,
+        order: a.order,
+        isLinked: linkedArticleIds.has(a.id),
+      })),
       subarticles: subarticles.map((s) => ({
         id: s.id,
         name: s.name,
+        order: s.order,
         articleId: s.article?.id || null,
         articleName: s.article?.name || null,
         subcategoryId: s.subcategory?.id || null,
@@ -1564,11 +1712,17 @@ async function getInactive(db) {
       subcategory: subcategories.map((s) => ({
         id: s.id,
         name: s.name,
+        order: s.order,
         isLinked: linkedSubcategoryIds.has(s.id),
       })),
     },
     sundryFields: {
-      typeWork: typeWorks.map((t) => ({ id: t.id, name: t.name, isLinked: linkedTypeWorkIds.has(t.id) })),
+      typeWork: typeWorks.map((t) => ({
+        id: t.id,
+        name: t.name,
+        order: t.order,
+        isLinked: linkedTypeWorkIds.has(t.id),
+      })),
     },
     taskFields: {
       tags: mapTags(taskTags),
@@ -1603,53 +1757,81 @@ async function saveAll(payload) {
       await syncSimpleDict(tx, 'currencyDict', Array.from(currencyCodes), { field: 'code' });
 
       // 2. ЗАКАЗЫ (Интервалы и категории)
-      const intervalValues = uniqueStrings((Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [])
-        .map((i) => pickStr(i?.value ?? i?.intervalValue ?? i))
-        .filter(Boolean));
+      const intervalsIncoming = normalizeSimpleValues(
+        Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [],
+        { model: 'orderIntervalDict', field: 'value' }
+      );
+      const desiredIntervalValues = new Set(intervalsIncoming.map((item) => item.value));
 
-      if (intervalValues.length) {
+      if (intervalsIncoming.length) {
         await Promise.all(
-          intervalValues.map((value) =>
+          intervalsIncoming.map((entry, index) =>
             tx.orderIntervalDict.upsert({
-              where: { value },
-              update: { isActive: true },
-              create: { id: rid(), value, isActive: true },
+              where: { value: entry.value },
+              update: {
+                isActive: true,
+                order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+              },
+              create: {
+                id: entry.id || rid(),
+                value: entry.value,
+                isActive: true,
+                order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+              },
             })
           )
         );
       }
 
       const catsIncoming = (Array.isArray(payload?.orderFields?.categories) ? payload.orderFields.categories : [])
-        .map((c) => ({
+        .map((c, index) => ({
+          id: pickStr(c?.id),
           intervalValue: pickStr(c?.intervalValue ?? c?.categoryInterval ?? c?.interval),
           value: pickStr(c?.value ?? c?.categoryValue),
+          order: Number.isFinite(Number(c?.order)) ? Number(c.order) : index,
         }))
         .filter((c) => c.intervalValue && c.value);
 
       const finalIntervals = await tx.orderIntervalDict.findMany({
-        select: { id: true, value: true, isActive: true },
+        select: { id: true, value: true, order: true, isActive: true },
       });
-      const intervalByValue = new Map(finalIntervals.map((i) => [i.value, i.id]));
+      const intervalByValue = new Map(finalIntervals.map((i) => [i.value, i]));
 
       for (const c of catsIncoming) {
         if (!intervalByValue.has(c.intervalValue)) {
-          const created = await tx.orderIntervalDict.create({ data: { value: c.intervalValue } });
-          intervalByValue.set(created.value, created.id);
+          const created = await tx.orderIntervalDict.create({
+            data: { value: c.intervalValue, order: c.order, isActive: true },
+          });
+          intervalByValue.set(created.value, created);
         }
       }
 
       for (const c of catsIncoming) {
-        const intervalId = intervalByValue.get(c.intervalValue);
+        const intervalRow = intervalByValue.get(c.intervalValue);
+        const intervalId = intervalRow?.id || null;
         if (!intervalId) continue;
         const exists = await tx.orderCategoryDict.findFirst({ where: { value: c.value, intervalId } });
-        if (!exists) {
-          await tx.orderCategoryDict.create({ data: { value: c.value, intervalId } });
+        if (exists) {
+          await tx.orderCategoryDict.update({
+            where: { id: exists.id },
+            data: { isActive: true, order: c.order, intervalId },
+          });
+          continue;
         }
+        await tx.orderCategoryDict.create({
+          data: {
+            id: c.id || rid(),
+            value: c.value,
+            intervalId,
+            isActive: true,
+            order: c.order,
+          },
+        });
       }
 
       const desiredCategoryKeys = new Set();
       for (const c of catsIncoming) {
-        const intervalId = intervalByValue.get(c.intervalValue);
+        const intervalId = intervalByValue.get(c.intervalValue)?.id;
         if (!intervalId) continue;
         desiredCategoryKeys.add(`${intervalId}|${c.value}`);
       }
@@ -1702,7 +1884,7 @@ async function saveAll(payload) {
       const allIntervals = await tx.orderIntervalDict.findMany({
         select: { id: true, value: true, isActive: true },
       });
-      const removedIntervals = allIntervals.filter((item) => !intervalValues.includes(item.value));
+      const removedIntervals = allIntervals.filter((item) => !desiredIntervalValues.has(item.value));
       const intervalSplit = await splitRowsForHideOrDelete(
         tx,
         removedIntervals,
@@ -1864,9 +2046,11 @@ async function saveAll(payload) {
       );
 
       const desiredSubs = (Array.isArray(payload?.financeFields?.subarticles) ? payload.financeFields.subarticles : [])
-        .map((s) => ({
+        .map((s, index) => ({
+          id: pickStr(s?.id),
           parentName: pickStr(s?.parentName ?? s?.subarticleInterval ?? s?.parent),
           name: pickStr(s?.name ?? s?.subarticleValue),
+          order: Number.isFinite(Number(s?.order)) ? Number(s.order) : index,
         }))
         .filter((s) => s.name && s.parentName);
 
@@ -1886,9 +2070,28 @@ async function saveAll(payload) {
         const exists = await tx.financeSubarticleDict.findFirst({
           where: { name: s.name, articleId: articleId || undefined, subcategoryId: subcategoryId || undefined },
         });
-        if (!exists) {
-          await tx.financeSubarticleDict.create({ data: { name: s.name, articleId, subcategoryId } });
+        if (exists) {
+          await tx.financeSubarticleDict.update({
+            where: { id: exists.id },
+            data: {
+              isActive: true,
+              order: s.order,
+              articleId,
+              subcategoryId,
+            },
+          });
+          continue;
         }
+        await tx.financeSubarticleDict.create({
+          data: {
+            id: s.id || rid(),
+            name: s.name,
+            articleId,
+            subcategoryId,
+            isActive: true,
+            order: s.order,
+          },
+        });
       }
 
       const keyOf = (row) => `${row.name}|${row.articleId || ''}|${row.subcategoryId || ''}`;

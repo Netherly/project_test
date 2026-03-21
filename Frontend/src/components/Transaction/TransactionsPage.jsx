@@ -9,7 +9,7 @@ import "../../styles/TransactionsPage.css";
 import "../../components/Journal/JournalPage.css";
 import { useTransactions } from "../../context/TransactionsContext";
 import { useFields } from "../../context/FieldsContext";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { addFieldOption } from "../../api/fields";
 import { rid } from "../../utils/rid";
 
 const defaultFilterData = {
@@ -316,33 +316,9 @@ const TransactionsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name || item.articleValue || item.subarticleValue);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          articleValue: newValue, 
-          subarticleValue: newValue, 
-          isDeleted: false,
-          ...extraData
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      await addFieldOption(group, fieldName, newValue, extraData);
+      if (refreshFields) {
+        await refreshFields();
       }
     } catch (e) {
       console.error(e);

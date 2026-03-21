@@ -6,7 +6,7 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../api/fields";
 import {
   fetchAssets,
   createAsset as apiCreateAsset,
@@ -139,28 +139,8 @@ const AssetsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          isDeleted: false,
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-        await loadFields();
-      }
+      await addFieldOption(group, fieldName, newValue);
+      await loadFields();
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
     }

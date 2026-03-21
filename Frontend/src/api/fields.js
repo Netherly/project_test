@@ -1,4 +1,5 @@
 import { httpGet, httpPut, fileUrl } from "./http";
+import { writeCachedValue } from "../utils/resourceCache";
 
 export const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 export const tidy = (v) => String(v ?? "").trim();
@@ -28,6 +29,7 @@ export const normStrs = (arr) => {
       out.push({
         id: item?.id || rid(),
         value: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
         isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
         isDeleted: item?.isDeleted || false,
       });
@@ -61,6 +63,7 @@ export const normCodeStrs = (arr) => {
       code,
       name,
       label: name || code,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
       isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
     });
@@ -113,6 +116,7 @@ export const normIntervals = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     intervalValue: tidy(it?.intervalValue ?? it?.value ?? it),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
@@ -124,6 +128,7 @@ export const normCategories = (arr) =>
       it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group
     ),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
@@ -132,6 +137,7 @@ export const normArticles = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
@@ -147,6 +153,7 @@ export const normSubarticles = (arr) =>
         it?.parentSubcategoryName
     ),
     subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
@@ -214,6 +221,60 @@ export async function fetchFields() {
 export async function saveFields(payload) {
   const r = await httpPut("/fields", payload);
   return unwrap(r);
+}
+
+export async function addFieldOption(groupKey, fieldName, rawValue, extraData = {}) {
+  const value = tidy(rawValue);
+  if (!value) {
+    return withDefaults(await fetchFields());
+  }
+
+  const raw = await fetchFields();
+  const normalized = withDefaults(raw);
+  const list = Array.isArray(normalized?.[groupKey]?.[fieldName])
+    ? [...normalized[groupKey][fieldName]]
+    : [];
+
+  const exists = list.some((item) => {
+    const itemValue =
+      item?.code ??
+      item?.value ??
+      item?.name ??
+      item?.articleValue ??
+      item?.categoryValue ??
+      item?.subarticleValue ??
+      "";
+    return tidy(itemValue).toLowerCase() === value.toLowerCase();
+  });
+
+  if (exists) {
+    return normalized;
+  }
+
+  const nextOrder =
+    list.reduce((max, item, index) => {
+      const order = Number.isFinite(Number(item?.order)) ? Number(item.order) : index;
+      return Math.max(max, order);
+    }, -1) + 1;
+
+  normalized[groupKey] = {
+    ...(normalized[groupKey] || {}),
+    [fieldName]: [
+      ...list,
+      {
+        id: rid(),
+        value,
+        name: value,
+        order: nextOrder,
+        isDeleted: false,
+        ...extraData,
+      },
+    ],
+  };
+
+  const savedRaw = await saveFields(serializeForSave(normalized));
+  writeCachedValue("fieldsData", savedRaw);
+  return withDefaults(savedRaw);
 }
 
 export async function fetchInactiveFields() {
@@ -310,7 +371,11 @@ export const serByName = (arr) => {
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), name: v });
+      out.push({
+        id: item?.id || rid(),
+        name: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+      });
     }
   }
   return out;
@@ -352,7 +417,11 @@ export const serByCode = (arr) => {
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), code: v });
+      out.push({
+        id: item?.id || rid(),
+        code: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+      });
     }
   }
   return out;
@@ -361,32 +430,42 @@ export const serByCode = (arr) => {
 export const serIntervals = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value) }))
+    .map((it, index) => ({
+      id: it?.id || rid(),
+      value: tidy(it?.intervalValue ?? it?.value),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+    }))
     .filter((x) => x.value !== "");
 
 export const serCategories = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((it) => ({
+    .map((it, index) => ({
       id: it?.id || rid(),
       intervalValue: tidy(it?.categoryInterval),
       value: tidy(it?.categoryValue),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
     }))
     .filter((x) => x.intervalValue && x.value);
 
 export const serArticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), name: tidy(it?.articleValue) }))
+    .map((it, index) => ({
+      id: it?.id || rid(),
+      name: tidy(it?.articleValue),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+    }))
     .filter((x) => x.name !== "");
 
 export const serSubarticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((it) => ({
+    .map((it, index) => ({
       id: it?.id || rid(),
       parentName: tidy(it?.subarticleInterval),
       name: tidy(it?.subarticleValue),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
     }))
     .filter((x) => x.parentName && x.name);
 

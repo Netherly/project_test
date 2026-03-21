@@ -19,7 +19,7 @@ import { addLogEntry, getEmployees } from "../../Journal/journalApi";
 import { getStageColor } from "../../Orders/stageColors";
 import { fetchClients } from "../../../api/clients";
 import { useFields } from "../../../context/FieldsContext";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { addFieldOption } from "../../../api/fields";
 import { rid } from "../../../utils/rid";
 import "../../../styles/OrderModal.css";
 import { X, Trash2, Copy, MoreVertical } from "lucide-react";
@@ -262,42 +262,15 @@ function OrderModal({
       await onAddNewField(group, fieldName, newValue, extraData);
     } else {
       try {
-        const raw = await fetchFields();
-        const normalized = withDefaults(raw);
-        const list = normalized[group]?.[fieldName] || [];
-
-        const exists = list.find(
-          (item) => {
-            const itemVal = typeof item === "string" ? item : (item.value || item.name || item.intervalValue || item.categoryValue || item.articleValue || item.subarticleValue);
-            return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-          }
-        );
-
-        if (!exists) {
-          list.push({
-            id: rid(),
-            value: newValue,
-            intervalValue: newValue,
-            categoryValue: newValue,
-            isDeleted: false,
-            ...extraData
-          });
-
-          normalized[group][fieldName] = list;
-          const payload = serializeForSave(normalized);
-
-          await saveFields(payload);
-
-          if (group === "orderFields") {
-            setOrderFields(prev => ({
-              ...prev,
-              [fieldName]: list
-            }));
-          }
-
-          if (refreshFields) {
-            await refreshFields();
-          }
+        const normalized = await addFieldOption(group, fieldName, newValue, extraData);
+        if (group === "orderFields") {
+          setOrderFields((prev) => ({
+            ...prev,
+            [fieldName]: normalized?.orderFields?.[fieldName] || prev?.[fieldName] || [],
+          }));
+        }
+        if (refreshFields) {
+          await refreshFields();
         }
       } catch (e) {
         console.error("Ошибка при сохранении нового поля в БД:", e);

@@ -13,7 +13,7 @@ import ChatPanel from '../../Client/ClientModal/ChatPanel';
 import ConfirmationModal from '../../modals/confirm/ConfirmationModal';
 
 import { useFields } from "../../../context/FieldsContext";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { addFieldOption } from "../../../api/fields";
 import { rid } from "../../../utils/rid";
 
 import '../../../styles/ExecutorModal.css';
@@ -65,30 +65,9 @@ export default function ExecutorModal({
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          isDeleted: false,
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      await addFieldOption(group, fieldName, newValue);
+      if (refreshFields) {
+        await refreshFields();
       }
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
