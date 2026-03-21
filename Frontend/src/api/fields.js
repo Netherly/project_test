@@ -151,11 +151,24 @@ export const normSubarticles = (arr) =>
     isDeleted: it?.isDeleted || false,
   }));
 
+const deriveCardDesignImageVersion = (explicitVersion, sourceUrl) => {
+  const version = tidy(explicitVersion);
+  if (version) return version;
+
+  const rawUrl = tidy(sourceUrl);
+  if (!rawUrl) return "";
+
+  const [pathPart = ""] = rawUrl.split("?");
+  const segments = pathPart.split("/").filter(Boolean);
+  return segments[segments.length - 1] || rawUrl;
+};
+
 export const normDesigns = (arr) =>
   (Array.isArray(arr) ? arr : []).map((d) => ({
     id: d?.id || rid(),
     name: tidy(d?.name),
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
+    imageVersion: deriveCardDesignImageVersion(d?.imageVersion ?? d?.version, d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
     order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
     isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined,
@@ -268,7 +281,7 @@ export function withDefaults(fields) {
       paymentSystem: normStrs(f?.assetsFields?.paymentSystem),
       cardDesigns: normDesigns(f?.assetsFields?.cardDesigns).map((d) => ({
         ...d,
-        viewUrl: fileUrl(d?.url || ""),
+        viewUrl: fileUrl(d?.url || "", d?.imageVersion || ""),
       })),
     },
     financeFields: {
