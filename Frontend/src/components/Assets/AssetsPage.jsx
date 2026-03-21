@@ -18,6 +18,7 @@ import { CreditCard } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
 import {
   CACHE_TTL,
+  RESOURCE_CACHE_EVENT,
   hasDataChanged,
   readCacheSnapshot,
   readCachedValue,
@@ -75,6 +76,9 @@ const AssetsPage = () => {
       };
     }
   });
+  const [fieldsVersion, setFieldsVersion] = useState(
+    () => readCacheSnapshot("fieldsData", { fallback: null }).signature || ""
+  );
 
   const [employees, setEmployees] = useState([]);
   const [cardSize, setCardSize] = useState("medium");
@@ -131,6 +135,7 @@ const AssetsPage = () => {
         generalFields: allFields.generalFields,
         assetsFields: allFields.assetsFields,
       });
+      setFieldsVersion(readCacheSnapshot("fieldsData", { fallback: rawFields }).signature || "");
     } catch (err) {
       console.error("Failed to load fields", err);
     }
@@ -180,13 +185,34 @@ const AssetsPage = () => {
           };
           return hasDataChanged(prev, next) ? next : prev;
         });
+        setFieldsVersion(snapshot.signature || "");
       } catch (_) {
       }
-
-      if (snapshot.isFresh) return;
     }
 
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      try {
+        const rawFields = event.detail.value;
+        const cachedFields = withDefaults(rawFields);
+        setFields((prev) => {
+          const next = {
+            generalFields: cachedFields.generalFields,
+            assetsFields: cachedFields.assetsFields,
+          };
+          return hasDataChanged(prev, next) ? next : prev;
+        });
+        setFieldsVersion(event?.detail?.meta?.signature || "");
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+
     loadFields();
+
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -268,6 +294,17 @@ const AssetsPage = () => {
     });
   };
 
+  const applyAssetsSnapshot = (incomingAssets) => {
+    const safeAssets = Array.isArray(incomingAssets) ? incomingAssets : defaultAssets;
+    const nextAssets =
+      transactions.length > 0
+        ? calculateRealBalance(safeAssets, transactions, currencyRates)
+        : safeAssets;
+
+    setAssets((prev) => (hasDataChanged(prev, nextAssets) ? nextAssets : prev));
+    return nextAssets;
+  };
+
   useEffect(() => {
     if (assets.length > 0) {
       const updatedAssets = calculateRealBalance(assets, transactions, currencyRates);
@@ -289,28 +326,38 @@ const AssetsPage = () => {
     try {
       const fetchedAssets = await fetchAssets();
       const safeFetchedAssets = Array.isArray(fetchedAssets) ? fetchedAssets : [];
-
-      if (transactions.length > 0) {
-        const calculated = calculateRealBalance(
-          safeFetchedAssets,
-          transactions,
-          currencyRates
-        );
-        setAssets((prev) => (hasDataChanged(prev, calculated) ? calculated : prev));
-        writeCachedValue("assetsData", calculated);
-      } else {
-        setAssets((prev) =>
-          hasDataChanged(prev, safeFetchedAssets) ? safeFetchedAssets : prev
-        );
-        writeCachedValue("assetsData", safeFetchedAssets);
-      }
+      const nextAssets = applyAssetsSnapshot(safeFetchedAssets);
+      writeCachedValue("assetsData", nextAssets);
     } catch (err) {
       console.error("Failed to load assets", err);
       const cachedAssets = readCachedValue("assetsData", defaultAssets);
-      setAssets(Array.isArray(cachedAssets) ? cachedAssets : defaultAssets);
+      applyAssetsSnapshot(cachedAssets);
     }
   };
 
+  useEffect(() => {
+    const snapshot = readCacheSnapshot("assetsData", {
+      fallback: defaultAssets,
+      ttlMs: CACHE_TTL.assets,
+    });
+
+    if (snapshot.hasData) {
+      applyAssetsSnapshot(snapshot.data);
+    }
+
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "assetsData") return;
+      applyAssetsSnapshot(event.detail.value);
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+
+    loadAssets();
+
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
   const handleAddAsset = async (newAsset) => {
     try {
       await apiCreateAsset(newAsset);
@@ -633,6 +680,7 @@ const AssetsPage = () => {
                         key={asset.id}
                         asset={asset}
                         cardDesigns={fields?.assetsFields?.cardDesigns || []}
+                        designVersion={fieldsVersion}
                         onCardClick={() => handleRowClick(asset)}
                         onDeleteClick={() => handleDeleteAsset(asset.id)}
                         onCopyValue={copyToClipboard}

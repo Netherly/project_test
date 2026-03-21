@@ -293,6 +293,13 @@ export function normalizeEmployee(e = {}) {
 
   const rawAvatar =
     e.avatarUrl || e.photoLink || e.photo_link || e.settings?.avatarUrl || "";
+  const avatarVersion = toText(
+    e.photoUpdatedAt ??
+      e.updatedAt ??
+      e.updated_at ??
+      e.telegramLinkedAt ??
+      e.telegram_linked_at
+  );
 
   const { list: requisitesList, map: requisites } = normalizeRequisites(
     e.requisitesList ?? e.requisites ?? e.EmployeeRequisite ?? e.employeeRequisites ?? []
@@ -342,8 +349,9 @@ export function normalizeEmployee(e = {}) {
     balance: toNumberSafe(e.balance, 0),
     cashOnHand: toNumberSafe(e.cashOnHand ?? e.cash_on_hand, 0),
     status: e.status === "inactive" || e.status === "pending" ? e.status : "active",
-    avatarUrl: rawAvatar ? fileUrl(rawAvatar) : "",
+    avatarUrl: rawAvatar ? fileUrl(rawAvatar, avatarVersion) : "",
     photoLink: toText(e.photoLink ?? e.photo_link ?? rawAvatar),
+    updatedAt: toText(e.updatedAt ?? e.updated_at),
     mainCurrency: mainCurrency ? mainCurrency.toLowerCase() : "",
     rates: normalizedRates,
     hourlyRates: normalizedRates,

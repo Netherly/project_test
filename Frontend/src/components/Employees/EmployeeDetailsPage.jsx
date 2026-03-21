@@ -11,7 +11,29 @@ import {
   normalizeEmployee,
 } from "../../api/employees";
 import { isForbiddenError } from "../../utils/isForbiddenError.js";
+import { readCacheSnapshot, writeCachedValue } from "../../utils/resourceCache";
 import "../../styles/EmployeesPage.css";
+
+const syncEmployeeListCache = (employee, mode = "upsert") => {
+  const normalized = employee ? normalizeEmployee(employee) : null;
+  const snapshot = readCacheSnapshot("employees", { fallback: [] });
+  const current = Array.isArray(snapshot.data) ? snapshot.data : [];
+
+  let next = current;
+  if (mode === "remove") {
+    const idToRemove = normalized?.id ?? employee?.id;
+    next = current.filter((item) => String(item?.id) !== String(idToRemove));
+  } else if (normalized?.id) {
+    const exists = current.some((item) => String(item?.id) === String(normalized.id));
+    next = exists
+      ? current.map((item) =>
+          String(item?.id) === String(normalized.id) ? normalized : item
+        )
+      : [normalized, ...current];
+  }
+
+  writeCachedValue("employees", next);
+};
 
 export default function EmployeeDetailsPage() {
   const { employeeId } = useParams();
@@ -61,11 +83,15 @@ export default function EmployeeDetailsPage() {
     try {
       if (employeeId && employeeId !== "new") {
         const saved = await apiUpdateEmployee(employeeId, formData);
-        setEmployee(normalizeEmployee(saved));
+        const normalized = normalizeEmployee(saved);
+        setEmployee(normalized);
+        syncEmployeeListCache(normalized, "upsert");
         return saved;
       } else {
         const created = await apiCreateEmployee(formData);
-        setEmployee(normalizeEmployee(created));
+        const normalized = normalizeEmployee(created);
+        setEmployee(normalized);
+        syncEmployeeListCache(normalized, "upsert");
         // Перенаправляем на страницу с ID нового сотрудника
         navigate(`/employees/${created.id}`, { replace: true });
         return created;
@@ -79,6 +105,7 @@ export default function EmployeeDetailsPage() {
   const handleDeleteEmployee = async () => {
     try {
       await apiDeleteEmployee(employeeId);
+      syncEmployeeListCache({ id: employeeId }, "remove");
       navigate("/employees");
     } catch (e) {
       console.error("Ошибка удаления сотрудника:", e);

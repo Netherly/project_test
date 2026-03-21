@@ -407,7 +407,22 @@ jobs:
           out_lines = upsert_env(out_lines, "ADMIN_NAME", "Test Admin")
           out_lines = upsert_env(out_lines, "ADMIN_EMAIL", "admin-test@gsse.dev")
 
-          normalized = "\n".join(out_lines).rstrip("\n") + "\n"
+          normalized_lines = []
+          for raw_line in out_lines:
+              stripped = raw_line.strip()
+              if stripped.startswith("TELEGRAM_BOT_TOKEN="):
+                  key, value = raw_line.split("=", 1)
+                  value = value.strip()
+                  if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                      quote = value[0]
+                      inner = value[1:-1].strip().lstrip(".")
+                      normalized_lines.append(f"{key}={quote}{inner}{quote}")
+                  else:
+                      normalized_lines.append(f"{key}={value.lstrip('.')}")
+              else:
+                  normalized_lines.append(raw_line)
+
+          normalized = "\n".join(normalized_lines).rstrip("\n") + "\n"
           Path("backend.env").write_text(normalized, encoding="utf-8")
           PY
 

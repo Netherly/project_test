@@ -5,14 +5,14 @@ const {
   markSyncEnabled,
   shouldSkipAutoSync,
 } = require('./telegram-avatar-state.service');
-
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const { getTelegramBotToken } = require('../utils/telegram-token');
 
 function j(x) {
   try { return JSON.stringify(x); } catch { return String(x); }
 }
 
 async function tgGet(method, params) {
+  const BOT_TOKEN = getTelegramBotToken();
   if (!BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN missing');
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
   const { data } = await axios.get(url, { params, timeout: 15000 });
@@ -20,6 +20,7 @@ async function tgGet(method, params) {
 }
 
 function tgFileUrl(file_path) {
+  const BOT_TOKEN = getTelegramBotToken();
   return `https://api.telegram.org/file/bot${BOT_TOKEN}/${file_path}`;
 }
 
@@ -51,6 +52,7 @@ async function getFilePath(file_id) {
 }
 
 async function fetchAndSaveTelegramAvatar({ employeeId, telegramUserId, telegramLinkedAt = null }) {
+  const BOT_TOKEN = getTelegramBotToken();
   if (!BOT_TOKEN) return { ok: false, reason: 'BOT_TOKEN_MISSING', step: 'env' };
   if (!employeeId || !telegramUserId) return { ok: false, reason: 'ARGS_MISSING', step: 'args' };
 
