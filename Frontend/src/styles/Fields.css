@@ -543,6 +543,12 @@
     justify-content: center;
 }
 
+.card-design-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .upload-design-btn {
     background-color: #37474f;
     color: #b0bec5;

@@ -8,13 +8,14 @@ import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon';
 const PAGE_SIZE = 50;
 
 const fmt = (v, digits = 4) => {
+  if (v === null || v === undefined || v === '') return '—';
   const n = Number(v);
   return Number.isFinite(n) ? parseFloat(n.toFixed(digits)).toString() : '0';
 };
 
 const safeDiv = (a, b) => {
   const x = Number(a), y = Number(b);
-  if (!Number.isFinite(x) || !Number.isFinite(y) || y === 0) return 0;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || y === 0) return null;
   return x / y;
 };
 
@@ -404,9 +405,8 @@ function CurrencyRates() {
       }));
 
       await upsertRates(payload);
-      setInitialRates(rates.map((row) => ({ ...row })));
+      await initialLoad();
       setDirtyIds(new Set());
-      debouncedSaveToSession.current(rates);
       stopEditRow();
     } catch (e) {
       console.error(e);
@@ -428,36 +428,6 @@ function CurrencyRates() {
     stopEditRow();
   };
 
-  const handleEnsureToday = async () => {
-    if (isDirty) {
-      openModal('Есть несохранённые изменения', 'Перед добавлением курса на сегодня сохраните или отмените изменения.', 'warning');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      const result = await ensureTodayRates();
-      await initialLoad();
-
-      if (result?.created) {
-        openModal('Курс на сегодня добавлен', 'Создана запись на сегодня на основе последнего курса.', 'success');
-      } else {
-        openModal('Курс на сегодня уже есть', 'Запись на сегодня уже существует.', 'info');
-      }
-    } catch (e) {
-      console.error(e);
-      setError('Не удалось добавить курс на сегодня.');
-      openErrorModal(
-        'Ошибка',
-        'Не удалось подготовить запись курсов на сегодня.',
-        () => { setModal(m => ({ ...m, open: false })); handleEnsureToday(); }
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="currency-rates-page">
       <Sidebar />
@@ -474,30 +444,16 @@ function CurrencyRates() {
           {saving && <span>Сохранение…</span>}
           {error && <span style={{ color: 'salmon' }}>{error}</span>}
 
-          <div className="currency-rates-header-actions">
-            {isDirty && (
-              <>
-                <button type="button" className="cancel-order-btn" onClick={handleCancel}>
-                  Отменить
-                </button>
-                <button type="button" className="save-order-btn" onClick={handleSave} disabled={saving}>
-                  Сохранить
-                </button>
-              </>
-            )}
-
-            {!isDirty && (
-              <button
-                type="button"
-                className="cancel-order-btn"
-                onClick={handleEnsureToday}
-                disabled={loading || saving}
-                title="Создать запись курсов на сегодня"
-              >
-                На сегодня
+          {isDirty && (
+            <div className="currency-rates-header-actions">
+              <button type="button" className="cancel-order-btn" onClick={handleCancel}>
+                Отменить
               </button>
-            )}
-          </div>
+              <button type="button" className="save-order-btn" onClick={handleSave} disabled={saving}>
+                Сохранить
+              </button>
+            </div>
+          )}
         </header>
 
         <div className="currency-rates-table-container custom-scrollbar">
