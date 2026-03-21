@@ -20,16 +20,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { rid } from "../../api/fields.js";
 import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
-
-// Утилиты для курсов валют
 import { 
   readLatestRatesSnapshot, 
   writeLatestRatesSnapshot, 
   convertAmountByRates, 
   normalizeCurrencyCode 
 } from "../../utils/exchangeRates.js";
-
-// АПИ запрос за курсами валют
 import { fetchLatestRatesSnapshot } from "../../api/rates.js";
 
 const formatNumberWithSpaces = (num) => {
@@ -110,7 +106,7 @@ const AssetDetailsModal = ({
   onSave,
   fields,
   employees,
-  onAddNewField, // <-- Добавлен проп для сохранения новых полей в БД
+  onAddNewField,
 }) => {
   const { transactions } = useTransactions();
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -154,13 +150,16 @@ const AssetDetailsModal = ({
     return filtered.slice(0, 5);
   }, [transactions, asset]);
 
-  // Подготавливаем опции для CreatableSelect
   const currencyOptions = useMemo(() => {
     return fields?.generalFields?.currency?.map(item => item?.value ?? item) || [];
   }, [fields]);
 
   const typeOptions = useMemo(() => {
     return fields?.assetsFields?.type?.map(item => item?.value ?? item) || [];
+  }, [fields]);
+
+  const paymentSystemOptions = useMemo(() => {
+    return fields?.assetsFields?.paymentSystem?.map(item => item?.value ?? item) || [];
   }, [fields]);
 
   useEffect(() => {
@@ -184,7 +183,7 @@ const AssetDetailsModal = ({
           writeLatestRatesSnapshot(latest);
         }
       } catch (err) {
-        console.error("Error loading exchange rates:", err);
+        console.error(err);
       }
     };
 
@@ -444,7 +443,6 @@ const AssetDetailsModal = ({
                 />
               </div>
 
-              {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
               <div className="form-row">
                 <label htmlFor="currency" className="form-label">
                   Валюта
@@ -497,7 +495,6 @@ const AssetDetailsModal = ({
                 </div>
               </div>
 
-              {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
               <div className="form-row">
                 <label htmlFor="type" className="form-label">
                   Тип
@@ -515,22 +512,13 @@ const AssetDetailsModal = ({
                 <label htmlFor="paymentSystem" className="form-label">
                   Платежная система
                 </label>
-                <select
-                  name="paymentSystem"
+                <CreatableSelect
                   value={editableAsset.paymentSystem}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {fields?.assetsFields?.paymentSystem?.map((item, index) => {
-                    const val = item?.value ?? item;
-                    return (
-                      <option key={item?.id || index} value={val}>
-                        {val}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'paymentSystem', value: val } })}
+                  options={paymentSystemOptions}
+                  placeholder="Выберите или введите..."
+                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "paymentSystem", val)}
+                />
               </div>
 
               <div className="form-row">

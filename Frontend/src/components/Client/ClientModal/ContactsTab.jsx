@@ -48,7 +48,7 @@ export default function ContactsTab({ countries = [], openImage, onAddCountry })
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Почта<span className="req">*</span></label>
+            <label>Почта</label>
             <input
               {...field}
               placeholder="user@example.com"

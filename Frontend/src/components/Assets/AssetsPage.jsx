@@ -6,7 +6,7 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
-import { fetchFields, withDefaults } from "../../api/fields";
+import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
 import {
   fetchAssets,
   createAsset as apiCreateAsset,
@@ -29,6 +29,7 @@ import {
   readLatestRatesSnapshot,
   writeLatestRatesSnapshot,
 } from "../../utils/exchangeRates";
+import { rid } from "../../utils/rid";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -42,7 +43,7 @@ const formatNumberWithSpaces = (num) => {
 
 const AssetsPage = () => {
   const navigate = useNavigate();
-  const { assetId } = useParams();
+  const { accountId: assetId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { transactions } = useTransactions();
 
@@ -95,21 +96,21 @@ const AssetsPage = () => {
 
   const handleOpenAsset = (asset) => {
     navigate({
-      pathname: `/assets/${asset.id}`,
+      pathname: `/accounts/${asset.id}`,
       search: searchParams.toString(),
     });
   };
 
   const handleCloseModal = () => {
     navigate({
-      pathname: "/assets",
+      pathname: "/accounts",
       search: searchParams.toString(),
     });
   };
 
   const handleOpenAddForm = () => {
     navigate({
-      pathname: "/assets/new",
+      pathname: "/accounts/new",
       search: searchParams.toString(),
     });
   };
@@ -135,6 +136,35 @@ const AssetsPage = () => {
     }
   };
 
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find((item) => {
+        const itemVal = typeof item === "string" ? item : (item.value || item.name);
+        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
+      });
+
+      if (!exists) {
+        list.push({
+          id: rid(),
+          value: newValue,
+          isDeleted: false,
+        });
+
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+
+        await saveFields(payload);
+        await loadFields();
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
+
   useEffect(() => {
     const snapshot = readCacheSnapshot("fieldsData", {
       ttlMs: CACHE_TTL.fields,
@@ -151,7 +181,6 @@ const AssetsPage = () => {
           return hasDataChanged(prev, next) ? next : prev;
         });
       } catch (_) {
-        // ignore invalid cached fields
       }
 
       if (snapshot.isFresh) return;
@@ -281,21 +310,6 @@ const AssetsPage = () => {
       setAssets(Array.isArray(cachedAssets) ? cachedAssets : defaultAssets);
     }
   };
-
-  useEffect(() => {
-    const snapshot = readCacheSnapshot("assetsData", {
-      fallback: defaultAssets,
-      ttlMs: CACHE_TTL.assets,
-    });
-
-    if (snapshot.hasData) {
-      const cachedAssets = Array.isArray(snapshot.data) ? snapshot.data : defaultAssets;
-      setAssets((prev) => (hasDataChanged(prev, cachedAssets) ? cachedAssets : prev));
-      if (snapshot.isFresh) return;
-    }
-
-    loadAssets();
-  }, []);
 
   const handleAddAsset = async (newAsset) => {
     try {
@@ -638,6 +652,7 @@ const AssetsPage = () => {
             onAdd={handleAddAsset}
             fields={fields}
             employees={employees}
+            onAddNewField={handleAddNewField}
           />
         )}
 
@@ -650,6 +665,7 @@ const AssetsPage = () => {
             onSave={handleSaveAsset}
             fields={fields}
             employees={employees}
+            onAddNewField={handleAddNewField}
           />
         )}
       </div>

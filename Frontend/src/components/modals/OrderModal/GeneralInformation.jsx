@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
-import { Controller, useWatch } from 'react-hook-form';
+import { Controller, useWatch, useFormContext } from 'react-hook-form';
 import CreatableSelect from "../../../components/Client/ClientModal/CreatableSelect.jsx";
 
 const GeneralInformation = ({ control, orderFields, onAddNewField }) => {
+    const { setValue } = useFormContext();
+
     const urgencyOptions = [
         { value: "1", label: "Не горит" },
         { value: "2", label: "Умеренно" },
@@ -116,12 +118,11 @@ const GeneralInformation = ({ control, orderFields, onAddNewField }) => {
                             value={field.value}
                             onChange={(val) => {
                                 field.onChange(val);
-                                // Сброс типа заказа при смене интервала (по аналогии со статьей/подстатьей)
-                                control._subjects.orderType?.ref?.focus?.(); 
+                                setValue('orderType', '', { shouldDirty: true });
                             }}
                             options={intervalOptions}
                             placeholder="Выберите или введите..."
-                            onAdd={(val) => onAddNewField && onAddNewField("orderFields", "intervals", val)}
+                            onAdd={(val) => onAddNewField && onAddNewField("orderFields", "intervals", val, { intervalValue: val })}
                         />
                     )}
                 />
@@ -141,7 +142,7 @@ const GeneralInformation = ({ control, orderFields, onAddNewField }) => {
                             disabled={!selectedInterval}
                             onAdd={(val) => {
                                 if (!selectedInterval) return alert("Сначала выберите интервал!");
-                                onAddNewField && onAddNewField("orderFields", "categories", val, { categoryInterval: selectedInterval });
+                                onAddNewField && onAddNewField("orderFields", "categories", val, { categoryInterval: selectedInterval, categoryValue: val });
                             }}
                         />
                     )}
@@ -205,4 +206,4 @@ const GeneralInformation = ({ control, orderFields, onAddNewField }) => {
     );
 };
 
-export default GeneralInformation; 
+export default GeneralInformation;

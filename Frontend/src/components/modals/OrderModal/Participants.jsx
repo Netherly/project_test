@@ -8,7 +8,6 @@ import * as executorService from '../../Executors/executorService';
 import { Minus, Plus } from 'lucide-react';
 
 const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorModal }) => {
-  const allPerformers = ["Иван Иванов", "Петр Петров", "Сидор Сидоров", "Анна Кузнецова"];
   const [customPerformer, setCustomPerformer] = useState('');
   const [showPerformerDropdown, setShowPerformerDropdown] = useState(false);
   const performerInputRef = useRef(null);
@@ -84,12 +83,12 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
  
   const clientInfo = {
     country: selectedClientInfo?.country || '—',
-    category: selectedClientInfo?.tags[0]?.name || '—',
+    category: selectedClientInfo?.tags?.[0]?.name || '—',
     source: selectedClientInfo?.source || '—',
     referer: selectedClientInfo?.referrer_name || '—',
     refererFirst: selectedClientInfo?.referrer_first_name || '—',
-    manager: 'Дядя Exzibit',
-    isFirstOrder: false 
+    manager: selectedClientInfo?.manager_name || selectedClientInfo?.manager || '—',
+    isFirstOrder: selectedClientInfo?.is_first_order || false 
   };
 
   useEffect(() => {

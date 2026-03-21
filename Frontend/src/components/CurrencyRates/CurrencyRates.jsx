@@ -359,21 +359,6 @@ function CurrencyRates() {
 
       let nextRow = { ...before, [key]: raw };
 
-      /*
-      if (key === 'USD' || key === 'RUB') {
-        const usdNum = key === 'USD' ? (raw === '' ? 0 : parseFloat(raw) || 0) : Number(before.USD || 0);
-        const rubNum = key === 'RUB' ? (raw === '' ? 0 : parseFloat(raw) || 0) : Number(before.RUB || 0);
-        const recalculated = calculateRates(usdNum, rubNum);
-        nextRow = { 
-          ...nextRow, 
-          ...recalculated, 
-          USD: key === 'USD' ? raw : usdNum, 
-          RUB: key === 'RUB' ? raw : rubNum, 
-          USDT: usdNum 
-        };
-      }
-      */
-
       arr[rowIndex] = nextRow;
 
       const base = initialRates.find(r => r.id === before.id);
@@ -541,18 +526,20 @@ function CurrencyRates() {
                       
                       <td>{fmt(row.USDT)}</td>
 
-                      {renderEditable('UAH_RUB')}
-                      {renderEditable('UAH_USD')}
-                      {renderEditable('UAH_USDT')}
-                      {renderEditable('USD_UAH')}
+                      <td>{fmt(row.UAH_RUB)}</td>
+                      <td>{fmt(row.UAH_USD)}</td>
+                      <td>{fmt(row.UAH_USDT)}</td>
+                      <td>{fmt(row.USD_UAH)}</td>
+                      
                       {renderEditable('USD_RUB')}
-                      {renderEditable('USD_USDT')}
-                      {renderEditable('USDT_UAH')}
-                      {renderEditable('USDT_USD')}
-                      {renderEditable('USDT_RUB')}
-                      {renderEditable('RUB_UAH')}
-                      {renderEditable('RUB_USD')}
-                      {renderEditable('RUB_USDT')}
+                      
+                      <td>{fmt(row.USD_USDT)}</td>
+                      <td>{fmt(row.USDT_UAH)}</td>
+                      <td>{fmt(row.USDT_USD)}</td>
+                      <td>{fmt(row.USDT_RUB)}</td>
+                      <td>{fmt(row.RUB_UAH)}</td>
+                      <td>{fmt(row.RUB_USD)}</td>
+                      <td>{fmt(row.RUB_USDT)}</td>
                     </tr>
                   );
                 })}

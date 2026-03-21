@@ -21,7 +21,10 @@ import {
   changeOrderStage,
   deleteOrder as apiDeleteOrder,
 } from "../../api/orders";
+import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { useFields } from "../../context/FieldsContext";
 import { isForbiddenError } from "../../utils/isForbiddenError.js";
+import { rid } from "../../utils/rid";
 import {
   CACHE_TTL,
   hasDataChanged,
@@ -31,8 +34,6 @@ import {
 import "../../styles/OrdersPage.css";
 import "./Minimap/ColumnMinimap.css";
 import "./ColumnVisibilityToggle/ColumnVisibilityToggle.css";
-
-// --- Вспомогательные компоненты и константы ---
 
 const QuickDropZone = ({ stage, moveOrder, onDragEnd }) => {
   const [{ isOver }, drop] = useDrop({
@@ -130,8 +131,6 @@ const urgencyToApi = { "1": "one", "2": "two", "3": "three", "4": "four" };
 const apiToUrgency = { one: "1", two: "2", three: "3", four: "4" };
 
 const finalStages = ["Успешно завершен", "Закрыт", "Неудачно завершён", "Удаленные"];
-
-// --- Функции нормализации данных ---
 
 const parseDateInput = (value) => {
   if (!value) return undefined;
@@ -325,7 +324,7 @@ const mapOrderFromApi = (o = {}) => {
     executionTime: pickDefined(o.executionTime, meta.executionTime) ?? "",
     startDate: toDateInput(pickDefined(o.startDate, meta.startDate)),
     endDate: toDateInput(pickDefined(o.endDate, meta.endDate)),
-    countDays: normalizeInt(o.countDays), // <--- ИСПРАВЛЕНО ЗДЕСЬ (было order.countDays)
+    countDays: normalizeInt(o.countDays), 
     completedDate: toDateInput(pickDefined(o.completedDate, meta.completedDate)),
     completingTime: pickDefined(o.completingTime, meta.completingTime) ?? "",
     completingLink: pickDefined(o.completingLink, meta.completingLink) ?? "",
@@ -436,14 +435,13 @@ const toApiOrderPayload = (order = {}) => {
   };
 };
 
-// --- ОСНОВНОЙ КОМПОНЕНТ ---
-
 const OrdersPage = () => {
   const navigate = useNavigate();
   const { orderId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Состояние
+  const { refreshFields } = useFields();
+
   const [orders, setOrders] = useState(() => {
     const pageSnapshot = readCacheSnapshot(ORDER_PAGE_CACHE_KEY, { fallback: [] });
     if (pageSnapshot.hasData) {
@@ -464,31 +462,49 @@ const OrdersPage = () => {
   const [journalEntries, setJournalEntries] = useState([]);
   const cacheWriteStateRef = useRef({ orders: false });
   
-  // Видимость стадий
   const [visibleOrderStages, setVisibleOrderStages] = useState(() => {
     const stagesParam = searchParams.get("stages");
     if (stagesParam) return stagesParam.split(",");
     return allStages;
   });
 
-  // UI стейт
   const [viewMode, setViewMode] = useState("kanban");
   const [isDragging, setIsDragging] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const stagesContainerRef = useRef(null);
   const isDraggingRef = useRef(false);
 
-  // --- Mass Edit State (из твоих изменений) ---
   const [isMassEditMode, setIsMassEditMode] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState([]);
 
-  // Вычисляемое значение выбранного заказа
   const selectedOrder = useMemo(() => {
     if (!orderId) return null;
     return orders.find((o) => String(o.id) === String(orderId)) || null;
   }, [orders, orderId]);
 
-  // Загрузка данных
+  const loadData = async () => {
+    setError("");
+    setForbidden(false);
+    try {
+      const data = await fetchOrders();
+      const apiOrders = data?.orders || data || [];
+      const nextOrders = apiOrders.map(mapOrderFromApi);
+      writeCachedValue("ordersData", apiOrders);
+      writeCachedValue(ORDER_PAGE_CACHE_KEY, nextOrders);
+      setOrders((prev) => (hasDataChanged(prev, nextOrders) ? nextOrders : prev));
+    } catch (e) {
+      console.error("Fetch orders error", e);
+      if (isForbiddenError(e)) {
+        setForbidden(true);
+        setError("");
+      } else {
+        setError(e?.message || "Не удалось загрузить заказы");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const pageSnapshot = readCacheSnapshot(ORDER_PAGE_CACHE_KEY, {
       fallback: [],
@@ -515,37 +531,8 @@ const OrdersPage = () => {
       }
     }
 
-    const load = async () => {
-      if (!pageSnapshot.hasData && !sharedSnapshot.hasData) {
-        setLoading(true);
-      }
-      setError("");
-      setForbidden(false);
-      try {
-        const data = await fetchOrders();
-        const apiOrders = data?.orders || data || [];
-        const nextOrders = apiOrders.map(mapOrderFromApi);
-        writeCachedValue("ordersData", apiOrders);
-        writeCachedValue(ORDER_PAGE_CACHE_KEY, nextOrders);
-        setOrders((prev) => (hasDataChanged(prev, nextOrders) ? nextOrders : prev));
-      } catch (e) {
-        console.error("Fetch orders error", e);
-        if (isForbiddenError(e)) {
-          setForbidden(true);
-          setError("");
-          if (!pageSnapshot.hasData && !sharedSnapshot.hasData) {
-            setOrders([]);
-          }
-        } else {
-          setError(e?.message || "Не удалось загрузить заказы");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (!pageSnapshot.isFresh && !sharedSnapshot.isFresh) {
-      load();
+      loadData();
     }
 
     const allEntries = getLogEntries();
@@ -560,13 +547,43 @@ const OrdersPage = () => {
     writeCachedValue(ORDER_PAGE_CACHE_KEY, orders);
   }, [orders]);
 
-  // --- Handlers ---
+  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find((item) => {
+        const itemVal = typeof item === "string" ? item : (item.value || item.name || item.articleValue || item.subarticleValue);
+        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
+      });
+
+      if (!exists) {
+        list.push({
+          id: rid(),
+          value: newValue,
+          isDeleted: false,
+          ...extraData
+        });
+
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+
+        await saveFields(payload);
+
+        if (refreshFields) {
+          await refreshFields();
+        }
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
 
   const handleCloseModal = () => {
     navigate({ pathname: "/orders", search: searchParams.toString() });
   };
 
-  // Перемещение заказа (Drag & Drop) - API версия
   const moveOrder = useCallback(async (orderIdValue, newStage, newIndex) => {
     setOrders((prevOrders) => {
       const order = prevOrders.find((o) => o.id === orderIdValue);
@@ -655,7 +672,6 @@ const OrdersPage = () => {
     }
   };
 
-  // Mass Edit Logic + Navigation
   const handleOrderClick = (order) => {
     if (isMassEditMode) {
       setSelectedOrders((prev) =>
@@ -675,7 +691,6 @@ const OrdersPage = () => {
 
   const handleMassUpdate = (field, value) => {
     if (field === "stage") {
-      // Здесь пока локальное обновление, нужно будет добавить API вызов если требуется
       setOrders((prevOrders) =>
         prevOrders.map((order) => {
           if (selectedOrders.includes(order.id)) {
@@ -740,8 +755,6 @@ const OrdersPage = () => {
   const handleDragEnd = () => setIsDragging(false);
 
   useHorizontalDragScroll(stagesContainerRef, isDraggingRef);
-
-  // --- RENDER ---
 
   return (
     <div className="orders-page">
@@ -894,6 +907,7 @@ const OrdersPage = () => {
           onUpdateOrder={handleUpdateOrder}
           onDeleteOrder={handleDeleteOrder}
           journalEntries={journalEntries}
+          onAddNewField={handleAddNewField}
         />
       )}
 
@@ -903,6 +917,7 @@ const OrdersPage = () => {
           onClose={() => setIsCreateModalOpen(false)}
           onCreateOrder={handleCreateOrder}
           journalEntries={journalEntries}
+          onAddNewField={handleAddNewField}
         />
       )}
     </div>
