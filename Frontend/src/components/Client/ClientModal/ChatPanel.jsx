@@ -401,17 +401,6 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     return null;
   };
 
-  const hasInlineMessageTargets = (log) =>
-    Array.isArray(log?.messageParts) &&
-    log.messageParts.some((part) => part?.type === 'link' && getTargetRoute({ type: part.targetType, id: part.id }));
-
-  const getTargetLabel = (target) => {
-    if (target?.type === 'transaction') return 'Открыть транзакцию';
-    if (target?.type === 'asset') return 'Открыть актив';
-    if (target?.type === 'employee') return 'Открыть сотрудника';
-    return 'Открыть';
-  };
-
   const getImportantLogIcon = (log) => {
     if (log.action === 'note') return { symbol: '✓', tone: 'note' };
     if (String(log.action || '').includes('transaction')) return { symbol: '₴', tone: 'transaction' };
@@ -420,9 +409,61 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     return { symbol: '+', tone: 'create' };
   };
 
+  const renderLinkedText = (text, target, keyPrefix) => {
+    const route = getTargetRoute(target);
+    const rawText = String(text || '');
+    const rawLabel = String(target?.label || '').trim();
+    if (!route || !rawText || !rawLabel) return rawText;
+
+    const quotedLabel = `"${rawLabel}"`;
+    const matchText = rawText.includes(quotedLabel) ? quotedLabel : rawLabel;
+    if (!rawText.includes(matchText)) return rawText;
+
+    const chunks = [];
+    let cursor = 0;
+    let partIndex = 0;
+
+    while (cursor < rawText.length) {
+      const foundIndex = rawText.indexOf(matchText, cursor);
+      if (foundIndex === -1) break;
+
+      if (foundIndex > cursor) {
+        chunks.push(
+          <React.Fragment key={`${keyPrefix}-text-${partIndex}`}>
+            {rawText.slice(cursor, foundIndex)}
+          </React.Fragment>
+        );
+        partIndex += 1;
+      }
+
+      chunks.push(
+        <button
+          key={`${keyPrefix}-link-${partIndex}`}
+          type="button"
+          className="log-actor-link log-inline-link"
+          onClick={() => navigate(route)}
+        >
+          {matchText}
+        </button>
+      );
+      partIndex += 1;
+      cursor = foundIndex + matchText.length;
+    }
+
+    if (cursor < rawText.length) {
+      chunks.push(
+        <React.Fragment key={`${keyPrefix}-tail-${partIndex}`}>
+          {rawText.slice(cursor)}
+        </React.Fragment>
+      );
+    }
+
+    return chunks.length ? chunks : rawText;
+  };
+
   const renderLogMessageContent = (log) => {
     if (!Array.isArray(log?.messageParts) || !log.messageParts.length) {
-      return log.message;
+      return renderLinkedText(log.message, log.target, `${log.id}-fallback`);
     }
 
     return log.messageParts.map((part, index) => {
@@ -486,8 +527,6 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
 
   const renderEmployeeImportantLog = (log) => {
     const icon = getImportantLogIcon(log);
-    const targetRoute = getTargetRoute(log.target);
-    const showGenericTargetLink = Boolean(targetRoute) && !hasInlineMessageTargets(log);
     return (
       <div key={log.id} className={`log-item log-item--with-actions employee-important-log${log.pinned ? ' pinned' : ''}`}>
         <div className={`log-item__icon employee-important-log__icon tone-${icon.tone}`}>{icon.symbol}</div>
@@ -512,15 +551,6 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
           ) : (
             <>
               <div className="log-message">{renderLogMessageContent(log)}</div>
-              {showGenericTargetLink && (
-                <button
-                  type="button"
-                  className="log-target-link"
-                  onClick={() => navigate(targetRoute)}
-                >
-                  {getTargetLabel(log.target)}
-                </button>
-              )}
             </>
           )}
         </div>
