@@ -91,6 +91,13 @@ function serverOriginFromApiBase() {
   return "";
 }
 
+function normalizeCacheVersion(version) {
+  if (version === null || version === undefined) return "";
+  if (version instanceof Date) return version.toISOString();
+  const text = String(version).trim();
+  return text || "";
+}
+
 /** Склейка конечного URL для API-методов */
 function buildUrl(path, params) {
   const base = _API_BASE; // нормализован
@@ -243,14 +250,33 @@ export function httpDelete(path, body = undefined, extraHeaders = {}, opts = {})
 }
 
 /** Абсолютный URL для публичных файлов/изображений */
-export function fileUrl(p) {
+export function withCacheVersion(url, version) {
+  const source = String(url || "").trim();
+  if (!source || source.startsWith("data:")) return source;
+
+  const cacheVersion = normalizeCacheVersion(version);
+  if (!cacheVersion) return source;
+
+  try {
+    const next = new URL(
+      source,
+      typeof window !== "undefined" ? window.location.origin : "http://localhost"
+    );
+    next.searchParams.set("v", cacheVersion);
+    return next.toString();
+  } catch {
+    return source;
+  }
+}
+
+export function fileUrl(p, version = "") {
   if (!p) return "";
   const s = String(p).trim();
   if (s.startsWith("data:")) return s;
-  if (/^https?:\/\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return withCacheVersion(s, version);
   const origin = serverOriginFromApiBase();
   const path = s.startsWith("/") ? s : `/${s}`;
-  return `${origin}${path}`;
+  return withCacheVersion(`${origin}${path}`, version);
 }
 
 /** На всякий случай экспортируем базу и origin */

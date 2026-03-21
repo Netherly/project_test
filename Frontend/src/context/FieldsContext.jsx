@@ -31,10 +31,7 @@ export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
     if (snapshot.hasData) {
       setFields((prev) => (hasDataChanged(prev, snapshot.data) ? snapshot.data : prev));
       setLoading(false);
-      if (snapshot.isFresh) {
-        setError(null);
-        return;
-      }
+      setError(null);
     }
 
     let mounted = true;

@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const prisma = require('../../prisma/client');
 const { fetchAndSaveTelegramAvatar } = require('../services/telegram-avatar.service');
+const { getTelegramBotToken } = require('../utils/telegram-token');
 
 const schedule = process.env.TELEGRAM_AVATAR_CRON || '0 0 * * 0';
 const timezone = process.env.TELEGRAM_AVATAR_CRON_TZ || 'Europe/Kyiv';
@@ -12,7 +13,7 @@ const toText = (value) => {
 };
 
 async function refreshTelegramAvatars() {
-  if (!process.env.TELEGRAM_BOT_TOKEN) {
+  if (!getTelegramBotToken()) {
     console.log('[tg-avatar] skipped: no TELEGRAM_BOT_TOKEN');
     return;
   }
