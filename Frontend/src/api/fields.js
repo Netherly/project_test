@@ -10,6 +10,10 @@ export function clone(v) {
 }
 
 const normalizeCodeValue = (value) => tidy(value).toUpperCase();
+const normalizeDeleteAction = (value) => {
+  const action = tidy(value).toLowerCase();
+  return action === "hide" ? "hide" : "";
+};
 
 // --- Нормализация (чтение с сервера) ---
 
@@ -223,16 +227,49 @@ export async function saveFields(payload) {
   return unwrap(r);
 }
 
+const FIELD_OPTION_ALIASES = {
+  orderFields: {
+    discountReasons: "discountReason",
+  },
+  clientFields: {
+    tag: "tags",
+  },
+  companyFields: {
+    tag: "tags",
+  },
+  employeeFields: {
+    tag: "tags",
+  },
+  assetsFields: {
+    cardDesign: "cardDesigns",
+  },
+};
+
+const resolveFieldOptionTarget = (groupKey, fieldName) => {
+  const safeGroupKey = tidy(groupKey);
+  const safeFieldName = tidy(fieldName);
+
+  return {
+    groupKey: safeGroupKey,
+    fieldName: FIELD_OPTION_ALIASES?.[safeGroupKey]?.[safeFieldName] || safeFieldName,
+  };
+};
+
 export async function addFieldOption(groupKey, fieldName, rawValue, extraData = {}) {
   const value = tidy(rawValue);
   if (!value) {
     return withDefaults(await fetchFields());
   }
 
+  const target = resolveFieldOptionTarget(groupKey, fieldName);
+  if (!target.groupKey || !target.fieldName) {
+    return withDefaults(await fetchFields());
+  }
+
   const raw = await fetchFields();
   const normalized = withDefaults(raw);
-  const list = Array.isArray(normalized?.[groupKey]?.[fieldName])
-    ? [...normalized[groupKey][fieldName]]
+  const list = Array.isArray(normalized?.[target.groupKey]?.[target.fieldName])
+    ? [...normalized[target.groupKey][target.fieldName]]
     : [];
 
   const exists = list.some((item) => {
@@ -257,9 +294,9 @@ export async function addFieldOption(groupKey, fieldName, rawValue, extraData = 
       return Math.max(max, order);
     }, -1) + 1;
 
-  normalized[groupKey] = {
-    ...(normalized[groupKey] || {}),
-    [fieldName]: [
+  normalized[target.groupKey] = {
+    ...(normalized[target.groupKey] || {}),
+    [target.fieldName]: [
       ...list,
       {
         id: rid(),
@@ -364,7 +401,7 @@ export function withDefaults(fields) {
 export const serByName = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const v = tidy(item?.value ?? item?.name);
     if (!v) continue;
@@ -375,6 +412,10 @@ export const serByName = (arr) => {
         id: item?.id || rid(),
         name: v,
         order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+        ...(item?.isDeleted ? { isDeleted: true } : {}),
+        ...(normalizeDeleteAction(item?.deleteAction)
+          ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+          : {}),
       });
     }
   }
@@ -384,7 +425,7 @@ export const serByName = (arr) => {
 export const serCountries = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item?.isDeleted);
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const name = tidy(item?.value ?? item?.name);
     const iso2 = tidy(item?.iso2).toUpperCase();
@@ -402,6 +443,10 @@ export const serCountries = (arr) => {
       iso2: iso2 || undefined,
       iso3: iso3 || undefined,
       order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+      ...(item?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(item?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+        : {}),
     });
   }
   return out;
@@ -410,7 +455,7 @@ export const serCountries = (arr) => {
 export const serByCode = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const v = normalizeCodeValue(item?.code ?? item?.value);
     if (!v) continue;
@@ -421,6 +466,10 @@ export const serByCode = (arr) => {
         id: item?.id || rid(),
         code: v,
         order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+        ...(item?.isDeleted ? { isDeleted: true } : {}),
+        ...(normalizeDeleteAction(item?.deleteAction)
+          ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+          : {}),
       });
     }
   }
@@ -429,55 +478,70 @@ export const serByCode = (arr) => {
 
 export const serIntervals = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
     .map((it, index) => ({
       id: it?.id || rid(),
       value: tidy(it?.intervalValue ?? it?.value),
       order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.value !== "");
 
 export const serCategories = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
     .map((it, index) => ({
       id: it?.id || rid(),
       intervalValue: tidy(it?.categoryInterval),
       value: tidy(it?.categoryValue),
       order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.intervalValue && x.value);
 
 export const serArticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
     .map((it, index) => ({
       id: it?.id || rid(),
       name: tidy(it?.articleValue),
       order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.name !== "");
 
 export const serSubarticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
     .map((it, index) => ({
       id: it?.id || rid(),
       parentName: tidy(it?.subarticleInterval),
       name: tidy(it?.subarticleValue),
       order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.parentName && x.name);
 
 export const serDesigns = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
     .map((d, index) => ({
       id: d?.id || rid(),
       name: tidy(d?.name),
       url: tidy(d?.url),
       size: d?.size ?? null,
       order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
+      ...(d?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(d?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(d?.deleteAction) }
+        : {}),
     }))
     .filter((d) => d.name);
 

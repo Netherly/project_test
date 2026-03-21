@@ -19,7 +19,7 @@ import { addLogEntry, getEmployees } from "../../Journal/journalApi";
 import { getStageColor } from "../../Orders/stageColors";
 import { fetchClients } from "../../../api/clients";
 import { useFields } from "../../../context/FieldsContext";
-import { addFieldOption } from "../../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../../api/fields";
 import { rid } from "../../../utils/rid";
 import "../../../styles/OrderModal.css";
 import { X, Trash2, Copy, MoreVertical } from "lucide-react";
@@ -233,7 +233,7 @@ function OrderModal({
     statuses: [],
     closeReasons: [],
     projects: [],
-    discountReasons: [],
+    discountReason: [],
     tags: [],
     techTags: [],
     taskTags: [],
@@ -258,15 +258,29 @@ function OrderModal({
   const watchedTags = watch("tags") || [];
 
   const handleAddNewFieldInternal = async (group, fieldName, newValue, extraData = {}) => {
+    const resolvedFieldName = fieldName === "discountReasons" ? "discountReason" : fieldName;
     if (onAddNewField) {
-      await onAddNewField(group, fieldName, newValue, extraData);
-    } else {
+      await onAddNewField(group, resolvedFieldName, newValue, extraData);
       try {
-        const normalized = await addFieldOption(group, fieldName, newValue, extraData);
+        const normalized = withDefaults(await fetchFields());
         if (group === "orderFields") {
           setOrderFields((prev) => ({
             ...prev,
-            [fieldName]: normalized?.orderFields?.[fieldName] || prev?.[fieldName] || [],
+            [resolvedFieldName]:
+              normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
+          }));
+        }
+      } catch (e) {
+        console.error("Ошибка при обновлении локальных полей заказа:", e);
+      }
+    } else {
+      try {
+        const normalized = await addFieldOption(group, resolvedFieldName, newValue, extraData);
+        if (group === "orderFields") {
+          setOrderFields((prev) => ({
+            ...prev,
+            [resolvedFieldName]:
+              normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
           }));
         }
         if (refreshFields) {
@@ -361,13 +375,20 @@ function OrderModal({
             statuses: [],
             closeReasons: [],
             projects: [],
-            discountReasons: [],
+            discountReason: [],
             tags: [],
             techTags: [],
             taskTags: [],
             readySolution: [],
           };
-          setOrderFields({ ...base, ...parsed.orderFields });
+          setOrderFields({
+            ...base,
+            ...parsed.orderFields,
+            discountReason:
+              parsed?.orderFields?.discountReason ??
+              parsed?.orderFields?.discountReasons ??
+              base.discountReason,
+          });
         }
 
         const employeesFromStorage = JSON.parse(localStorage.getItem("employees")) || [];

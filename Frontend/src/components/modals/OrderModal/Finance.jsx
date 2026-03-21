@@ -26,7 +26,7 @@ const Finance = ({ control, orderFields, transactions = [], onAddNewField }) => 
     })
     .filter(Boolean);
 
-  const discountReasonOptions = (orderFields?.discountReasons || [])
+  const discountReasonOptions = (orderFields?.discountReason || orderFields?.discountReasons || [])
     .map((opt) => opt?.value ?? opt?.name ?? "")
     .filter(Boolean);
 
@@ -276,7 +276,7 @@ const Finance = ({ control, orderFields, transactions = [], onAddNewField }) => 
                 onChange={field.onChange}
                 options={discountReasonOptions}
                 placeholder="Укажите причину..."
-                onAdd={(val) => onAddNewField && onAddNewField("orderFields", "discountReasons", val)}
+                onAdd={(val) => onAddNewField && onAddNewField("orderFields", "discountReason", val)}
               />
             </div>
           </div>

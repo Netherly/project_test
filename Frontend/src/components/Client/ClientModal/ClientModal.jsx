@@ -224,7 +224,12 @@ export default function ClientModal({
       <div className="client-modal tri-layout">
         <div className="left-panel">
           <FormProvider {...methods}>
-            <ClientHeader onClose={closeHandler} onDelete={onDelete ? deleteHandler : null} />
+            <ClientHeader
+              onClose={closeHandler}
+              onDelete={onDelete ? deleteHandler : null}
+              tagOptions={fieldOptions.tags}
+              onAddNewField={handleAddNewField}
+            />
           </FormProvider>
 
           <TabsNav

@@ -370,6 +370,8 @@ const arrToUniqueStrings = (list, key = 'name') => {
       id: pickStr(source?.id) || null,
       [key]: value,
       order: Number.isFinite(Number(source?.order)) ? Number(source.order) : index,
+      isDeleted: source?.isDeleted === true,
+      deleteAction: pickStr(source?.deleteAction).toLowerCase() || '',
     });
   });
 
@@ -384,6 +386,7 @@ const normalizeSimpleValues = (list, options = {}) => {
 
   (Array.isArray(list) ? list : []).forEach((value, index) => {
     const source = value && typeof value === 'object' ? value : { value };
+    if (source?.isDeleted === true) return;
     const raw =
       source.value ??
       source.name ??
@@ -410,6 +413,46 @@ const normalizeSimpleValues = (list, options = {}) => {
       id: pickStr(source?.id) || null,
       value: sanitized,
       order: Number.isFinite(Number(source?.order)) ? Number(source.order) : index,
+    });
+  });
+
+  return out;
+};
+
+const normalizeSimpleHiddenValues = (list, options = {}) => {
+  const out = [];
+  const seen = new Set();
+
+  (Array.isArray(list) ? list : []).forEach((value) => {
+    const source = value && typeof value === 'object' ? value : { value };
+    if (source?.isDeleted !== true || pickStr(source?.deleteAction).toLowerCase() !== 'hide') return;
+
+    const raw =
+      source.value ??
+      source.name ??
+      source.code ??
+      source.articleValue ??
+      source.categoryValue ??
+      source.subarticleValue ??
+      source.intervalValue ??
+      source.categoryInterval ??
+      source.subarticleInterval ??
+      source.label ??
+      '';
+
+    if (raw === undefined || raw === null) return;
+
+    const sanitized = sanitizeDictValue(raw, options);
+    if (!sanitized) return;
+
+    const entryId = pickStr(source?.id) || '';
+    const entryKey = `${entryId}|${sanitized.toLowerCase()}`;
+    if (seen.has(entryKey)) return;
+    seen.add(entryKey);
+
+    out.push({
+      id: entryId || null,
+      value: sanitized,
     });
   });
 
@@ -581,6 +624,47 @@ async function splitRowsForHideOrDelete(tx, rows = [], config = {}) {
   };
 }
 
+const buildForceHideLookup = (entries = []) => {
+  const idSet = new Set();
+  const keySet = new Set();
+
+  entries.forEach((entry) => {
+    const entryId = pickStr(entry?.id);
+    const entryKey = pickStr(entry?.key ?? entry?.value).toLowerCase();
+    if (entryId) idSet.add(entryId);
+    if (entryKey) keySet.add(entryKey);
+  });
+
+  return { idSet, keySet };
+};
+
+const applyForcedHide = (rows = [], split = {}, entries = [], getRowKey = (row) => row?.value ?? row?.name) => {
+  if (!entries.length) {
+    return {
+      toHideIds: uniqueIds(split?.toHideIds || []),
+      toDeleteIds: uniqueIds(split?.toDeleteIds || []),
+    };
+  }
+
+  const { idSet, keySet } = buildForceHideLookup(entries);
+  const toHideIds = new Set((split?.toHideIds || []).map((item) => pickStr(item)).filter(Boolean));
+  const toDeleteIds = new Set((split?.toDeleteIds || []).map((item) => pickStr(item)).filter(Boolean));
+
+  rows.forEach((row) => {
+    const rowId = pickStr(row?.id);
+    const rowKey = pickStr(getRowKey(row)).toLowerCase();
+    if (!rowId) return;
+    if (!idSet.has(rowId) && !keySet.has(rowKey)) return;
+    toDeleteIds.delete(rowId);
+    toHideIds.add(rowId);
+  });
+
+  return {
+    toHideIds: uniqueIds(Array.from(toHideIds)),
+    toDeleteIds: uniqueIds(Array.from(toDeleteIds)),
+  };
+};
+
 const normalizeCountryEntries = (list) => {
   const out = [];
   const seen = new Set();
@@ -623,6 +707,16 @@ const normalizeCountryEntries = (list) => {
   return out;
 };
 
+const normalizeHiddenCountryEntries = (list) =>
+  normalizeCountryEntries(
+    (Array.isArray(list) ? list : []).filter(
+      (item) => item?.isDeleted === true && pickStr(item?.deleteAction).toLowerCase() === 'hide'
+    )
+  ).map((item) => ({
+    id: item.id,
+    key: item.iso2 || item.name || item.nameEn || item.nameRu || item.nameUk || '',
+  }));
+
 const mapCountry = (country) => ({
   id: country.id,
   name: country.name,
@@ -638,6 +732,7 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
   const field = opts.field || 'name';
   const hasIsActive = opts.hasIsActive !== false;
   const values = normalizeSimpleValues(list, { model, field });
+  const hiddenValues = normalizeSimpleHiddenValues(list, { model, field });
   const dbModel = tx[model];
   const linkConfig = FIELD_LINK_CONFIGS[model] || null;
 
@@ -675,7 +770,13 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
   if (hasIsActive) {
     const desiredValues = new Set(values.map((item) => item.value));
     const removedRows = existing.filter((item) => !desiredValues.has(item[field]));
-    const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(tx, removedRows, linkConfig);
+    const split = await splitRowsForHideOrDelete(tx, removedRows, linkConfig);
+    const { toHideIds, toDeleteIds } = applyForcedHide(
+      removedRows,
+      split,
+      hiddenValues,
+      (row) => row?.[field]
+    );
 
     if (toHideIds.length) {
       await dbModel.updateMany({
@@ -697,7 +798,10 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
 };
 
 const syncCountries = async (tx, list) => {
-  const countries = normalizeCountryEntries(list);
+  const countries = normalizeCountryEntries(
+    (Array.isArray(list) ? list : []).filter((item) => item?.isDeleted !== true)
+  );
+  const hiddenCountries = normalizeHiddenCountryEntries(list);
   const dbModel = tx.country;
 
   if (!dbModel) return;
@@ -786,7 +890,13 @@ const syncCountries = async (tx, list) => {
   }
 
   const removedRows = existing.filter((item) => !keepIds.has(item.id));
-  const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(tx, removedRows, FIELD_LINK_CONFIGS.country);
+  const split = await splitRowsForHideOrDelete(tx, removedRows, FIELD_LINK_CONFIGS.country);
+  const { toHideIds, toDeleteIds } = applyForcedHide(
+    removedRows,
+    split,
+    hiddenCountries,
+    (row) => row?.iso2 || row?.name || row?.nameEn || row?.nameRu || row?.nameUk || ''
+  );
 
   if (toHideIds.length) {
     await dbModel.updateMany({
@@ -818,6 +928,8 @@ const normalizeExtraFieldList = (list) => {
       id: item?.id || rid(),
       value,
       isActive: item?.isActive !== false,
+      isDeleted: item?.isDeleted === true,
+      deleteAction: pickStr(item?.deleteAction).toLowerCase() || '',
       order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
     });
   }
@@ -865,8 +977,16 @@ async function mergeExtraFieldList(tx, existingList, incomingList, configKey) {
   const incoming = normalizeExtraFieldList(incomingList).map((item) => ({
     id: item.id || null,
     value: item.value,
+    isDeleted: item.isDeleted === true,
+    deleteAction: item.deleteAction || '',
     order: Number.isFinite(Number(item.order)) ? Number(item.order) : 0,
   }));
+  const hiddenIncoming = incoming
+    .filter((item) => item.isDeleted === true && item.deleteAction === 'hide')
+    .map((item) => ({
+      id: item.id || null,
+      key: item.value,
+    }));
 
   const currentById = new Map(current.map((item) => [String(item.id), item]));
   const currentByValue = new Map(current.map((item) => [item.value.toLowerCase(), item]));
@@ -874,7 +994,7 @@ async function mergeExtraFieldList(tx, existingList, incomingList, configKey) {
   const activeIds = new Set();
   const activeKeys = new Set();
 
-  for (const item of incoming) {
+  for (const item of incoming.filter((entry) => entry.isDeleted !== true)) {
     const key = item.value.toLowerCase();
     if (activeKeys.has(key)) continue;
     activeKeys.add(key);
@@ -899,7 +1019,13 @@ async function mergeExtraFieldList(tx, existingList, incomingList, configKey) {
   const linkConfig = EXTRA_FIELD_LINK_CONFIGS[configKey] || null;
   if (!linkConfig?.deleteUnused) return [...active, ...inactive];
 
-  const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(tx, inactive, linkConfig);
+  const split = await splitRowsForHideOrDelete(tx, inactive, linkConfig);
+  const { toHideIds, toDeleteIds } = applyForcedHide(
+    inactive,
+    split,
+    hiddenIncoming,
+    (row) => row?.value
+  );
   const hiddenIds = new Set(toHideIds);
   const deletedIds = new Set(toDeleteIds);
 
@@ -1757,10 +1883,15 @@ async function saveAll(payload) {
       await syncSimpleDict(tx, 'currencyDict', Array.from(currencyCodes), { field: 'code' });
 
       // 2. ЗАКАЗЫ (Интервалы и категории)
+      const intervalsPayload = Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [];
       const intervalsIncoming = normalizeSimpleValues(
-        Array.isArray(payload?.orderFields?.intervals) ? payload.orderFields.intervals : [],
+        intervalsPayload,
         { model: 'orderIntervalDict', field: 'value' }
       );
+      const hiddenIntervals = normalizeSimpleHiddenValues(intervalsPayload, {
+        model: 'orderIntervalDict',
+        field: 'value',
+      });
       const desiredIntervalValues = new Set(intervalsIncoming.map((item) => item.value));
 
       if (intervalsIncoming.length) {
@@ -1783,7 +1914,9 @@ async function saveAll(payload) {
         );
       }
 
-      const catsIncoming = (Array.isArray(payload?.orderFields?.categories) ? payload.orderFields.categories : [])
+      const categoriesPayload = Array.isArray(payload?.orderFields?.categories) ? payload.orderFields.categories : [];
+      const catsIncoming = categoriesPayload
+        .filter((c) => c?.isDeleted !== true)
         .map((c, index) => ({
           id: pickStr(c?.id),
           intervalValue: pickStr(c?.intervalValue ?? c?.categoryInterval ?? c?.interval),
@@ -1846,28 +1979,44 @@ async function saveAll(payload) {
         },
       });
 
-      const removedCategories = allCategories.filter(
+      const hiddenCategories = categoriesPayload
+        .filter((c) => c?.isDeleted === true && pickStr(c?.deleteAction).toLowerCase() === 'hide')
+        .map((c) => ({
+          id: pickStr(c?.id) || null,
+          key: `${pickStr(c?.intervalValue ?? c?.categoryInterval ?? c?.interval)}|${pickStr(c?.value ?? c?.categoryValue)}`,
+        }))
+        .filter((item) => item.id || pickStr(item.key));
+
+      const removedCategoryRows = allCategories
+        .filter(
         (item) => !desiredCategoryKeys.has(`${item.intervalId}|${item.value}`)
-      );
-      const categorySplit = await splitRowsForHideOrDelete(
-        tx,
-        removedCategories.map((item) => ({
+        )
+        .map((item) => ({
           ...item,
           intervalValue: item.interval?.value || null,
-        })),
+        }));
+      const categorySplit = await splitRowsForHideOrDelete(
+        tx,
+        removedCategoryRows,
         FIELD_LINK_CONFIGS.orderCategoryDict
       );
+      const { toHideIds: categoryHideIds, toDeleteIds: categoryDeleteIds } = applyForcedHide(
+        removedCategoryRows,
+        categorySplit,
+        hiddenCategories,
+        (row) => `${pickStr(row?.intervalValue ?? row?.interval?.value)}|${pickStr(row?.value)}`
+      );
 
-      if (categorySplit.toHideIds.length) {
+      if (categoryHideIds.length) {
         await tx.orderCategoryDict.updateMany({
-          where: { id: { in: categorySplit.toHideIds } },
+          where: { id: { in: categoryHideIds } },
           data: { isActive: false },
         });
       }
 
-      if (categorySplit.toDeleteIds.length) {
+      if (categoryDeleteIds.length) {
         await tx.orderCategoryDict.deleteMany({
-          where: { id: { in: categorySplit.toDeleteIds } },
+          where: { id: { in: categoryDeleteIds } },
         });
       }
 
@@ -1890,17 +2039,23 @@ async function saveAll(payload) {
         removedIntervals,
         FIELD_LINK_CONFIGS.orderIntervalDict
       );
+      const { toHideIds: intervalHideIds, toDeleteIds: intervalDeleteIds } = applyForcedHide(
+        removedIntervals,
+        intervalSplit,
+        hiddenIntervals,
+        (row) => row?.value
+      );
 
-      if (intervalSplit.toHideIds.length) {
+      if (intervalHideIds.length) {
         await tx.orderIntervalDict.updateMany({
-          where: { id: { in: intervalSplit.toHideIds } },
+          where: { id: { in: intervalHideIds } },
           data: { isActive: false },
         });
       }
 
-      if (intervalSplit.toDeleteIds.length) {
+      if (intervalDeleteIds.length) {
         await tx.orderIntervalDict.deleteMany({
-          where: { id: { in: intervalSplit.toDeleteIds } },
+          where: { id: { in: intervalDeleteIds } },
         });
       }
 
@@ -1957,7 +2112,9 @@ async function saveAll(payload) {
       await syncSimpleDict(tx, 'assetTypeDict', arrToUniqueStrings(payload?.assetsFields?.type, 'name'));
       await syncSimpleDict(tx, 'paymentSystemDict', arrToUniqueStrings(payload?.assetsFields?.paymentSystem, 'name'));
 
-      const incomingDesigns = (Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [])
+      const designsPayload = Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [];
+      const incomingDesigns = designsPayload
+        .filter((d) => d?.isDeleted !== true)
         .map((d, index) => ({
           id: d?.id || null,
           name: pickStr(d?.name),
@@ -1965,6 +2122,13 @@ async function saveAll(payload) {
           order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
         }))
         .filter((d) => d.name);
+      const hiddenDesigns = designsPayload
+        .filter((d) => d?.isDeleted === true && pickStr(d?.deleteAction).toLowerCase() === 'hide')
+        .map((d) => ({
+          id: pickStr(d?.id) || null,
+          key: pickStr(d?.name),
+        }))
+        .filter((d) => d.id || pickStr(d.key));
 
       const existingDesigns = await tx.cardDesign.findMany({
         select: { id: true, name: true, imageUrl: true, isActive: true },
@@ -2012,10 +2176,16 @@ async function saveAll(payload) {
       const incomingIds = new Set(incomingDesigns.filter((d) => d.id).map((d) => d.id));
       const removedDesigns = existingDesigns.filter((d) => !incomingIds.has(d.id));
       if (removedDesigns.length) {
-        const { toHideIds, toDeleteIds } = await splitRowsForHideOrDelete(
+        const designSplit = await splitRowsForHideOrDelete(
           tx,
           removedDesigns,
           FIELD_LINK_CONFIGS.cardDesign
+        );
+        const { toHideIds, toDeleteIds } = applyForcedHide(
+          removedDesigns,
+          designSplit,
+          hiddenDesigns,
+          (row) => row?.name
         );
 
         if (toHideIds.length) {
@@ -2045,7 +2215,9 @@ async function saveAll(payload) {
         arrToUniqueStrings(payload?.financeFields?.subcategory, 'name')
       );
 
-      const desiredSubs = (Array.isArray(payload?.financeFields?.subarticles) ? payload.financeFields.subarticles : [])
+      const subarticlesPayload = Array.isArray(payload?.financeFields?.subarticles) ? payload.financeFields.subarticles : [];
+      const desiredSubs = subarticlesPayload
+        .filter((s) => s?.isDeleted !== true)
         .map((s, index) => ({
           id: pickStr(s?.id),
           parentName: pickStr(s?.parentName ?? s?.subarticleInterval ?? s?.parent),
@@ -2104,8 +2276,35 @@ async function saveAll(payload) {
         desiredKeys.add(`${s.name}|${articleId || ''}|${subcategoryId || ''}`);
       }
 
+      const hiddenSubarticles = subarticlesPayload
+        .filter((s) => s?.isDeleted === true && pickStr(s?.deleteAction).toLowerCase() === 'hide')
+        .map((s) => ({
+          id: pickStr(s?.id) || null,
+          parentName: pickStr(s?.parentName ?? s?.subarticleInterval ?? s?.parent),
+          name: pickStr(s?.name ?? s?.subarticleValue),
+        }))
+        .filter((s) => s.name && s.parentName)
+        .map((s) => {
+          const articleId = artByName.get(s.parentName) || null;
+          const subcategoryId = !articleId ? subcatByName.get(s.parentName) || null : null;
+          if (!articleId && !subcategoryId) return null;
+          return {
+            id: s.id,
+            key: `${s.name}|${articleId || ''}|${subcategoryId || ''}`,
+          };
+        })
+        .filter(Boolean);
+
       const allSubarticles = await tx.financeSubarticleDict.findMany({
-        select: { id: true, name: true, articleId: true, subcategoryId: true, isActive: true },
+        select: {
+          id: true,
+          name: true,
+          articleId: true,
+          subcategoryId: true,
+          isActive: true,
+          article: { select: { name: true } },
+          subcategory: { select: { name: true } },
+        },
       });
       const removedSubs = allSubarticles.filter((r) => !desiredKeys.has(keyOf(r)));
       const subarticleSplit = await splitRowsForHideOrDelete(
@@ -2113,17 +2312,23 @@ async function saveAll(payload) {
         removedSubs,
         FIELD_LINK_CONFIGS.financeSubarticleDict
       );
+      const { toHideIds: subarticleHideIds, toDeleteIds: subarticleDeleteIds } = applyForcedHide(
+        removedSubs,
+        subarticleSplit,
+        hiddenSubarticles,
+        keyOf
+      );
 
-      if (subarticleSplit.toHideIds.length) {
+      if (subarticleHideIds.length) {
         await tx.financeSubarticleDict.updateMany({
-          where: { id: { in: subarticleSplit.toHideIds } },
+          where: { id: { in: subarticleHideIds } },
           data: { isActive: false },
         });
       }
 
-      if (subarticleSplit.toDeleteIds.length) {
+      if (subarticleDeleteIds.length) {
         await tx.financeSubarticleDict.deleteMany({
-          where: { id: { in: subarticleSplit.toDeleteIds } },
+          where: { id: { in: subarticleDeleteIds } },
         });
       }
 

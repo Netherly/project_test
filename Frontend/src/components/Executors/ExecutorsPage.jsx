@@ -12,6 +12,7 @@ import { fetchOrders, updateOrder } from "../../api/orders";
 import { fetchTransactions } from "../../api/transactions";
 import { fetchEmployees } from "../../api/employees";
 import { buildEntityPath } from "../../utils/entityRoutes";
+import { RESOURCE_CACHE_EVENT, hasDataChanged } from "../../utils/resourceCache";
 
 const safeSetStorage = (key, data) => {
   try {
@@ -243,6 +244,26 @@ const ExecutorsPage = () => {
     loadOrders();
     loadTransactions();
     loadEmployees();
+  }, []);
+
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+
+      try {
+        const allFields = withDefaults(event.detail.value);
+        const next = {
+          currency: allFields.generalFields?.currency || [],
+          role: allFields.executorFields?.role || [],
+        };
+        setFields((prev) => (hasDataChanged(prev, next) ? next : prev));
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
   }, []);
 
   const enrichedExecutors = useMemo(() => {

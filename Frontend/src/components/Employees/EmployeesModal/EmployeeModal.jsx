@@ -55,7 +55,11 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      await addFieldOption(group, fieldName, newValue);
+      const normalized = await addFieldOption(group, fieldName, newValue);
+      setAppData((prev) => ({
+        ...prev,
+        fields: normalized || prev.fields,
+      }));
       if (refreshFields) {
         await refreshFields();
       }
@@ -195,6 +199,8 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 onDelete={!isNew && onDelete ? deleteHandler : null}
                 isDirty={isDirty}
                 reset={reset}
+                tagOptions={appData.fields?.employeeFields?.tags || []}
+                onAddNewField={handleAddNewField}
               />
 
               <TabsNav activeTab={activeTab} setActiveTab={setActiveTab} errors={groupErrors(errors)} isNew={isNew} />
