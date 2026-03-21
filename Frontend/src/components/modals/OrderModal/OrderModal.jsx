@@ -117,6 +117,7 @@ function OrderModal({
   onCreateOrder,
   onDeleteOrder,
   journalEntries,
+  onAddNewField
 }) {
   const { refreshFields } = useFields();
 
@@ -256,45 +257,51 @@ function OrderModal({
   const watchedStage = watch("stage");
   const watchedTags = watch("tags") || [];
 
-  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
-    try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
+  const handleAddNewFieldInternal = async (group, fieldName, newValue, extraData = {}) => {
+    if (onAddNewField) {
+      await onAddNewField(group, fieldName, newValue, extraData);
+    } else {
+      try {
+        const raw = await fetchFields();
+        const normalized = withDefaults(raw);
+        const list = normalized[group]?.[fieldName] || [];
 
-      const exists = list.find(
-        (item) => {
-          const itemVal = typeof item === "string" ? item : (item.value || item.name);
-          return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
+        const exists = list.find(
+          (item) => {
+            const itemVal = typeof item === "string" ? item : (item.value || item.name || item.intervalValue || item.categoryValue || item.articleValue || item.subarticleValue);
+            return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
+          }
+        );
+
+        if (!exists) {
+          list.push({
+            id: rid(),
+            value: newValue,
+            intervalValue: newValue,
+            categoryValue: newValue,
+            isDeleted: false,
+            ...extraData
+          });
+
+          normalized[group][fieldName] = list;
+          const payload = serializeForSave(normalized);
+
+          await saveFields(payload);
+
+          if (group === "orderFields") {
+            setOrderFields(prev => ({
+              ...prev,
+              [fieldName]: list
+            }));
+          }
+
+          if (refreshFields) {
+            await refreshFields();
+          }
         }
-      );
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          isDeleted: false,
-          ...extraData
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-
-        if (group === "orderFields") {
-          setOrderFields(prev => ({
-            ...prev,
-            [fieldName]: list
-          }));
-        }
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      } catch (e) {
+        console.error("Ошибка при сохранении нового поля в БД:", e);
       }
-    } catch (e) {
-      console.error("Ошибка при сохранении нового поля в БД:", e);
     }
   };
 
@@ -302,7 +309,6 @@ function OrderModal({
     try {
       setEmployees(getEmployees());
     } catch (e) {
-      console.error("Не удалось загрузить сотрудников:", e);
       setEmployees([]);
     }
   }, []);
@@ -481,7 +487,7 @@ function OrderModal({
     if (e.key === "Enter" && customTag.trim() && !watchedTags.includes(customTag.trim())) {
       const newTag = customTag.trim();
       onChange([...watchedTags, newTag]);
-      handleAddNewField("orderFields", "tags", newTag);
+      handleAddNewFieldInternal("orderFields", "tags", newTag);
       setCustomTag("");
       setShowTagDropdown(false);
       e.preventDefault();
@@ -512,7 +518,6 @@ function OrderModal({
 
   const handleConfirmAction = () => {
     if (confirmAction === "duplicate") {
-      console.log("Дублируем заказ", order?.id);
     } else if (confirmAction === "delete") {
       if (onDeleteOrder && order?.id) onDeleteOrder(order.id);
       onClose?.();
@@ -723,7 +728,7 @@ function OrderModal({
                                   className="tag-dropdown-item tag-dropdown-custom-header"
                                   onClick={() => {
                                     handleTagSelect(customTag.trim(), onChange);
-                                    handleAddNewField("orderFields", "tags", customTag.trim());
+                                    handleAddNewFieldInternal("orderFields", "tags", customTag.trim());
                                   }}
                                 >
                                   Добавить: "{customTag}"
@@ -829,9 +834,9 @@ function OrderModal({
               <div className="tab-content">
                 {activeTab === "Сводка" && <OrderSummary />}
                 {activeTab === "Основное" && (
-                  <GeneralInformation control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewField} />
+                  <GeneralInformation control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewFieldInternal} />
                 )}
-                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewField} />}
+                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewFieldInternal} />}
                 {activeTab === "Участники" && (
                   <Participants
                     control={control}
@@ -842,7 +847,7 @@ function OrderModal({
                   />
                 )}
                 {activeTab === "Финансы" && (
-                  <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions} onAddNewField={handleAddNewField} />
+                  <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions} onAddNewField={handleAddNewFieldInternal} />
                 )}
                 {activeTab === "Выполнение" && <OrderExecution control={control} mode={mode} />}
                 {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} />}

@@ -8,6 +8,9 @@ import MultiSelectCheckboxDropdown from "../../components/Journal/MultiSelectChe
 import "../../styles/TransactionsPage.css";
 import "../../components/Journal/JournalPage.css";
 import { useTransactions } from "../../context/TransactionsContext";
+import { useFields } from "../../context/FieldsContext";
+import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { rid } from "../../utils/rid";
 
 const defaultFilterData = {
   searchGlobal: "",
@@ -122,6 +125,8 @@ const TransactionsPage = () => {
     orders,
     counterparties,
   } = useTransactions();
+
+  const { refreshFields } = useFields();
 
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const searchContainerRef = useRef(null);
@@ -309,6 +314,41 @@ const TransactionsPage = () => {
     setSearchParams({});
   };
 
+  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
+    try {
+      const raw = await fetchFields();
+      const normalized = withDefaults(raw);
+      const list = normalized[group]?.[fieldName] || [];
+
+      const exists = list.find((item) => {
+        const itemVal = typeof item === "string" ? item : (item.value || item.name || item.articleValue || item.subarticleValue);
+        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
+      });
+
+      if (!exists) {
+        list.push({
+          id: rid(),
+          value: newValue,
+          articleValue: newValue, 
+          subarticleValue: newValue, 
+          isDeleted: false,
+          ...extraData
+        });
+
+        normalized[group][fieldName] = list;
+        const payload = serializeForSave(normalized);
+
+        await saveFields(payload);
+
+        if (refreshFields) {
+          await refreshFields();
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const activeFiltersCount = Object.entries(filterData).filter(([key, value]) => {
     if (key === "searchGlobal") return false;
     return Array.isArray(value) ? value.length > 0 : value !== "";
@@ -341,15 +381,15 @@ const TransactionsPage = () => {
   const isAddMode = transactionId === "new";
 
   const handleOpenTransaction = (transaction) => {
-    navigate(`/list/${transaction.sourceTransactionId || transaction.id}`);
+    navigate(`/transactions/${transaction.sourceTransactionId || transaction.id}`);
   };
 
   const handleOpenAddModal = () => {
-    navigate("/list/new");
+    navigate("/transactions/new");
   };
 
   const handleCloseModal = () => {
-    navigate("/list");
+    navigate("/transactions");
   };
 
   const handleAddTransaction = async (data) => {
@@ -597,6 +637,7 @@ const TransactionsPage = () => {
           financeFields={financeFields}
           orders={orders}
           counterparties={counterparties}
+          onAddNewField={handleAddNewField}
         />
       )}
 
@@ -611,6 +652,7 @@ const TransactionsPage = () => {
           financeFields={financeFields}
           orders={orders}
           counterparties={counterparties}
+          onAddNewField={handleAddNewField}
         />
       )}
     </div>
