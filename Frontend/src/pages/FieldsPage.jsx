@@ -63,12 +63,12 @@ const COUNTRY_FIELD_GROUPS = [
   "employeeFields",
 ];
 
-const safeFileUrl = (u) => {
+const safeFileUrl = (u, version = "") => {
   if (!u) return "";
   const s = tidy(u);
   if (s.startsWith("data:")) return s;
   if (/^https?:\/\//i.test(s)) return s;
-  try { return fileUrl(s); } catch { return s; }
+  try { return fileUrl(s, version); } catch { return s; }
 };
 
 const joinFieldLabel = (...parts) => {
@@ -78,7 +78,7 @@ const joinFieldLabel = (...parts) => {
 
 const CardDesignPreviewMedia = ({ design, onClick, disabled }) => {
   const [hasImageError, setHasImageError] = useState(false);
-  const previewUrl = safeFileUrl(design?.url);
+  const previewUrl = design?.viewUrl || safeFileUrl(design?.url, design?.imageVersion);
   const fallback = getCardDesignFallback(design?.name);
 
   useEffect(() => {
@@ -1107,7 +1107,11 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
                             onClick={() => !design.isDeleted && triggerFile(i)}
                             style={{ position: 'relative' }} 
                           >
-                            <img src={safeFileUrl(design.url)} alt={design.name || "design"} className="card-design-image" />
+                            <img
+                              src={design?.viewUrl || safeFileUrl(design.url, design?.imageVersion)}
+                              alt={design.name || "design"}
+                              className="card-design-image"
+                            />
                              
                             {!design.isDeleted && (
                               <button 
