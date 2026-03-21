@@ -717,6 +717,73 @@
   color: black;
 }
 
+.asset-card-wrapper.card-design-binance-dark .asset-card-front,
+.asset-card-wrapper.card-design-binance-dark .asset-card-back {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(245, 194, 72, 0.2), transparent 24%),
+    linear-gradient(135deg, #0d1221 0%, #151d31 45%, #0a0f1d 100%);
+  color: #f7f1e2;
+}
+.asset-card-wrapper.card-design-binance-dark .card-number-back.empty,
+.asset-card-wrapper.card-design-binance-dark .card-expiry .label,
+.asset-card-wrapper.card-design-binance-dark .card-cvv .label {
+  color: rgba(247, 241, 226, 0.82);
+}
+.asset-card-wrapper.card-design-binance-dark .flip-button,
+.asset-card-wrapper.card-design-binance-dark .copy-main-requisite-button {
+  color: #f5c248;
+}
+
+.asset-card-wrapper.card-design-trustwallet-blue .asset-card-front,
+.asset-card-wrapper.card-design-trustwallet-blue .asset-card-back {
+  background:
+    radial-gradient(circle at 80% 18%, rgba(255, 255, 255, 0.18), transparent 22%),
+    linear-gradient(135deg, #0b1f63 0%, #1144b6 42%, #1a6df0 100%);
+  color: #ffffff;
+}
+.asset-card-wrapper.card-design-trustwallet-blue .card-number-back.empty,
+.asset-card-wrapper.card-design-trustwallet-blue .card-expiry .label,
+.asset-card-wrapper.card-design-trustwallet-blue .card-cvv .label {
+  color: rgba(255, 255, 255, 0.82);
+}
+.asset-card-wrapper.card-design-trustwallet-blue .flip-button,
+.asset-card-wrapper.card-design-trustwallet-blue .copy-main-requisite-button {
+  color: #dfe9ff;
+}
+
+.asset-card-wrapper.card-design-metamask-amber .asset-card-front,
+.asset-card-wrapper.card-design-metamask-amber .asset-card-back {
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.16), transparent 20%),
+    linear-gradient(135deg, #4f2c0b 0%, #b46511 42%, #f59f1a 100%);
+  color: #fff8f0;
+}
+.asset-card-wrapper.card-design-metamask-amber .card-number-back.empty,
+.asset-card-wrapper.card-design-metamask-amber .card-expiry .label,
+.asset-card-wrapper.card-design-metamask-amber .card-cvv .label {
+  color: rgba(255, 248, 240, 0.82);
+}
+.asset-card-wrapper.card-design-metamask-amber .flip-button,
+.asset-card-wrapper.card-design-metamask-amber .copy-main-requisite-button {
+  color: #fff0cf;
+}
+
+.asset-card-wrapper.card-design-banks-rf-dark .asset-card-front,
+.asset-card-wrapper.card-design-banks-rf-dark .asset-card-back {
+  background:
+    linear-gradient(145deg, rgba(168, 32, 56, 0.22), rgba(9, 15, 28, 0.15)),
+    linear-gradient(135deg, #10162b 0%, #1d243a 45%, #0b101e 100%);
+  color: #f4f6fb;
+}
+.asset-card-wrapper.card-design-banks-rf-dark .card-number-back.empty,
+.asset-card-wrapper.card-design-banks-rf-dark .card-expiry .label,
+.asset-card-wrapper.card-design-banks-rf-dark .card-cvv .label {
+  color: rgba(244, 246, 251, 0.82);
+}
+.asset-card-wrapper.card-design-banks-rf-dark .flip-button,
+.asset-card-wrapper.card-design-banks-rf-dark .copy-main-requisite-button {
+  color: #d6ddff;
+}
 
 .asset-card-wrapper.card-design-default .asset-card-front,
 .asset-card-wrapper.card-design-default .asset-card-back {

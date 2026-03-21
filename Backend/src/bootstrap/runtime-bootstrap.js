@@ -1,4 +1,3 @@
-const { ensureDefaultCompanies } = require('../seeds/companies.seed');
 const { ensureDefaultClientGroups } = require('../seeds/client-groups.seed');
 const { ensureDefaultCurrencies } = require('../seeds/currencies.seed');
 const { ensureRatesExcelImportedOnBoot } = require('../services/rates.excel-import.service');
@@ -50,11 +49,6 @@ async function runStartupBootstrap() {
       label: 'seed currencies',
       enabled: enableReferenceData && parseBool(process.env.SEED_CURRENCIES_ON_START, true),
       run: ensureDefaultCurrencies,
-    },
-    {
-      label: 'seed companies',
-      enabled: enableReferenceData && parseBool(process.env.SEED_COMPANIES_ON_START, true),
-      run: ensureDefaultCompanies,
     },
     {
       label: 'seed client groups',
