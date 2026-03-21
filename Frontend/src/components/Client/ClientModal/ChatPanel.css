@@ -115,7 +115,6 @@
 }
 
 .log-item--with-actions {
-  min-height: 146px;
   padding-right: 212px;
 }
 
@@ -306,16 +305,7 @@
 
 @media (max-width: 860px) {
   .log-item--with-actions {
-    min-height: 0;
     padding-right: 12px;
-    padding-top: 146px;
-  }
-
-  .log-item--with-actions .log-actions {
-    left: 12px;
-    right: 12px;
-    width: auto;
-    min-width: 0;
   }
 }
 
