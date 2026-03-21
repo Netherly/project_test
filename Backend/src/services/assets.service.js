@@ -1,6 +1,7 @@
 // CommonJS service
 const prisma = require('../../prisma/client');
 const dayjs = require('dayjs');
+const { logActivity } = require('./activity-log.service');
 
 // ---- helpers ----
 const normalizeOptionalId = (value) => {
@@ -16,6 +17,34 @@ const normalizeRequisites = (requisites) =>
       value: String(item?.value ?? '').trim(),
     }))
     .filter((item) => item.label || item.value);
+const normalizeActorMeta = (actor = {}) => ({
+  actorId: actor?.actorId || actor?.id || null,
+  actorName: actor?.actorName || null,
+  source: actor?.source || 'manual',
+  ip: actor?.ip,
+  userAgent: actor?.userAgent,
+});
+const getEmployeeLabel = (employee) =>
+  employee?.full_name || employee?.login || employee?.email || employee?.id || 'сотрудник';
+const getAssetLabel = (asset) => asset?.accountName || asset?.externalId || asset?.id || 'актив';
+
+async function safeEmployeeLog({ employeeId, action, message, actor, target }) {
+  if (!employeeId) return null;
+
+  try {
+    return await logActivity({
+      entityType: 'employee',
+      entityId: employeeId,
+      action,
+      message,
+      meta: target ? { target } : undefined,
+      ...normalizeActorMeta(actor),
+    });
+  } catch (error) {
+    console.warn('[log] asset employee activity failed:', error?.message || error);
+    return null;
+  }
+}
 
 async function resolveCurrencyId(payload) {
   const { currencyId, currencyCode, currency } = payload || {};
@@ -116,7 +145,7 @@ const AssetsService = {
     return asset;
   },
 
-  async create(payload) {
+  async create(payload, actor = {}) {
     const currencyId = await resolveCurrencyId(payload);
 
     const typeId = await resolveOptionalByIdOrName(prisma.assetTypeDict, {
@@ -140,7 +169,7 @@ const AssetsService = {
         : Number(payload.limitTurnover);
     const requisites = normalizeRequisites(payload.requisites);
 
-    return prisma.asset.create({
+    const created = await prisma.asset.create({
       data: {
         accountName: payload.accountName,
         currencyId,
@@ -173,10 +202,26 @@ const AssetsService = {
         company: { select: { id: true, name: true } },
       },
     });
+
+    if (created.employeeId) {
+      await safeEmployeeLog({
+        employeeId: created.employeeId,
+        action: 'asset_attached',
+        message: `К сотруднику "${getEmployeeLabel(created.employee)}" привязан актив "${getAssetLabel(created)}"`,
+        target: {
+          type: 'asset',
+          id: created.id,
+          label: getAssetLabel(created),
+        },
+        actor,
+      });
+    }
+
+    return created;
   },
 
-  async update(id, payload) {
-    await this.byId(id);
+  async update(id, payload, actor = {}) {
+    const before = await this.byId(id);
 
     let nextCurrencyId;
     if (payload.currencyId || payload.currencyCode || payload.currency) {
@@ -227,7 +272,7 @@ const AssetsService = {
     const hasRequisitesPayload = payload.requisites !== undefined;
     const requisites = hasRequisitesPayload ? normalizeRequisites(payload.requisites) : null;
 
-    return prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       await tx.asset.update({
         where: { id },
         data,
@@ -255,9 +300,41 @@ const AssetsService = {
         },
       });
     });
+
+    if (before.employeeId !== updated.employeeId) {
+      if (before.employeeId) {
+        await safeEmployeeLog({
+          employeeId: before.employeeId,
+          action: 'asset_detached',
+          message: `От сотрудника "${getEmployeeLabel(before.employee)}" отвязан актив "${getAssetLabel(before)}"`,
+          target: {
+            type: 'asset',
+            id: before.id,
+            label: getAssetLabel(before),
+          },
+          actor,
+        });
+      }
+
+      if (updated.employeeId) {
+        await safeEmployeeLog({
+          employeeId: updated.employeeId,
+          action: 'asset_attached',
+          message: `К сотруднику "${getEmployeeLabel(updated.employee)}" привязан актив "${getAssetLabel(updated)}"`,
+          target: {
+            type: 'asset',
+            id: updated.id,
+            label: getAssetLabel(updated),
+          },
+          actor,
+        });
+      }
+    }
+
+    return updated;
   },
 
-  async remove(id) {
+  async remove(id, actor = {}) {
     const asset = await this.byId(id);
 
     const [transactionsCount, regularPaymentsCount] = await Promise.all([
@@ -275,6 +352,20 @@ const AssetsService = {
     await prisma.asset.delete({
       where: { id },
     });
+
+    if (asset.employeeId) {
+      await safeEmployeeLog({
+        employeeId: asset.employeeId,
+        action: 'asset_removed',
+        message: `Удалён актив "${getAssetLabel(asset)}" сотрудника "${getEmployeeLabel(asset.employee)}"`,
+        target: {
+          type: 'asset',
+          id: asset.id,
+          label: getAssetLabel(asset),
+        },
+        actor,
+      });
+    }
 
     return asset;
   },

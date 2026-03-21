@@ -57,6 +57,7 @@ const isEmpty = (value) => value === null || value === undefined || String(value
 const toText = (value) => (value === null || value === undefined ? '' : String(value).trim());
 const isTelegramFileUrl = (value) =>
   /^https:\/\/api\.telegram\.org\/file\/bot/i.test(String(value || '').trim());
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const genUserId8 = () => {
   const n = Math.floor(Math.random() * 100_000_000);
@@ -119,6 +120,128 @@ const fetchEmployeeRequisiteLabels = async (employeeId) => {
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, 'ru'));
 };
+
+const normalizeRatesPayload = (raw) => {
+  if (!isPlainObject(raw)) return {};
+  const out = {};
+
+  for (const [key, value] of Object.entries(raw)) {
+    const code = toText(key).toLowerCase();
+    if (!code) continue;
+    if (value === '' || value === null || value === undefined) continue;
+
+    const num = Number(value);
+    if (Number.isFinite(num)) {
+      out[code] = num;
+      continue;
+    }
+
+    const text = toText(value);
+    if (text) out[code] = text;
+  }
+
+  return out;
+};
+
+const sortObject = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(sortObject);
+  }
+  if (isPlainObject(value)) {
+    return Object.keys(value)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = sortObject(value[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+};
+
+const ratesEqual = (left, right) =>
+  JSON.stringify(sortObject(normalizeRatesPayload(left))) ===
+  JSON.stringify(sortObject(normalizeRatesPayload(right)));
+
+const parseRequisiteLabel = (label) => {
+  const text = toText(label);
+  if (!text) return { currency: '', bank: '' };
+  const idx = text.indexOf(':');
+  if (idx === -1) return { currency: '', bank: text };
+  return {
+    currency: toText(text.slice(0, idx)).toUpperCase(),
+    bank: toText(text.slice(idx + 1)),
+  };
+};
+
+const parseRequisiteValue = (value) => {
+  const text = toText(value);
+  if (!text) return {};
+
+  if (text.startsWith('{') || text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (isPlainObject(parsed)) {
+        return {
+          currency: toText(parsed.currency).toUpperCase(),
+          bank: toText(parsed.bank),
+          card: toText(parsed.card || parsed.account || parsed.number),
+          owner: toText(parsed.owner || parsed.holder || parsed.name),
+        };
+      }
+    } catch (_) {}
+  }
+
+  return { card: text };
+};
+
+const normalizeRequisiteEntry = (req = {}) => {
+  const labelParts = parseRequisiteLabel(req.label);
+  const valueParts = parseRequisiteValue(req.value);
+  const currency = toText(req.currency || valueParts.currency || labelParts.currency).toUpperCase();
+  const bank = toText(req.bank || valueParts.bank || labelParts.bank);
+  const card = toText(req.card || valueParts.card || req.value);
+  const owner = toText(req.owner || req.holder || valueParts.owner);
+
+  if (!currency && !bank && !card && !owner) return null;
+
+  return {
+    currency,
+    bank,
+    card,
+    owner,
+  };
+};
+
+const sortRequisites = (items = []) =>
+  items
+    .map((item) => ({
+      currency: toText(item.currency).toUpperCase(),
+      bank: toText(item.bank),
+      card: toText(item.card),
+      owner: toText(item.owner),
+    }))
+    .sort((a, b) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b), 'ru')
+    );
+
+const fetchEmployeeRequisitesCanonical = async (employeeId) => {
+  const requisites = await prisma.employeeRequisite.findMany({
+    where: { employeeId },
+    select: {
+      bank: true,
+      currency: true,
+      card: true,
+      owner: true,
+      label: true,
+      value: true,
+    },
+  });
+
+  return sortRequisites(requisites.map(normalizeRequisiteEntry).filter(Boolean));
+};
+
+const requisitesEqual = (left, right) =>
+  JSON.stringify(sortRequisites(left)) === JSON.stringify(sortRequisites(right));
 
 const diffStringList = (before = [], after = []) => {
   const beforeCount = new Map();
@@ -371,7 +494,9 @@ const EmployeesService = {
       telegramNickname: payload.telegram?.nickname,
       telegramBindingLink: payload.telegram?.bindingLink,
       photoLink: payload.photoLink,
-      rates: payload.rates,
+      rates: Object.keys(normalizeRatesPayload(payload.rates)).length
+        ? normalizeRatesPayload(payload.rates)
+        : null,
       mainCurrency: payload.mainCurrency,
     };
     if (!data.userid) {
@@ -516,7 +641,12 @@ const EmployeesService = {
     if (payload.telegram?.nickname !== undefined) data.telegramNickname = payload.telegram.nickname;
     if (payload.telegram?.bindingLink !== undefined) data.telegramBindingLink = payload.telegram.bindingLink;
     if (payload.photoLink !== undefined) data.photoLink = payload.photoLink;
-    if (payload.rates !== undefined) data.rates = payload.rates;
+    if (payload.rates !== undefined) {
+      const nextRates = normalizeRatesPayload(payload.rates);
+      if (!ratesEqual(before?.rates, nextRates)) {
+        data.rates = Object.keys(nextRates).length ? nextRates : null;
+      }
+    }
     if (payload.mainCurrency !== undefined) data.mainCurrency = payload.mainCurrency;
 
     const employee = await prisma.employee.update({
@@ -560,6 +690,9 @@ const EmployeesService = {
         after?.chatLink
     );
     const changes = diffObjects(before, after, { exclude: EMPLOYEE_LOG_EXCLUDE_FIELDS });
+    if (ratesEqual(before?.rates, after?.rates)) {
+      delete changes.rates;
+    }
 
     if (shouldTrackTags) {
       const afterTags = await fetchEmployeeTagNames(id);
@@ -680,23 +813,34 @@ const EmployeesService = {
   },
 
  async updateRequisites(employeeId, requisites) {
-    
+    const normalizedIncoming = sortRequisites(
+      (Array.isArray(requisites) ? requisites : [])
+        .map(normalizeRequisiteEntry)
+        .filter(Boolean)
+    );
+    const current = await fetchEmployeeRequisitesCanonical(employeeId);
+
+    if (requisitesEqual(current, normalizedIncoming)) {
+      return false;
+    }
+
     await prisma.employeeRequisite.deleteMany({ where: { employeeId } });
 
-    
-    if (requisites.length > 0) {
-      const reqData = requisites.map(req => ({
+    if (normalizedIncoming.length > 0) {
+      const reqData = normalizedIncoming.map((req) => ({
         employeeId,
         bank: req.bank || '',
         currency: req.currency || 'UAH',
         card: req.card || '',
         owner: req.owner || '',
-        label: req.label || `${req.bank || ''} ${req.currency || ''}`.trim(),
-        value: req.value || req.card || '', 
+        label: req.bank ? `${req.currency || 'CARD'}:${req.bank}` : (req.currency || 'CARD'),
+        value: req.card || '',
       }));
-      
+
       await prisma.employeeRequisite.createMany({ data: reqData });
     }
+
+    return true;
   },
 };
 
