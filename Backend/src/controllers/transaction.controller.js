@@ -143,12 +143,6 @@ const safeActivityLog = async (payload) => {
 
 const getTargetLabel = (target) => target?.employeeName || target?.employeeId || 'сотрудник';
 
-const getTransactionNumberLabel = (trx) => {
-  const raw = String(trx?.id || '').trim();
-  if (!raw) return null;
-  return `№${raw}`;
-};
-
 const formatTransactionAmount = (trx) => {
   const amount = Number(trx?.amount);
   if (!Number.isFinite(amount)) return '';
@@ -160,22 +154,21 @@ const buildTransactionMessageParts = ({ trx, target, verb }) => {
   const verbLabel = verb === 'created' ? 'создана' : verb === 'deleted' ? 'удалена' : 'обновлена';
   const employeeLabel = getTargetLabel(target);
   const amountLabel = formatTransactionAmount(trx);
-  const transactionLabel = getTransactionNumberLabel(trx);
   const assetLabel = target?.accountName || trx?.account?.accountName || null;
 
   const parts = [
-    { type: 'text', text: `Для сотрудника "${employeeLabel}" ${verbLabel} транзакция ` },
+    { type: 'text', text: `Для сотрудника "${employeeLabel}" ${verbLabel} ` },
   ];
 
-  if (transactionLabel && trx?.id) {
+  if (trx?.id) {
     parts.push({
       type: 'link',
-      text: transactionLabel,
+      text: 'транзакция',
       targetType: 'transaction',
       id: trx.id,
     });
   } else {
-    parts.push({ type: 'text', text: 'без номера' });
+    parts.push({ type: 'text', text: 'транзакция' });
   }
 
   if (amountLabel) {
@@ -208,7 +201,7 @@ const buildTransactionMeta = ({ trx, target, verb }) => {
     meta.target = {
       type: 'transaction',
       id: trx.id,
-      label: getTransactionNumberLabel(trx),
+      label: 'транзакция',
     };
   }
 
