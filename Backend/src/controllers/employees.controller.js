@@ -116,6 +116,55 @@ const EmployeesController = {
     }
   },
 
+  async updateLog(req, res) {
+    try {
+      const { id, logId } = req.params;
+      const message = req.body?.message;
+      const updated = await activityLogService.updateNote({
+        entityType: 'employee',
+        entityId: id,
+        logId,
+        message,
+      });
+      res.json({ ok: true, data: updated });
+    } catch (err) {
+      console.error('Employee update log error:', err);
+      res.status(err.status || 500).json({ ok: false, error: err.message });
+    }
+  },
+
+  async deleteLog(req, res) {
+    try {
+      const { id, logId } = req.params;
+      await activityLogService.deleteNote({
+        entityType: 'employee',
+        entityId: id,
+        logId,
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('Employee delete log error:', err);
+      res.status(err.status || 500).json({ ok: false, error: err.message });
+    }
+  },
+
+  async pinLog(req, res) {
+    try {
+      const { id, logId } = req.params;
+      const pinned = Boolean(req.body?.pinned);
+      const updated = await activityLogService.setPinned({
+        entityType: 'employee',
+        entityId: id,
+        logId,
+        pinned,
+      });
+      res.json({ ok: true, data: updated });
+    } catch (err) {
+      console.error('Employee pin log error:', err);
+      res.status(err.status || 500).json({ ok: false, error: err.message });
+    }
+  },
+
   async createTelegramLink(req, res) {
     try {
       const { id } = req.params;

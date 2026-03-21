@@ -1,5 +1,14 @@
 const AssetsService = require('../services/assets.service');
 
+function buildActorMeta(req) {
+  return {
+    actorId: req.user?.employeeId || null,
+    source: 'manual',
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  };
+}
+
 async function list(req, res, next) {
   try { res.json(await AssetsService.list(req.query || {})); }
   catch (e) { next(e); }
@@ -11,17 +20,17 @@ async function byId(req, res, next) {
 }
 
 async function create(req, res, next) {
-  try { res.status(201).json(await AssetsService.create(req.body)); }
+  try { res.status(201).json(await AssetsService.create(req.body, buildActorMeta(req))); }
   catch (e) { next(e); }
 }
 
 async function update(req, res, next) {
-  try { res.json(await AssetsService.update(req.params.id, req.body)); }
+  try { res.json(await AssetsService.update(req.params.id, req.body, buildActorMeta(req))); }
   catch (e) { next(e); }
 }
 
 async function remove(req, res, next) {
-  try { res.json(await AssetsService.remove(req.params.id)); }
+  try { res.json(await AssetsService.remove(req.params.id, buildActorMeta(req))); }
   catch (e) { next(e); }
 }
 
