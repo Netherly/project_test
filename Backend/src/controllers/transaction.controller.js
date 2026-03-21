@@ -141,21 +141,82 @@ const safeActivityLog = async (payload) => {
   }
 };
 
-const buildTransactionTargetMeta = (trx, target) => ({
-  target: {
-    type: 'transaction',
-    id: trx?.id || null,
-    label: trx?.description || target?.accountName || null,
-  },
-});
-
 const getTargetLabel = (target) => target?.employeeName || target?.employeeId || 'сотрудник';
+
+const getTransactionNumberLabel = (trx) => {
+  const raw = String(trx?.id || '').trim();
+  if (!raw) return null;
+  return `№${raw}`;
+};
 
 const formatTransactionAmount = (trx) => {
   const amount = Number(trx?.amount);
   if (!Number.isFinite(amount)) return '';
   const currency = trx?.account?.currency?.code || trx?.accountCurrency || '';
   return `${amount}${currency ? ` ${currency}` : ''}`;
+};
+
+const buildTransactionMessageParts = ({ trx, target, verb }) => {
+  const verbLabel = verb === 'created' ? 'создана' : verb === 'deleted' ? 'удалена' : 'обновлена';
+  const employeeLabel = getTargetLabel(target);
+  const amountLabel = formatTransactionAmount(trx);
+  const transactionLabel = getTransactionNumberLabel(trx);
+  const assetLabel = target?.accountName || trx?.account?.accountName || null;
+
+  const parts = [
+    { type: 'text', text: `Для сотрудника "${employeeLabel}" ${verbLabel} транзакция ` },
+  ];
+
+  if (transactionLabel && trx?.id) {
+    parts.push({
+      type: 'link',
+      text: transactionLabel,
+      targetType: 'transaction',
+      id: trx.id,
+    });
+  } else {
+    parts.push({ type: 'text', text: 'без номера' });
+  }
+
+  if (amountLabel) {
+    parts.push({ type: 'text', text: ` на сумму ${amountLabel}` });
+  }
+
+  if (assetLabel && trx?.accountId) {
+    parts.push({ type: 'text', text: ' по активу ' });
+    parts.push({
+      type: 'link',
+      text: `"${assetLabel}"`,
+      targetType: 'asset',
+      id: trx.accountId,
+    });
+  }
+
+  return parts;
+};
+
+const stringifyMessageParts = (parts = []) =>
+  parts
+    .map((part) => (part && typeof part.text === 'string' ? part.text : ''))
+    .join('');
+
+const buildTransactionMeta = ({ trx, target, verb }) => {
+  const messageParts = buildTransactionMessageParts({ trx, target, verb });
+  const meta = {};
+
+  if (trx?.id) {
+    meta.target = {
+      type: 'transaction',
+      id: trx.id,
+      label: getTransactionNumberLabel(trx),
+    };
+  }
+
+  if (messageParts.length) {
+    meta.messageParts = messageParts;
+  }
+
+  return meta;
 };
 
 function collectEmployeeTargets(trx) {
@@ -188,19 +249,7 @@ function buildTransactionAction(kind, verb) {
 }
 
 function buildTransactionMessage({ trx, target, verb }) {
-  const verbLabel = verb === 'created' ? 'создана' : verb === 'deleted' ? 'удалена' : 'обновлена';
-  const amountLabel = formatTransactionAmount(trx);
-  const parts = [`Для сотрудника "${getTargetLabel(target)}" ${verbLabel} транзакция`];
-
-  if (amountLabel) {
-    parts.push(`на сумму ${amountLabel}`);
-  }
-
-  if (target?.kind === 'asset_transaction' && target?.accountName) {
-    parts.push(`по активу "${target.accountName}"`);
-  }
-
-  return parts.join(' ');
+  return stringifyMessageParts(buildTransactionMessageParts({ trx, target, verb }));
 }
 
 async function emitEmployeeTransactionLogs({ before, after, verb, actorMeta }) {
@@ -242,12 +291,14 @@ async function emitEmployeeTransactionLogs({ before, after, verb, actorMeta }) {
       }
     }
 
+    const meta = buildTransactionMeta({ trx, target, verb: currentVerb });
+
     await safeActivityLog({
       entityType: 'employee',
       entityId: employeeId,
       action: buildTransactionAction(target?.kind, currentVerb),
       message: buildTransactionMessage({ trx, target, verb: currentVerb }),
-      meta: buildTransactionTargetMeta(trx, target),
+      meta,
       ...actorMeta,
     });
   }
@@ -505,7 +556,10 @@ exports.update = async (req, res, next) => {
   try {
     const actorMeta = buildActorMeta(req);
     const result = await prisma.$transaction(async (tx) => {
-      const before = await tx.transaction.findUnique({ where: { id: req.params.id } });
+      const before = await tx.transaction.findUnique({
+        where: { id: req.params.id },
+        include: trxInclude,
+      });
       if (!before) {
         const err = new Error('Transaction not found');
         err.status = 404;
@@ -554,7 +608,10 @@ exports.removeOne = async (req, res, next) => {
   try {
     const actorMeta = buildActorMeta(req);
     const removed = await prisma.$transaction(async (tx) => {
-      const trx = await tx.transaction.findUnique({ where: { id: req.params.id } });
+      const trx = await tx.transaction.findUnique({
+        where: { id: req.params.id },
+        include: trxInclude,
+      });
       if (!trx) {
         const err = new Error('Transaction not found');
         err.status = 404;

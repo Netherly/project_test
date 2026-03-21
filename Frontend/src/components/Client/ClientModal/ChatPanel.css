@@ -209,6 +209,11 @@
   opacity: 0.85;
 }
 
+.log-inline-link {
+  display: inline;
+  vertical-align: baseline;
+}
+
 .log-target-link {
   all: unset;
   display: inline-flex;
