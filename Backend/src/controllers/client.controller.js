@@ -1,5 +1,7 @@
 const clientService = require('../services/client.service');
 const activityLogService = require('../services/activity-log.service');
+const prisma = require('../../prisma/client');
+const { resolveEntityId } = require('../utils/entity-ref');
 
 const buildActorMeta = (req) => ({
   actorId: req.user?.employeeId,
@@ -56,7 +58,7 @@ const deleteClient = async (req, res, next) => {
 
 const getClientLogs = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = await resolveEntityId(prisma.client, req.params.id, { notFoundMessage: 'Client not found' });
     const { limit, order } = req.query;
     const logs = await activityLogService.listLogs({
       entityType: 'client',
@@ -72,7 +74,7 @@ const getClientLogs = async (req, res, next) => {
 
 const addClientNote = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const id = await resolveEntityId(prisma.client, req.params.id, { notFoundMessage: 'Client not found' });
     const message = req.body?.message;
     if (!message || !String(message).trim()) {
       return res.status(400).json({ ok: false, error: 'message is required' });

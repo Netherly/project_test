@@ -2,6 +2,7 @@
 const prisma = require('../../prisma/client');
 const dayjs = require('dayjs');
 const { logActivity } = require('./activity-log.service');
+const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 // ---- helpers ----
 const normalizeOptionalId = (value) => {
@@ -125,8 +126,7 @@ const AssetsService = {
   },
 
   async byId(id) {
-    const asset = await prisma.asset.findUnique({
-      where: { id },
+    const asset = await findByEntityRef(prisma.asset, id, {
       include: {
         requisites: true,
         currency: true,
@@ -211,6 +211,7 @@ const AssetsService = {
         target: {
           type: 'asset',
           id: created.id,
+          urlId: created.urlId || null,
           label: getAssetLabel(created),
         },
         actor,
@@ -221,7 +222,8 @@ const AssetsService = {
   },
 
   async update(id, payload, actor = {}) {
-    const before = await this.byId(id);
+    const actualId = await resolveEntityId(prisma.asset, id, { notFoundMessage: 'Asset not found' });
+    const before = await this.byId(actualId);
 
     let nextCurrencyId;
     if (payload.currencyId || payload.currencyCode || payload.currency) {
@@ -274,21 +276,21 @@ const AssetsService = {
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.asset.update({
-        where: { id },
+        where: { id: actualId },
         data,
       });
 
       if (hasRequisitesPayload) {
-        await tx.assetRequisite.deleteMany({ where: { assetId: id } });
+        await tx.assetRequisite.deleteMany({ where: { assetId: actualId } });
         if (requisites.length) {
           await tx.assetRequisite.createMany({
-            data: requisites.map((r) => ({ assetId: id, label: r.label, value: r.value })),
+            data: requisites.map((r) => ({ assetId: actualId, label: r.label, value: r.value })),
           });
         }
       }
 
       return tx.asset.findUnique({
-        where: { id },
+        where: { id: actualId },
         include: {
           requisites: true,
           currency: true,
@@ -310,6 +312,7 @@ const AssetsService = {
           target: {
             type: 'asset',
             id: before.id,
+            urlId: before.urlId || null,
             label: getAssetLabel(before),
           },
           actor,
@@ -324,6 +327,7 @@ const AssetsService = {
           target: {
             type: 'asset',
             id: updated.id,
+            urlId: updated.urlId || null,
             label: getAssetLabel(updated),
           },
           actor,
@@ -335,11 +339,12 @@ const AssetsService = {
   },
 
   async remove(id, actor = {}) {
-    const asset = await this.byId(id);
+    const actualId = await resolveEntityId(prisma.asset, id, { notFoundMessage: 'Asset not found' });
+    const asset = await this.byId(actualId);
 
     const [transactionsCount, regularPaymentsCount] = await Promise.all([
-      prisma.transaction.count({ where: { accountId: id } }),
-      prisma.regularPayment.count({ where: { accountId: id } }),
+      prisma.transaction.count({ where: { accountId: actualId } }),
+      prisma.regularPayment.count({ where: { accountId: actualId } }),
     ]);
 
     if (transactionsCount > 0 || regularPaymentsCount > 0) {
@@ -348,9 +353,9 @@ const AssetsService = {
       throw e;
     }
 
-    await prisma.assetRequisite.deleteMany({ where: { assetId: id } });
+    await prisma.assetRequisite.deleteMany({ where: { assetId: actualId } });
     await prisma.asset.delete({
-      where: { id },
+      where: { id: actualId },
     });
 
     if (asset.employeeId) {
@@ -361,6 +366,7 @@ const AssetsService = {
         target: {
           type: 'asset',
           id: asset.id,
+          urlId: asset.urlId || null,
           label: getAssetLabel(asset),
         },
         actor,
@@ -371,7 +377,8 @@ const AssetsService = {
   },
 
   async duplicate(id) {
-    const src = await this.byId(id);
+    const actualId = await resolveEntityId(prisma.asset, id, { notFoundMessage: 'Asset not found' });
+    const src = await this.byId(actualId);
     return prisma.asset.create({
       data: {
         accountName: `${src.accountName} (Копия)`,
@@ -405,15 +412,16 @@ const AssetsService = {
   },
 
   async upsertRequisites(id, requisites) {
-    await this.byId(id);
-    await prisma.assetRequisite.deleteMany({ where: { assetId: id } });
+    const actualId = await resolveEntityId(prisma.asset, id, { notFoundMessage: 'Asset not found' });
+    await this.byId(actualId);
+    await prisma.assetRequisite.deleteMany({ where: { assetId: actualId } });
     const normalized = normalizeRequisites(requisites);
     if (normalized.length) {
       await prisma.assetRequisite.createMany({
-        data: normalized.map((r) => ({ assetId: id, label: r.label, value: r.value })),
+        data: normalized.map((r) => ({ assetId: actualId, label: r.label, value: r.value })),
       });
     }
-    return this.byId(id);
+    return this.byId(actualId);
   },
 
   async recalcAllBalancesForCurrentMonth(companyId) {

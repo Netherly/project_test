@@ -19,7 +19,7 @@ import { addLogEntry, getEmployees } from "../../Journal/journalApi";
 import { getStageColor } from "../../Orders/stageColors";
 import { fetchClients } from "../../../api/clients";
 import { useFields } from "../../../context/FieldsContext";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../../api/fields";
 import { rid } from "../../../utils/rid";
 import "../../../styles/OrderModal.css";
 import { X, Trash2, Copy, MoreVertical } from "lucide-react";
@@ -233,7 +233,7 @@ function OrderModal({
     statuses: [],
     closeReasons: [],
     projects: [],
-    discountReasons: [],
+    discountReason: [],
     tags: [],
     techTags: [],
     taskTags: [],
@@ -258,46 +258,33 @@ function OrderModal({
   const watchedTags = watch("tags") || [];
 
   const handleAddNewFieldInternal = async (group, fieldName, newValue, extraData = {}) => {
+    const resolvedFieldName = fieldName === "discountReasons" ? "discountReason" : fieldName;
     if (onAddNewField) {
-      await onAddNewField(group, fieldName, newValue, extraData);
+      await onAddNewField(group, resolvedFieldName, newValue, extraData);
+      try {
+        const normalized = withDefaults(await fetchFields());
+        if (group === "orderFields") {
+          setOrderFields((prev) => ({
+            ...prev,
+            [resolvedFieldName]:
+              normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
+          }));
+        }
+      } catch (e) {
+        console.error("Ошибка при обновлении локальных полей заказа:", e);
+      }
     } else {
       try {
-        const raw = await fetchFields();
-        const normalized = withDefaults(raw);
-        const list = normalized[group]?.[fieldName] || [];
-
-        const exists = list.find(
-          (item) => {
-            const itemVal = typeof item === "string" ? item : (item.value || item.name || item.intervalValue || item.categoryValue || item.articleValue || item.subarticleValue);
-            return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-          }
-        );
-
-        if (!exists) {
-          list.push({
-            id: rid(),
-            value: newValue,
-            intervalValue: newValue,
-            categoryValue: newValue,
-            isDeleted: false,
-            ...extraData
-          });
-
-          normalized[group][fieldName] = list;
-          const payload = serializeForSave(normalized);
-
-          await saveFields(payload);
-
-          if (group === "orderFields") {
-            setOrderFields(prev => ({
-              ...prev,
-              [fieldName]: list
-            }));
-          }
-
-          if (refreshFields) {
-            await refreshFields();
-          }
+        const normalized = await addFieldOption(group, resolvedFieldName, newValue, extraData);
+        if (group === "orderFields") {
+          setOrderFields((prev) => ({
+            ...prev,
+            [resolvedFieldName]:
+              normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
+          }));
+        }
+        if (refreshFields) {
+          await refreshFields();
         }
       } catch (e) {
         console.error("Ошибка при сохранении нового поля в БД:", e);
@@ -388,13 +375,20 @@ function OrderModal({
             statuses: [],
             closeReasons: [],
             projects: [],
-            discountReasons: [],
+            discountReason: [],
             tags: [],
             techTags: [],
             taskTags: [],
             readySolution: [],
           };
-          setOrderFields({ ...base, ...parsed.orderFields });
+          setOrderFields({
+            ...base,
+            ...parsed.orderFields,
+            discountReason:
+              parsed?.orderFields?.discountReason ??
+              parsed?.orderFields?.discountReasons ??
+              base.discountReason,
+          });
         }
 
         const employeesFromStorage = JSON.parse(localStorage.getItem("employees")) || [];

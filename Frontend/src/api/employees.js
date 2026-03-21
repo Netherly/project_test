@@ -335,6 +335,7 @@ export function normalizeEmployee(e = {}) {
 
   return {
     id: e.id ?? null,
+    urlId: e.urlId ?? null,
     fullName,
     full_name: fullName,
     login: tidy(e.login),

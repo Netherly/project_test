@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import './ChatPanel.css';
 import { api } from '../../../api/api';
 import { useNavigate } from 'react-router-dom';
+import { buildEntityPath } from '../../../utils/entityRoutes';
 
 
 export default function ChatPanel({ initialLogs = [], storageKey, clientId, employeeId }) {
@@ -383,7 +384,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
         <button
           type="button"
           className="log-actor-link"
-          onClick={() => navigate(`/employees/${log.actorId}`)}
+          onClick={() => navigate(buildEntityPath('/employees', { id: log.actorId, urlId: log.actorUrlId }))}
         >
           {log.author}
         </button>
@@ -395,9 +396,9 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
 
   const getTargetRoute = (target) => {
     if (!target?.id) return null;
-    if (target.type === 'transaction') return `/list/${target.id}`;
-    if (target.type === 'asset') return `/assets/${target.id}`;
-    if (target.type === 'employee') return `/employees/${target.id}`;
+    if (target.type === 'transaction') return buildEntityPath('/transactions', target);
+    if (target.type === 'asset') return buildEntityPath('/accounts', target);
+    if (target.type === 'employee') return buildEntityPath('/employees', target);
     return null;
   };
 
@@ -471,7 +472,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
         return <React.Fragment key={`${log.id}-text-${index}`}>{part?.text || ''}</React.Fragment>;
       }
 
-      const route = getTargetRoute({ type: part.targetType, id: part.id });
+      const route = getTargetRoute({ type: part.targetType, id: part.id, urlId: part.urlId });
       if (!route) {
         return <React.Fragment key={`${log.id}-linktext-${index}`}>{part?.text || ''}</React.Fragment>;
       }

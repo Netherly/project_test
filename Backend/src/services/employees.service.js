@@ -12,6 +12,7 @@ const {
   normalizeIso2,
   normalizeIso3,
 } = require('../utils/country-localization');
+const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 const SALT_ROUNDS = 10;
 
@@ -413,8 +414,7 @@ const EmployeesService = {
   },
 
   async byId(id) {
-    const employee = await prisma.employee.findUnique({
-      where: { id },
+    const employee = await findByEntityRef(prisma.employee, id, {
       include: {
         country: true,
         role: true,
@@ -589,7 +589,8 @@ const EmployeesService = {
 
   async update(id, payload, actor = {}) {
     const actorMeta = normalizeActorMeta(actor);
-    const before = await prisma.employee.findUnique({ where: { id } });
+    const actualId = await resolveEntityId(prisma.employee, id, { notFoundMessage: 'Employee not found' });
+    const before = await prisma.employee.findUnique({ where: { id: actualId } });
     const beforeLinked = Boolean(
       before?.telegramUserId ||
         before?.telegramChatId ||
@@ -599,8 +600,8 @@ const EmployeesService = {
     );
     const shouldTrackTags = payload.tags !== undefined;
     const shouldTrackRequisites = payload.requisites !== undefined;
-    const beforeTagNames = shouldTrackTags ? await fetchEmployeeTagNames(id) : null;
-    const beforeReqs = shouldTrackRequisites ? await fetchEmployeeRequisiteLabels(id) : null;
+    const beforeTagNames = shouldTrackTags ? await fetchEmployeeTagNames(actualId) : null;
+    const beforeReqs = shouldTrackRequisites ? await fetchEmployeeRequisiteLabels(actualId) : null;
 
     const data = {};
     if (payload.status !== undefined) data.status = payload.status;
@@ -650,7 +651,7 @@ const EmployeesService = {
     if (payload.mainCurrency !== undefined) data.mainCurrency = payload.mainCurrency;
 
     const employee = await prisma.employee.update({
-      where: { id },
+      where: { id: actualId },
       data,
       include: {
         country: true,
@@ -677,7 +678,7 @@ const EmployeesService = {
       needsRefetch = true;
     }
 
-    const after = await prisma.employee.findUnique({ where: { id } });
+    const after = await prisma.employee.findUnique({ where: { id: actualId } });
     const beforePhotoLink = toText(before?.photoLink);
     const afterPhotoLink = toText(after?.photoLink);
     const photoLinkProvided = payload.photoLink !== undefined;
@@ -695,14 +696,14 @@ const EmployeesService = {
     }
 
     if (shouldTrackTags) {
-      const afterTags = await fetchEmployeeTagNames(id);
+      const afterTags = await fetchEmployeeTagNames(actualId);
       if (!arraysEqual(beforeTagNames || [], afterTags || [])) {
         changes.tags = { from: beforeTagNames || [], to: afterTags || [] };
       }
     }
 
     if (shouldTrackRequisites) {
-      const afterReqs = await fetchEmployeeRequisiteLabels(id);
+      const afterReqs = await fetchEmployeeRequisiteLabels(actualId);
       const { added, removed } = diffStringList(beforeReqs || [], afterReqs || []);
       if (beforeReqs && afterReqs && beforeReqs.length !== afterReqs.length) {
         changes.requisitesCount = { from: beforeReqs.length, to: afterReqs.length };
@@ -715,7 +716,7 @@ const EmployeesService = {
     if (Object.keys(changes).length) {
       await safeLog({
         entityType: 'employee',
-        entityId: id,
+        entityId: actualId,
         action: 'updated',
         changes,
         ...actorMeta,
@@ -724,12 +725,12 @@ const EmployeesService = {
 
     if (beforeLinked && !afterLinked) {
       await clearTelegramAvatarState(id);
-      await safeLog({
-        entityType: 'employee',
-        entityId: id,
-        action: 'telegram_unlinked',
-        message: 'Telegram отвязан',
-        ...actorMeta,
+        await safeLog({
+          entityType: 'employee',
+          entityId: actualId,
+          action: 'telegram_unlinked',
+          message: 'Telegram отвязан',
+          ...actorMeta,
       });
     } else if (afterLinked && photoLinkChangedManually && !isTelegramFileUrl(afterPhotoLink)) {
       await markSyncDisabled(id, {
@@ -755,18 +756,19 @@ const EmployeesService = {
 
   async delete(id, actor = {}) {
     const actorMeta = normalizeActorMeta(actor);
-    const before = await prisma.employee.findUnique({ where: { id } });
+    const actualId = await resolveEntityId(prisma.employee, id, { notFoundMessage: 'Employee not found' });
+    const before = await prisma.employee.findUnique({ where: { id: actualId } });
     // Delete related tags and requisites first
-    await prisma.employeeTag.deleteMany({ where: { employeeId: id } });
-    await prisma.employeeRequisite.deleteMany({ where: { employeeId: id } });
+    await prisma.employeeTag.deleteMany({ where: { employeeId: actualId } });
+    await prisma.employeeRequisite.deleteMany({ where: { employeeId: actualId } });
 
     const removed = await prisma.employee.delete({
-      where: { id },
+      where: { id: actualId },
     });
 
     await safeLog({
       entityType: 'employee',
-      entityId: id,
+      entityId: actualId,
       action: 'deleted',
       message: `Удалён сотрудник "${getEmployeeLabel(before)}"`,
       ...actorMeta,

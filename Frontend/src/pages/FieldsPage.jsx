@@ -37,6 +37,7 @@ import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
 import { getCardDesignFallback } from "../utils/cardDesigns";
+import { RESOURCE_CACHE_EVENT, hasDataChanged } from "../utils/resourceCache";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -1212,7 +1213,16 @@ function FieldsPage() {
   const [savedFieldOrders, setSavedFieldOrders] = useState(loadSavedOrders);
 
   const [modal, setModal] = useState({
-    open: false, title: "", message: "", confirmText: "OK", cancelText: "Отмена", onConfirm: null, onCancel: null,
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "OK",
+    secondaryText: "",
+    cancelText: "Отмена",
+    onConfirm: null,
+    onSecondary: null,
+    onCancel: null,
+    onDismiss: null,
   });
 
   const containerRef = useRef(null);
@@ -1230,6 +1240,7 @@ function FieldsPage() {
       open: true, title, message, confirmText: "OK", cancelText: "Закрыть",
       onConfirm: closeModal,
       onCancel: closeModal,
+      onDismiss: closeModal,
     });
   };
 
@@ -1238,32 +1249,47 @@ function FieldsPage() {
       open: true, title, message, confirmText: "Сохранить", cancelText: "Не сохранять",
       onConfirm: async () => { closeModal(); await onSave?.(); },
       onCancel: () => { closeModal(); onDiscard?.(); },
+      onDismiss: closeModal,
     });
   };
 
-  const openDeleteFieldModal = ({ fieldLabel, onConfirm }) => {
+  const openDeleteFieldModal = ({ fieldLabel, onHide, onConfirm }) => {
     const safeFieldLabel = tidy(fieldLabel) || "Без названия";
     setModal({
       open: true,
-      title: "Удалить поле?",
-      message: `Удалить поле "${safeFieldLabel}"?\n\nПосле сохранения восстановить его будет нельзя.`,
-      confirmText: "Удалить",
+      title: "Скрыть или удалить?",
+      message: `Поле "${safeFieldLabel}" можно скрыть из списков или удалить навсегда.\n\nУдаленное поле восстановить нельзя.`,
+      confirmText: "Удалить навсегда",
+      secondaryText: "Скрыть",
       cancelText: "Отмена",
       onConfirm: async () => {
         closeModal();
         await onConfirm?.();
       },
+      onSecondary: async () => {
+        closeModal();
+        await onHide?.();
+      },
       onCancel: closeModal,
+      onDismiss: closeModal,
     });
   };
 
   const requestDeleteToggle = ({ item, fieldLabel, onToggle }) => {
     if (!item) return;
-    if (item.isDeleted || item.isLinked === true) {
+    if (item.isDeleted) {
       onToggle?.();
       return;
     }
-    openDeleteFieldModal({ fieldLabel, onConfirm: onToggle });
+    if (item.isLinked === true) {
+      onToggle?.("hide");
+      return;
+    }
+    openDeleteFieldModal({
+      fieldLabel,
+      onHide: () => onToggle?.("hide"),
+      onConfirm: () => onToggle?.("delete"),
+    });
   };
 
   const checkChanges = (newValues, newOrders) => {
@@ -1302,6 +1328,26 @@ function FieldsPage() {
     })();
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      if (hasChanges || saving || showHidden) return;
+
+      try {
+        const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
+        setSelectedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
+        setSavedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
+        setHasChanges(false);
+        setInactiveLoaded(false);
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, [hasChanges, saving, showHidden]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -1458,11 +1504,25 @@ function FieldsPage() {
     handleInputChange(group, field, copy);
   };
   
-  const handleStringItemToggleDelete = (group, field, index) => {
+  const handleStringItemToggleDelete = (group, field, index, deleteAction = "") => {
     const list = selectedValues[group]?.[field] || [];
     const copy = [...list];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange(group, field, copy);
+  };
+
+  const requestStringItemToggleDelete = (group, field, index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.value ?? item?.name ?? item?.code),
+      onToggle: (deleteAction) => handleStringItemToggleDelete(group, field, index, deleteAction),
+    });
   };
   
   const handleStringItemAdd = (group, field) => {
@@ -1515,10 +1575,16 @@ function FieldsPage() {
     }
   };
 
-  const toggleDeleteInterval = (originalIndex) => {
+  const toggleDeleteInterval = (originalIndex, deleteAction = "") => {
     const intervals = selectedValues.orderFields.intervals || [];
     const copy = [...intervals];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("orderFields", "intervals", copy);
   };
 
@@ -1554,10 +1620,16 @@ function FieldsPage() {
     }
   };
   
-  const toggleDeleteCategory = (originalIndex) => {
+  const toggleDeleteCategory = (originalIndex, deleteAction = "") => {
     const categories = selectedValues.orderFields.categories || [];
     const copy = [...categories];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("orderFields", "categories", copy);
   };
 
@@ -1589,10 +1661,16 @@ function FieldsPage() {
     }
   };
   
-  const toggleDeleteArticle = (originalIndex) => {
+  const toggleDeleteArticle = (originalIndex, deleteAction = "") => {
     const articles = selectedValues.financeFields.articles || [];
     const copy = [...articles];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("financeFields", "articles", copy);
   };
 
@@ -1625,10 +1703,16 @@ function FieldsPage() {
     }
   };
   
-  const toggleDeleteSubarticle = (originalIndex) => {
+  const toggleDeleteSubarticle = (originalIndex, deleteAction = "") => {
     const subs = selectedValues.financeFields.subarticles || [];
     const copy = [...subs];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("financeFields", "subarticles", copy);
   };
   
@@ -1636,10 +1720,16 @@ function FieldsPage() {
   const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: (selectedValues.financeFields.subarticles || []).length }]);
 
   const updateCardDesigns = (newItems) => handleInputChange("assetsFields", "cardDesigns", newItems);
-  const toggleDeleteCardDesign = (index) => {
+  const toggleDeleteCardDesign = (index, deleteAction = "") => {
     const designs = selectedValues.assetsFields.cardDesigns || [];
     const copy = [...designs];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("assetsFields", "cardDesigns", copy);
   };
 
@@ -1647,7 +1737,7 @@ function FieldsPage() {
     requestDeleteToggle({
       item,
       fieldLabel: item?.name,
-      onToggle: () => toggleDeleteCardDesign(index),
+      onToggle: (deleteAction) => toggleDeleteCardDesign(index, deleteAction),
     });
   };
 
@@ -1655,7 +1745,7 @@ function FieldsPage() {
     requestDeleteToggle({
       item,
       fieldLabel: tidy(item?.intervalValue),
-      onToggle: () => toggleDeleteInterval(index),
+      onToggle: (deleteAction) => toggleDeleteInterval(index, deleteAction),
     });
   };
 
@@ -1663,7 +1753,7 @@ function FieldsPage() {
     requestDeleteToggle({
       item,
       fieldLabel: joinFieldLabel(item?.categoryInterval, item?.categoryValue),
-      onToggle: () => toggleDeleteCategory(index),
+      onToggle: (deleteAction) => toggleDeleteCategory(index, deleteAction),
     });
   };
 
@@ -1671,7 +1761,7 @@ function FieldsPage() {
     requestDeleteToggle({
       item,
       fieldLabel: tidy(item?.articleValue),
-      onToggle: () => toggleDeleteArticle(index),
+      onToggle: (deleteAction) => toggleDeleteArticle(index, deleteAction),
     });
   };
 
@@ -1679,7 +1769,7 @@ function FieldsPage() {
     requestDeleteToggle({
       item,
       fieldLabel: joinFieldLabel(item?.subarticleInterval, item?.subarticleValue),
-      onToggle: () => toggleDeleteSubarticle(index),
+      onToggle: (deleteAction) => toggleDeleteSubarticle(index, deleteAction),
     });
   };
 
@@ -2316,9 +2406,12 @@ function FieldsPage() {
           title={modal.title}
           message={modal.message}
           confirmText={modal.confirmText}
+          secondaryText={modal.secondaryText}
           cancelText={modal.cancelText}
           onConfirm={modal.onConfirm}
+          onSecondary={modal.onSecondary}
           onCancel={modal.onCancel}
+          onDismiss={modal.onDismiss}
         />
       )}
     </div>
