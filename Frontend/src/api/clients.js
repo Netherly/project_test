@@ -92,6 +92,7 @@ export const normalizeClient = (c = {}) => {
 
   return {
     id: c.id ?? null,
+    urlId: c.urlId ?? null,
     group: normalizeGroup(c.group ?? c.group_order ?? c.groupOrder),
     group_id: c.group_id ?? c.groupId ?? c.group?.id ?? null,
     group_name: c.group_name ?? c.group?.name ?? "",

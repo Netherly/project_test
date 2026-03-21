@@ -1,6 +1,7 @@
 const { OperationType } = require('@prisma/client');
 const prisma = require('../../prisma/client');
 const { logActivity } = require('../services/activity-log.service');
+const { resolveEntityId } = require('../utils/entity-ref');
 
 /** ===== HELPERS ===== */
 
@@ -96,6 +97,7 @@ const trxInclude = {
   account: {
     select: {
       id: true,
+      urlId: true,
       accountName: true,
       employeeId: true,
       employee: { select: { id: true, full_name: true } },
@@ -166,6 +168,7 @@ const buildTransactionMessageParts = ({ trx, target, verb }) => {
       text: 'транзакция',
       targetType: 'transaction',
       id: trx.id,
+      urlId: trx.urlId || null,
     });
   } else {
     parts.push({ type: 'text', text: 'транзакция' });
@@ -182,6 +185,7 @@ const buildTransactionMessageParts = ({ trx, target, verb }) => {
       text: `"${assetLabel}"`,
       targetType: 'asset',
       id: trx.accountId,
+      urlId: target?.accountUrlId || trx?.account?.urlId || null,
     });
   }
 
@@ -201,6 +205,7 @@ const buildTransactionMeta = ({ trx, target, verb }) => {
     meta.target = {
       type: 'transaction',
       id: trx.id,
+      urlId: trx.urlId || null,
       label: 'транзакция',
     };
   }
@@ -221,6 +226,7 @@ function collectEmployeeTargets(trx) {
       employeeName: trx.employee?.full_name || null,
       kind: 'transaction',
       accountName: trx.account?.accountName || null,
+      accountUrlId: trx.account?.urlId || null,
     });
   }
 
@@ -230,6 +236,7 @@ function collectEmployeeTargets(trx) {
       employeeName: trx.account.employee?.full_name || targets.get(trx.account.employeeId)?.employeeName || null,
       kind: 'asset_transaction',
       accountName: trx.account?.accountName || null,
+      accountUrlId: trx.account?.urlId || null,
     });
   }
 
@@ -486,8 +493,11 @@ exports.list = async (req, res, next) => {
 /** GET /api/transactions/:id */
 exports.getById = async (req, res, next) => {
   try {
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
     const trx = await prisma.transaction.findUnique({
-      where: { id: req.params.id },
+      where: { id: actualId },
       include: trxInclude,
     });
     if (!trx) return res.status(404).json({ message: 'Transaction not found' });
@@ -547,10 +557,13 @@ exports.create = async (req, res) => {
 /** PUT /api/transactions/:id */
 exports.update = async (req, res, next) => {
   try {
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
     const actorMeta = buildActorMeta(req);
     const result = await prisma.$transaction(async (tx) => {
       const before = await tx.transaction.findUnique({
-        where: { id: req.params.id },
+        where: { id: actualId },
         include: trxInclude,
       });
       if (!before) {
@@ -561,7 +574,7 @@ exports.update = async (req, res, next) => {
 
       const data = await prepareTransactionData(req.body, tx);
       const after = await tx.transaction.update({
-        where: { id: req.params.id },
+        where: { id: actualId },
         data,
         include: trxInclude,
       });
@@ -599,10 +612,13 @@ exports.update = async (req, res, next) => {
 /** DELETE /api/transactions/:id */
 exports.removeOne = async (req, res, next) => {
   try {
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
     const actorMeta = buildActorMeta(req);
     const removed = await prisma.$transaction(async (tx) => {
       const trx = await tx.transaction.findUnique({
-        where: { id: req.params.id },
+        where: { id: actualId },
         include: trxInclude,
       });
       if (!trx) {
@@ -611,7 +627,7 @@ exports.removeOne = async (req, res, next) => {
         throw err;
       }
 
-      await tx.transaction.delete({ where: { id: req.params.id } });
+      await tx.transaction.delete({ where: { id: actualId } });
 
       const effect = buildAssetEffect(trx);
       await applyAssetEffect(tx, trx.accountId, invertEffect(effect));
@@ -636,9 +652,12 @@ exports.removeOne = async (req, res, next) => {
 /** POST /api/transactions/:id/duplicate */
 exports.duplicate = async (req, res, next) => {
   try {
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
     const actorMeta = buildActorMeta(req);
     const copy = await prisma.$transaction(async (tx) => {
-      const trx = await tx.transaction.findUnique({ where: { id: req.params.id } });
+      const trx = await tx.transaction.findUnique({ where: { id: actualId } });
       if (!trx) {
         const err = new Error('Transaction not found');
         err.status = 404;

@@ -9,6 +9,7 @@ import { fetchAssets } from "../../api/assets";
 import { addFieldOption, fetchFields, withDefaults } from "../../api/fields";
 import { useFields } from "../../context/FieldsContext";
 import { rid } from "../../utils/rid";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import {
   fetchRegularPayments,
   createRegularPayment,
@@ -28,7 +29,7 @@ const RegularPaymentsPage = () => {
 
   const selectedPayment = useMemo(() => {
     if (!paymentId || paymentId === "new") return null;
-    return regularPayments.find((p) => String(p.id) === String(paymentId)) || null;
+    return regularPayments.find((p) => matchesEntityRouteParam(p, paymentId)) || null;
   }, [regularPayments, paymentId]);
 
   const isAddMode = paymentId === "new";
@@ -84,7 +85,7 @@ const RegularPaymentsPage = () => {
   };
 
   const openViewEditModal = (payment) => {
-    navigate(`/regular_pays/${payment.id}`);
+    navigate(buildEntityPath("/regular_pays", payment));
   };
 
   const handleAddPayment = async (newPaymentData) => {

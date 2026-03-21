@@ -1,5 +1,6 @@
 const prisma = require('../../prisma/client');
 const { logActivity, diffObjects } = require('./activity-log.service');
+const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 const isUuid = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -447,8 +448,7 @@ const ClientService = {
   },
 
   async getClientById(id) {
-    const client = await prisma.client.findUnique({
-      where: { id },
+    const client = await findByEntityRef(prisma.client, id, {
       include: includeClient,
     });
     return normalizeClient(client);
@@ -456,20 +456,21 @@ const ClientService = {
 
   async updateClient(id, payload, actor = {}) {
     const actorMeta = normalizeActorMeta(actor);
-    const before = await prisma.client.findUnique({ where: { id } });
+    const actualId = await resolveEntityId(prisma.client, id, { notFoundMessage: 'Client not found' });
+    const before = await prisma.client.findUnique({ where: { id: actualId } });
     const { hasAccesses, accesses } = extractAccessPayload(payload);
     const shouldTrackTags = payload?.tags !== undefined;
     const shouldTrackAccesses = hasAccesses;
 
-    const beforeTagNames = shouldTrackTags ? await fetchClientTagNames(id) : null;
+    const beforeTagNames = shouldTrackTags ? await fetchClientTagNames(actualId) : null;
     const beforeAccessCount = shouldTrackAccesses
-      ? await prisma.credential.count({ where: { clientId: id } })
+      ? await prisma.credential.count({ where: { clientId: actualId } })
       : null;
 
     const data = await buildClientData(payload);
 
     const client = await prisma.client.update({
-      where: { id },
+      where: { id: actualId },
       data,
       include: includeClient,
     });
@@ -477,30 +478,30 @@ const ClientService = {
     let needsRefetch = false;
 
     if (payload?.tags !== undefined) {
-      await updateTags(id, payload.tags);
+      await updateTags(actualId, payload.tags);
       needsRefetch = true;
     }
 
     if (hasAccesses) {
-      await syncCredentials(id, accesses);
+      await syncCredentials(actualId, accesses);
       needsRefetch = true;
     }
 
     let afterTagNames = null;
     if (shouldTrackTags) {
-      afterTagNames = await fetchClientTagNames(id);
+      afterTagNames = await fetchClientTagNames(actualId);
     }
     const afterAccessCount = shouldTrackAccesses
-      ? await prisma.credential.count({ where: { clientId: id } })
+      ? await prisma.credential.count({ where: { clientId: actualId } })
       : null;
 
     if (needsRefetch) {
       const updated = await prisma.client.findUnique({
-        where: { id },
+        where: { id: actualId },
         include: includeClient,
       });
       const result = normalizeClient(updated);
-      const after = await prisma.client.findUnique({ where: { id } });
+      const after = await prisma.client.findUnique({ where: { id: actualId } });
       const changes = diffObjects(before, after, { exclude: CLIENT_LOG_EXCLUDE_FIELDS });
       if (shouldTrackTags && !arraysEqual(beforeTagNames || [], afterTagNames || [])) {
         changes.tags = { from: beforeTagNames || [], to: afterTagNames || [] };
@@ -514,7 +515,7 @@ const ClientService = {
       if (Object.keys(changes).length) {
         await safeLog({
           entityType: 'client',
-          entityId: id,
+          entityId: actualId,
           action: 'updated',
           changes,
           ...actorMeta,
@@ -524,7 +525,7 @@ const ClientService = {
     }
 
     const result = normalizeClient(client);
-    const after = await prisma.client.findUnique({ where: { id } });
+    const after = await prisma.client.findUnique({ where: { id: actualId } });
     const changes = diffObjects(before, after, { exclude: CLIENT_LOG_EXCLUDE_FIELDS });
     if (shouldTrackTags && !arraysEqual(beforeTagNames || [], afterTagNames || [])) {
       changes.tags = { from: beforeTagNames || [], to: afterTagNames || [] };
@@ -538,7 +539,7 @@ const ClientService = {
     if (Object.keys(changes).length) {
       await safeLog({
         entityType: 'client',
-        entityId: id,
+        entityId: actualId,
         action: 'updated',
         changes,
         ...actorMeta,
@@ -549,14 +550,15 @@ const ClientService = {
 
   async deleteClient(id, actor = {}) {
     const actorMeta = normalizeActorMeta(actor);
-    const before = await prisma.client.findUnique({ where: { id } });
-    await prisma.clientTag.deleteMany({ where: { clientId: id } });
-    await prisma.credential.deleteMany({ where: { clientId: id } });
-    const removed = await prisma.client.delete({ where: { id } });
+    const actualId = await resolveEntityId(prisma.client, id, { notFoundMessage: 'Client not found' });
+    const before = await prisma.client.findUnique({ where: { id: actualId } });
+    await prisma.clientTag.deleteMany({ where: { clientId: actualId } });
+    await prisma.credential.deleteMany({ where: { clientId: actualId } });
+    const removed = await prisma.client.delete({ where: { id: actualId } });
 
     await safeLog({
       entityType: 'client',
-      entityId: id,
+      entityId: actualId,
       action: 'deleted',
       message: `Удалён клиент "${getClientLabel(before)}"`,
       ...actorMeta,

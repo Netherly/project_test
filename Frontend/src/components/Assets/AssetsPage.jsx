@@ -30,6 +30,7 @@ import {
   readLatestRatesSnapshot,
   writeLatestRatesSnapshot,
 } from "../../utils/exchangeRates";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import { rid } from "../../utils/rid";
 
 const formatNumberWithSpaces = (num) => {
@@ -89,7 +90,7 @@ const AssetsPage = () => {
 
   const selectedAsset = useMemo(() => {
     if (!assetId || assetId === "new") return null;
-    return assets.find((a) => String(a.id) === String(assetId)) || null;
+    return assets.find((a) => matchesEntityRouteParam(a, assetId)) || null;
   }, [assets, assetId]);
 
   const showAddForm = assetId === "new";
@@ -97,7 +98,7 @@ const AssetsPage = () => {
 
   const handleOpenAsset = (asset) => {
     navigate({
-      pathname: `/accounts/${asset.id}`,
+      pathname: buildEntityPath("/accounts", asset),
       search: searchParams.toString(),
     });
   };

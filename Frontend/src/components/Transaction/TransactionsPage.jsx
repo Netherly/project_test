@@ -11,6 +11,7 @@ import { useTransactions } from "../../context/TransactionsContext";
 import { useFields } from "../../context/FieldsContext";
 import { addFieldOption } from "../../api/fields";
 import { rid } from "../../utils/rid";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 
 const defaultFilterData = {
   searchGlobal: "",
@@ -350,14 +351,18 @@ const TransactionsPage = () => {
   const selectedTransaction = useMemo(() => {
     if (!transactionId || transactionId === "new") return null;
     return (
-      transactionsWithBalances.find((t) => String(t.id) === String(transactionId)) || null
+      transactionsWithBalances.find((t) => matchesEntityRouteParam(t, transactionId)) || null
     );
   }, [transactionsWithBalances, transactionId]);
 
   const isAddMode = transactionId === "new";
 
   const handleOpenTransaction = (transaction) => {
-    navigate(`/transactions/${transaction.sourceTransactionId || transaction.id}`);
+    if (transaction?.sourceTransactionId) {
+      navigate(`/transactions/${transaction.sourceTransactionId}`);
+      return;
+    }
+    navigate(buildEntityPath("/transactions", transaction));
   };
 
   const handleOpenAddModal = () => {

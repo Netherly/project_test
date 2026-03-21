@@ -12,6 +12,7 @@ import {
 } from "../../api/employees";
 import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import { readCacheSnapshot, writeCachedValue } from "../../utils/resourceCache";
+import { buildEntityPath } from "../../utils/entityRoutes";
 import "../../styles/EmployeesPage.css";
 
 const syncEmployeeListCache = (employee, mode = "upsert") => {
@@ -92,8 +93,7 @@ export default function EmployeeDetailsPage() {
         const normalized = normalizeEmployee(created);
         setEmployee(normalized);
         syncEmployeeListCache(normalized, "upsert");
-        // Перенаправляем на страницу с ID нового сотрудника
-        navigate(`/employees/${created.id}`, { replace: true });
+        navigate(buildEntityPath("/employees", normalized), { replace: true });
         return created;
       }
     } catch (e) {
@@ -105,7 +105,7 @@ export default function EmployeeDetailsPage() {
   const handleDeleteEmployee = async () => {
     try {
       await apiDeleteEmployee(employeeId);
-      syncEmployeeListCache({ id: employeeId }, "remove");
+      syncEmployeeListCache(employee || { id: employeeId }, "remove");
       navigate("/employees");
     } catch (e) {
       console.error("Ошибка удаления сотрудника:", e);
