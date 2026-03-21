@@ -129,28 +129,28 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
       const entries = Object.entries(log?.changes || {});
       if (!entries.length) return 'Изменены данные';
       return entries
-        .map(([field, change]) => {
+        .flatMap(([field, change]) => {
           const label = getFieldLabel(field);
           if (change && (Array.isArray(change.added) || Array.isArray(change.removed))) {
             const added = Array.isArray(change.added) ? change.added : [];
             const removed = Array.isArray(change.removed) ? change.removed : [];
             const parts = [];
-            if (added.length) parts.push(`добавлено ${formatValue(added)}`);
-            if (removed.length) parts.push(`удалено ${formatValue(removed)}`);
-            return parts.length ? `Поле «${label}»: ${parts.join('; ')}` : `Поле «${label}»: —`;
+            if (added.length) parts.push(`${label} добавлено "${formatValue(added)}"`);
+            if (removed.length) parts.push(`${label} удалено "${formatValue(removed)}"`);
+            return parts.length ? parts : [`${label} изменено`];
           }
 
           const from = formatValue(change?.from);
           const to = formatValue(change?.to);
           if ((change?.from === null || change?.from === undefined || change?.from === '') && to !== '—') {
-            return `Для поля «${label}» установлено значение «${to}»`;
+            return `${label} добавлено "${to}"`;
           }
           if (change?.to === null || change?.to === undefined || change?.to === '') {
-            return `Поле «${label}» очищено. Было «${from}»`;
+            return `${label} очищено`;
           }
-          return `Изменено поле «${label}»: «${from}» → «${to}»`;
+          return `${label} было "${from}" стало "${to}"`;
         })
-        .join('; ');
+        .join('\n');
     }
     return 'Событие';
   };
@@ -438,7 +438,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   const renderEmployeeImportantLog = (log) => {
     const icon = getImportantLogIcon(log);
     return (
-      <div key={log.id} className={`log-item employee-important-log${log.pinned ? ' pinned' : ''}`}>
+      <div key={log.id} className={`log-item log-item--with-actions employee-important-log${log.pinned ? ' pinned' : ''}`}>
         <div className={`log-item__icon employee-important-log__icon tone-${icon.tone}`}>{icon.symbol}</div>
         <div className="log-item__body">
           <div className="log-header">
