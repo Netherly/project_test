@@ -21,6 +21,7 @@ const normalizeRegularPayment = (p = {}) => {
   const accountId = p.accountId ?? p.account ?? p.account?.id ?? "";
   return {
     id: p.id ?? null,
+    urlId: p.urlId ?? null,
     status: p.status ?? "Активен",
     period: p.period ?? "Ежемесячно",
     cycleDay: p.cycleDay ?? "",

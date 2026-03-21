@@ -9,8 +9,9 @@ import "../../styles/TransactionsPage.css";
 import "../../components/Journal/JournalPage.css";
 import { useTransactions } from "../../context/TransactionsContext";
 import { useFields } from "../../context/FieldsContext";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { addFieldOption } from "../../api/fields";
 import { rid } from "../../utils/rid";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 
 const defaultFilterData = {
   searchGlobal: "",
@@ -316,33 +317,9 @@ const TransactionsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name || item.articleValue || item.subarticleValue);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          articleValue: newValue, 
-          subarticleValue: newValue, 
-          isDeleted: false,
-          ...extraData
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      await addFieldOption(group, fieldName, newValue, extraData);
+      if (refreshFields) {
+        await refreshFields();
       }
     } catch (e) {
       console.error(e);
@@ -374,14 +351,18 @@ const TransactionsPage = () => {
   const selectedTransaction = useMemo(() => {
     if (!transactionId || transactionId === "new") return null;
     return (
-      transactionsWithBalances.find((t) => String(t.id) === String(transactionId)) || null
+      transactionsWithBalances.find((t) => matchesEntityRouteParam(t, transactionId)) || null
     );
   }, [transactionsWithBalances, transactionId]);
 
   const isAddMode = transactionId === "new";
 
   const handleOpenTransaction = (transaction) => {
-    navigate(`/transactions/${transaction.sourceTransactionId || transaction.id}`);
+    if (transaction?.sourceTransactionId) {
+      navigate(`/transactions/${transaction.sourceTransactionId}`);
+      return;
+    }
+    navigate(buildEntityPath("/transactions", transaction));
   };
 
   const handleOpenAddModal = () => {

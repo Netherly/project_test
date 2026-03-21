@@ -1,5 +1,6 @@
 const { OperationType } = require('@prisma/client');
 const prisma = require('../../prisma/client');
+const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 const DEFAULT_STATUS = 'Активен';
 const DEFAULT_PERIOD = 'Ежемесячно';
@@ -226,8 +227,7 @@ class RegularPaymentsService {
   }
 
   async getById(id) {
-    const row = await prisma.regularPayment.findUnique({
-      where: { id },
+    const row = await findByEntityRef(prisma.regularPayment, id, {
       include: includePayment,
     });
     return toViewModel(row);
@@ -246,8 +246,9 @@ class RegularPaymentsService {
   }
 
   async update(id, payload) {
+    const actualId = await resolveEntityId(prisma.regularPayment, id, { notFoundMessage: 'Regular payment not found' });
     return prisma.$transaction(async (tx) => {
-      const existing = await tx.regularPayment.findUnique({ where: { id } });
+      const existing = await tx.regularPayment.findUnique({ where: { id: actualId } });
       if (!existing) {
         const err = new Error('Regular payment not found');
         err.status = 404;
@@ -255,19 +256,21 @@ class RegularPaymentsService {
       }
 
       const data = await buildRegularPaymentData(payload, tx, { existing });
-      const updated = await tx.regularPayment.update({ where: { id }, data, include: includePayment });
+      const updated = await tx.regularPayment.update({ where: { id: actualId }, data, include: includePayment });
       return toViewModel(updated);
     });
   }
 
   async remove(id) {
-    await prisma.regularPayment.delete({ where: { id } });
+    const actualId = await resolveEntityId(prisma.regularPayment, id, { notFoundMessage: 'Regular payment not found' });
+    await prisma.regularPayment.delete({ where: { id: actualId } });
     return { ok: true };
   }
 
   async duplicate(id) {
+    const actualId = await resolveEntityId(prisma.regularPayment, id, { notFoundMessage: 'Regular payment not found' });
     return prisma.$transaction(async (tx) => {
-      const original = await tx.regularPayment.findUnique({ where: { id } });
+      const original = await tx.regularPayment.findUnique({ where: { id: actualId } });
       if (!original) {
         const err = new Error('Regular payment not found');
         err.status = 404;

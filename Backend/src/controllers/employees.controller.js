@@ -3,6 +3,7 @@ const activityLogService = require('../services/activity-log.service');
 const { createLinkTokenForEmployee } = require('../services/link-token.service');
 const { buildTelegramStartLink } = require('../services/telegram-bot.service');
 const prisma = require('../../prisma/client');
+const { resolveEntityId } = require('../utils/entity-ref');
 
 const buildActorMeta = (req) => ({
   actorId: req.user?.employeeId,
@@ -81,7 +82,7 @@ const EmployeesController = {
 
   async getLogs(req, res) {
     try {
-      const { id } = req.params;
+      const id = await resolveEntityId(prisma.employee, req.params.id, { notFoundMessage: 'Employee not found' });
       const { limit, order } = req.query;
       const logs = await activityLogService.listLogs({
         entityType: 'employee',
@@ -98,7 +99,7 @@ const EmployeesController = {
 
   async addNote(req, res) {
     try {
-      const { id } = req.params;
+      const id = await resolveEntityId(prisma.employee, req.params.id, { notFoundMessage: 'Employee not found' });
       const message = req.body?.message;
       if (!message || !String(message).trim()) {
         return res.status(400).json({ ok: false, error: 'message is required' });
@@ -118,7 +119,8 @@ const EmployeesController = {
 
   async updateLog(req, res) {
     try {
-      const { id, logId } = req.params;
+      const id = await resolveEntityId(prisma.employee, req.params.id, { notFoundMessage: 'Employee not found' });
+      const { logId } = req.params;
       const message = req.body?.message;
       const updated = await activityLogService.updateNote({
         entityType: 'employee',
@@ -135,7 +137,8 @@ const EmployeesController = {
 
   async deleteLog(req, res) {
     try {
-      const { id, logId } = req.params;
+      const id = await resolveEntityId(prisma.employee, req.params.id, { notFoundMessage: 'Employee not found' });
+      const { logId } = req.params;
       await activityLogService.deleteNote({
         entityType: 'employee',
         entityId: id,
@@ -150,7 +153,8 @@ const EmployeesController = {
 
   async pinLog(req, res) {
     try {
-      const { id, logId } = req.params;
+      const id = await resolveEntityId(prisma.employee, req.params.id, { notFoundMessage: 'Employee not found' });
+      const { logId } = req.params;
       const pinned = Boolean(req.body?.pinned);
       const updated = await activityLogService.setPinned({
         entityType: 'employee',
@@ -167,7 +171,7 @@ const EmployeesController = {
 
   async createTelegramLink(req, res) {
     try {
-      const { id } = req.params;
+      const id = await resolveEntityId(prisma.employee, req.params.id, { notFoundMessage: 'Employee not found' });
       const ttlMinutes = Number(req.body?.ttlMinutes) || 60;
 
       const employee = await prisma.employee.findUnique({
@@ -195,7 +199,7 @@ const EmployeesController = {
 
   async createTemporaryPassword(req, res) {
     try {
-      const { id } = req.params;
+      const id = await resolveEntityId(prisma.employee, req.params.id, { notFoundMessage: 'Employee not found' });
       const data = await EmployeesService.createTemporaryPassword(id, buildActorMeta(req));
       res.status(201).json({ ok: true, data });
     } catch (err) {

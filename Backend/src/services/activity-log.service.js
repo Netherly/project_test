@@ -54,6 +54,7 @@ const normalizeMessageParts = (value) => {
         text,
         targetType: part.targetType ? String(part.targetType) : null,
         id: part.id ? String(part.id) : null,
+        urlId: part.urlId ?? null,
       };
     })
     .filter(Boolean);
@@ -182,6 +183,7 @@ const logActivity = async ({
 };
 
 const decorateLog = (log) => {
+  const { actor, ...rest } = log || {};
   const meta = extractLogMeta(log?.changes);
   const cleanChanges = stripLogMeta(log?.changes);
   const isEmployeeImportant =
@@ -194,10 +196,11 @@ const decorateLog = (log) => {
     : 'card';
 
   return {
-    ...log,
+    ...rest,
     changes: cleanChanges,
     target: isPlainObject(meta?.target) ? meta.target : null,
     messageParts: normalizeMessageParts(meta?.messageParts),
+    actorUrlId: actor?.urlId ?? null,
     pinned: Boolean(meta?.pinned),
     important: presentation === 'important',
     presentation,
@@ -232,6 +235,9 @@ const listLogs = async ({ entityType, entityId, limit = 200, order = 'asc' }) =>
     where: { entityType, entityId },
     orderBy: { createdAt: sort },
     take,
+    include: {
+      actor: { select: { urlId: true } },
+    },
   });
   return rows.map(decorateLog);
 };

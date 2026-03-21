@@ -56,6 +56,7 @@ export function withAssetDefaults(asset) {
   const employeeId = a.employeeId || a.employee?.id || null;
   return {
     id,
+    urlId: a.urlId ?? null,
     accountName: a.accountName ?? a.id ?? "Без названия",
     currency: currencyResolved.value,
     currencyRaw: currencyResolved.raw ?? currencyResolved.value,

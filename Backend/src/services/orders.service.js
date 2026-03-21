@@ -1,4 +1,5 @@
 const prisma = require('../../prisma/client');
+const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
@@ -346,7 +347,7 @@ const OrdersService = {
   },
 
   async byId(id) {
-    const order = await prisma.order.findUnique({ where: { id }, include: baseInclude });
+    const order = await findByEntityRef(prisma.order, id, { include: baseInclude });
     if (!order) {
       const e = new Error('Order not found');
       e.status = 404;
@@ -396,7 +397,8 @@ const OrdersService = {
   },
 
   async update(id, payload, actorId) {
-    const existing = await prisma.order.findUnique({ where: { id }, include: { tags: true } });
+    const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
+    const existing = await prisma.order.findUnique({ where: { id: actualId }, include: { tags: true } });
     if (!existing) {
       const e = new Error('Order not found');
       e.status = 404;
@@ -439,15 +441,15 @@ const OrdersService = {
       data.meta = nextMeta === null ? null : { ...baseMeta, ...nextMeta };
     }
 
-    const updated = await prisma.order.update({ where: { id }, data, include: baseInclude });
+    const updated = await prisma.order.update({ where: { id: actualId }, data, include: baseInclude });
 
     if (tagIds !== undefined) {
-      await upsertTags(id, tagIds);
+      await upsertTags(actualId, tagIds);
     }
 
     if (stageChanged) {
       await logChange({
-        orderId: id,
+        orderId: actualId,
         employeeId: actorId,
         action: 'stage_changed',
         field: 'stage',
@@ -456,7 +458,7 @@ const OrdersService = {
       });
     } else {
       await logChange({
-        orderId: id,
+        orderId: actualId,
         employeeId: actorId,
         action: 'updated',
         field: Object.keys(data)[0] || 'general',
@@ -465,11 +467,12 @@ const OrdersService = {
       });
     }
 
-    return this.byId(id);
+    return this.byId(actualId);
   },
 
   async changeStage(id, { stage, stageIndex }, actorId) {
-    const existing = await prisma.order.findUnique({ where: { id } });
+    const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
+    const existing = await prisma.order.findUnique({ where: { id: actualId } });
     if (!existing) {
       const e = new Error('Order not found');
       e.status = 404;
@@ -484,13 +487,13 @@ const OrdersService = {
     }
 
     const updated = await prisma.order.update({
-      where: { id },
+      where: { id: actualId },
       data,
       include: baseInclude,
     });
 
     await logChange({
-      orderId: id,
+      orderId: actualId,
       employeeId: actorId,
       action: 'stage_changed',
       field: 'stage',
@@ -502,7 +505,8 @@ const OrdersService = {
   },
 
   async delete(id, actorId) {
-    const existing = await prisma.order.findUnique({ where: { id } });
+    const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
+    const existing = await prisma.order.findUnique({ where: { id: actualId } });
     if (!existing) {
       const e = new Error('Order not found');
       e.status = 404;
@@ -510,12 +514,12 @@ const OrdersService = {
     }
 
     const deleted = await prisma.order.update({
-      where: { id },
+      where: { id: actualId },
       data: { stage: 'DELETED', stageIndex: 0 },
       include: baseInclude,
     });
 
-    await logChange({ orderId: id, employeeId: actorId, action: 'deleted', oldValue: existing, newValue: deleted });
+    await logChange({ orderId: actualId, employeeId: actorId, action: 'deleted', oldValue: existing, newValue: deleted });
     return deleted;
   },
 };

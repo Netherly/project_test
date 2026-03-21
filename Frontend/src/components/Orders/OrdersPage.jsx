@@ -21,10 +21,11 @@ import {
   changeOrderStage,
   deleteOrder as apiDeleteOrder,
 } from "../../api/orders";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { addFieldOption } from "../../api/fields";
 import { useFields } from "../../context/FieldsContext";
 import { isForbiddenError } from "../../utils/isForbiddenError.js";
 import { rid } from "../../utils/rid";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import {
   CACHE_TTL,
   hasDataChanged,
@@ -267,6 +268,7 @@ const mapOrderFromApi = (o = {}) => {
   return {
     ...meta,
     id: o.id,
+    urlId: o.urlId ?? null,
     numberOrder: o.numberOrder ?? meta.numberOrder,
     orderSequence: pickDefined(o.orderSequence, meta.orderSequence),
     name: pickValue(o.name, o.title, meta.name, meta.title, meta.orderDescription, meta.project) || "",
@@ -479,7 +481,7 @@ const OrdersPage = () => {
 
   const selectedOrder = useMemo(() => {
     if (!orderId) return null;
-    return orders.find((o) => String(o.id) === String(orderId)) || null;
+    return orders.find((o) => matchesEntityRouteParam(o, orderId)) || null;
   }, [orders, orderId]);
 
   const loadData = async () => {
@@ -549,31 +551,9 @@ const OrdersPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name || item.articleValue || item.subarticleValue);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          isDeleted: false,
-          ...extraData
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      await addFieldOption(group, fieldName, newValue, extraData);
+      if (refreshFields) {
+        await refreshFields();
       }
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
@@ -663,7 +643,7 @@ const OrdersPage = () => {
     try {
       await apiDeleteOrder(orderIdValue);
       setOrders((prevOrders) => prevOrders.filter((order) => order.id !== orderIdValue));
-      if (orderId && String(orderId) === String(orderIdValue)) {
+      if (selectedOrder && String(selectedOrder.id) === String(orderIdValue)) {
         handleCloseModal();
       }
     } catch (e) {
@@ -680,7 +660,7 @@ const OrdersPage = () => {
           : [...prev, order.id]
       );
     } else {
-      navigate({ pathname: `/orders/${order.id}`, search: searchParams.toString() });
+      navigate({ pathname: buildEntityPath("/orders", order), search: searchParams.toString() });
     }
   };
 
