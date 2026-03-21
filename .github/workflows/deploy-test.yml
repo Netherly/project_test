@@ -218,37 +218,12 @@ jobs:
                 exit 1
               fi
 
-              DB_URL="$(python3 - "$BACKEND_DIR/.env" <<'PY'
-import sys
-from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
-
-env_path = Path(sys.argv[1])
-raw = ""
-
-for source_line in env_path.read_text(encoding="utf-8").splitlines():
-    line = source_line.strip()
-    if not line or line.startswith("#") or "=" not in line:
-        continue
-    key, value = line.split("=", 1)
-    if key.strip() != "DATABASE_URL":
-        continue
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-        value = value[1:-1]
-    raw = value
-    break
-
-if not raw:
-    raise SystemExit(0)
-
-parts = urlsplit(raw)
-if parts.scheme and parts.netloc:
-    print(urlunsplit((parts.scheme, parts.netloc, parts.path, "", "")), end="")
-else:
-    print(raw.split("?", 1)[0], end="")
-PY
-)"
+              DB_URL="$(grep -E '^DATABASE_URL=' "$BACKEND_DIR/.env" | tail -n1 | cut -d= -f2- | tr -d '\r')"
+              DB_URL="${DB_URL#\"}"
+              DB_URL="${DB_URL%\"}"
+              DB_URL="${DB_URL#\'}"
+              DB_URL="${DB_URL%\'}"
+              DB_URL="${DB_URL%%\?*}"
               if [ -z "$DB_URL" ]; then
                 echo "DATABASE_URL missing in $BACKEND_DIR/.env" >&2
                 exit 1
@@ -343,11 +318,11 @@ PY
             tar -xzf "${{ env.DEPLOY_TMP_DIR }}/backend.tgz" -C "$RELEASE_DIR/new"
 
             if [ -d "$RELEASE_DIR/new/backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             elif [ -d "$RELEASE_DIR/new/Backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
             fi
 
             rm -f "${{ env.DEPLOY_TMP_DIR }}/backend.tgz"
