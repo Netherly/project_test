@@ -18,6 +18,7 @@ const employeesRoutes = require('./employees.routes');
 const ordersRoutes = require('./orders.routes');
 const companyRoutes = require('./company.routes');
 const regularPaymentsRoutes = require('./regular-payments.routes');
+const { uploadRateLimit } = require('../middlewares/rate-limit.middleware');
 
 
 const authJwt = require('../middlewares/auth.middleware');
@@ -33,7 +34,7 @@ router.use('/employees', authJwt, requireModuleAccess('employees'), employeesRou
 router.use('/clients', authJwt, requireModuleAccess('clients'), clientRoutes);
 router.use('/transactions', authJwt, requireModuleAccess('finance'), transactionRoutes);
 router.use('/rates', authJwt, requireModuleAccess('finance'), ratesRoutes);
-router.use('/upload', authJwt, uploadRoutes);
+router.use('/upload', authJwt, uploadRateLimit, uploadRoutes);
 router.use('/assets', authJwt, requireModuleAccess('assets'), assetsRoutes);
 router.use('/fields', authJwt, requireModuleAccess('settings'), fieldsRoutes);
 router.use('/profile', authJwt, profileRoutes);

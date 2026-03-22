@@ -6,9 +6,10 @@ import ViewEditRegularPaymentModal from "./ViewEditRegularPaymentModal";
 import "../../styles/RegularPaymentsPage.css";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 import { fetchAssets } from "../../api/assets";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../api/fields";
 import { useFields } from "../../context/FieldsContext";
 import { rid } from "../../utils/rid";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import {
   fetchRegularPayments,
   createRegularPayment,
@@ -28,7 +29,7 @@ const RegularPaymentsPage = () => {
 
   const selectedPayment = useMemo(() => {
     if (!paymentId || paymentId === "new") return null;
-    return regularPayments.find((p) => String(p.id) === String(paymentId)) || null;
+    return regularPayments.find((p) => matchesEntityRouteParam(p, paymentId)) || null;
   }, [regularPayments, paymentId]);
 
   const isAddMode = paymentId === "new";
@@ -65,34 +66,10 @@ const RegularPaymentsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name || item.articleValue || item.subarticleValue);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          articleValue: newValue, 
-          subarticleValue: newValue, 
-          isDeleted: false,
-          ...extraData
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-        await loadData(true); 
-
-        if (refreshFields) {
-          await refreshFields();
-        }
+      const normalized = await addFieldOption(group, fieldName, newValue, extraData);
+      setFinanceFields(normalized?.financeFields || {});
+      if (refreshFields) {
+        await refreshFields();
       }
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
@@ -108,7 +85,7 @@ const RegularPaymentsPage = () => {
   };
 
   const openViewEditModal = (payment) => {
-    navigate(`/regular_pays/${payment.id}`);
+    navigate(buildEntityPath("/regular_pays", payment));
   };
 
   const handleAddPayment = async (newPaymentData) => {

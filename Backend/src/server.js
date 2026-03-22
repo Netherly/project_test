@@ -1,5 +1,5 @@
 // src/server.js
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const app =require('./app');
 const { initRatesAutofillJob } = require('./jobs/rates.autofill.job');
@@ -7,10 +7,8 @@ const { scheduleTokenCleanup } = require('./jobs/tokens.cleanup.job');
 const { initRegularPaymentsJob } = require('./jobs/regular-payments.job');
 const { initTelegramAvatarJob } = require('./jobs/telegram-avatars.job');
 const { initTelegramBot, stopTelegramBot } = require('./bot/bot');
-const { ensureDefaultCompanies } = require('./seeds/companies.seed');
-const { ensureDefaultClientGroups } = require('./seeds/client-groups.seed');
-const { ensureDefaultCurrencies } = require('./seeds/currencies.seed');
-const { ensureRatesExcelImportedOnBoot } = require('./services/rates.excel-import.service');
+const { parseBool, runStartupBootstrap } = require('./bootstrap/runtime-bootstrap');
+const { getTelegramBotToken } = require('./utils/telegram-token');
 const prisma = require('../prisma/client');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -29,7 +27,7 @@ async function startJobs() {
 
 async function startBot() {
   const isDisabled = String(process.env.BOT_DISABLED || '') === '1';
-  const hasToken = !!process.env.TELEGRAM_BOT_TOKEN;
+  const hasToken = !!getTelegramBotToken();
 
   if (isDisabled) {
     console.log('[bot] disabled via BOT_DISABLED=1');
@@ -79,40 +77,21 @@ function setupGracefulShutdown(server, isBotActive) {
 }
 
 async function boot() {
-  try {
-    await ensureDefaultCurrencies();
-    console.log('[seed] default currencies ensured');
-  } catch (e) {
-    console.error('[seed] currencies failed:', e?.message || e);
-  }
-  try {
-    await ensureDefaultCompanies();
-    console.log('[seed] default companies ensured');
-  } catch (e) {
-    console.error('[seed] companies failed:', e?.message || e);
-  }
-  try {
-    await ensureDefaultClientGroups();
-    console.log('[seed] default client groups ensured');
-  } catch (e) {
-    console.error('[seed] client groups failed:', e?.message || e);
-  }
-  try {
-    const result = await ensureRatesExcelImportedOnBoot();
-    if (result?.skipped) {
-      console.log(`[rates.import] skipped: ${result.reason}`);
-    } else {
-      console.log(
-        `[rates.import] imported ${result.importedRows} rows from Excel (${result.earliestDate} .. ${result.latestDate})`
-      );
-    }
-  } catch (e) {
-    console.error('[rates.import] failed:', e?.message || e);
-  }
-
   const server = app.listen(PORT, () => {
     console.log(`[api] listening on :${PORT}`);
   });
+
+  const shouldBlockBootstrap = parseBool(
+    process.env.STARTUP_BOOTSTRAP_BLOCKING,
+    String(process.env.NODE_ENV || '').trim().toLowerCase() !== 'production'
+  );
+  const bootstrapPromise = runStartupBootstrap();
+
+  if (shouldBlockBootstrap) {
+    await bootstrapPromise;
+  } else {
+    bootstrapPromise.catch((e) => console.error('[bootstrap] unexpected failure:', e?.message || e));
+  }
 
   await startJobs();
   const botIsActive = await startBot();

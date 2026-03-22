@@ -3,6 +3,7 @@ import { fetchFields } from "../api/fields";
 import {
   CACHE_TTL,
   hasDataChanged,
+  RESOURCE_CACHE_EVENT,
   readCacheSnapshot,
   writeCachedValue,
 } from "../utils/resourceCache";
@@ -31,10 +32,7 @@ export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
     if (snapshot.hasData) {
       setFields((prev) => (hasDataChanged(prev, snapshot.data) ? snapshot.data : prev));
       setLoading(false);
-      if (snapshot.isFresh) {
-        setError(null);
-        return;
-      }
+      setError(null);
     }
 
     let mounted = true;
@@ -67,6 +65,21 @@ export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
       mounted = false;
     };
   }, [authReady, isAuthenticated]);
+
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      const nextFields = event?.detail?.value ?? null;
+      setFields((prev) => (hasDataChanged(prev, nextFields) ? nextFields : prev));
+      setLoading(false);
+      setError(null);
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
 
   const refreshFields = async () => {
     try {

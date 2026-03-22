@@ -5,6 +5,7 @@ const { consumeToken } = require('../services/link-token.service');
 const { logActivity } = require('../services/activity-log.service');
 const { t } = require('./i18n');
 const { fetchAndSaveTelegramAvatar } = require('../services/telegram-avatar.service');
+const { getTelegramBotToken } = require('../utils/telegram-token');
 
 let bot = null;
 
@@ -27,7 +28,7 @@ function buildChatLink({ username, userId }) {
 }
 
 async function initTelegramBot() {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = getTelegramBotToken();
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not set');
 
   bot = new Telegraf(token);

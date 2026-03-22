@@ -1,4 +1,5 @@
 const CACHE_META_PREFIX = "cache-meta:";
+export const RESOURCE_CACHE_EVENT = "crm:resource-cache";
 
 const minute = 60 * 1000;
 
@@ -14,6 +15,20 @@ const hasStorage = () =>
   typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 
 const getMetaKey = (key) => `${CACHE_META_PREFIX}${key}`;
+
+const dispatchCacheChange = (key, value, meta = {}) => {
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") {
+    return;
+  }
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent(RESOURCE_CACHE_EVENT, {
+        detail: { key, value, meta },
+      })
+    );
+  } catch (_) {}
+};
 
 const normalizeForSignature = (value) => {
   if (value instanceof Date) {
@@ -65,14 +80,13 @@ export function writeCachedValue(key, value) {
   if (!hasStorage()) return;
 
   try {
+    const meta = {
+      savedAt: Date.now(),
+      signature: createCacheSignature(value),
+    };
     window.localStorage.setItem(key, JSON.stringify(value));
-    window.localStorage.setItem(
-      getMetaKey(key),
-      JSON.stringify({
-        savedAt: Date.now(),
-        signature: createCacheSignature(value),
-      })
-    );
+    window.localStorage.setItem(getMetaKey(key), JSON.stringify(meta));
+    dispatchCacheChange(key, value, meta);
   } catch (_) {}
 }
 
@@ -82,6 +96,7 @@ export function removeCachedValue(key) {
   try {
     window.localStorage.removeItem(key);
     window.localStorage.removeItem(getMetaKey(key));
+    dispatchCacheChange(key, null, { removed: true, savedAt: Date.now(), signature: "" });
   } catch (_) {}
 }
 

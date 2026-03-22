@@ -6,7 +6,7 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
 import AddAssetForm from "./AddAssetForm";
 import AssetDetailsModal from "./AssetDetailsModal";
 import AssetCard from "./AssetCard";
-import { fetchFields, withDefaults, saveFields, serializeForSave } from "../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../api/fields";
 import {
   fetchAssets,
   createAsset as apiCreateAsset,
@@ -18,6 +18,7 @@ import { CreditCard } from "lucide-react";
 import { useTransactions } from "../../context/TransactionsContext";
 import {
   CACHE_TTL,
+  RESOURCE_CACHE_EVENT,
   hasDataChanged,
   readCacheSnapshot,
   readCachedValue,
@@ -29,6 +30,7 @@ import {
   readLatestRatesSnapshot,
   writeLatestRatesSnapshot,
 } from "../../utils/exchangeRates";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import { rid } from "../../utils/rid";
 
 const formatNumberWithSpaces = (num) => {
@@ -88,7 +90,7 @@ const AssetsPage = () => {
 
   const selectedAsset = useMemo(() => {
     if (!assetId || assetId === "new") return null;
-    return assets.find((a) => String(a.id) === String(assetId)) || null;
+    return assets.find((a) => matchesEntityRouteParam(a, assetId)) || null;
   }, [assets, assetId]);
 
   const showAddForm = assetId === "new";
@@ -96,7 +98,7 @@ const AssetsPage = () => {
 
   const handleOpenAsset = (asset) => {
     navigate({
-      pathname: `/accounts/${asset.id}`,
+      pathname: buildEntityPath("/accounts", asset),
       search: searchParams.toString(),
     });
   };
@@ -138,28 +140,8 @@ const AssetsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      const raw = await fetchFields();
-      const normalized = withDefaults(raw);
-      const list = normalized[group]?.[fieldName] || [];
-
-      const exists = list.find((item) => {
-        const itemVal = typeof item === "string" ? item : (item.value || item.name);
-        return String(itemVal).toLowerCase() === String(newValue).toLowerCase();
-      });
-
-      if (!exists) {
-        list.push({
-          id: rid(),
-          value: newValue,
-          isDeleted: false,
-        });
-
-        normalized[group][fieldName] = list;
-        const payload = serializeForSave(normalized);
-
-        await saveFields(payload);
-        await loadFields();
-      }
+      await addFieldOption(group, fieldName, newValue);
+      await loadFields();
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
     }
@@ -182,11 +164,30 @@ const AssetsPage = () => {
         });
       } catch (_) {
       }
-
-      if (snapshot.isFresh) return;
     }
 
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      try {
+        const rawFields = event.detail.value;
+        const cachedFields = withDefaults(rawFields);
+        setFields((prev) => {
+          const next = {
+            generalFields: cachedFields.generalFields,
+            assetsFields: cachedFields.assetsFields,
+          };
+          return hasDataChanged(prev, next) ? next : prev;
+        });
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+
     loadFields();
+
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -268,6 +269,17 @@ const AssetsPage = () => {
     });
   };
 
+  const applyAssetsSnapshot = (incomingAssets) => {
+    const safeAssets = Array.isArray(incomingAssets) ? incomingAssets : defaultAssets;
+    const nextAssets =
+      transactions.length > 0
+        ? calculateRealBalance(safeAssets, transactions, currencyRates)
+        : safeAssets;
+
+    setAssets((prev) => (hasDataChanged(prev, nextAssets) ? nextAssets : prev));
+    return nextAssets;
+  };
+
   useEffect(() => {
     if (assets.length > 0) {
       const updatedAssets = calculateRealBalance(assets, transactions, currencyRates);
@@ -289,28 +301,38 @@ const AssetsPage = () => {
     try {
       const fetchedAssets = await fetchAssets();
       const safeFetchedAssets = Array.isArray(fetchedAssets) ? fetchedAssets : [];
-
-      if (transactions.length > 0) {
-        const calculated = calculateRealBalance(
-          safeFetchedAssets,
-          transactions,
-          currencyRates
-        );
-        setAssets((prev) => (hasDataChanged(prev, calculated) ? calculated : prev));
-        writeCachedValue("assetsData", calculated);
-      } else {
-        setAssets((prev) =>
-          hasDataChanged(prev, safeFetchedAssets) ? safeFetchedAssets : prev
-        );
-        writeCachedValue("assetsData", safeFetchedAssets);
-      }
+      const nextAssets = applyAssetsSnapshot(safeFetchedAssets);
+      writeCachedValue("assetsData", nextAssets);
     } catch (err) {
       console.error("Failed to load assets", err);
       const cachedAssets = readCachedValue("assetsData", defaultAssets);
-      setAssets(Array.isArray(cachedAssets) ? cachedAssets : defaultAssets);
+      applyAssetsSnapshot(cachedAssets);
     }
   };
 
+  useEffect(() => {
+    const snapshot = readCacheSnapshot("assetsData", {
+      fallback: defaultAssets,
+      ttlMs: CACHE_TTL.assets,
+    });
+
+    if (snapshot.hasData) {
+      applyAssetsSnapshot(snapshot.data);
+    }
+
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "assetsData") return;
+      applyAssetsSnapshot(event.detail.value);
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+
+    loadAssets();
+
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
   const handleAddAsset = async (newAsset) => {
     try {
       await apiCreateAsset(newAsset);

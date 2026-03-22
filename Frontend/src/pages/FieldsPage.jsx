@@ -36,23 +36,90 @@ import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
+import { getCardDesignFallback } from "../utils/cardDesigns";
+import { RESOURCE_CACHE_EVENT, hasDataChanged } from "../utils/resourceCache";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
-const ACTIVE_TAB_SESSION_KEY = "crm_active_field_tab_session";
+const ACTIVE_TAB_STORAGE_KEY = "crm_active_field_tab";
 
-const safeFileUrl = (u) => {
+const VISIBLE_FIELD_CURRENCIES = [
+  { code: "USD", name: "US Dollar" },
+  { code: "RUB", name: "Russian Ruble" },
+  { code: "USDT", name: "Tether" }
+];
+
+const SYSTEM_FIELD_CURRENCIES = [
+  { code: "UAH", name: "Ukrainian Hryvnia" }
+];
+
+const CURRENCY_FIELD_GROUPS = [
+  "generalFields",
+  "orderFields",
+  "executorFields",
+  "clientFields",
+  "assetsFields",
+];
+
+const COUNTRY_FIELD_GROUPS = [
+  "generalFields",
+  "clientFields",
+  "employeeFields",
+];
+
+const safeFileUrl = (u, version = "") => {
   if (!u) return "";
   const s = tidy(u);
   if (s.startsWith("data:")) return s;
   if (/^https?:\/\//i.test(s)) return s;
-  try { return fileUrl(s); } catch { return s; }
+  try { return fileUrl(s, version); } catch { return s; }
 };
 
 const joinFieldLabel = (...parts) => {
   const values = parts.map((part) => tidy(part)).filter(Boolean);
   return values.join(" / ");
+};
+
+const CardDesignPreviewMedia = ({ design, onClick, disabled }) => {
+  const [hasImageError, setHasImageError] = useState(false);
+  const previewUrl = design?.viewUrl || safeFileUrl(design?.url, design?.imageVersion);
+  const fallback = getCardDesignFallback(design?.name);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [design?.url, design?.name]);
+
+  const showImage = Boolean(previewUrl) && !hasImageError;
+  const previewClass = [
+    "card-design-preview",
+    !showImage ? "card-design-preview--fallback" : "",
+    fallback ? `card-design-preview--${fallback.key}` : "card-design-preview--generic",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className={previewClass}
+      title={disabled ? design?.name : "Кликните, чтобы заменить"}
+      onClick={() => !disabled && onClick?.()}
+      style={{ position: "relative" }}
+    >
+      {showImage ? (
+        <img
+          src={previewUrl}
+          alt={design?.name || "design"}
+          className="card-design-image"
+          onError={() => setHasImageError(true)}
+        />
+      ) : (
+        <div className="card-design-fallback-label">
+          {design?.name || fallback?.label || "Дизайн"}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const tabsConfig = [
@@ -114,30 +181,6 @@ const mergeFieldOrders = (saved = {}) =>
       return [groupKey, merged];
     })
   );
-
-const VISIBLE_FIELD_CURRENCIES = [
-  { code: "USD", name: "US Dollar" },
-  { code: "RUB", name: "Russian Ruble" },
-  { code: "USDT", name: "Tether" }
-];
-
-const SYSTEM_FIELD_CURRENCIES = [
-  { code: "UAH", name: "Ukrainian Hryvnia" }
-];
-
-const CURRENCY_FIELD_GROUPS = [
-  "generalFields",
-  "orderFields",
-  "executorFields",
-  "clientFields",
-  "assetsFields",
-];
-
-const COUNTRY_FIELD_GROUPS = [
-  "generalFields",
-  "clientFields",
-  "employeeFields",
-];
 
 const buildFixedCurrencyList = (source = [], includeSystem = false) => {
   const allowedCodes = new Set(
@@ -449,7 +492,7 @@ const EditableList = ({
 const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDragEnabled }) => {
   const nameRefs = useRef([]);
   const dndId = useMemo(() => rid(), []);
-   
+    
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -512,7 +555,7 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
     const val = tags[idx]?.color;
     upd(id, { color: isHex(val) ? val : "#ffffff" });
   };
-   
+    
   const copyColor = (color) => {
     navigator.clipboard.writeText(color).catch(console.error);
   };
@@ -810,7 +853,7 @@ const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArt
     
     onReorder?.(newItems);
   };
-   
+    
   return (
     <div className="field-row">
       <label className="field-label">Статья</label>
@@ -898,7 +941,7 @@ const SubarticleFields = ({
     
     onReorder?.(newItems);
   };
-   
+    
   return (
     <div className="field-row article-field">
       <label className="field-label">Подстатья</label>
@@ -1038,7 +1081,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      onError?.({ title: "Слишком большой файл", message: `Максимум ${(MAX_IMAGE_BYTES / 1024).toFixed(0)} КБ.` });
+      onError?.({ title: "Слишком большой файл", message: "Максимум 5 МБ." });
       event.target.value = "";
       return;
     }
@@ -1053,7 +1096,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
     reader.readAsDataURL(file);
     event.target.value = "";
   };
-   
+    
   const handleRemoveImage = (e, index) => {
     e.stopPropagation();
     const next = ensureDesign(cardDesigns, index);
@@ -1106,8 +1149,12 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
                             onClick={() => !design.isDeleted && triggerFile(i)}
                             style={{ position: 'relative' }} 
                           >
-                            <img src={safeFileUrl(design.url)} alt={design.name || "design"} className="card-design-image" />
-                             
+                            <img
+                              src={design?.viewUrl || safeFileUrl(design.url, design?.imageVersion)}
+                              alt={design.name || "design"}
+                              className="card-design-image"
+                            />
+                              
                             {!design.isDeleted && (
                               <button 
                                 type="button"
@@ -1164,7 +1211,6 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
   );
 };
 
-
 function FieldsPage() {
   const { refreshFields } = useFields(); 
   
@@ -1178,14 +1224,14 @@ function FieldsPage() {
       const isReload = navEntries.length > 0 && navEntries[0].type === "reload";
       
       if (isReload) {
-        return sessionStorage.getItem(ACTIVE_TAB_SESSION_KEY) || "generalFields";
+        return sessionStorage.getItem(ACTIVE_TAB_STORAGE_KEY) || "generalFields";
       }
     } catch (e) {}
     return "generalFields";
   });
 
   useEffect(() => {
-    sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, activeTab);
+    sessionStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
 
   const [openDropdowns, setOpenDropdowns] = useState({});
@@ -1215,7 +1261,16 @@ function FieldsPage() {
   const [savedFieldOrders, setSavedFieldOrders] = useState(loadSavedOrders);
 
   const [modal, setModal] = useState({
-    open: false, title: "", message: "", confirmText: "OK", cancelText: "Отмена", onConfirm: null, onCancel: null,
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "OK",
+    secondaryText: "",
+    cancelText: "Отмена",
+    onConfirm: null,
+    onSecondary: null,
+    onCancel: null,
+    onDismiss: null,
   });
 
   const containerRef = useRef(null);
@@ -1233,6 +1288,7 @@ function FieldsPage() {
       open: true, title, message, confirmText: "OK", cancelText: "Закрыть",
       onConfirm: closeModal,
       onCancel: closeModal,
+      onDismiss: closeModal,
     });
   };
 
@@ -1241,32 +1297,47 @@ function FieldsPage() {
       open: true, title, message, confirmText: "Сохранить", cancelText: "Не сохранять",
       onConfirm: async () => { closeModal(); await onSave?.(); },
       onCancel: () => { closeModal(); onDiscard?.(); },
+      onDismiss: closeModal,
     });
   };
 
-  const openDeleteFieldModal = ({ fieldLabel, onConfirm }) => {
+  const openDeleteFieldModal = ({ fieldLabel, onHide, onConfirm }) => {
     const safeFieldLabel = tidy(fieldLabel) || "Без названия";
     setModal({
       open: true,
-      title: "Удалить поле?",
-      message: `Удалить поле "${safeFieldLabel}"?\n\nПосле сохранения восстановить его будет нельзя.`,
-      confirmText: "Удалить",
+      title: "Скрыть или удалить?",
+      message: `Поле "${safeFieldLabel}" можно скрыть из списков или удалить навсегда.\n\nУдаленное поле восстановить нельзя.`,
+      confirmText: "Удалить навсегда",
+      secondaryText: "Скрыть",
       cancelText: "Отмена",
       onConfirm: async () => {
         closeModal();
         await onConfirm?.();
       },
+      onSecondary: async () => {
+        closeModal();
+        await onHide?.();
+      },
       onCancel: closeModal,
+      onDismiss: closeModal,
     });
   };
 
   const requestDeleteToggle = ({ item, fieldLabel, onToggle }) => {
     if (!item) return;
-    if (item.isDeleted || item.isLinked === true) {
+    if (item.isDeleted) {
       onToggle?.();
       return;
     }
-    openDeleteFieldModal({ fieldLabel, onConfirm: onToggle });
+    if (item.isLinked === true) {
+      onToggle?.("hide");
+      return;
+    }
+    openDeleteFieldModal({
+      fieldLabel,
+      onHide: () => onToggle?.("hide"),
+      onConfirm: () => onToggle?.("delete"),
+    });
   };
 
   const checkChanges = (newValues, newOrders) => {
@@ -1307,6 +1378,26 @@ function FieldsPage() {
   }, []);
 
   useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      if (hasChanges || saving || showHidden) return;
+
+      try {
+        const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
+        setSelectedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
+        setSavedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
+        setHasChanges(false);
+        setInactiveLoaded(false);
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, [hasChanges, saving, showHidden]);
+
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) setOpenDropdowns({});
     };
@@ -1318,14 +1409,14 @@ function FieldsPage() {
     setSaving(true);
     try {
       const payload = serializeForSave(prepareFieldsPageSaveValues(selectedValues));
-      await saveFields(payload);
+      const savedRaw = await saveFields(payload);
+      const normalizedSavedValues = applyFieldsPagePreset(withDefaults(savedRaw));
       
       localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
       setSavedFieldOrders(fieldOrders);
 
-      const nextSavedValues = clone(selectedValues); 
-      setSelectedValues(nextSavedValues);
-      setSavedValues(nextSavedValues); 
+      setSelectedValues(normalizedSavedValues);
+      setSavedValues(normalizedSavedValues);
       setHasChanges(false);
       setOpenDropdowns({});
 
@@ -1333,7 +1424,7 @@ function FieldsPage() {
 
       if (pendingTab) {
         setActiveTab(pendingTab);
-        sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, pendingTab);
+        sessionStorage.setItem(ACTIVE_TAB_STORAGE_KEY, pendingTab);
         setPendingTab(null);
       }
     } catch (e) {
@@ -1356,7 +1447,7 @@ function FieldsPage() {
     if (tabKey === activeTab) return;
     if (!hasChanges) {
       setActiveTab(tabKey);
-      sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, tabKey);
+      sessionStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
       setOpenDropdowns({});
       return;
     }
@@ -1370,7 +1461,7 @@ function FieldsPage() {
         setFieldOrders(savedFieldOrders);
         setHasChanges(false);
         setActiveTab(tabKey);
-        sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, tabKey);
+        sessionStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
         setPendingTab(null);
         setOpenDropdowns({});
         setShowHidden(false);
@@ -1390,81 +1481,74 @@ function FieldsPage() {
   };
 
   useEffect(() => {
-  if (showHidden && !inactiveLoaded && !loadingInactive) {
-    let mounted = true;
-    (async () => {
-      setLoadingInactive(true);
-      try {
-        const rawInactive = await fetchInactiveFields();
-        const normalizedInactive = withDefaults(rawInactive);
+    if (showHidden && !inactiveLoaded && !loadingInactive) {
+      let mounted = true;
+      (async () => {
+        setLoadingInactive(true);
+        try {
+          const rawInactive = await fetchInactiveFields();
+          const normalizedInactive = withDefaults(rawInactive);
 
-        if (!mounted) return;
+          if (!mounted) return;
 
-        const mergeInactive = (currentSelectedValues) => {
-          const nextValues = clone(currentSelectedValues);
-          const activeIds = {}; 
-          const sortByConfiguredOrder = (list) =>
-            [...list].sort((a, b) => {
-              const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
-              const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
-              if (aOrder !== bOrder) return aOrder - bOrder;
-              return 0;
-            });
+          const mergeInactive = (currentSelectedValues) => {
+            const nextValues = clone(currentSelectedValues);
+            const activeIds = {}; 
+            const sortByConfiguredOrder = (list) =>
+              [...list].sort((a, b) => {
+                const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+                const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+                if (aOrder !== bOrder) return aOrder - bOrder;
+                return 0;
+              });
 
-          for (const groupKey of Object.keys(normalizedInactive)) {
-            const group = normalizedInactive[groupKey];
-            if (!nextValues[groupKey] || typeof group !== 'object' || group === null) continue;
-            
-            activeIds[groupKey] = {};
+            for (const groupKey of Object.keys(normalizedInactive)) {
+              const group = normalizedInactive[groupKey];
+              if (!nextValues[groupKey] || typeof group !== 'object' || group === null) continue;
+              
+              activeIds[groupKey] = {};
 
-            for (const fieldKey of Object.keys(group)) {
-              if (!nextValues[groupKey].hasOwnProperty(fieldKey)) continue;
+              for (const fieldKey of Object.keys(group)) {
+                if (!nextValues[groupKey].hasOwnProperty(fieldKey)) continue;
 
-              const activeList = nextValues[groupKey][fieldKey] || [];
-              activeIds[groupKey][fieldKey] = new Set(activeList.map(item => item.id));
+                const activeList = nextValues[groupKey][fieldKey] || [];
+                activeIds[groupKey][fieldKey] = new Set(activeList.map(item => item.id));
 
-              const inactiveList = (group[fieldKey] || []).map(item => ({
-                ...item,
-                isDeleted: true
-              }));
+                const inactiveList = (group[fieldKey] || []).map(item => ({
+                  ...item,
+                  isDeleted: true
+                }));
 
-              const currentActiveIds = activeIds[groupKey][fieldKey];
-              const mergedList = sortByConfiguredOrder([
-                ...activeList,
-                ...inactiveList.filter(item => !currentActiveIds.has(item.id))
-              ]);
+                const currentActiveIds = activeIds[groupKey][fieldKey];
+                const mergedList = sortByConfiguredOrder([
+                  ...activeList,
+                  ...inactiveList.filter(item => !currentActiveIds.has(item.id))
+                ]);
 
-              nextValues[groupKey][fieldKey] = mergedList;
+                nextValues[groupKey][fieldKey] = mergedList;
+              }
             }
-          }
-          return nextValues; 
-        };
+            return nextValues; 
+          };
 
-        setSelectedValues(mergeInactive);
-        setInactiveLoaded(true); 
+          setSelectedValues(mergeInactive);
+          setInactiveLoaded(true); 
 
-      } catch (e) {
-        openErrorModal("Ошибка загрузки скрытых полей", e?.message || "Не удалось получить данные.");
-      } finally {
-        if (mounted) setLoadingInactive(false);
-      }
-    })();
+        } catch (e) {
+          openErrorModal("Ошибка загрузки скрытых полей", e?.message || "Не удалось получить данные.");
+        } finally {
+          if (mounted) setLoadingInactive(false);
+        }
+      })();
 
-    return () => { mounted = false; };
-  }
-}, [showHidden, inactiveLoaded, loadingInactive]);
+      return () => { mounted = false; };
+    }
+  }, [showHidden, inactiveLoaded, loadingInactive]);
 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
     const copy = [...list];
     copy[index] = { ...copy[index], value: newValue };
-    handleInputChange(group, field, copy);
-  };
-  
-  const handleStringItemToggleDelete = (group, field, index) => {
-    const list = selectedValues[group]?.[field] || [];
-    const copy = [...list];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
     handleInputChange(group, field, copy);
   };
   
@@ -1494,91 +1578,129 @@ function FieldsPage() {
     }
   };
 
+  const handleStringItemToggleDelete = (group, field, index, deleteAction = "") => {
+    const list = selectedValues[group]?.[field] || [];
+    const copy = [...list];
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
+    handleInputChange(group, field, copy);
+  };
+
   const requestStringItemToggleDelete = (group, field, index, item) => {
     requestDeleteToggle({
       item,
-      fieldLabel: item?.value || item?.name,
-      onToggle: () => handleStringItemToggleDelete(group, field, index),
+      fieldLabel: tidy(item?.value ?? item?.name ?? item?.code),
+      onToggle: (deleteAction) => handleStringItemToggleDelete(group, field, index, deleteAction),
     });
   };
 
-  const toggleDeleteInterval = (originalIndex) => {
+  const toggleDeleteInterval = (originalIndex, deleteAction = "") => {
     const intervals = selectedValues.orderFields.intervals || [];
     const copy = [...intervals];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("orderFields", "intervals", copy);
   };
 
-  const requestDeleteInterval = (originalIndex) => {
-    const item = selectedValues.orderFields.intervals[originalIndex];
+  const requestDeleteInterval = (index, item) => {
     requestDeleteToggle({
       item,
-      fieldLabel: item?.intervalValue,
-      onToggle: () => toggleDeleteInterval(originalIndex)
+      fieldLabel: tidy(item?.intervalValue),
+      onToggle: (deleteAction) => toggleDeleteInterval(index, deleteAction),
     });
   };
 
-  const toggleDeleteCategory = (originalIndex) => {
+  const toggleDeleteCategory = (originalIndex, deleteAction = "") => {
     const categories = selectedValues.orderFields.categories || [];
     const copy = [...categories];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("orderFields", "categories", copy);
   };
 
-  const requestDeleteCategory = (originalIndex) => {
-    const item = selectedValues.orderFields.categories[originalIndex];
+  const requestDeleteCategory = (index, item) => {
     requestDeleteToggle({
       item,
-      fieldLabel: item?.categoryValue,
-      onToggle: () => toggleDeleteCategory(originalIndex)
+      fieldLabel: joinFieldLabel(item?.categoryInterval, item?.categoryValue),
+      onToggle: (deleteAction) => toggleDeleteCategory(index, deleteAction),
     });
   };
 
-  const toggleDeleteArticle = (originalIndex) => {
+  const toggleDeleteArticle = (originalIndex, deleteAction = "") => {
     const articles = selectedValues.financeFields.articles || [];
     const copy = [...articles];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("financeFields", "articles", copy);
   };
 
-  const requestDeleteArticle = (originalIndex) => {
-    const item = selectedValues.financeFields.articles[originalIndex];
+  const requestDeleteArticle = (index, item) => {
     requestDeleteToggle({
       item,
-      fieldLabel: item?.articleValue,
-      onToggle: () => toggleDeleteArticle(originalIndex)
+      fieldLabel: tidy(item?.articleValue),
+      onToggle: (deleteAction) => toggleDeleteArticle(index, deleteAction),
     });
   };
 
-  const toggleDeleteSubarticle = (originalIndex) => {
+  const toggleDeleteSubarticle = (originalIndex, deleteAction = "") => {
     const subs = selectedValues.financeFields.subarticles || [];
     const copy = [...subs];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("financeFields", "subarticles", copy);
   };
 
-  const requestDeleteSubarticle = (originalIndex) => {
-    const item = selectedValues.financeFields.subarticles[originalIndex];
+  const requestDeleteSubarticle = (index, item) => {
     requestDeleteToggle({
       item,
-      fieldLabel: item?.subarticleValue,
-      onToggle: () => toggleDeleteSubarticle(originalIndex)
+      fieldLabel: joinFieldLabel(item?.subarticleInterval, item?.subarticleValue),
+      onToggle: (deleteAction) => toggleDeleteSubarticle(index, deleteAction),
     });
   };
 
-  const toggleDeleteCardDesign = (index) => {
+  const toggleDeleteCardDesign = (index, deleteAction = "") => {
     const designs = selectedValues.assetsFields.cardDesigns || [];
     const copy = [...designs];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("assetsFields", "cardDesigns", copy);
   };
 
-  const requestDeleteCardDesign = (index) => {
-    const item = selectedValues.assetsFields.cardDesigns[index];
+  const requestDeleteCardDesign = (index, item) => {
     requestDeleteToggle({
       item,
       fieldLabel: item?.name,
-      onToggle: () => toggleDeleteCardDesign(index)
+      onToggle: (deleteAction) => toggleDeleteCardDesign(index, deleteAction),
     });
   };
 
@@ -1711,7 +1833,7 @@ function FieldsPage() {
       handleInputChange("financeFields", "subarticles", copy);
     }
   };
-  
+
   const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { id: rid(), articleValue: "", isDeleted: false, order: (selectedValues.financeFields.articles || []).length }]);
   const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: (selectedValues.financeFields.subarticles || []).length }]);
 
@@ -1819,7 +1941,7 @@ function FieldsPage() {
               onIntervalChange={updateIntervalValue} 
               onIntervalBlur={validateIntervalOnBlur}
               onAddInterval={addInterval}
-              onToggleDelete={requestDeleteInterval}
+              onToggleDelete={(index) => requestDeleteInterval(index, selectedValues.orderFields.intervals[index])}
               onReorder={(newItems) => handleInputChange("orderFields", "intervals", newItems)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
@@ -1831,7 +1953,7 @@ function FieldsPage() {
               onCategoryChange={updateCategoryValue}
               onCategoryBlur={validateCategoryOnBlur}
               onAddCategory={addCategory}
-              onToggleDelete={requestDeleteCategory}
+              onToggleDelete={(index) => requestDeleteCategory(index, selectedValues.orderFields.categories[index])}
               openDropdowns={openDropdowns}
               onToggleDropdown={toggleCategoryDropdown}
               availableIntervals={intervalsOptions}
@@ -2125,7 +2247,7 @@ function FieldsPage() {
               <CardDesignUpload
                 cardDesigns={selectedValues.assetsFields.cardDesigns || []}
                 onAdd={(newItems) => updateCardDesigns(newItems)}
-                onToggleDelete={requestDeleteCardDesign}
+                onToggleDelete={(index) => requestDeleteCardDesign(index, selectedValues.assetsFields.cardDesigns[index])}
                 onError={({ title, message }) => openErrorModal(title, message)}
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
@@ -2144,7 +2266,7 @@ function FieldsPage() {
               onArticleChange={updateArticleValue}
               onArticleBlur={validateArticleOnBlur}
               onAddArticle={addArticle}
-              onToggleDelete={requestDeleteArticle}
+              onToggleDelete={(index) => requestDeleteArticle(index, selectedValues.financeFields.articles[index])}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
               onReorder={(newItems) => handleInputChange("financeFields", "articles", newItems)}
@@ -2172,7 +2294,7 @@ function FieldsPage() {
               onSubarticleChange={updateSubarticleValue}
               onSubarticleBlur={validateSubarticleOnBlur}
               onAddSubarticle={addSubarticle}
-              onToggleDelete={requestDeleteSubarticle}
+              onToggleDelete={(index) => requestDeleteSubarticle(index, selectedValues.financeFields.subarticles[index])}
               openDropdowns={openDropdowns}
               onToggleDropdown={toggleSubarticleDropdown}
               availableArticles={articleOptions}
@@ -2333,9 +2455,12 @@ function FieldsPage() {
           title={modal.title}
           message={modal.message}
           confirmText={modal.confirmText}
+          secondaryText={modal.secondaryText}
           cancelText={modal.cancelText}
           onConfirm={modal.onConfirm}
+          onSecondary={modal.onSecondary}
           onCancel={modal.onCancel}
+          onDismiss={modal.onDismiss}
         />
       )}
     </div>

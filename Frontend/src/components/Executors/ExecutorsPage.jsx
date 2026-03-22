@@ -11,6 +11,8 @@ import { fetchFields, withDefaults } from "../../api/fields";
 import { fetchOrders, updateOrder } from "../../api/orders";
 import { fetchTransactions } from "../../api/transactions";
 import { fetchEmployees } from "../../api/employees";
+import { buildEntityPath } from "../../utils/entityRoutes";
+import { RESOURCE_CACHE_EVENT, hasDataChanged } from "../../utils/resourceCache";
 
 const safeSetStorage = (key, data) => {
   try {
@@ -143,7 +145,12 @@ const ExecutorsPage = () => {
   };
 
   const handleNavigateToOrder = (orderId) => {
-    navigate(`/orders/${orderId}`);
+    const targetOrder = orders.find(
+      (order) =>
+        String(order.id) === String(orderId) ||
+        String(order.orderSequence ?? order.numberOrder ?? order.id) === String(orderId)
+    );
+    navigate(targetOrder ? buildEntityPath("/orders", targetOrder) : `/orders/${orderId}`);
   };
 
   const generateId = () => `perf_${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
@@ -237,6 +244,26 @@ const ExecutorsPage = () => {
     loadOrders();
     loadTransactions();
     loadEmployees();
+  }, []);
+
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+
+      try {
+        const allFields = withDefaults(event.detail.value);
+        const next = {
+          currency: allFields.generalFields?.currency || [],
+          role: allFields.executorFields?.role || [],
+        };
+        setFields((prev) => (hasDataChanged(prev, next) ? next : prev));
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
   }, []);
 
   const enrichedExecutors = useMemo(() => {

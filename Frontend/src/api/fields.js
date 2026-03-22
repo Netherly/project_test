@@ -1,4 +1,5 @@
 import { httpGet, httpPut, fileUrl } from "./http";
+import { writeCachedValue } from "../utils/resourceCache";
 
 export const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 export const tidy = (v) => String(v ?? "").trim();
@@ -8,14 +9,20 @@ export function clone(v) {
   return JSON.parse(JSON.stringify(v));
 }
 
-const normalizeCodeValue = (value) => tidy(value).toUpperCase();
 
-const sortByOrder = (arr) => {
-  return [...(Array.isArray(arr) ? arr : [])].sort((a, b) => {
-    const oA = (a && typeof a === 'object' && Number.isFinite(Number(a.order))) ? Number(a.order) : 99999;
-    const oB = (b && typeof b === 'object' && Number.isFinite(Number(b.order))) ? Number(b.order) : 99999;
-    return oA - oB;
+export const sortByOrder = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  return [...arr].sort((a, b) => {
+    const orderA = a && Number.isFinite(Number(a.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+    const orderB = b && Number.isFinite(Number(b.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+    return orderA - orderB;
   });
+};
+
+const normalizeCodeValue = (value) => tidy(value).toUpperCase();
+const normalizeDeleteAction = (value) => {
+  const action = tidy(value).toLowerCase();
+  return action === "hide" ? "hide" : "";
 };
 
 export const normStrs = (arr) => {
@@ -32,6 +39,7 @@ export const normStrs = (arr) => {
       out.push({
         id: item?.id || rid(),
         value: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
         isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
         isDeleted: item?.isDeleted || false,
         order: Number.isFinite(item?.order) ? item.order : idx
@@ -62,6 +70,7 @@ export const normCodeStrs = (arr) => {
       code,
       name,
       label: name || code,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
       isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
       order: Number.isFinite(item?.order) ? item.order : idx
@@ -119,6 +128,7 @@ export const normIntervals = (arr) => {
   return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
     intervalValue: tidy(it?.intervalValue ?? it?.value ?? it),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
     order: Number.isFinite(it?.order) ? it.order : idx
@@ -130,6 +140,7 @@ export const normCategories = (arr) => {
     id: it?.id || rid(),
     categoryInterval: tidy(it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
     order: Number.isFinite(it?.order) ? it.order : idx
@@ -140,6 +151,7 @@ export const normArticles = (arr) => {
   return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
     articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
     order: Number.isFinite(it?.order) ? it.order : idx
@@ -151,23 +163,36 @@ export const normSubarticles = (arr) => {
     id: it?.id || rid(),
     subarticleInterval: tidy(it?.subarticleInterval ?? it?.interval ?? it?.group ?? it?.parentArticleName ?? it?.parentSubcategoryName),
     subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
     order: Number.isFinite(it?.order) ? it.order : idx
   }));
 };
 
-export const normDesigns = (arr) => {
-  return sortByOrder(arr).map((d, idx) => ({
+const deriveCardDesignImageVersion = (explicitVersion, sourceUrl) => {
+  const version = tidy(explicitVersion);
+  if (version) return version;
+
+  const rawUrl = tidy(sourceUrl);
+  if (!rawUrl) return "";
+
+  const [pathPart = ""] = rawUrl.split("?");
+  const segments = pathPart.split("/").filter(Boolean);
+  return segments[segments.length - 1] || rawUrl;
+};
+
+export const normDesigns = (arr) =>
+  (Array.isArray(arr) ? arr : []).map((d) => ({
     id: d?.id || rid(),
     name: tidy(d?.name),
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
+    imageVersion: deriveCardDesignImageVersion(d?.imageVersion ?? d?.version, d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
     isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined,
     isDeleted: d?.isDeleted || false,
-    order: Number.isFinite(d?.order) ? d.order : idx
+    order: Number.isFinite(d?.order) ? d.order : undefined
   }));
-};
 
 export const normTags = (arr) => {
   const seen = new Set();
@@ -213,6 +238,93 @@ export async function fetchFields() {
 export async function saveFields(payload) {
   const r = await httpPut("/fields", payload);
   return unwrap(r);
+}
+
+const FIELD_OPTION_ALIASES = {
+  orderFields: {
+    discountReasons: "discountReason",
+  },
+  clientFields: {
+    tag: "tags",
+  },
+  companyFields: {
+    tag: "tags",
+  },
+  employeeFields: {
+    tag: "tags",
+  },
+  assetsFields: {
+    cardDesign: "cardDesigns",
+  },
+};
+
+const resolveFieldOptionTarget = (groupKey, fieldName) => {
+  const safeGroupKey = tidy(groupKey);
+  const safeFieldName = tidy(fieldName);
+
+  return {
+    groupKey: safeGroupKey,
+    fieldName: FIELD_OPTION_ALIASES?.[safeGroupKey]?.[safeFieldName] || safeFieldName,
+  };
+};
+
+export async function addFieldOption(groupKey, fieldName, rawValue, extraData = {}) {
+  const value = tidy(rawValue);
+  if (!value) {
+    return withDefaults(await fetchFields());
+  }
+
+  const target = resolveFieldOptionTarget(groupKey, fieldName);
+  if (!target.groupKey || !target.fieldName) {
+    return withDefaults(await fetchFields());
+  }
+
+  const raw = await fetchFields();
+  const normalized = withDefaults(raw);
+  const list = Array.isArray(normalized?.[target.groupKey]?.[target.fieldName])
+    ? [...normalized[target.groupKey][target.fieldName]]
+    : [];
+
+  const exists = list.some((item) => {
+    const itemValue =
+      item?.code ??
+      item?.value ??
+      item?.name ??
+      item?.articleValue ??
+      item?.categoryValue ??
+      item?.subarticleValue ??
+      "";
+    return tidy(itemValue).toLowerCase() === value.toLowerCase();
+  });
+
+  if (exists) {
+    return normalized;
+  }
+
+  const nextOrder =
+    list.reduce((max, item, index) => {
+      const order = Number.isFinite(Number(item?.order)) ? Number(item.order) : index;
+      return Math.max(max, order);
+    }, -1) + 1;
+
+  normalized[target.groupKey] = {
+    ...(normalized[target.groupKey] || {}),
+    [target.fieldName]: [
+      ...list,
+      {
+        id: rid(),
+        value,
+        name: value,
+        order: nextOrder,
+        isDeleted: false,
+        ...extraData,
+      },
+    ],
+  };
+
+  const savedRaw = await saveFields(serializeForSave(normalized));
+  writeCachedValue("fieldsData", savedRaw);
+  return withDefaults(savedRaw);
 }
 
 export async function fetchInactiveFields() {
@@ -272,7 +384,7 @@ export function withDefaults(fields) {
       paymentSystem: normStrs(f?.assetsFields?.paymentSystem),
       cardDesigns: normDesigns(f?.assetsFields?.cardDesigns).map((d) => ({
         ...d,
-        viewUrl: fileUrl(d?.url || ""),
+        viewUrl: fileUrl(d?.url || "", d?.imageVersion || ""),
       })),
     },
     financeFields: {
@@ -292,16 +404,22 @@ export function withDefaults(fields) {
 export const serByName = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
-  let idx = 0;
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const v = tidy(item?.value ?? item?.name);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), name: v, order: item?.order ?? idx, isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined });
-      idx++;
+      out.push({
+        id: item?.id || rid(),
+        name: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+        ...(item?.isDeleted ? { isDeleted: true } : {}),
+        ...(normalizeDeleteAction(item?.deleteAction)
+          ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+          : {}),
+      });
     }
   }
   return out;
@@ -310,7 +428,7 @@ export const serByName = (arr) => {
 export const serCountries = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item?.isDeleted);
+  const source = Array.isArray(arr) ? arr : [];
   let idx = 0;
   for (const item of source) {
     const name = tidy(item?.value ?? item?.name);
@@ -328,8 +446,11 @@ export const serCountries = (arr) => {
       nameUk: tidy(item?.nameUk),
       iso2: iso2 || undefined,
       iso3: iso3 || undefined,
-      order: item?.order ?? idx,
-      isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+      ...(item?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(item?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+        : {}),
     });
     idx++;
   }
@@ -339,79 +460,95 @@ export const serCountries = (arr) => {
 export const serByCode = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
-  let idx = 0;
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const v = normalizeCodeValue(item?.code ?? item?.value);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), code: v, order: item?.order ?? idx, isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined });
-      idx++;
+      out.push({
+        id: item?.id || rid(),
+        code: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+        ...(item?.isDeleted ? { isDeleted: true } : {}),
+        ...(normalizeDeleteAction(item?.deleteAction)
+          ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+          : {}),
+      });
     }
   }
   return out;
 };
 
-export const serIntervals = (arr) => {
-  let idx = 0;
-  return (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value), order: it?.order ?? idx++, isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined }))
+export const serIntervals = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it, index) => ({
+      id: it?.id || rid(),
+      value: tidy(it?.intervalValue ?? it?.value),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
+    }))
     .filter((x) => x.value !== "");
-};
 
-export const serCategories = (arr) => {
-  let idx = 0;
-  return (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({
+export const serCategories = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it, index) => ({
       id: it?.id || rid(),
       intervalValue: tidy(it?.categoryInterval),
       value: tidy(it?.categoryValue),
-      order: it?.order ?? idx++,
-      isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.intervalValue && x.value);
-};
 
-export const serArticles = (arr) => {
-  let idx = 0;
-  return (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), name: tidy(it?.articleValue), order: it?.order ?? idx++, isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined }))
+export const serArticles = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it, index) => ({
+      id: it?.id || rid(),
+      name: tidy(it?.articleValue),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
+    }))
     .filter((x) => x.name !== "");
-};
 
-export const serSubarticles = (arr) => {
-  let idx = 0;
-  return (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({
+export const serSubarticles = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((it, index) => ({
       id: it?.id || rid(),
       parentName: tidy(it?.subarticleInterval),
       name: tidy(it?.subarticleValue),
-      order: it?.order ?? idx++,
-      isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.parentName && x.name);
-};
 
-export const serDesigns = (arr) => {
-  let idx = 0;
-  return (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((d) => ({
+export const serDesigns = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map((d, index) => ({
       id: d?.id || rid(),
       name: tidy(d?.name),
       url: tidy(d?.url),
       size: d?.size ?? null,
-      order: d?.order ?? idx++,
-      isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined
+      order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
+      ...(d?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(d?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(d?.deleteAction) }
+        : {}),
     }))
     .filter((d) => d.name);
-};
 
 export const serTags = (arr) => {
   const seen = new Set();
