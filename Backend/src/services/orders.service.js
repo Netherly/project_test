@@ -1,4 +1,5 @@
 const prisma = require('../../prisma/client');
+const { logActivity } = require('./activity-log.service');
 const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
@@ -92,6 +93,100 @@ function normalizeMeta(meta) {
   if (!meta || typeof meta !== 'object') return undefined;
   const cleaned = stripUndefined(meta);
   return Object.keys(cleaned).length ? cleaned : undefined;
+}
+
+function normalizeActorMeta(actor = null) {
+  if (!actor) {
+    return {
+      actorId: null,
+      actorName: null,
+      source: 'manual',
+      ip: undefined,
+      userAgent: undefined,
+    };
+  }
+
+  if (typeof actor === 'string') {
+    return {
+      actorId: actor || null,
+      actorName: null,
+      source: 'manual',
+      ip: undefined,
+      userAgent: undefined,
+    };
+  }
+
+  return {
+    actorId: actor?.actorId || actor?.id || null,
+    actorName: actor?.actorName || null,
+    source: actor?.source || 'manual',
+    ip: actor?.ip,
+    userAgent: actor?.userAgent,
+  };
+}
+
+async function safeClientLog(payload) {
+  try {
+    return await logActivity(payload);
+  } catch (error) {
+    console.warn('[log] order client activity failed:', error?.message || error);
+    return null;
+  }
+}
+
+function stringifyMessageParts(parts = []) {
+  return parts
+    .map((part) => (part && typeof part.text === 'string' ? part.text : ''))
+    .join('');
+}
+
+function buildOrderLinkLabel(order) {
+  const number = String(order?.numberOrder || '').trim();
+  if (number) return `заказ №${number}`;
+
+  const name = String(order?.name || order?.title || '').trim();
+  if (name) return `заказ "${name}"`;
+
+  return 'заказ';
+}
+
+function buildOrderCreatedMessageParts(order) {
+  const label = buildOrderLinkLabel(order);
+  return [
+    { type: 'text', text: 'Создан ' },
+    {
+      type: 'link',
+      text: label,
+      targetType: 'order',
+      id: order?.id || null,
+      urlId: order?.urlId || null,
+    },
+  ];
+}
+
+async function emitClientOrderCreatedLog({ order, actorMeta }) {
+  const clientId = order?.clientId || order?.client?.id;
+  if (!clientId) return;
+
+  const messageParts = buildOrderCreatedMessageParts(order);
+  const label = buildOrderLinkLabel(order);
+
+  await safeClientLog({
+    entityType: 'client',
+    entityId: clientId,
+    action: 'order_created',
+    message: stringifyMessageParts(messageParts),
+    meta: {
+      target: {
+        type: 'order',
+        id: order?.id || null,
+        urlId: order?.urlId || null,
+        label,
+      },
+      messageParts,
+    },
+    ...actorMeta,
+  });
 }
 
 const META_EXCLUDE_FIELDS = new Set([
@@ -356,7 +451,8 @@ const OrdersService = {
     return order;
   },
 
-  async create(payload, actorId) {
+  async create(payload, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const tagIds = Array.isArray(payload?.tagIds) ? payload.tagIds : [];
     const data = buildOrderData(payload);
 
@@ -392,11 +488,18 @@ const OrdersService = {
 
     const created = await prisma.order.create({ data, include: baseInclude });
     await upsertTags(created.id, tagIds);
-    await logChange({ orderId: created.id, employeeId: actorId, action: 'created', newValue: created });
+    await logChange({
+      orderId: created.id,
+      employeeId: actorMeta.actorId,
+      action: 'created',
+      newValue: created,
+    });
+    await emitClientOrderCreatedLog({ order: created, actorMeta });
     return this.byId(created.id);
   },
 
-  async update(id, payload, actorId) {
+  async update(id, payload, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
     const existing = await prisma.order.findUnique({ where: { id: actualId }, include: { tags: true } });
     if (!existing) {
@@ -450,7 +553,7 @@ const OrdersService = {
     if (stageChanged) {
       await logChange({
         orderId: actualId,
-        employeeId: actorId,
+        employeeId: actorMeta.actorId,
         action: 'stage_changed',
         field: 'stage',
         oldValue: { stage: existing.stage, stageIndex: existing.stageIndex },
@@ -459,7 +562,7 @@ const OrdersService = {
     } else {
       await logChange({
         orderId: actualId,
-        employeeId: actorId,
+        employeeId: actorMeta.actorId,
         action: 'updated',
         field: Object.keys(data)[0] || 'general',
         oldValue: existing,
@@ -470,7 +573,8 @@ const OrdersService = {
     return this.byId(actualId);
   },
 
-  async changeStage(id, { stage, stageIndex }, actorId) {
+  async changeStage(id, { stage, stageIndex }, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
     const existing = await prisma.order.findUnique({ where: { id: actualId } });
     if (!existing) {
@@ -494,7 +598,7 @@ const OrdersService = {
 
     await logChange({
       orderId: actualId,
-      employeeId: actorId,
+      employeeId: actorMeta.actorId,
       action: 'stage_changed',
       field: 'stage',
       oldValue: { stage: existing.stage, stageIndex: existing.stageIndex },
@@ -504,7 +608,8 @@ const OrdersService = {
     return updated;
   },
 
-  async delete(id, actorId) {
+  async delete(id, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
     const existing = await prisma.order.findUnique({ where: { id: actualId } });
     if (!existing) {
@@ -519,7 +624,13 @@ const OrdersService = {
       include: baseInclude,
     });
 
-    await logChange({ orderId: actualId, employeeId: actorId, action: 'deleted', oldValue: existing, newValue: deleted });
+    await logChange({
+      orderId: actualId,
+      employeeId: actorMeta.actorId,
+      action: 'deleted',
+      oldValue: existing,
+      newValue: deleted,
+    });
     return deleted;
   },
 };
