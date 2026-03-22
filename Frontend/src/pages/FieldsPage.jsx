@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { useFields } from "../context/FieldsContext";
 import "../styles/Fields.css";
@@ -43,6 +43,7 @@ import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lu
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
 const ACTIVE_TAB_STORAGE_KEY = "crm_active_field_tab";
+const SHOW_HIDDEN_STORAGE_KEY = "crm_fields_show_hidden_v1";
 const VISIBLE_FIELD_CURRENCIES = [
   { code: "UAH", name: "Ukrainian Hryvnia" },
   { code: "USD", name: "US Dollar" },
@@ -644,7 +645,7 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
                         type="button"
                         className={`remove-category-btn ${t.isDeleted ? 'restore' : ''}`}
                         onClick={() => (onToggleDelete ? onToggleDelete(t.id, t) : toggleDelete(t.id))}
-                        title={t.isDeleted ? "Восстановить" : "Удалить"}
+                        title={t.isDeleted ? "Восстановить" : "Скрыть"}
                       >
                         {t.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
                       </button>
@@ -1235,7 +1236,13 @@ function FieldsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
-  const [showHidden, setShowHidden] = useState(false);
+  const [showHidden, setShowHidden] = useState(() => {
+    try {
+      return localStorage.getItem(SHOW_HIDDEN_STORAGE_KEY) === "1";
+    } catch (_) {
+      return false;
+    }
+  });
   const [inactiveLoaded, setInactiveLoaded] = useState(false);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(false);
@@ -1271,6 +1278,7 @@ function FieldsPage() {
   });
 
   const containerRef = useRef(null);
+  const initialShowHiddenRef = useRef(showHidden);
   const pageDndId = useMemo(() => rid(), []);
 
   const sensors = useSensors(
@@ -1320,10 +1328,14 @@ function FieldsPage() {
     });
   };
 
-  const requestDeleteToggle = ({ item, fieldLabel, onToggle }) => {
+  const requestDeleteToggle = ({ item, fieldLabel, onToggle, allowHardDelete = true }) => {
     if (!item) return;
     if (item.isDeleted) {
       onToggle?.();
+      return;
+    }
+    if (!allowHardDelete) {
+      onToggle?.("hide");
       return;
     }
     if (item.isLinked === true) {
@@ -1348,6 +1360,39 @@ function FieldsPage() {
     checkChanges(next, fieldOrders);
   };
 
+  const fetchNormalizedInactiveValues = useCallback(async () => {
+    const inactiveValues = await fetchInactiveFields();
+    return withDefaults(inactiveValues);
+  }, []);
+
+  const mergeWithInactiveValues = useCallback(
+    async (baseValues) => {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      return mergeInactiveFieldsIntoValues(baseValues, inactiveValues);
+    },
+    [fetchNormalizedInactiveValues]
+  );
+
+  const loadHiddenFieldsIntoState = useCallback(async () => {
+    setLoadingInactive(true);
+    try {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      setSelectedValues((currentSelectedValues) =>
+        mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
+      );
+      if (!hasChanges) {
+        setSavedValues((currentSavedValues) =>
+          mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
+        );
+      }
+      setInactiveLoaded(true);
+    } catch (e) {
+      openErrorModal("Ошибка загрузки скрытых полей", e?.message || "Не удалось получить данные.");
+    } finally {
+      setLoadingInactive(false);
+    }
+  }, [fetchNormalizedInactiveValues, hasChanges]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -1356,10 +1401,21 @@ function FieldsPage() {
       try {
         const raw = await fetchFields();
         const normalized = applyFieldsPagePreset(withDefaults(raw));
+        let hydratedValues = normalized;
+        let hiddenLoaded = false;
+        if (initialShowHiddenRef.current) {
+          try {
+            hydratedValues = await mergeWithInactiveValues(normalized);
+            hiddenLoaded = true;
+          } catch (inactiveError) {
+            console.error("Не удалось загрузить скрытые поля при открытии страницы:", inactiveError);
+          }
+        }
         if (!mounted) return;
-        setSelectedValues(normalized);
-        setSavedValues(normalized);
+        setSelectedValues(hydratedValues);
+        setSavedValues(hydratedValues);
         setHasChanges(false);
+        setInactiveLoaded(hiddenLoaded);
       } catch (e) {
         if (isForbiddenError(e)) {
           if (!mounted) return;
@@ -1372,27 +1428,46 @@ function FieldsPage() {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [mergeWithInactiveValues]);
 
   useEffect(() => {
+    let mounted = true;
+
     const handleCacheChange = (event) => {
       if (event?.detail?.key !== "fieldsData") return;
       if (hasChanges || saving) return;
 
-      try {
-        const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
-        setSelectedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
-        setSavedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
-        setHasChanges(false);
-        setInactiveLoaded(false);
-      } catch (_) {}
+      (async () => {
+        try {
+          const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
+          let nextValues = normalized;
+          let hiddenLoaded = false;
+          if (showHidden) {
+            try {
+              nextValues = await mergeWithInactiveValues(normalized);
+              hiddenLoaded = true;
+            } catch (inactiveError) {
+              console.error("Не удалось заново подмешать скрытые поля после обновления кэша:", inactiveError);
+            }
+          }
+          if (!mounted) return;
+          setSelectedValues((prev) => (hasDataChanged(prev, nextValues) ? nextValues : prev));
+          setSavedValues((prev) => (hasDataChanged(prev, nextValues) ? nextValues : prev));
+          setHasChanges(false);
+          setInactiveLoaded(hiddenLoaded);
+        } catch (error) {
+          if (!mounted) return;
+          console.error("Не удалось синхронизировать скрытые поля из кэша:", error);
+        }
+      })();
     };
 
     window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     return () => {
+      mounted = false;
       window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     };
-  }, [hasChanges, saving]);
+  }, [hasChanges, saving, showHidden]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -1415,9 +1490,7 @@ function FieldsPage() {
 
       if (showHidden) {
         try {
-          const rawInactive = await fetchInactiveFields();
-          const normalizedInactive = withDefaults(rawInactive);
-          finalSavedValues = mergeInactiveFieldsIntoValues(normalizedSavedValues, normalizedInactive);
+          finalSavedValues = await mergeWithInactiveValues(normalizedSavedValues);
           hiddenLoaded = true;
         } catch (inactiveError) {
           console.error("Не удалось сразу загрузить скрытые поля после сохранения:", inactiveError);
@@ -1450,7 +1523,6 @@ function FieldsPage() {
     setFieldOrders(savedFieldOrders);
     setHasChanges(false);
     setOpenDropdowns({});
-    setShowHidden(false);
     setInactiveLoaded(false);
   };
 
@@ -1475,7 +1547,6 @@ function FieldsPage() {
         localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
         setPendingTab(null);
         setOpenDropdowns({});
-        setShowHidden(false);
         setInactiveLoaded(false);
       },
     });
@@ -1493,32 +1564,33 @@ function FieldsPage() {
 
   const handleToggleShowHidden = () => {
     setOpenDropdowns({});
-    setShowHidden((prev) => {
-      const next = !prev;
-      if (next) {
-        setInactiveLoaded(false);
-      }
-      return next;
-    });
+    const next = !showHidden;
+    setShowHidden(next);
+    try {
+      localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, next ? "1" : "0");
+    } catch (_) {}
+    setInactiveLoaded(false);
+    if (next && !loading) {
+      void loadHiddenFieldsIntoState();
+    }
   };
 
   useEffect(() => {
-  if (showHidden && !inactiveLoaded && !loadingInactive) {
+  if (!loading && showHidden && !inactiveLoaded && !loadingInactive) {
     let mounted = true;
     (async () => {
       setLoadingInactive(true);
       try {
-        const rawInactive = await fetchInactiveFields();
-        const normalizedInactive = withDefaults(rawInactive);
+        const inactiveValues = await fetchNormalizedInactiveValues();
 
         if (!mounted) return;
 
         setSelectedValues((currentSelectedValues) =>
-          mergeInactiveFieldsIntoValues(currentSelectedValues, normalizedInactive)
+          mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
         );
         if (!hasChanges) {
           setSavedValues((currentSavedValues) =>
-            mergeInactiveFieldsIntoValues(currentSavedValues, normalizedInactive)
+            mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
           );
         }
         setInactiveLoaded(true); 
@@ -1532,7 +1604,7 @@ function FieldsPage() {
 
     return () => { mounted = false; };
   }
-}, [showHidden, inactiveLoaded, loadingInactive, hasChanges]);
+}, [showHidden, inactiveLoaded, loadingInactive, hasChanges, loading, fetchNormalizedInactiveValues]);
 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
@@ -1823,6 +1895,7 @@ function FieldsPage() {
     requestDeleteToggle({
       item,
       fieldLabel: item?.name,
+      allowHardDelete: false,
       onToggle: () => toggleTagDelete(group, field, id),
     });
   };

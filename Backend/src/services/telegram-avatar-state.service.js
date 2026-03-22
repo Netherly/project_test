@@ -29,6 +29,8 @@ function normalizeRecord(record) {
   return {
     disabled: Boolean(record.disabled),
     lastFilePath: toText(record.lastFilePath) || null,
+    lastFileUniqueId: toText(record.lastFileUniqueId) || null,
+    storageUrl: toText(record.storageUrl) || null,
     linkedAt: toIsoDate(record.linkedAt),
     updatedAt: toIsoDate(record.updatedAt),
   };
@@ -101,6 +103,8 @@ async function patchState(employeeId, patch) {
   const current = config.records[key] || {
     disabled: false,
     lastFilePath: null,
+    lastFileUniqueId: null,
+    storageUrl: null,
     linkedAt: null,
     updatedAt: null,
   };
@@ -114,6 +118,25 @@ async function patchState(employeeId, patch) {
   config.records[key] = nextRecord;
   await saveConfig(config);
   return nextRecord;
+}
+
+function buildMetaPatch(meta = {}) {
+  const patch = {};
+
+  if (Object.prototype.hasOwnProperty.call(meta, 'linkedAt')) {
+    patch.linkedAt = toIsoDate(meta.linkedAt);
+  }
+  if (Object.prototype.hasOwnProperty.call(meta, 'lastFilePath')) {
+    patch.lastFilePath = toText(meta.lastFilePath) || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(meta, 'lastFileUniqueId')) {
+    patch.lastFileUniqueId = toText(meta.lastFileUniqueId) || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(meta, 'storageUrl')) {
+    patch.storageUrl = toText(meta.storageUrl) || null;
+  }
+
+  return patch;
 }
 
 async function clearState(employeeId) {
@@ -130,16 +153,14 @@ async function clearState(employeeId) {
 async function markSyncDisabled(employeeId, meta = {}) {
   return patchState(employeeId, {
     disabled: true,
-    linkedAt: toIsoDate(meta.linkedAt),
-    lastFilePath: toText(meta.lastFilePath) || null,
+    ...buildMetaPatch(meta),
   });
 }
 
 async function markSyncEnabled(employeeId, meta = {}) {
   return patchState(employeeId, {
     disabled: false,
-    linkedAt: toIsoDate(meta.linkedAt),
-    lastFilePath: toText(meta.lastFilePath) || null,
+    ...buildMetaPatch(meta),
   });
 }
 
