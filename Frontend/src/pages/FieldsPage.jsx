@@ -316,6 +316,12 @@ const prepareFieldsPageSaveValues = (values) => {
   return next;
 };
 
+const markHiddenFieldItem = (item) => ({
+  ...item,
+  isDeleted: true,
+  deleteAction: "hide",
+});
+
 const SortableFieldRow = ({ id, children, isDragEnabled }) => {
   const {
     attributes,
@@ -1478,10 +1484,7 @@ function FieldsPage() {
               const activeList = nextValues[groupKey][fieldKey] || [];
               activeIds[groupKey][fieldKey] = new Set(activeList.map(item => item.id));
 
-              const inactiveList = (group[fieldKey] || []).map(item => ({
-                ...item,
-                isDeleted: true
-              }));
+              const inactiveList = (group[fieldKey] || []).map(markHiddenFieldItem);
 
               const currentActiveIds = activeIds[groupKey][fieldKey];
               const mergedList = sortByConfiguredOrder([
@@ -1496,6 +1499,9 @@ function FieldsPage() {
         };
 
         setSelectedValues(mergeInactive);
+        if (!hasChanges) {
+          setSavedValues(mergeInactive);
+        }
         setInactiveLoaded(true); 
 
       } catch (e) {
@@ -1507,7 +1513,7 @@ function FieldsPage() {
 
     return () => { mounted = false; };
   }
-}, [showHidden, inactiveLoaded, loadingInactive]);
+}, [showHidden, inactiveLoaded, loadingInactive, hasChanges]);
 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
