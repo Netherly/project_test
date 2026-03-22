@@ -140,8 +140,11 @@ const AssetsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      await addFieldOption(group, fieldName, newValue);
-      await loadFields();
+      const normalized = await addFieldOption(group, fieldName, newValue);
+      setFields({
+        generalFields: normalized?.generalFields || { currency: [] },
+        assetsFields: normalized?.assetsFields || { type: [], paymentSystem: [], cardDesigns: [] },
+      });
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
     }

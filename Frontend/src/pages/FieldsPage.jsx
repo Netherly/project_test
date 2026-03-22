@@ -1332,7 +1332,7 @@ function FieldsPage() {
   useEffect(() => {
     const handleCacheChange = (event) => {
       if (event?.detail?.key !== "fieldsData") return;
-      if (hasChanges || saving || showHidden) return;
+      if (hasChanges || saving) return;
 
       try {
         const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
@@ -1347,7 +1347,7 @@ function FieldsPage() {
     return () => {
       window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     };
-  }, [hasChanges, saving, showHidden]);
+  }, [hasChanges, saving]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {

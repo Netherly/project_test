@@ -34,7 +34,7 @@ export default function ExecutorModal({
   const safeExecutor = executor ?? {};
   const isNew = !safeExecutor.id;
 
-  const { refreshFields } = useFields();
+  const { refreshFields, executorRoles = [], currencies = [] } = useFields();
 
   const [activeTab, setActiveTab] = useState('general');
   const [closing, setClosing] = useState(false);
@@ -187,8 +187,8 @@ export default function ExecutorModal({
                   <GeneralInfoTab 
                     orders={orders} 
                     employees={employees} 
-                    roleOptions={roleOptions}        
-                    currencyOptions={currencyOptions} 
+                    roleOptions={executorRoles.length ? executorRoles : roleOptions}        
+                    currencyOptions={currencies.length ? currencies : currencyOptions} 
                     fields={fields}
                     onAddNewField={handleAddNewField}     
                   />
