@@ -1360,10 +1360,38 @@ function FieldsPage() {
     checkChanges(next, fieldOrders);
   };
 
-  const mergeWithInactiveValues = useCallback(async (baseValues) => {
+  const fetchNormalizedInactiveValues = useCallback(async () => {
     const inactiveValues = await fetchInactiveFields();
-    return mergeInactiveFieldsIntoValues(baseValues, withDefaults(inactiveValues));
+    return withDefaults(inactiveValues);
   }, []);
+
+  const mergeWithInactiveValues = useCallback(
+    async (baseValues) => {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      return mergeInactiveFieldsIntoValues(baseValues, inactiveValues);
+    },
+    [fetchNormalizedInactiveValues]
+  );
+
+  const loadHiddenFieldsIntoState = useCallback(async () => {
+    setLoadingInactive(true);
+    try {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      setSelectedValues((currentSelectedValues) =>
+        mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
+      );
+      if (!hasChanges) {
+        setSavedValues((currentSavedValues) =>
+          mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
+        );
+      }
+      setInactiveLoaded(true);
+    } catch (e) {
+      openErrorModal("Ошибка загрузки скрытых полей", e?.message || "Не удалось получить данные.");
+    } finally {
+      setLoadingInactive(false);
+    }
+  }, [fetchNormalizedInactiveValues, hasChanges]);
 
   useEffect(() => {
     let mounted = true;
@@ -1536,16 +1564,15 @@ function FieldsPage() {
 
   const handleToggleShowHidden = () => {
     setOpenDropdowns({});
-    setShowHidden((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, next ? "1" : "0");
-      } catch (_) {}
-      if (next) {
-        setInactiveLoaded(false);
-      }
-      return next;
-    });
+    const next = !showHidden;
+    setShowHidden(next);
+    try {
+      localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, next ? "1" : "0");
+    } catch (_) {}
+    setInactiveLoaded(false);
+    if (next && !loading) {
+      void loadHiddenFieldsIntoState();
+    }
   };
 
   useEffect(() => {
@@ -1554,20 +1581,16 @@ function FieldsPage() {
     (async () => {
       setLoadingInactive(true);
       try {
-        const mergedSelectedValues = await mergeWithInactiveValues(selectedValues);
+        const inactiveValues = await fetchNormalizedInactiveValues();
 
         if (!mounted) return;
 
         setSelectedValues((currentSelectedValues) =>
-          hasDataChanged(currentSelectedValues, mergedSelectedValues)
-            ? mergedSelectedValues
-            : currentSelectedValues
+          mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
         );
         if (!hasChanges) {
           setSavedValues((currentSavedValues) =>
-            hasDataChanged(currentSavedValues, mergedSelectedValues)
-              ? mergedSelectedValues
-              : currentSavedValues
+            mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
           );
         }
         setInactiveLoaded(true); 
@@ -1581,7 +1604,7 @@ function FieldsPage() {
 
     return () => { mounted = false; };
   }
-}, [showHidden, inactiveLoaded, loadingInactive, hasChanges, loading, mergeWithInactiveValues, selectedValues]);
+}, [showHidden, inactiveLoaded, loadingInactive, hasChanges, loading, fetchNormalizedInactiveValues]);
 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
