@@ -37,7 +37,7 @@ import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
 import { getCardDesignFallback } from "../utils/cardDesigns";
-import { RESOURCE_CACHE_EVENT, hasDataChanged } from "../utils/resourceCache";
+import { RESOURCE_CACHE_EVENT, hasDataChanged, writeCachedValue } from "../utils/resourceCache";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -321,6 +321,45 @@ const markHiddenFieldItem = (item) => ({
   isDeleted: true,
   deleteAction: "hide",
 });
+
+const mergeInactiveFieldsIntoValues = (currentValues, inactiveValues) => {
+  const nextValues = clone(currentValues);
+  const activeIds = {};
+  const sortByConfiguredOrder = (list) =>
+    [...list].sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+      const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return 0;
+    });
+
+  for (const groupKey of Object.keys(inactiveValues || {})) {
+    const group = inactiveValues[groupKey];
+    if (!nextValues[groupKey] || typeof group !== "object" || group === null) continue;
+
+    activeIds[groupKey] = {};
+
+    for (const fieldKey of Object.keys(group)) {
+      if (!Object.prototype.hasOwnProperty.call(nextValues[groupKey], fieldKey)) continue;
+
+      const activeList = Array.isArray(nextValues[groupKey][fieldKey])
+        ? nextValues[groupKey][fieldKey]
+        : [];
+      activeIds[groupKey][fieldKey] = new Set(activeList.map((item) => item.id));
+
+      const inactiveList = (Array.isArray(group[fieldKey]) ? group[fieldKey] : []).map(markHiddenFieldItem);
+      const currentActiveIds = activeIds[groupKey][fieldKey];
+      const mergedList = sortByConfiguredOrder([
+        ...activeList,
+        ...inactiveList.filter((item) => !currentActiveIds.has(item.id)),
+      ]);
+
+      nextValues[groupKey][fieldKey] = mergedList;
+    }
+  }
+
+  return nextValues;
+};
 
 const SortableFieldRow = ({ id, children, isDragEnabled }) => {
   const {
@@ -1368,18 +1407,31 @@ function FieldsPage() {
     try {
       const payload = serializeForSave(prepareFieldsPageSaveValues(selectedValues));
       const savedRaw = await saveFields(payload);
+      writeCachedValue("fieldsData", savedRaw);
+
       const normalizedSavedValues = applyFieldsPagePreset(withDefaults(savedRaw));
+      let finalSavedValues = normalizedSavedValues;
+      let hiddenLoaded = false;
+
+      if (showHidden) {
+        try {
+          const rawInactive = await fetchInactiveFields();
+          const normalizedInactive = withDefaults(rawInactive);
+          finalSavedValues = mergeInactiveFieldsIntoValues(normalizedSavedValues, normalizedInactive);
+          hiddenLoaded = true;
+        } catch (inactiveError) {
+          console.error("Не удалось сразу загрузить скрытые поля после сохранения:", inactiveError);
+        }
+      }
       
       localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
       setSavedFieldOrders(fieldOrders);
 
-      setSelectedValues(normalizedSavedValues);
-      setSavedValues(normalizedSavedValues);
+      setSelectedValues(finalSavedValues);
+      setSavedValues(finalSavedValues);
       setHasChanges(false);
       setOpenDropdowns({});
-      setInactiveLoaded(false);
-
-      await refreshFields();
+      setInactiveLoaded(hiddenLoaded);
 
       if (pendingTab) {
         setActiveTab(pendingTab);
@@ -1461,46 +1513,13 @@ function FieldsPage() {
 
         if (!mounted) return;
 
-        const mergeInactive = (currentSelectedValues) => {
-          const nextValues = clone(currentSelectedValues);
-          const activeIds = {}; 
-          const sortByConfiguredOrder = (list) =>
-            [...list].sort((a, b) => {
-              const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
-              const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
-              if (aOrder !== bOrder) return aOrder - bOrder;
-              return 0;
-            });
-
-          for (const groupKey of Object.keys(normalizedInactive)) {
-            const group = normalizedInactive[groupKey];
-            if (!nextValues[groupKey] || typeof group !== 'object' || group === null) continue;
-            
-            activeIds[groupKey] = {};
-
-            for (const fieldKey of Object.keys(group)) {
-              if (!nextValues[groupKey].hasOwnProperty(fieldKey)) continue;
-
-              const activeList = nextValues[groupKey][fieldKey] || [];
-              activeIds[groupKey][fieldKey] = new Set(activeList.map(item => item.id));
-
-              const inactiveList = (group[fieldKey] || []).map(markHiddenFieldItem);
-
-              const currentActiveIds = activeIds[groupKey][fieldKey];
-              const mergedList = sortByConfiguredOrder([
-                ...activeList,
-                ...inactiveList.filter(item => !currentActiveIds.has(item.id))
-              ]);
-
-              nextValues[groupKey][fieldKey] = mergedList;
-            }
-          }
-          return nextValues; 
-        };
-
-        setSelectedValues(mergeInactive);
+        setSelectedValues((currentSelectedValues) =>
+          mergeInactiveFieldsIntoValues(currentSelectedValues, normalizedInactive)
+        );
         if (!hasChanges) {
-          setSavedValues(mergeInactive);
+          setSavedValues((currentSavedValues) =>
+            mergeInactiveFieldsIntoValues(currentSavedValues, normalizedInactive)
+          );
         }
         setInactiveLoaded(true); 
 
