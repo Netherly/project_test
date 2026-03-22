@@ -1371,6 +1371,7 @@ function FieldsPage() {
       setSavedValues(normalizedSavedValues);
       setHasChanges(false);
       setOpenDropdowns({});
+      setInactiveLoaded(false);
 
       await refreshFields();
 
@@ -1430,6 +1431,17 @@ function FieldsPage() {
       } 
     };
     applyAndCheck(next);
+  };
+
+  const handleToggleShowHidden = () => {
+    setOpenDropdowns({});
+    setShowHidden((prev) => {
+      const next = !prev;
+      if (next) {
+        setInactiveLoaded(false);
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -2345,8 +2357,8 @@ function FieldsPage() {
               <button
                 type="button"
                 className={`fields-view-mode-button ${showHidden ? 'active' : ''}`}
-                title={showHidden ? "Скрыть удаленные" : "Показать удаленные"}
-                onClick={() => setShowHidden(!showHidden)}
+                title={showHidden ? "Скрыть скрытые" : "Показать скрытые"}
+                onClick={handleToggleShowHidden}
                 disabled={saving || loading || forbidden}
               >
                 {showHidden ? <EyeOff size={20} /> : <Eye size={20} />}
