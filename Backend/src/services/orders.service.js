@@ -164,29 +164,149 @@ function buildOrderCreatedMessageParts(order) {
   ];
 }
 
+function buildOrderLinkPart(order) {
+  return {
+    type: 'link',
+    text: buildOrderLinkLabel(order),
+    targetType: 'order',
+    id: order?.id || null,
+    urlId: order?.urlId || null,
+  };
+}
+
+function buildOrderMeta(order, messageParts) {
+  const meta = {};
+  if (order?.id) {
+    meta.target = {
+      type: 'order',
+      id: order.id,
+      urlId: order.urlId || null,
+      label: buildOrderLinkLabel(order),
+    };
+  }
+  if (Array.isArray(messageParts) && messageParts.length) {
+    meta.messageParts = messageParts;
+  }
+  return meta;
+}
+
+function buildOrderLinkedMessageParts(order) {
+  return [
+    { type: 'text', text: 'К клиенту привязан ' },
+    buildOrderLinkPart(order),
+  ];
+}
+
+function buildOrderUnlinkedMessageParts(order) {
+  return [
+    { type: 'text', text: 'От клиента отвязан ' },
+    buildOrderLinkPart(order),
+  ];
+}
+
+function formatOrderStatusValue(value) {
+  const text = String(value || '').trim();
+  return text || '—';
+}
+
+function buildOrderStatusUpdatedMessageParts({ order, stageChange, orderStatusChange }) {
+  const details = [];
+
+  if (stageChange) {
+    details.push(
+      `этап "${formatOrderStatusValue(stageChange.from)}" -> "${formatOrderStatusValue(stageChange.to)}"`
+    );
+  }
+
+  if (orderStatusChange) {
+    details.push(
+      `статус "${formatOrderStatusValue(orderStatusChange.from)}" -> "${formatOrderStatusValue(orderStatusChange.to)}"`
+    );
+  }
+
+  return [
+    { type: 'text', text: 'У ' },
+    buildOrderLinkPart(order),
+    {
+      type: 'text',
+      text:
+        details.length > 1
+          ? ` обновлены параметры заказа: ${details.join(', ')}`
+          : ` обновлён ${details[0] || 'статус заказа'}`,
+    },
+  ];
+}
+
+async function emitClientOrderEvent({ clientId, action, order, messageParts, actorMeta }) {
+  if (!clientId) return;
+
+  await safeClientLog({
+    entityType: 'client',
+    entityId: clientId,
+    action,
+    message: stringifyMessageParts(messageParts),
+    meta: buildOrderMeta(order, messageParts),
+    ...actorMeta,
+  });
+}
+
 async function emitClientOrderCreatedLog({ order, actorMeta }) {
   const clientId = order?.clientId || order?.client?.id;
   if (!clientId) return;
 
   const messageParts = buildOrderCreatedMessageParts(order);
-  const label = buildOrderLinkLabel(order);
-
-  await safeClientLog({
-    entityType: 'client',
-    entityId: clientId,
+  await emitClientOrderEvent({
+    clientId,
     action: 'order_created',
-    message: stringifyMessageParts(messageParts),
-    meta: {
-      target: {
-        type: 'order',
-        id: order?.id || null,
-        urlId: order?.urlId || null,
-        label,
-      },
-      messageParts,
-    },
-    ...actorMeta,
+    order,
+    messageParts,
+    actorMeta,
   });
+}
+
+async function emitClientOrderUpdateLogs({ before, after, actorMeta }) {
+  const beforeClientId = before?.clientId || null;
+  const afterClientId = after?.clientId || after?.client?.id || null;
+  const clientChanged = beforeClientId !== afterClientId;
+
+  if (clientChanged && beforeClientId) {
+    await emitClientOrderEvent({
+      clientId: beforeClientId,
+      action: 'order_unlinked',
+      order: before,
+      messageParts: buildOrderUnlinkedMessageParts(before),
+      actorMeta,
+    });
+  }
+
+  if (clientChanged && afterClientId) {
+    await emitClientOrderEvent({
+      clientId: afterClientId,
+      action: 'order_linked',
+      order: after,
+      messageParts: buildOrderLinkedMessageParts(after),
+      actorMeta,
+    });
+  }
+
+  const stageChanged = before?.stage !== after?.stage;
+  const orderStatusChanged = before?.orderStatus !== after?.orderStatus;
+
+  if (afterClientId && (stageChanged || orderStatusChanged)) {
+    await emitClientOrderEvent({
+      clientId: afterClientId,
+      action: 'order_status_updated',
+      order: after,
+      messageParts: buildOrderStatusUpdatedMessageParts({
+        order: after,
+        stageChange: stageChanged ? { from: before?.stage, to: after?.stage } : null,
+        orderStatusChange: orderStatusChanged
+          ? { from: before?.orderStatus, to: after?.orderStatus }
+          : null,
+      }),
+      actorMeta,
+    });
+  }
 }
 
 const META_EXCLUDE_FIELDS = new Set([
@@ -570,6 +690,12 @@ const OrdersService = {
       });
     }
 
+    await emitClientOrderUpdateLogs({
+      before: existing,
+      after: updated,
+      actorMeta,
+    });
+
     return this.byId(actualId);
   },
 
@@ -605,6 +731,12 @@ const OrdersService = {
       newValue: { stage: updated.stage, stageIndex: updated.stageIndex },
     });
 
+    await emitClientOrderUpdateLogs({
+      before: existing,
+      after: updated,
+      actorMeta,
+    });
+
     return updated;
   },
 
@@ -630,6 +762,12 @@ const OrdersService = {
       action: 'deleted',
       oldValue: existing,
       newValue: deleted,
+    });
+
+    await emitClientOrderUpdateLogs({
+      before: existing,
+      after: deleted,
+      actorMeta,
     });
     return deleted;
   },
