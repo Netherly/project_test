@@ -43,6 +43,7 @@ import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lu
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
 const ACTIVE_TAB_STORAGE_KEY = "crm_active_field_tab";
+const SHOW_HIDDEN_STORAGE_KEY = "crm_fields_show_hidden_v1";
 const VISIBLE_FIELD_CURRENCIES = [
   { code: "UAH", name: "Ukrainian Hryvnia" },
   { code: "USD", name: "US Dollar" },
@@ -1235,7 +1236,13 @@ function FieldsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
-  const [showHidden, setShowHidden] = useState(false);
+  const [showHidden, setShowHidden] = useState(() => {
+    try {
+      return localStorage.getItem(SHOW_HIDDEN_STORAGE_KEY) === "1";
+    } catch (_) {
+      return false;
+    }
+  });
   const [inactiveLoaded, setInactiveLoaded] = useState(false);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(false);
@@ -1450,7 +1457,6 @@ function FieldsPage() {
     setFieldOrders(savedFieldOrders);
     setHasChanges(false);
     setOpenDropdowns({});
-    setShowHidden(false);
     setInactiveLoaded(false);
   };
 
@@ -1475,7 +1481,6 @@ function FieldsPage() {
         localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
         setPendingTab(null);
         setOpenDropdowns({});
-        setShowHidden(false);
         setInactiveLoaded(false);
       },
     });
@@ -1495,6 +1500,9 @@ function FieldsPage() {
     setOpenDropdowns({});
     setShowHidden((prev) => {
       const next = !prev;
+      try {
+        localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, next ? "1" : "0");
+      } catch (_) {}
       if (next) {
         setInactiveLoaded(false);
       }
