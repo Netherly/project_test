@@ -165,10 +165,14 @@ const Sidebar = () => {
     }, 300); 
   };
 
-  const isActivePath = useCallback((path) => location.pathname === path, [location.pathname]);
-  const isParentMenuActive = useCallback(
-    (menuKey) => submenus[menuKey]?.some((submenuItem) => location.pathname === submenuItem.path) || false,
+  const matchesPath = useCallback(
+    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
     [location.pathname]
+  );
+  const isActivePath = useCallback((path) => matchesPath(path), [matchesPath]);
+  const isParentMenuActive = useCallback(
+    (menuKey) => submenus[menuKey]?.some((submenuItem) => matchesPath(submenuItem.path)) || false,
+    [matchesPath]
   );
 
   const handleParentClick = (menuKey) => {
@@ -227,7 +231,7 @@ const Sidebar = () => {
                       src={icon}
                       alt={name}
                       className="submenu-icon"
-                      active={location.pathname === path}
+                      active={matchesPath(path)}
                     />
                   )}
                   <span>{name}</span>
@@ -238,7 +242,7 @@ const Sidebar = () => {
         </div>
       );
     },
-    [location.pathname]
+    [matchesPath]
   );
 
   return (
