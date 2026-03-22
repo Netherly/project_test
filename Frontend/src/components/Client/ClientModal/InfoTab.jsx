@@ -3,6 +3,7 @@ import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { Download, X } from "lucide-react";
 import TextareaWithCounter from "../TextareaWithCounter";
 import CreatableSelect from "./CreatableSelect";
+import { buildCompanyPhotoDisplayName } from "../../../utils/companyPhoto";
 import "./InfoTab.css";
 
 const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
@@ -29,10 +30,15 @@ export default function InfoTab({
 }) {
   const {
     control,
+    getValues,
+    setValue,
     formState: { errors },
   } = useFormContext();
 
   const watchedCompanyId = useWatch({ control, name: "company_id" });
+  const selectedCompany = (companies || []).find(
+    (company) => String(company?.id) === String(watchedCompanyId)
+  );
 
   const [customTag, setCustomTag] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
@@ -40,6 +46,8 @@ export default function InfoTab({
 
   const tagInputRef = useRef(null);
   const tagDropdownRef = useRef(null);
+  const prevCompanyIdRef = useRef(watchedCompanyId);
+  const lastSyncedCompanyPhotoRef = useRef("");
 
   const handleTagInputChange = (e) => setCustomTag(e.target.value);
   const handleTagInputFocus = () => setShowTagDropdown(true);
@@ -82,6 +90,28 @@ export default function InfoTab({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const nextSyncedValue = selectedCompany?.photo_link || "";
+    const currentValue = String(getValues("company_photo_link") || "");
+    const companyChanged = prevCompanyIdRef.current !== watchedCompanyId;
+    const looksLikeSavedCompanyPhoto = currentValue.startsWith("/uploads/company-photos/");
+    const canSyncCurrentValue =
+      currentValue === "" ||
+      currentValue === lastSyncedCompanyPhotoRef.current ||
+      looksLikeSavedCompanyPhoto;
+
+    if (companyChanged || canSyncCurrentValue) {
+      setValue("company_photo_link", nextSyncedValue, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: false,
+      });
+      lastSyncedCompanyPhotoRef.current = nextSyncedValue;
+    }
+
+    prevCompanyIdRef.current = watchedCompanyId;
+  }, [getValues, selectedCompany?.photo_link, setValue, watchedCompanyId]);
 
   return (
     <div className="tab-section info-tab">
@@ -310,11 +340,12 @@ export default function InfoTab({
               const reader = new FileReader();
               reader.onloadend = () => {
                 const fileData = {
-                  name: file.name,
+                  name: buildCompanyPhotoDisplayName(selectedCompany, file.name),
                   size: file.size,
                   url: reader.result,
                 };
                 field.onChange(JSON.stringify(fileData));
+                lastSyncedCompanyPhotoRef.current = "";
               };
               reader.readAsDataURL(file);
             };
@@ -329,8 +360,17 @@ export default function InfoTab({
             if (field.value) {
               try {
                 parsedFile = JSON.parse(field.value);
+                if (parsedFile?.url && !parsedFile?.name) {
+                  parsedFile = {
+                    ...parsedFile,
+                    name: buildCompanyPhotoDisplayName(selectedCompany, parsedFile.url),
+                  };
+                }
               } catch (err) {
-                parsedFile = { name: "Изображение по ссылке", url: field.value };
+                parsedFile = {
+                  name: buildCompanyPhotoDisplayName(selectedCompany, field.value),
+                  url: field.value,
+                };
               }
             }
 
@@ -384,7 +424,7 @@ export default function InfoTab({
                       </label>
 
                       <span style={{ fontSize: "13px", color: "var(--chips-color)" }}>
-                        Фото до 5 МБ
+                        Общая картинка для всех клиентов этой компании, до 5 МБ
                       </span>
                     </div>
                   ) : (

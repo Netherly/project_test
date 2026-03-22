@@ -1,6 +1,19 @@
 const prisma = require('../../prisma/client');
+const fs = require('fs');
+const path = require('path');
 const { logActivity, diffObjects } = require('./activity-log.service');
 const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
+const { httpErr } = require('../utils/http-error');
+const {
+  COMPANY_PHOTO_DIR,
+  COMPANY_PHOTO_UPLOADS_PREFIX,
+  MAX_COMPANY_PHOTO_BYTES,
+  buildCompanyPhotoNames,
+  companyPhotoUrlToAbsPath,
+  ensureCompanyPhotoDir,
+  isCompanyPhotoLink,
+  safeUnlink: safeUnlinkCompanyPhoto,
+} = require('../utils/company-photo');
 
 const isUuid = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -73,6 +86,158 @@ const normalizeShareInfo = (value) => {
   if (value === undefined || value === null) return null;
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   return String(value);
+};
+
+const COMPANY_PHOTO_ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
+const COMPANY_PHOTO_MIME_TO_EXT = {
+  'image/jpg': '.jpg',
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+};
+
+const parseCompanyPhotoInput = (value) => {
+  if (value === undefined) return { kind: 'absent' };
+
+  const text = String(value ?? '').trim();
+  if (!text) return { kind: 'clear' };
+  if (text.startsWith(COMPANY_PHOTO_UPLOADS_PREFIX)) {
+    return { kind: 'existing', url: text };
+  }
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch (_) {
+    parsed = null;
+  }
+
+  const rawUrl = pickStr(parsed?.url ?? text);
+  if (!rawUrl) return { kind: 'clear' };
+  if (rawUrl.startsWith(COMPANY_PHOTO_UPLOADS_PREFIX)) {
+    return { kind: 'existing', url: rawUrl };
+  }
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(rawUrl)) {
+    return {
+      kind: 'dataUrl',
+      url: rawUrl,
+      name: pickStr(parsed?.name),
+      size: Number.isFinite(Number(parsed?.size)) ? Number(parsed.size) : null,
+    };
+  }
+  return { kind: 'unsupported', value: rawUrl };
+};
+
+const extractExtFromName = (value) => {
+  const ext = path.extname(String(value || '').split('?')[0].split('#')[0]);
+  return ext ? ext.toLowerCase() : '';
+};
+
+const saveCompanyPhotoDataUrl = async (payload, company) => {
+  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i.exec(payload?.url || '');
+  if (!match) {
+    throw httpErr('Некорректный формат картинки компании');
+  }
+
+  const mime = String(match[1] || '').toLowerCase();
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!buffer.length) {
+    throw httpErr('Файл картинки компании пустой');
+  }
+  if (buffer.length > MAX_COMPANY_PHOTO_BYTES) {
+    throw httpErr('Размер файла превышает 5 МБ');
+  }
+
+  const fallbackExt = extractExtFromName(payload?.name) || '.jpg';
+  const ext = COMPANY_PHOTO_MIME_TO_EXT[mime] || fallbackExt;
+  if (!COMPANY_PHOTO_ALLOWED_EXTENSIONS.has(ext)) {
+    throw httpErr('Разрешены только изображения JPG, PNG, GIF и WEBP');
+  }
+
+  ensureCompanyPhotoDir();
+
+  const { storageBase } = buildCompanyPhotoNames({
+    companyName: company?.name,
+    urlId: company?.urlId,
+  });
+  const fileName = `${storageBase}_${Date.now()}${ext}`;
+  const absolutePath = path.join(COMPANY_PHOTO_DIR, fileName);
+  await fs.promises.writeFile(absolutePath, buffer);
+
+  return {
+    absolutePath,
+    storageUrl: `${COMPANY_PHOTO_UPLOADS_PREFIX}${fileName}`,
+  };
+};
+
+const prepareCompanyPhotoMutation = async ({ companyId, rawValue }) => {
+  const input = parseCompanyPhotoInput(rawValue);
+  if (input.kind === 'absent') {
+    return { hasChange: false };
+  }
+
+  if (!companyId) {
+    if (input.kind === 'clear') {
+      return { hasChange: false };
+    }
+    throw httpErr('Картинку компании можно сохранить только при выбранной компании', 400);
+  }
+
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true, name: true, urlId: true, photo_link: true },
+  });
+
+  if (!company) {
+    throw httpErr('Компания не найдена', 404);
+  }
+
+  if (input.kind === 'existing') {
+    return { hasChange: false, company };
+  }
+
+  if (input.kind === 'clear') {
+    if (!company.photo_link) {
+      return { hasChange: false, company };
+    }
+    return {
+      hasChange: true,
+      company,
+      companyId: company.id,
+      currentUrl: company.photo_link,
+      nextUrl: null,
+      newFileAbsPath: null,
+    };
+  }
+
+  if (input.kind !== 'dataUrl') {
+    throw httpErr('Некорректный формат картинки компании', 400);
+  }
+
+  const savedFile = await saveCompanyPhotoDataUrl(input, company);
+  return {
+    hasChange: true,
+    company,
+    companyId: company.id,
+    currentUrl: company.photo_link,
+    nextUrl: savedFile.storageUrl,
+    newFileAbsPath: savedFile.absolutePath,
+  };
+};
+
+const rollbackCompanyPhotoMutation = async (mutation) => {
+  if (!mutation?.newFileAbsPath) return;
+  await safeUnlinkCompanyPhoto(mutation.newFileAbsPath);
+};
+
+const finalizeCompanyPhotoMutation = async (mutation) => {
+  const previousUrl = String(mutation?.currentUrl || '').trim();
+  const nextUrl = String(mutation?.nextUrl || '').trim();
+  if (!previousUrl || previousUrl === nextUrl || !isCompanyPhotoLink(previousUrl)) {
+    return;
+  }
+  await safeUnlinkCompanyPhoto(companyPhotoUrlToAbsPath(previousUrl));
 };
 
 /** ===== ACCESS / CREDENTIALS ===== */
@@ -149,7 +314,7 @@ const includeClient = {
   source: { select: { id: true, name: true } },
   country: { select: { id: true, name: true } },
   currency: { select: { id: true, code: true, name: true } },
-  company: { select: { id: true, name: true } },
+  company: { select: { id: true, name: true, urlId: true, photo_link: true } },
   manager: { select: { id: true, full_name: true } },
   tags: { include: { tag: true } },
   credentials: { select: { id: true, login: true, password: true, description: true } },
@@ -203,6 +368,8 @@ const normalizeClient = (client) => {
     group_name: groupName,
     company_id: client.companyId ?? null,
     company_name: client.company?.name ?? null,
+    company_urlId: client.company?.urlId ?? null,
+    company_photo_link: client.company?.photo_link ?? null,
     manager_id: client.managerId ?? null,
     manager_name: client.manager?.full_name ?? null,
     tags,
@@ -397,15 +564,35 @@ const ClientService = {
       const defaultGroupId = await resolveDefaultGroupId();
       if (defaultGroupId) data.groupId = defaultGroupId;
     }
-
-    const client = await prisma.client.create({
-      data,
-      include: includeClient,
+    const companyPhotoMutation = await prepareCompanyPhotoMutation({
+      companyId: data.companyId ?? null,
+      rawValue: getProvided(payload, ['company_photo_link', 'companyPhotoLink']),
     });
 
-    const { hasAccesses, accesses } = extractAccessPayload(payload);
+    let client;
+    try {
+      client = await prisma.$transaction(async (tx) => {
+        const createdClient = await tx.client.create({
+          data,
+          include: includeClient,
+        });
 
-    let needsRefetch = false;
+        if (companyPhotoMutation.hasChange) {
+          await tx.company.update({
+            where: { id: companyPhotoMutation.companyId },
+            data: { photo_link: companyPhotoMutation.nextUrl },
+          });
+        }
+
+        return createdClient;
+      });
+    } catch (error) {
+      await rollbackCompanyPhotoMutation(companyPhotoMutation);
+      throw error;
+    }
+
+    const { hasAccesses, accesses } = extractAccessPayload(payload);
+    let needsRefetch = companyPhotoMutation.hasChange;
 
     if (payload?.tags) {
       await updateTags(client.id, payload.tags);
@@ -427,6 +614,8 @@ const ClientService = {
     } else {
       result = normalizeClient(client);
     }
+
+    await finalizeCompanyPhotoMutation(companyPhotoMutation);
 
     await safeLog({
       entityType: 'client',
@@ -468,14 +657,36 @@ const ClientService = {
       : null;
 
     const data = await buildClientData(payload);
-
-    const client = await prisma.client.update({
-      where: { id: actualId },
-      data,
-      include: includeClient,
+    const nextCompanyId = data.companyId !== undefined ? data.companyId : before?.companyId ?? null;
+    const companyPhotoMutation = await prepareCompanyPhotoMutation({
+      companyId: nextCompanyId,
+      rawValue: getProvided(payload, ['company_photo_link', 'companyPhotoLink']),
     });
 
-    let needsRefetch = false;
+    let client;
+    try {
+      client = await prisma.$transaction(async (tx) => {
+        const updatedClient = await tx.client.update({
+          where: { id: actualId },
+          data,
+          include: includeClient,
+        });
+
+        if (companyPhotoMutation.hasChange) {
+          await tx.company.update({
+            where: { id: companyPhotoMutation.companyId },
+            data: { photo_link: companyPhotoMutation.nextUrl },
+          });
+        }
+
+        return updatedClient;
+      });
+    } catch (error) {
+      await rollbackCompanyPhotoMutation(companyPhotoMutation);
+      throw error;
+    }
+
+    let needsRefetch = companyPhotoMutation.hasChange;
 
     if (payload?.tags !== undefined) {
       await updateTags(actualId, payload.tags);
@@ -521,6 +732,7 @@ const ClientService = {
           ...actorMeta,
         });
       }
+      await finalizeCompanyPhotoMutation(companyPhotoMutation);
       return result;
     }
 
@@ -545,6 +757,7 @@ const ClientService = {
         ...actorMeta,
       });
     }
+    await finalizeCompanyPhotoMutation(companyPhotoMutation);
     return result;
   },
 
