@@ -9,7 +9,7 @@ import avatarPlaceholder from "../../assets/avatar-placeholder.svg";
 import { fetchCompanies, createCompany, updateCompany, deleteCompany } from "../../api/companies";
 import { fetchClients } from "../../api/clients";
 import { fetchTransactions } from "../../api/transactions";
-import { buildEntityPath, formatUrlId, matchesEntityRouteParam } from "../../utils/entityRoutes";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 
 const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -173,12 +173,9 @@ const CompaniesPage = () => {
                                                             flexShrink: 0,
                                                         }}
                                                     />
-                                                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                                                    <div style={{ minWidth: 0 }}>
                                                         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                                             {company.name || '-'}
-                                                        </span>
-                                                        <span style={{ fontSize: "12px", opacity: 0.65 }}>
-                                                            {formatUrlId(company.urlId) || "—"}
                                                         </span>
                                                     </div>
                                                 </div>
