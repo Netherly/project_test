@@ -67,6 +67,18 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     'asset_transaction_updated',
     'asset_transaction_deleted',
   ]);
+  const IMPORTANT_CLIENT_ACTIONS = new Set([
+    'created',
+    'deleted',
+    'note',
+    'order_created',
+    'transaction_created',
+    'transaction_updated',
+    'transaction_deleted',
+    'regular_payment_created',
+    'regular_payment_updated',
+    'regular_payment_deleted',
+  ]);
   
   
   const [logs, setLogs] = useState(() => {
@@ -124,6 +136,13 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
       return `Создан ${entityLabel}${log?.source === 'self' ? ' (саморегистрация)' : ''}`;
     }
     if (log?.action === 'deleted') return `Удалён ${entityLabel}`;
+    if (log?.action === 'order_created') return 'Создан заказ';
+    if (log?.action === 'transaction_created') return 'Создана транзакция';
+    if (log?.action === 'transaction_updated') return 'Обновлена транзакция';
+    if (log?.action === 'transaction_deleted') return 'Удалена транзакция';
+    if (log?.action === 'regular_payment_created') return 'Создан регулярный платёж';
+    if (log?.action === 'regular_payment_updated') return 'Обновлён регулярный платёж';
+    if (log?.action === 'regular_payment_deleted') return 'Удалён регулярный платёж';
     if (log?.action === 'telegram_linked') return 'Привязан Telegram';
     if (log?.action === 'telegram_unlinked') return 'Telegram отвязан';
     if (log?.action === 'updated') {
@@ -157,9 +176,14 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   };
 
   const getRemotePresentation = (log) => {
-    if (!isEmployeeRemote) return 'card';
     if (log?.presentation) return log.presentation;
-    return IMPORTANT_EMPLOYEE_ACTIONS.has(log?.action) ? 'important' : 'inline';
+    if (entityType === 'employee') {
+      return IMPORTANT_EMPLOYEE_ACTIONS.has(log?.action) ? 'important' : 'inline';
+    }
+    if (entityType === 'client') {
+      return IMPORTANT_CLIENT_ACTIONS.has(log?.action) ? 'important' : 'inline';
+    }
+    return 'card';
   };
 
   const normalizeRemoteLog = (log) => ({
@@ -397,6 +421,8 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   const getTargetRoute = (target) => {
     if (!target?.id) return null;
     if (target.type === 'transaction') return buildEntityPath('/transactions', target);
+    if (target.type === 'order') return buildEntityPath('/orders', target);
+    if (target.type === 'regular_payment') return buildEntityPath('/regular_pays', target);
     if (target.type === 'asset') return buildEntityPath('/accounts', target);
     if (target.type === 'employee') return buildEntityPath('/employees', target);
     return null;
@@ -404,7 +430,9 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
 
   const getImportantLogIcon = (log) => {
     if (log.action === 'note') return { symbol: '✓', tone: 'note' };
+    if (String(log.action || '').includes('regular_payment')) return { symbol: '↻', tone: 'transaction' };
     if (String(log.action || '').includes('transaction')) return { symbol: '₴', tone: 'transaction' };
+    if (String(log.action || '').includes('order')) return { symbol: '№', tone: 'create' };
     if (String(log.action || '').includes('asset')) return { symbol: '◆', tone: 'asset' };
     if (String(log.action || '').includes('deleted')) return { symbol: '−', tone: 'danger' };
     return { symbol: '+', tone: 'create' };
@@ -571,7 +599,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
           </>
         )}
       </div>
-      <div className="employee-log-row__message">{log.message}</div>
+      <div className="employee-log-row__message">{renderLogMessageContent(log)}</div>
     </div>
   );
 
@@ -611,7 +639,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
           <React.Fragment key={month}>
             <div className="chat-group__header">{month}</div>
             {items.map(log => {
-              if (isEmployeeRemote) {
+              if (isRemote) {
                 return log.presentation === 'inline'
                   ? renderEmployeeInlineLog(log)
                   : renderEmployeeImportantLog(log);
@@ -639,7 +667,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
                         onChange={e => setEditText(e.target.value)}
                       />
                     ) : (
-                      <div className="log-message">{log.message}</div>
+                      <div className="log-message">{renderLogMessageContent(log)}</div>
                     )}
                   </div>
                   {!isRemote && renderImportantActions(log)}

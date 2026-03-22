@@ -107,6 +107,18 @@ const trxInclude = {
   categoryDict: { select: { id: true, name: true } },
   subcategoryDict: { select: { id: true, name: true } },
   employee: { select: { id: true, full_name: true } },
+  client: { select: { id: true, urlId: true, name: true } },
+  order: {
+    select: {
+      id: true,
+      urlId: true,
+      numberOrder: true,
+      name: true,
+      title: true,
+      clientId: true,
+      client: { select: { id: true, urlId: true, name: true } },
+    },
+  },
 };
 
 function viewModel(trx) {
@@ -138,12 +150,34 @@ const safeActivityLog = async (payload) => {
   try {
     return await logActivity(payload);
   } catch (error) {
-    console.warn('[log] transaction employee activity failed:', error?.message || error);
+    console.warn('[log] transaction activity failed:', error?.message || error);
     return null;
   }
 };
 
 const getTargetLabel = (target) => target?.employeeName || target?.employeeId || 'сотрудник';
+
+const buildOrderLinkLabel = (order) => {
+  const number = String(order?.numberOrder || '').trim();
+  if (number) return `заказ №${number}`;
+
+  const name = String(order?.name || order?.title || '').trim();
+  if (name) return `заказ "${name}"`;
+
+  return 'заказ';
+};
+
+const buildOrderLinkPart = (order) => {
+  if (!order?.id) return null;
+
+  return {
+    type: 'link',
+    text: buildOrderLinkLabel(order),
+    targetType: 'order',
+    id: order.id,
+    urlId: order.urlId || null,
+  };
+};
 
 const formatTransactionAmount = (trx) => {
   const amount = Number(trx?.amount);
@@ -199,6 +233,88 @@ const stringifyMessageParts = (parts = []) =>
 
 const buildTransactionMeta = ({ trx, target, verb }) => {
   const messageParts = buildTransactionMessageParts({ trx, target, verb });
+  const meta = {};
+
+  if (trx?.id) {
+    meta.target = {
+      type: 'transaction',
+      id: trx.id,
+      urlId: trx.urlId || null,
+      label: 'транзакция',
+    };
+  }
+
+  if (messageParts.length) {
+    meta.messageParts = messageParts;
+  }
+
+  return meta;
+};
+
+function collectClientTargets(trx) {
+  const targets = new Map();
+
+  if (trx?.clientId) {
+    targets.set(trx.clientId, {
+      clientId: trx.clientId,
+      clientName: trx.client?.name || null,
+    });
+  }
+
+  const orderClientId = trx?.order?.clientId || trx?.order?.client?.id;
+  if (orderClientId) {
+    targets.set(orderClientId, {
+      clientId: orderClientId,
+      clientName: trx.order?.client?.name || targets.get(orderClientId)?.clientName || null,
+    });
+  }
+
+  return targets;
+}
+
+function buildClientTransactionAction(verb) {
+  const suffix = verb === 'created' ? 'created' : verb === 'deleted' ? 'deleted' : 'updated';
+  return `transaction_${suffix}`;
+}
+
+const buildClientTransactionMessageParts = ({ trx, verb }) => {
+  const prefix =
+    verb === 'created'
+      ? 'Создана '
+      : verb === 'deleted'
+        ? 'Удалена '
+        : 'Обновлена ';
+
+  const parts = [
+    { type: 'text', text: prefix },
+    {
+      type: 'link',
+      text: 'транзакция',
+      targetType: 'transaction',
+      id: trx?.id || null,
+      urlId: trx?.urlId || null,
+    },
+  ];
+
+  const amountLabel = formatTransactionAmount(trx);
+  if (amountLabel) {
+    parts.push({ type: 'text', text: ` на сумму ${amountLabel}` });
+  }
+
+  const orderLinkPart = buildOrderLinkPart(trx?.order);
+  if (orderLinkPart) {
+    parts.push({ type: 'text', text: ' по ' });
+    parts.push(orderLinkPart);
+  }
+
+  return parts;
+};
+
+const buildClientTransactionMessage = ({ trx, verb }) =>
+  stringifyMessageParts(buildClientTransactionMessageParts({ trx, verb }));
+
+const buildClientTransactionMeta = ({ trx, verb }) => {
+  const messageParts = buildClientTransactionMessageParts({ trx, verb });
   const meta = {};
 
   if (trx?.id) {
@@ -299,6 +415,52 @@ async function emitEmployeeTransactionLogs({ before, after, verb, actorMeta }) {
       action: buildTransactionAction(target?.kind, currentVerb),
       message: buildTransactionMessage({ trx, target, verb: currentVerb }),
       meta,
+      ...actorMeta,
+    });
+  }
+}
+
+async function emitClientTransactionLogs({ before, after, verb, actorMeta }) {
+  const beforeTargets = before ? collectClientTargets(before) : new Map();
+  const afterTargets = after ? collectClientTargets(after) : new Map();
+  const targetIds = new Set();
+
+  if (verb === 'deleted') {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+  } else if (verb === 'created') {
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  } else {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  }
+
+  for (const clientId of targetIds) {
+    if (!clientId) continue;
+
+    let currentVerb = verb;
+    let trx = after || before;
+
+    if (verb === 'updated') {
+      const hadBefore = beforeTargets.has(clientId);
+      const hasAfter = afterTargets.has(clientId);
+      if (hadBefore && hasAfter) {
+        currentVerb = 'updated';
+        trx = after;
+      } else if (hadBefore) {
+        currentVerb = 'deleted';
+        trx = before;
+      } else {
+        currentVerb = 'created';
+        trx = after;
+      }
+    }
+
+    await safeActivityLog({
+      entityType: 'client',
+      entityId: clientId,
+      action: buildClientTransactionAction(currentVerb),
+      message: buildClientTransactionMessage({ trx, verb: currentVerb }),
+      meta: buildClientTransactionMeta({ trx, verb: currentVerb }),
       ...actorMeta,
     });
   }
@@ -532,6 +694,7 @@ exports.create = async (req, res) => {
       });
 
       await emitEmployeeTransactionLogs({ after: created, verb: 'created', actorMeta });
+      await emitClientTransactionLogs({ after: created, verb: 'created', actorMeta });
       return created;
     };
 
@@ -599,6 +762,12 @@ exports.update = async (req, res, next) => {
       verb: 'updated',
       actorMeta,
     });
+    await emitClientTransactionLogs({
+      before: result.before,
+      after: result.after,
+      verb: 'updated',
+      actorMeta,
+    });
 
     res.json(viewModel(result.after));
   } catch (err) {
@@ -635,6 +804,11 @@ exports.removeOne = async (req, res, next) => {
     });
 
     await emitEmployeeTransactionLogs({
+      before: removed,
+      verb: 'deleted',
+      actorMeta,
+    });
+    await emitClientTransactionLogs({
       before: removed,
       verb: 'deleted',
       actorMeta,
@@ -682,6 +856,11 @@ exports.duplicate = async (req, res, next) => {
     });
 
     await emitEmployeeTransactionLogs({
+      after: copy,
+      verb: 'created',
+      actorMeta,
+    });
+    await emitClientTransactionLogs({
       after: copy,
       verb: 'created',
       actorMeta,
