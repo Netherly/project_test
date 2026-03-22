@@ -40,7 +40,7 @@ import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lu
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
-const ACTIVE_TAB_STORAGE_KEY = "crm_active_field_tab";
+const ACTIVE_TAB_SESSION_KEY = "crm_active_field_tab_session";
 
 const safeFileUrl = (u) => {
   if (!u) return "";
@@ -114,6 +114,30 @@ const mergeFieldOrders = (saved = {}) =>
       return [groupKey, merged];
     })
   );
+
+const VISIBLE_FIELD_CURRENCIES = [
+  { code: "USD", name: "US Dollar" },
+  { code: "RUB", name: "Russian Ruble" },
+  { code: "USDT", name: "Tether" }
+];
+
+const SYSTEM_FIELD_CURRENCIES = [
+  { code: "UAH", name: "Ukrainian Hryvnia" }
+];
+
+const CURRENCY_FIELD_GROUPS = [
+  "generalFields",
+  "orderFields",
+  "executorFields",
+  "clientFields",
+  "assetsFields",
+];
+
+const COUNTRY_FIELD_GROUPS = [
+  "generalFields",
+  "clientFields",
+  "employeeFields",
+];
 
 const buildFixedCurrencyList = (source = [], includeSystem = false) => {
   const allowedCodes = new Set(
@@ -350,28 +374,37 @@ const EditableList = ({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const visibleItems = useMemo(
+    () => items.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
+    [items, showHidden]
+  );
+
   const handleBlur = (i) => {
     if (typeof onCommit === "function") onCommit(i);
   };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(items, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
-      onReorder?.(newItems);
-    }
+    if (!over || active.id === over.id) return;
+    const oldIndex = visibleItems.findIndex((item) => item.id === active.id);
+    const newIndex = visibleItems.findIndex((item) => item.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = items.filter((item) => item.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onReorder?.(newItems);
   };
 
   return (
     <div className="category-fields-container">
       <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map((item, index) => {
-            if (item.isDeleted && !showHidden) return null;
-
+        <SortableContext items={visibleItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          {visibleItems.map((item) => {
+            const index = item.originalIndex;
             return (
               <SortableItem key={item.id} id={item.id} disabled={item.isDeleted} showHandle={isDragEnabled}>
                 <div className={`category-field-group ${item.isDeleted ? 'is-hidden-item' : ''}`}>
@@ -422,15 +455,26 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const visibleItems = useMemo(
+    () => tags.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
+    [tags, showHidden]
+  );
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = tags.findIndex((t) => t.id === active.id);
-      const newIndex = tags.findIndex((t) => t.id === over.id);
-      const newItems = arrayMove(tags, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
-      onChange(newItems);
-    }
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = visibleItems.findIndex((t) => t.id === active.id);
+    const newIndex = visibleItems.findIndex((t) => t.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = tags.filter((t) => t.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onChange(newItems);
   };
 
   const add = () => {
@@ -444,14 +488,6 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
     const originalIndex = tags.findIndex(t => t.id === i);
     if (originalIndex === -1) return;
     next[originalIndex] = { ...next[originalIndex], ...patch };
-    onChange(next);
-  };
-
-  const toggleDelete = (id) => {
-    const idx = tags.findIndex(t => t.id === id);
-    if (idx === -1) return;
-    const next = [...tags];
-    next[idx] = { ...next[idx], isDeleted: !next[idx].isDeleted };
     onChange(next);
   };
 
@@ -486,9 +522,9 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
       {title && <label className="field-label">{title}</label>}
       <div className="category-fields-container">
         <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={tags.map(t => t.id)} strategy={verticalListSortingStrategy}>
-            {tags.map((t, i) => {
-              if (t.isDeleted && !showHidden) return null;
+          <SortableContext items={visibleItems.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            {visibleItems.map((t) => {
+              const i = t.originalIndex;
               return (
                 <SortableItem key={t.id} id={t.id} disabled={t.isDeleted} showHandle={isDragEnabled}>
                    <div className={`category-field-group ${t.isDeleted ? 'is-hidden-item' : ''}`}>
@@ -535,7 +571,7 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
                       <button
                         type="button"
                         className={`remove-category-btn ${t.isDeleted ? 'restore' : ''}`}
-                        onClick={() => (onToggleDelete ? onToggleDelete(t.id, t) : toggleDelete(t.id))}
+                        onClick={() => (onToggleDelete ? onToggleDelete(t.id, t) : onToggleDelete(t.id, t))}
                         title={t.isDeleted ? "Восстановить" : "Удалить"}
                       >
                         {t.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -562,29 +598,34 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = intervals.findIndex((item) => item.id === active.id);
-      const newIndex = intervals.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(intervals, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
-      onReorder?.(newItems);
-    }
-  };
-
   const visibleItems = useMemo(
-    () => intervals.map((item, index) => ({ ...item, originalIndex: index }))
-                   .filter(item => !item.isDeleted || showHidden),
+    () => intervals.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
     [intervals, showHidden]
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = visibleItems.findIndex((item) => item.id === active.id);
+    const newIndex = visibleItems.findIndex((item) => item.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = intervals.filter((item) => item.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onReorder?.(newItems);
+  };
 
   return (
     <div className="field-row">
       <label className="field-label">Интервал</label>
       <div className="category-fields-container">
         <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={intervals.map(i => i.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={visibleItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {visibleItems.map((interval) => {
               const originalIndex = interval.originalIndex;
               return (
@@ -644,29 +685,34 @@ const CategoryFields = ({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = categories.findIndex((item) => item.id === active.id);
-      const newIndex = categories.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(categories, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
-      onReorder?.(newItems);
-    }
-  };
-
   const visibleItems = useMemo(
-    () => categories.map((item, index) => ({ ...item, originalIndex: index }))
-                .filter(item => !item.isDeleted || showHidden),
+    () => categories.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
     [categories, showHidden]
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = visibleItems.findIndex((item) => item.id === active.id);
+    const newIndex = visibleItems.findIndex((item) => item.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = categories.filter((item) => item.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onReorder?.(newItems);
+  };
 
   return (
     <div className="field-row category-field">
       <label className="field-label">Категория</label>
       <div className="category-fields-container">
         <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={visibleItems.map(c => c.id)} strategy={verticalListSortingStrategy}>
             {visibleItems.map((category) => {
               const i = category.originalIndex;
               return (
@@ -743,29 +789,34 @@ const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArt
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = articles.findIndex((item) => item.id === active.id);
-      const newIndex = articles.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(articles, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
-      onReorder?.(newItems);
-    }
-  };
-
   const visibleItems = useMemo(
-    () => articles.map((item, index) => ({ ...item, originalIndex: index }))
-                .filter(item => !item.isDeleted || showHidden),
+    () => articles.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
     [articles, showHidden]
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = visibleItems.findIndex((item) => item.id === active.id);
+    const newIndex = visibleItems.findIndex((item) => item.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = articles.filter((item) => item.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onReorder?.(newItems);
+  };
    
   return (
     <div className="field-row">
       <label className="field-label">Статья</label>
       <div className="category-fields-container">
         <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={articles.map(a => a.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={visibleItems.map(a => a.id)} strategy={verticalListSortingStrategy}>
             {visibleItems.map((article) => {
               const i = article.originalIndex;
               return (
@@ -826,29 +877,34 @@ const SubarticleFields = ({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = subarticles.findIndex((item) => item.id === active.id);
-      const newIndex = subarticles.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(subarticles, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
-      onReorder?.(newItems);
-    }
-  };
-
   const visibleItems = useMemo(
-    () => subarticles.map((item, index) => ({ ...item, originalIndex: index }))
-                       .filter(item => !item.isDeleted || showHidden),
+    () => subarticles.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
     [subarticles, showHidden]
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = visibleItems.findIndex((item) => item.id === active.id);
+    const newIndex = visibleItems.findIndex((item) => item.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = subarticles.filter((item) => item.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onReorder?.(newItems);
+  };
    
   return (
     <div className="field-row article-field">
       <label className="field-label">Подстатья</label>
       <div className="category-fields-container">
         <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={subarticles.map(s => s.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={visibleItems.map(s => s.id)} strategy={verticalListSortingStrategy}>
             {visibleItems.map((subarticle) => {
               const i = subarticle.originalIndex;
               return (
@@ -935,15 +991,26 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const visibleItems = useMemo(
+    () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
+    [cardDesigns, showHidden]
+  );
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (!over) return;
-    if (active.id !== over.id) {
-      const oldIndex = cardDesigns.findIndex((item) => item.id === active.id);
-      const newIndex = cardDesigns.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(cardDesigns, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
-      onReorder?.(newItems);
-    }
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = visibleItems.findIndex((item) => item.id === active.id);
+    const newIndex = visibleItems.findIndex((item) => item.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = cardDesigns.filter((item) => item.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onReorder?.(newItems);
   };
 
   const ensureDesign = (arr, index) => {
@@ -971,7 +1038,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      onError?.({ title: "Слишком большой файл", message: "Максимум 2 МБ." });
+      onError?.({ title: "Слишком большой файл", message: `Максимум ${(MAX_IMAGE_BYTES / 1024).toFixed(0)} КБ.` });
       event.target.value = "";
       return;
     }
@@ -1002,16 +1069,10 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
 
   const addEmpty = () => onAdd([...(cardDesigns || []), { id: rid(), name: "", url: "", size: null, isDeleted: false, order: (cardDesigns || []).length }]);
 
-  const visibleItems = useMemo(
-    () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index }))
-                     .filter(item => !item.isDeleted || showHidden),
-    [cardDesigns, showHidden]
-  );
-
   return (
     <div className="category-fields-container">
       <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={cardDesigns.map(c => c.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={visibleItems.map(c => c.id)} strategy={verticalListSortingStrategy}>
           {visibleItems.map((design) => {
             const i = design.originalIndex;
             return (
@@ -1110,13 +1171,21 @@ function FieldsPage() {
   const [selectedValues, setSelectedValues] = useState(initialValues);
   const [savedValues, setSavedValues] = useState(initialValues);
   const [hasChanges, setHasChanges] = useState(false);
+  
   const [activeTab, setActiveTab] = useState(() => {
-    const saved = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
-    return saved || "generalFields";
+    try {
+      const navEntries = window.performance.getEntriesByType("navigation");
+      const isReload = navEntries.length > 0 && navEntries[0].type === "reload";
+      
+      if (isReload) {
+        return sessionStorage.getItem(ACTIVE_TAB_SESSION_KEY) || "generalFields";
+      }
+    } catch (e) {}
+    return "generalFields";
   });
 
   useEffect(() => {
-    localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+    sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, activeTab);
   }, [activeTab]);
 
   const [openDropdowns, setOpenDropdowns] = useState({});
@@ -1264,7 +1333,7 @@ function FieldsPage() {
 
       if (pendingTab) {
         setActiveTab(pendingTab);
-        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, pendingTab);
+        sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, pendingTab);
         setPendingTab(null);
       }
     } catch (e) {
@@ -1287,7 +1356,7 @@ function FieldsPage() {
     if (tabKey === activeTab) return;
     if (!hasChanges) {
       setActiveTab(tabKey);
-      localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
+      sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, tabKey);
       setOpenDropdowns({});
       return;
     }
@@ -1301,7 +1370,7 @@ function FieldsPage() {
         setFieldOrders(savedFieldOrders);
         setHasChanges(false);
         setActiveTab(tabKey);
-        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
+        sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, tabKey);
         setPendingTab(null);
         setOpenDropdowns({});
         setShowHidden(false);
@@ -1425,6 +1494,111 @@ function FieldsPage() {
     }
   };
 
+  const requestStringItemToggleDelete = (group, field, index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.value || item?.name,
+      onToggle: () => handleStringItemToggleDelete(group, field, index),
+    });
+  };
+
+  const toggleDeleteInterval = (originalIndex) => {
+    const intervals = selectedValues.orderFields.intervals || [];
+    const copy = [...intervals];
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    handleInputChange("orderFields", "intervals", copy);
+  };
+
+  const requestDeleteInterval = (originalIndex) => {
+    const item = selectedValues.orderFields.intervals[originalIndex];
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.intervalValue,
+      onToggle: () => toggleDeleteInterval(originalIndex)
+    });
+  };
+
+  const toggleDeleteCategory = (originalIndex) => {
+    const categories = selectedValues.orderFields.categories || [];
+    const copy = [...categories];
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    handleInputChange("orderFields", "categories", copy);
+  };
+
+  const requestDeleteCategory = (originalIndex) => {
+    const item = selectedValues.orderFields.categories[originalIndex];
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.categoryValue,
+      onToggle: () => toggleDeleteCategory(originalIndex)
+    });
+  };
+
+  const toggleDeleteArticle = (originalIndex) => {
+    const articles = selectedValues.financeFields.articles || [];
+    const copy = [...articles];
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    handleInputChange("financeFields", "articles", copy);
+  };
+
+  const requestDeleteArticle = (originalIndex) => {
+    const item = selectedValues.financeFields.articles[originalIndex];
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.articleValue,
+      onToggle: () => toggleDeleteArticle(originalIndex)
+    });
+  };
+
+  const toggleDeleteSubarticle = (originalIndex) => {
+    const subs = selectedValues.financeFields.subarticles || [];
+    const copy = [...subs];
+    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
+    handleInputChange("financeFields", "subarticles", copy);
+  };
+
+  const requestDeleteSubarticle = (originalIndex) => {
+    const item = selectedValues.financeFields.subarticles[originalIndex];
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.subarticleValue,
+      onToggle: () => toggleDeleteSubarticle(originalIndex)
+    });
+  };
+
+  const toggleDeleteCardDesign = (index) => {
+    const designs = selectedValues.assetsFields.cardDesigns || [];
+    const copy = [...designs];
+    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    handleInputChange("assetsFields", "cardDesigns", copy);
+  };
+
+  const requestDeleteCardDesign = (index) => {
+    const item = selectedValues.assetsFields.cardDesigns[index];
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      onToggle: () => toggleDeleteCardDesign(index)
+    });
+  };
+
+  const toggleTagDelete = (group, field, id) => {
+    const list = selectedValues[group]?.[field] || [];
+    const index = list.findIndex((item) => item.id === id);
+    if (index === -1) return;
+    const copy = [...list];
+    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    handleInputChange(group, field, copy);
+  };
+
+  const requestTagDelete = (group, field, id, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      onToggle: () => toggleTagDelete(group, field, id),
+    });
+  };
+
   const updateIntervalValue = (originalIndex, value) => {
     const intervals = selectedValues.orderFields.intervals || [];
     const copy = [...intervals];
@@ -1447,13 +1621,6 @@ function FieldsPage() {
       copy[originalIndex] = { ...copy[originalIndex], intervalValue: "" };
       handleInputChange("orderFields", "intervals", copy);
     }
-  };
-
-  const toggleDeleteInterval = (originalIndex) => {
-    const intervals = selectedValues.orderFields.intervals || [];
-    const copy = [...intervals];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
-    handleInputChange("orderFields", "intervals", copy);
   };
 
   const updateCategoryValue = (originalIndex, field, value) => {
@@ -1487,13 +1654,6 @@ function FieldsPage() {
       handleInputChange("orderFields", "categories", copy);
     }
   };
-  
-  const toggleDeleteCategory = (originalIndex) => {
-    const categories = selectedValues.orderFields.categories || [];
-    const copy = [...categories];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
-    handleInputChange("orderFields", "categories", copy);
-  };
 
   const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { id: rid(), intervalValue: "", isDeleted: false, order: (selectedValues.orderFields.intervals || []).length }]);
   const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false, order: (selectedValues.orderFields.categories || []).length }]);
@@ -1521,13 +1681,6 @@ function FieldsPage() {
       copy[originalIndex] = { ...copy[originalIndex], articleValue: "" };
       handleInputChange("financeFields", "articles", copy);
     }
-  };
-  
-  const toggleDeleteArticle = (originalIndex) => {
-    const articles = selectedValues.financeFields.articles || [];
-    const copy = [...articles];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
-    handleInputChange("financeFields", "articles", copy);
   };
 
   const updateSubarticleValue = (originalIndex, field, value) => {
@@ -1559,48 +1712,10 @@ function FieldsPage() {
     }
   };
   
-  const toggleDeleteSubarticle = (originalIndex) => {
-    const subs = selectedValues.financeFields.subarticles || [];
-    const copy = [...subs];
-    copy[originalIndex] = { ...copy[originalIndex], isDeleted: !copy[originalIndex].isDeleted };
-    handleInputChange("financeFields", "subarticles", copy);
-  };
-  
   const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { id: rid(), articleValue: "", isDeleted: false, order: (selectedValues.financeFields.articles || []).length }]);
   const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: (selectedValues.financeFields.subarticles || []).length }]);
 
   const updateCardDesigns = (newItems) => handleInputChange("assetsFields", "cardDesigns", newItems);
-  const toggleDeleteCardDesign = (index) => {
-    const designs = selectedValues.assetsFields.cardDesigns || [];
-    const copy = [...designs];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
-    handleInputChange("assetsFields", "cardDesigns", copy);
-  };
-
-  const requestDeleteCardDesign = (index, item) => {
-    requestDeleteToggle({
-      item,
-      fieldLabel: item?.name,
-      onToggle: () => toggleDeleteCardDesign(index),
-    });
-  };
-
-  const toggleTagDelete = (group, field, id) => {
-    const list = selectedValues[group]?.[field] || [];
-    const index = list.findIndex((item) => item.id === id);
-    if (index === -1) return;
-    const copy = [...list];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
-    handleInputChange(group, field, copy);
-  };
-
-  const requestTagDelete = (group, field, id, item) => {
-    requestDeleteToggle({
-      item,
-      fieldLabel: item?.name,
-      onToggle: () => toggleTagDelete(group, field, id),
-    });
-  };
 
   const toggleCategoryDropdown = (index, e) => {
     e.stopPropagation();

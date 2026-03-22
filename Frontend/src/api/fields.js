@@ -10,17 +10,21 @@ export function clone(v) {
 
 const normalizeCodeValue = (value) => tidy(value).toUpperCase();
 
-// --- Нормализация (чтение с сервера) ---
+const sortByOrder = (arr) => {
+  return [...(Array.isArray(arr) ? arr : [])].sort((a, b) => {
+    const oA = (a && typeof a === 'object' && Number.isFinite(Number(a.order))) ? Number(a.order) : 99999;
+    const oB = (b && typeof b === 'object' && Number.isFinite(Number(b.order))) ? Number(b.order) : 99999;
+    return oA - oB;
+  });
+};
 
 export const normStrs = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const item of source) {
-    const v =
-      typeof item === "string"
-        ? tidy(item)
-        : tidy(item?.value ?? item?.name ?? item?.code);
+    const v = typeof item === "string" ? tidy(item) : tidy(item?.value ?? item?.name ?? item?.code);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
@@ -30,7 +34,9 @@ export const normStrs = (arr) => {
         value: v,
         isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
         isDeleted: item?.isDeleted || false,
+        order: Number.isFinite(item?.order) ? item.order : idx
       });
+      idx++;
     }
   }
   return out;
@@ -39,21 +45,16 @@ export const normStrs = (arr) => {
 export const normCodeStrs = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const item of source) {
-    const code =
-      typeof item === "string"
-        ? normalizeCodeValue(item)
-        : normalizeCodeValue(item?.code ?? item?.value);
+    const code = typeof item === "string" ? normalizeCodeValue(item) : normalizeCodeValue(item?.code ?? item?.value);
     if (!code) continue;
     const key = code.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const name =
-      typeof item === "string"
-        ? code
-        : tidy(item?.name ?? item?.label ?? code);
+    const name = typeof item === "string" ? code : tidy(item?.name ?? item?.label ?? code);
 
     out.push({
       id: item?.id || rid(),
@@ -63,7 +64,9 @@ export const normCodeStrs = (arr) => {
       label: name || code,
       isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
+      order: Number.isFinite(item?.order) ? item.order : idx
     });
+    idx++;
   }
   return out;
 };
@@ -71,7 +74,8 @@ export const normCodeStrs = (arr) => {
 export const normCountries = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const item of source) {
     if (typeof item === "string") {
       const name = tidy(item);
@@ -79,7 +83,8 @@ export const normCountries = (arr) => {
       const key = name.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ id: rid(), value: name, name, isDeleted: false });
+      out.push({ id: rid(), value: name, name, isDeleted: false, order: idx });
+      idx++;
       continue;
     }
 
@@ -101,86 +106,93 @@ export const normCountries = (arr) => {
       nameUk: tidy(item?.nameUk),
       iso2,
       iso3,
-      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
       isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
+      order: Number.isFinite(item?.order) ? item.order : idx
     });
+    idx++;
   }
   return out;
 };
 
-export const normIntervals = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normIntervals = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
     intervalValue: tidy(it?.intervalValue ?? it?.value ?? it),
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
-export const normCategories = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normCategories = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
-    categoryInterval: tidy(
-      it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group
-    ),
+    categoryInterval: tidy(it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
-export const normArticles = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normArticles = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
     articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
-export const normSubarticles = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normSubarticles = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
-    subarticleInterval: tidy(
-      it?.subarticleInterval ??
-        it?.interval ??
-        it?.group ??
-        it?.parentArticleName ??
-        it?.parentSubcategoryName
-    ),
+    subarticleInterval: tidy(it?.subarticleInterval ?? it?.interval ?? it?.group ?? it?.parentArticleName ?? it?.parentSubcategoryName),
     subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
-export const normDesigns = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((d) => ({
+export const normDesigns = (arr) => {
+  return sortByOrder(arr).map((d, idx) => ({
     id: d?.id || rid(),
     name: tidy(d?.name),
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
-    order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
     isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined,
     isDeleted: d?.isDeleted || false,
+    order: Number.isFinite(d?.order) ? d.order : idx
   }));
+};
 
 export const normTags = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const t of source) {
     const name = typeof t === "string" ? tidy(t) : tidy(t?.name ?? t?.value);
     if (!name) continue;
     const k = name.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      const color =
-        typeof t === "string" ? "#ffffff" : isHex(t?.color) ? t.color : "#ffffff";
-      out.push({ id: t?.id || rid(), name, color, isDeleted: t?.isDeleted || false });
+      const color = typeof t === "string" ? "#ffffff" : isHex(t?.color) ? t.color : "#ffffff";
+      out.push({ 
+        id: t?.id || rid(), 
+        name, 
+        color, 
+        isDeleted: t?.isDeleted || false,
+        order: Number.isFinite(t?.order) ? t.order : idx
+      });
+      idx++;
     }
   }
   return out;
 };
-
-// --- API ---
 
 const unwrap = (resp) => {
   if (resp && typeof resp === "object" && "ok" in resp) {
@@ -208,19 +220,11 @@ export async function fetchInactiveFields() {
   return unwrap(r);
 }
 
-// --- Defaults (UI structure) ---
-
 export function withDefaults(fields) {
   const safeObj = (x) => (x && typeof x === "object" ? x : {});
   const f = safeObj(fields);
-  const sharedCountries =
-    f?.generalFields?.country ?? f?.clientFields?.country ?? f?.employeeFields?.country;
-  const sharedCurrencies =
-    f?.generalFields?.currency ??
-    f?.orderFields?.currency ??
-    f?.executorFields?.currency ??
-    f?.clientFields?.currency ??
-    f?.assetsFields?.currency;
+  const sharedCountries = f?.generalFields?.country ?? f?.clientFields?.country ?? f?.employeeFields?.country;
+  const sharedCurrencies = f?.generalFields?.currency ?? f?.orderFields?.currency ?? f?.executorFields?.currency ?? f?.clientFields?.currency ?? f?.assetsFields?.currency;
 
   return {
     generalFields: {
@@ -285,19 +289,19 @@ export function withDefaults(fields) {
   };
 }
 
-// --- Serializers (Подготовка к отправке) ---
-
 export const serByName = (arr) => {
   const seen = new Set();
   const out = [];
   const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  let idx = 0;
   for (const item of source) {
     const v = tidy(item?.value ?? item?.name);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), name: v });
+      out.push({ id: item?.id || rid(), name: v, order: item?.order ?? idx, isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined });
+      idx++;
     }
   }
   return out;
@@ -307,6 +311,7 @@ export const serCountries = (arr) => {
   const seen = new Set();
   const out = [];
   const source = (Array.isArray(arr) ? arr : []).filter((item) => !item?.isDeleted);
+  let idx = 0;
   for (const item of source) {
     const name = tidy(item?.value ?? item?.name);
     const iso2 = tidy(item?.iso2).toUpperCase();
@@ -323,8 +328,10 @@ export const serCountries = (arr) => {
       nameUk: tidy(item?.nameUk),
       iso2: iso2 || undefined,
       iso3: iso3 || undefined,
-      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+      order: item?.order ?? idx,
+      isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined
     });
+    idx++;
   }
   return out;
 };
@@ -333,66 +340,84 @@ export const serByCode = (arr) => {
   const seen = new Set();
   const out = [];
   const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  let idx = 0;
   for (const item of source) {
     const v = normalizeCodeValue(item?.code ?? item?.value);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), code: v });
+      out.push({ id: item?.id || rid(), code: v, order: item?.order ?? idx, isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined });
+      idx++;
     }
   }
   return out;
 };
 
-export const serIntervals = (arr) =>
-  (Array.isArray(arr) ? arr : [])
+export const serIntervals = (arr) => {
+  let idx = 0;
+  return (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value) }))
+    .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value), order: it?.order ?? idx++, isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined }))
     .filter((x) => x.value !== "");
+};
 
-export const serCategories = (arr) =>
-  (Array.isArray(arr) ? arr : [])
+export const serCategories = (arr) => {
+  let idx = 0;
+  return (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
     .map((it) => ({
       id: it?.id || rid(),
       intervalValue: tidy(it?.categoryInterval),
       value: tidy(it?.categoryValue),
+      order: it?.order ?? idx++,
+      isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined
     }))
     .filter((x) => x.intervalValue && x.value);
+};
 
-export const serArticles = (arr) =>
-  (Array.isArray(arr) ? arr : [])
+export const serArticles = (arr) => {
+  let idx = 0;
+  return (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), name: tidy(it?.articleValue) }))
+    .map((it) => ({ id: it?.id || rid(), name: tidy(it?.articleValue), order: it?.order ?? idx++, isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined }))
     .filter((x) => x.name !== "");
+};
 
-export const serSubarticles = (arr) =>
-  (Array.isArray(arr) ? arr : [])
+export const serSubarticles = (arr) => {
+  let idx = 0;
+  return (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
     .map((it) => ({
       id: it?.id || rid(),
       parentName: tidy(it?.subarticleInterval),
       name: tidy(it?.subarticleValue),
+      order: it?.order ?? idx++,
+      isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined
     }))
     .filter((x) => x.parentName && x.name);
+};
 
-export const serDesigns = (arr) =>
-  (Array.isArray(arr) ? arr : [])
+export const serDesigns = (arr) => {
+  let idx = 0;
+  return (Array.isArray(arr) ? arr : [])
     .filter((item) => !item.isDeleted)
-    .map((d, index) => ({
+    .map((d) => ({
       id: d?.id || rid(),
       name: tidy(d?.name),
       url: tidy(d?.url),
       size: d?.size ?? null,
-      order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
+      order: d?.order ?? idx++,
+      isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined
     }))
     .filter((d) => d.name);
+};
 
 export const serTags = (arr) => {
   const seen = new Set();
   const out = [];
   const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  let idx = 0;
   for (const t of source) {
     const name = tidy(t?.name);
     if (!name) continue;
@@ -400,7 +425,8 @@ export const serTags = (arr) => {
     const k = name.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: t?.id || rid(), name, color });
+      out.push({ id: t?.id || rid(), name, color, order: t?.order ?? idx });
+      idx++;
     }
   }
   return out;
