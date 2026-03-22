@@ -77,6 +77,9 @@ const AssetsPage = () => {
       };
     }
   });
+  const [fieldsVersion, setFieldsVersion] = useState(
+    () => readCacheSnapshot("fieldsData", { fallback: null }).signature || ""
+  );
 
   const [employees, setEmployees] = useState([]);
   const [cardSize, setCardSize] = useState("medium");
@@ -133,6 +136,7 @@ const AssetsPage = () => {
         generalFields: allFields.generalFields,
         assetsFields: allFields.assetsFields,
       });
+      setFieldsVersion(readCacheSnapshot("fieldsData", { fallback: rawFields }).signature || "");
     } catch (err) {
       console.error("Failed to load fields", err);
     }
@@ -140,8 +144,11 @@ const AssetsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      await addFieldOption(group, fieldName, newValue);
-      await loadFields();
+      const normalized = await addFieldOption(group, fieldName, newValue);
+      setFields({
+        generalFields: normalized?.generalFields || { currency: [] },
+        assetsFields: normalized?.assetsFields || { type: [], paymentSystem: [], cardDesigns: [] },
+      });
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
     }
@@ -162,6 +169,7 @@ const AssetsPage = () => {
           };
           return hasDataChanged(prev, next) ? next : prev;
         });
+        setFieldsVersion(snapshot.signature || "");
       } catch (_) {
       }
     }
@@ -178,6 +186,7 @@ const AssetsPage = () => {
           };
           return hasDataChanged(prev, next) ? next : prev;
         });
+        setFieldsVersion(event?.detail?.meta?.signature || "");
       } catch (_) {}
     };
 
@@ -655,6 +664,7 @@ const AssetsPage = () => {
                         key={asset.id}
                         asset={asset}
                         cardDesigns={fields?.assetsFields?.cardDesigns || []}
+                        designVersion={fieldsVersion}
                         onCardClick={() => handleRowClick(asset)}
                         onDeleteClick={() => handleDeleteAsset(asset.id)}
                         onCopyValue={copyToClipboard}

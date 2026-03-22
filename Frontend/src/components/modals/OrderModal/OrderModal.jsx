@@ -260,14 +260,23 @@ function OrderModal({
   const handleAddNewFieldInternal = async (group, fieldName, newValue, extraData = {}) => {
     const resolvedFieldName = fieldName === "discountReasons" ? "discountReason" : fieldName;
     if (onAddNewField) {
-      await onAddNewField(group, resolvedFieldName, newValue, extraData);
+      const normalizedFromParent = await onAddNewField(group, resolvedFieldName, newValue, extraData);
       try {
-        const normalized = withDefaults(await fetchFields());
-        if (group === "orderFields") {
+        const normalized = normalizedFromParent
+          ? withDefaults(normalizedFromParent)
+          : withDefaults(await fetchFields());
+
+        if (group === "orderFields" || (group === "generalFields" && resolvedFieldName === "currency")) {
           setOrderFields((prev) => ({
             ...prev,
-            [resolvedFieldName]:
-              normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
+            ...(group === "orderFields"
+              ? {
+                  [resolvedFieldName]:
+                    normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
+                }
+              : {
+                  currency: normalized?.generalFields?.currency || prev?.currency || [],
+                }),
           }));
         }
       } catch (e) {

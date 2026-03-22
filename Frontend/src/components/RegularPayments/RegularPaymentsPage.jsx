@@ -71,8 +71,10 @@ const RegularPaymentsPage = () => {
       if (refreshFields) {
         await refreshFields();
       }
+      return normalized;
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
+      return null;
     }
   };
 
