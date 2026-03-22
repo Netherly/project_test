@@ -317,12 +317,14 @@ const TransactionsPage = () => {
 
   const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
     try {
-      await addFieldOption(group, fieldName, newValue, extraData);
+      const normalized = await addFieldOption(group, fieldName, newValue, extraData);
       if (refreshFields) {
         await refreshFields();
       }
+      return normalized;
     } catch (e) {
       console.error(e);
+      return null;
     }
   };
 

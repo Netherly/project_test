@@ -16,6 +16,7 @@ import ImagePreviewModal from "../ImagePreviewModal";
 import { useFields } from "../../../context/FieldsContext";
 import { addFieldOption, fetchFields, withDefaults } from "../../../api/fields";
 import { rid } from "../../../utils/rid";
+import { RESOURCE_CACHE_EVENT } from "../../../utils/resourceCache";
 
 import "../../../styles/ClientModal.css";
 
@@ -71,29 +72,34 @@ export default function ClientModal({
     { timestamp: new Date().toISOString(), author: "Лев", message: "Не" },
   ];
 
+  const applyFieldOptions = (normalized) => {
+    const norm = withDefaults(normalized || {});
+
+    setFieldOptions({
+      categories: (norm.clientFields?.category || [])
+        .filter((i) => !i.isDeleted)
+        .map((i) => i.value),
+      sources: (norm.clientFields?.source || [])
+        .filter((i) => !i.isDeleted)
+        .map((i) => i.value),
+      businesses: (norm.clientFields?.business || [])
+        .filter((i) => !i.isDeleted)
+        .map((i) => i.value),
+      countries: (norm.generalFields?.country || [])
+        .filter((i) => !i.isDeleted)
+        .map((i) => i.value),
+      currencies: (norm.generalFields?.currency || [])
+        .filter((i) => !i.isDeleted)
+        .map((i) => i.value),
+      tags: (norm.clientFields?.tags || []).filter((i) => !i.isDeleted),
+    });
+
+    return norm;
+  };
+
   const loadFields = async () => {
     try {
-      const raw = await fetchFields();
-      const norm = withDefaults(raw);
-
-      setFieldOptions({
-        categories: (norm.clientFields?.category || [])
-          .filter((i) => !i.isDeleted)
-          .map((i) => i.value),
-        sources: (norm.clientFields?.source || [])
-          .filter((i) => !i.isDeleted)
-          .map((i) => i.value),
-        businesses: (norm.clientFields?.business || [])
-          .filter((i) => !i.isDeleted)
-          .map((i) => i.value),
-        countries: (norm.generalFields?.country || [])
-          .filter((i) => !i.isDeleted)
-          .map((i) => i.value),
-        currencies: (norm.generalFields?.currency || [])
-          .filter((i) => !i.isDeleted)
-          .map((i) => i.value),
-        tags: (norm.clientFields?.tags || []).filter((i) => !i.isDeleted),
-      });
+      applyFieldOptions(await fetchFields());
     } catch (e) {
       console.error("Ошибка загрузки полей:", e);
     }
@@ -103,15 +109,29 @@ export default function ClientModal({
     loadFields();
   }, []);
 
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      applyFieldOptions(event.detail.value);
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
+
   const handleAddNewField = async (group, fieldName, newValue) => {
     try {
-      await addFieldOption(group, fieldName, newValue);
-      await loadFields();
+      const normalized = await addFieldOption(group, fieldName, newValue);
+      applyFieldOptions(normalized);
       if (refreshFields) {
         await refreshFields();
       }
+      return normalized;
     } catch (e) {
       console.error("Ошибка при сохранении нового поля в БД:", e);
+      return null;
     }
   };
 
@@ -259,7 +279,7 @@ export default function ClientModal({
 
               {activeTab === "contacts" && (
                 <ContactsTab
-                  countries={countries}
+                  countries={fieldOptions.countries}
                   openImage={() => getValues("photo_link") && setShowImage(true)}
                   onAddCountry={(val) => handleAddNewField("generalFields", "country", val)}
                 />
@@ -267,7 +287,7 @@ export default function ClientModal({
 
               {activeTab === "finances" && (
                 <FinancesTab
-                  currencies={currencies}
+                  currencies={fieldOptions.currencies}
                   referrers={referrers}
                   employees={employees}
                   clients={availableClients} 
