@@ -57,8 +57,14 @@ const getFirstRequisite = (requisites) => {
 const EmployeeCard = ({ employee, onClick }) => {
   const avatar = employee.avatarUrl || employee.photoLink || avatarPlaceholder;
   const tags = Array.isArray(employee.tags) ? employee.tags : [];
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick?.();
+    }
+  };
   return (
-    <div className="employee-card" onClick={onClick}>
+    <div className="employee-card" onClick={onClick} onKeyDown={handleKeyDown} role="button" tabIndex={0}>
       <img
         src={avatar}
         alt={employee.fullName || employee.full_name || "Сотрудник"}
@@ -354,6 +360,14 @@ const EmployeePage = () => {
                             <tr
                               key={employee.id}
                               onClick={() => handleOpenEmployee(employee)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  handleOpenEmployee(employee);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
                               style={{ cursor: "pointer" }}
                             >
                               <td>{employee.fullName}</td>

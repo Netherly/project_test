@@ -431,7 +431,9 @@ model TelegramLinkTicket {
 
 model Company {
   id           String        @id @default(uuid())
+  urlId        Int           @unique @default(autoincrement())
   name         String        @db.VarChar(255)
+  photo_link   String?
 
   // обратки и связи
   clients      Client[]

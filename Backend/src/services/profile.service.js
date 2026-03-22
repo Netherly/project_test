@@ -1,6 +1,10 @@
 const prisma = require('../../prisma/client');
 const bcrypt = require('bcrypt');
-const { clearState: clearTelegramAvatarState } = require('./telegram-avatar-state.service');
+const {
+  clearState: clearTelegramAvatarState,
+  markSyncDisabled,
+} = require('./telegram-avatar-state.service');
+const { isTelegramManagedPhotoLink } = require('../utils/telegram-avatar');
 
 const DEFAULT_LANGUAGE = 'ru';
 const DEFAULT_THEME = 'dark';
@@ -238,6 +242,12 @@ async function updateProfile(employeeId, payload) {
       full_name: true,
       email: true,
       photoLink: true,
+      telegramUserId: true,
+      telegramChatId: true,
+      telegramUsername: true,
+      telegramLinkedAt: true,
+      telegramVerified: true,
+      chatLink: true,
     },
   });
   if (!currentEmployee) {
@@ -296,6 +306,15 @@ async function updateProfile(employeeId, payload) {
   if (photoLink !== undefined && photoLink !== normalizeOptionalText(currentEmployee.photoLink)) {
     employeeData.photoLink = photoLink;
   }
+  const photoLinkChangedManually =
+    photoLink !== undefined && photoLink !== normalizeOptionalText(currentEmployee.photoLink);
+  const isTelegramLinked = Boolean(
+    currentEmployee.telegramUserId ||
+      currentEmployee.telegramChatId ||
+      currentEmployee.telegramUsername ||
+      currentEmployee.telegramVerified ||
+      currentEmployee.chatLink
+  );
 
   await prisma.$transaction(async (tx) => {
     if (Object.keys(employeeData).length > 0) {
@@ -333,6 +352,12 @@ async function updateProfile(employeeId, payload) {
       await replaceRequisites(tx, employeeId, requisites);
     }
   });
+
+  if (isTelegramLinked && photoLinkChangedManually && !isTelegramManagedPhotoLink(photoLink)) {
+    await markSyncDisabled(employeeId, {
+      linkedAt: currentEmployee.telegramLinkedAt,
+    });
+  }
 
   return getProfile(employeeId);
 }
@@ -393,8 +418,14 @@ async function unlinkTelegram(employeeId) {
       telegramUserId: null,
       telegramChatId: null,
       telegramUsername: null,
+      telegramLinkedAt: null,
       telegramVerified: false,
-      photoLink: null,
+      chatLink: null,
+      telegramDateTime: null,
+      telegramId: null,
+      telegramName: null,
+      telegramNickname: null,
+      telegramBindingLink: null,
     },
   });
   await clearTelegramAvatarState(employeeId);

@@ -13,6 +13,7 @@ const {
   normalizeIso3,
 } = require('../utils/country-localization');
 const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
+const { isTelegramManagedPhotoLink } = require('../utils/telegram-avatar');
 
 const SALT_ROUNDS = 10;
 
@@ -56,8 +57,6 @@ const arraysEqual = (a = [], b = []) => {
 
 const isEmpty = (value) => value === null || value === undefined || String(value).trim() === '';
 const toText = (value) => (value === null || value === undefined ? '' : String(value).trim());
-const isTelegramFileUrl = (value) =>
-  /^https:\/\/api\.telegram\.org\/file\/bot/i.test(String(value || '').trim());
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const genUserId8 = () => {
@@ -570,7 +569,7 @@ const EmployeesService = {
         finalEmployee?.telegramVerified ||
         finalEmployee?.chatLink
     );
-    if (finalLinked && finalPhotoLink && !isTelegramFileUrl(finalPhotoLink)) {
+    if (finalLinked && finalPhotoLink && !isTelegramManagedPhotoLink(finalPhotoLink)) {
       await markSyncDisabled(finalEmployee.id, {
         linkedAt: finalEmployee?.telegramLinkedAt,
       });
@@ -724,7 +723,7 @@ const EmployeesService = {
     }
 
     if (beforeLinked && !afterLinked) {
-      await clearTelegramAvatarState(id);
+      await clearTelegramAvatarState(actualId);
         await safeLog({
           entityType: 'employee',
           entityId: actualId,
@@ -732,8 +731,8 @@ const EmployeesService = {
           message: 'Telegram отвязан',
           ...actorMeta,
       });
-    } else if (afterLinked && photoLinkChangedManually && !isTelegramFileUrl(afterPhotoLink)) {
-      await markSyncDisabled(id, {
+    } else if (afterLinked && photoLinkChangedManually && !isTelegramManagedPhotoLink(afterPhotoLink)) {
+      await markSyncDisabled(actualId, {
         linkedAt: after?.telegramLinkedAt,
       });
     }

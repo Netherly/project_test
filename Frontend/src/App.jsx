@@ -138,7 +138,7 @@ export default function App() {
           <Route path="/access/:subPage?" element={<ProtectedRoute element={<AccessSettings />} />} />
           <Route path="/tasks" element={<ProtectedRoute element={<TasksPage />} />} />
           <Route path="/fixes" element={<ProtectedRoute element={<FixesPage />} />} />
-          <Route path="/company" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
+          <Route path="/company/:companyId?" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
           <Route
             path="/clients"
             element={
