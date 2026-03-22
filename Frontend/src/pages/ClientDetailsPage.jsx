@@ -118,6 +118,17 @@ export default function ClientDetailsPage() {
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
+      setCompaniesList((prev) =>
+        prev.map((company) =>
+          String(company?.id) === String(saved?.company_id)
+            ? {
+                ...company,
+                name: saved.company_name || company.name,
+                photo_link: saved.company_photo_link ?? company.photo_link ?? "",
+              }
+            : company
+        )
+      );
       setClient(saved);
       if (clientId === "new" && saved?.id) {
         navigate(

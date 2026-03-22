@@ -12,7 +12,7 @@ const CompanyService = {
   async list() {
     return prisma.company.findMany({
       orderBy: { name: 'asc' },
-      select: { id: true, name: true },
+      select: { id: true, urlId: true, name: true, photo_link: true },
     });
   },
 
@@ -26,14 +26,14 @@ const CompanyService = {
 
     const existing = await prisma.company.findFirst({
       where: { name },
-      select: { id: true, name: true },
+      select: { id: true, urlId: true, name: true, photo_link: true },
     });
     if (existing) return existing;
 
     try {
       return await prisma.company.create({
         data: { name },
-        select: { id: true, name: true },
+        select: { id: true, urlId: true, name: true, photo_link: true },
       });
     } catch (err) {
       const message = String(err?.message || '');
@@ -46,7 +46,7 @@ const CompanyService = {
       const rows = await prisma.$queryRaw`
         INSERT INTO "Company" ("id", "name")
         VALUES (${randomUUID()}, ${name})
-        RETURNING "id", "name"
+        RETURNING "id", "urlId", "name", "photo_link"
       `;
       return rows[0] || null;
     }

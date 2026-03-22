@@ -14,9 +14,11 @@ const unwrap = (resp) => {
 
 const normalizeCompany = (c = {}) => ({
   id: c.id ?? null,
+  urlId: c.urlId ?? null,
   name: c.name ?? "",
   phone: c.phone ?? "",
   email: c.email ?? "",
+  photo_link: c.photo_link ?? c.photoLink ?? "",
   dateAdded: c.dateAdded ?? c.createdAt ?? "",
 });
 
