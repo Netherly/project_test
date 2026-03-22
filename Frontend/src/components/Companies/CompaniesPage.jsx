@@ -4,12 +4,11 @@ import Sidebar from "../Sidebar";
 import CompanyModal from './CompanyModal/CompanyModal.jsx'; 
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import "../../styles/ExecutorsPage.css"; 
-import avatarPlaceholder from "../../assets/avatar-placeholder.svg";
 
 import { fetchCompanies, createCompany, updateCompany, deleteCompany } from "../../api/companies";
 import { fetchClients } from "../../api/clients";
 import { fetchTransactions } from "../../api/transactions";
-import { buildEntityPath, formatUrlId, matchesEntityRouteParam } from "../../utils/entityRoutes";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 
 const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -161,26 +160,10 @@ const CompaniesPage = () => {
                                     {processedCompanies.map((company) => (
                                         <tr key={company.id} className="executor-row" onClick={() => openCompany(company)}>
                                             <td style={{ width: "320px" }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                                    <img
-                                                        src={company.photo_link || avatarPlaceholder}
-                                                        alt={company.name || "Компания"}
-                                                        style={{
-                                                            width: "36px",
-                                                            height: "36px",
-                                                            borderRadius: "50%",
-                                                            objectFit: "cover",
-                                                            flexShrink: 0,
-                                                        }}
-                                                    />
-                                                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                                                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                            {company.name || '-'}
-                                                        </span>
-                                                        <span style={{ fontSize: "12px", opacity: 0.65 }}>
-                                                            {formatUrlId(company.urlId) || "—"}
-                                                        </span>
-                                                    </div>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                                        {company.name || '-'}
+                                                    </span>
                                                 </div>
                                             </td>
                                             <td>{company.phone || '-'}</td>
