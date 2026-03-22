@@ -1367,6 +1367,7 @@ function FieldsPage() {
         setSelectedValues(normalized);
         setSavedValues(normalized);
         setHasChanges(false);
+        setInactiveLoaded(false);
       } catch (e) {
         if (isForbiddenError(e)) {
           if (!mounted) return;
@@ -1511,7 +1512,7 @@ function FieldsPage() {
   };
 
   useEffect(() => {
-  if (showHidden && !inactiveLoaded && !loadingInactive) {
+  if (!loading && showHidden && !inactiveLoaded && !loadingInactive) {
     let mounted = true;
     (async () => {
       setLoadingInactive(true);
@@ -1540,7 +1541,7 @@ function FieldsPage() {
 
     return () => { mounted = false; };
   }
-}, [showHidden, inactiveLoaded, loadingInactive, hasChanges]);
+}, [showHidden, inactiveLoaded, loadingInactive, hasChanges, loading]);
 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
