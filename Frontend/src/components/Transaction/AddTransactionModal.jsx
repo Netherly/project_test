@@ -141,7 +141,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         amount: "",
         commission: "",
         counterparty: initialData?.counterparty || "",
-        counterpartyKey: defaultKey, 
         counterpartyRequisites: "",
         orderId: "", 
         orderNumber: "", 

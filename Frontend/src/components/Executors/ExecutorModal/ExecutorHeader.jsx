@@ -5,7 +5,7 @@ import defaultAvatar from '../../../assets/avatar-placeholder.svg';
 import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
 import { Trash2, Save, RotateCcw } from 'lucide-react';
 
-export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagOptions = [], onAddNewField }) {
+export default function ExecutorHeader({ onClose, onDelete }) {
     const { watch, control } = useFormContext();
 
     const performerName = watch('performer')?.trim() || 'Имя исполнителя';
@@ -21,7 +21,7 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagO
 
     const watchedTags = watch('tags', []);
 
-    const availableTags = (tagOptions || []).map(t => typeof t === 'object' ? t.name || t.value : t);
+    const availableTags = [];
 
     const handleTagInputChange = (e) => setCustomTag(e.target.value);
     const handleTagInputFocus = () => setShowTagDropdown(true);
@@ -40,7 +40,6 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagO
             e.preventDefault();
             const newTag = customTag.trim();
             handleTagSelect(newTag, fieldOnChange);
-            if (onAddNewField) onAddNewField("executorFields", "tags", newTag);
         }
     };
     
@@ -121,7 +120,6 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset, tagO
                                                 {customTag.trim() && !availableTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
                                                     <div className={styles.tagDropdownItem} onClick={() => {
                                                         handleTagSelect(customTag.trim(), onChange);
-                                                        if (onAddNewField) onAddNewField("executorFields", "tags", customTag.trim());
                                                     }}>
                                                         Добавить: "{customTag.trim()}"
                                                     </div>
