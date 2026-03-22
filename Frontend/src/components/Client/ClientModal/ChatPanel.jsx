@@ -72,6 +72,9 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     'deleted',
     'note',
     'order_created',
+    'order_linked',
+    'order_unlinked',
+    'order_status_updated',
     'transaction_created',
     'transaction_updated',
     'transaction_deleted',
@@ -137,6 +140,9 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     }
     if (log?.action === 'deleted') return `Удалён ${entityLabel}`;
     if (log?.action === 'order_created') return 'Создан заказ';
+    if (log?.action === 'order_linked') return 'К клиенту привязан заказ';
+    if (log?.action === 'order_unlinked') return 'От клиента отвязан заказ';
+    if (log?.action === 'order_status_updated') return 'Изменён статус заказа';
     if (log?.action === 'transaction_created') return 'Создана транзакция';
     if (log?.action === 'transaction_updated') return 'Обновлена транзакция';
     if (log?.action === 'transaction_deleted') return 'Удалена транзакция';
