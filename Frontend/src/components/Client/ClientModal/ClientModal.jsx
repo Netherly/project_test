@@ -273,7 +273,9 @@ export default function ClientModal({
                   businesses={fieldOptions.businesses}   
                   tagOptions={fieldOptions.tags}         
                   onAddCompany={handleAddCompanyDirect} 
-                  onAddNewField={handleAddNewField}
+                  onAddCategory={(val) => handleAddNewField("clientFields", "category", val)}
+                  onAddSource={(val) => handleAddNewField("clientFields", "source", val)}
+                  onAddBusiness={(val) => handleAddNewField("clientFields", "business", val)}
                 />
               )}
 
