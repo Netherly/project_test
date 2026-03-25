@@ -1,4 +1,5 @@
 const prisma = require('../../prisma/client');
+const { logActivity } = require('./activity-log.service');
 const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
@@ -92,6 +93,220 @@ function normalizeMeta(meta) {
   if (!meta || typeof meta !== 'object') return undefined;
   const cleaned = stripUndefined(meta);
   return Object.keys(cleaned).length ? cleaned : undefined;
+}
+
+function normalizeActorMeta(actor = null) {
+  if (!actor) {
+    return {
+      actorId: null,
+      actorName: null,
+      source: 'manual',
+      ip: undefined,
+      userAgent: undefined,
+    };
+  }
+
+  if (typeof actor === 'string') {
+    return {
+      actorId: actor || null,
+      actorName: null,
+      source: 'manual',
+      ip: undefined,
+      userAgent: undefined,
+    };
+  }
+
+  return {
+    actorId: actor?.actorId || actor?.id || null,
+    actorName: actor?.actorName || null,
+    source: actor?.source || 'manual',
+    ip: actor?.ip,
+    userAgent: actor?.userAgent,
+  };
+}
+
+async function safeClientLog(payload) {
+  try {
+    return await logActivity(payload);
+  } catch (error) {
+    console.warn('[log] order client activity failed:', error?.message || error);
+    return null;
+  }
+}
+
+function stringifyMessageParts(parts = []) {
+  return parts
+    .map((part) => (part && typeof part.text === 'string' ? part.text : ''))
+    .join('');
+}
+
+function buildOrderLinkLabel(order) {
+  const number = String(order?.numberOrder || '').trim();
+  if (number) return `заказ №${number}`;
+
+  const name = String(order?.name || order?.title || '').trim();
+  if (name) return `заказ "${name}"`;
+
+  return 'заказ';
+}
+
+function buildOrderCreatedMessageParts(order) {
+  const label = buildOrderLinkLabel(order);
+  return [
+    { type: 'text', text: 'Создан ' },
+    {
+      type: 'link',
+      text: label,
+      targetType: 'order',
+      id: order?.id || null,
+      urlId: order?.urlId || null,
+    },
+  ];
+}
+
+function buildOrderLinkPart(order) {
+  return {
+    type: 'link',
+    text: buildOrderLinkLabel(order),
+    targetType: 'order',
+    id: order?.id || null,
+    urlId: order?.urlId || null,
+  };
+}
+
+function buildOrderMeta(order, messageParts) {
+  const meta = {};
+  if (order?.id) {
+    meta.target = {
+      type: 'order',
+      id: order.id,
+      urlId: order.urlId || null,
+      label: buildOrderLinkLabel(order),
+    };
+  }
+  if (Array.isArray(messageParts) && messageParts.length) {
+    meta.messageParts = messageParts;
+  }
+  return meta;
+}
+
+function buildOrderLinkedMessageParts(order) {
+  return [
+    { type: 'text', text: 'К клиенту привязан ' },
+    buildOrderLinkPart(order),
+  ];
+}
+
+function buildOrderUnlinkedMessageParts(order) {
+  return [
+    { type: 'text', text: 'От клиента отвязан ' },
+    buildOrderLinkPart(order),
+  ];
+}
+
+function formatOrderStatusValue(value) {
+  const text = String(value || '').trim();
+  return text || '—';
+}
+
+function buildOrderStatusUpdatedMessageParts({ order, stageChange, orderStatusChange }) {
+  const details = [];
+
+  if (stageChange) {
+    details.push(
+      `этап "${formatOrderStatusValue(stageChange.from)}" -> "${formatOrderStatusValue(stageChange.to)}"`
+    );
+  }
+
+  if (orderStatusChange) {
+    details.push(
+      `статус "${formatOrderStatusValue(orderStatusChange.from)}" -> "${formatOrderStatusValue(orderStatusChange.to)}"`
+    );
+  }
+
+  return [
+    { type: 'text', text: 'У ' },
+    buildOrderLinkPart(order),
+    {
+      type: 'text',
+      text:
+        details.length > 1
+          ? ` обновлены параметры заказа: ${details.join(', ')}`
+          : ` обновлён ${details[0] || 'статус заказа'}`,
+    },
+  ];
+}
+
+async function emitClientOrderEvent({ clientId, action, order, messageParts, actorMeta }) {
+  if (!clientId) return;
+
+  await safeClientLog({
+    entityType: 'client',
+    entityId: clientId,
+    action,
+    message: stringifyMessageParts(messageParts),
+    meta: buildOrderMeta(order, messageParts),
+    ...actorMeta,
+  });
+}
+
+async function emitClientOrderCreatedLog({ order, actorMeta }) {
+  const clientId = order?.clientId || order?.client?.id;
+  if (!clientId) return;
+
+  const messageParts = buildOrderCreatedMessageParts(order);
+  await emitClientOrderEvent({
+    clientId,
+    action: 'order_created',
+    order,
+    messageParts,
+    actorMeta,
+  });
+}
+
+async function emitClientOrderUpdateLogs({ before, after, actorMeta }) {
+  const beforeClientId = before?.clientId || null;
+  const afterClientId = after?.clientId || after?.client?.id || null;
+  const clientChanged = beforeClientId !== afterClientId;
+
+  if (clientChanged && beforeClientId) {
+    await emitClientOrderEvent({
+      clientId: beforeClientId,
+      action: 'order_unlinked',
+      order: before,
+      messageParts: buildOrderUnlinkedMessageParts(before),
+      actorMeta,
+    });
+  }
+
+  if (clientChanged && afterClientId) {
+    await emitClientOrderEvent({
+      clientId: afterClientId,
+      action: 'order_linked',
+      order: after,
+      messageParts: buildOrderLinkedMessageParts(after),
+      actorMeta,
+    });
+  }
+
+  const stageChanged = before?.stage !== after?.stage;
+  const orderStatusChanged = before?.orderStatus !== after?.orderStatus;
+
+  if (afterClientId && (stageChanged || orderStatusChanged)) {
+    await emitClientOrderEvent({
+      clientId: afterClientId,
+      action: 'order_status_updated',
+      order: after,
+      messageParts: buildOrderStatusUpdatedMessageParts({
+        order: after,
+        stageChange: stageChanged ? { from: before?.stage, to: after?.stage } : null,
+        orderStatusChange: orderStatusChanged
+          ? { from: before?.orderStatus, to: after?.orderStatus }
+          : null,
+      }),
+      actorMeta,
+    });
+  }
 }
 
 const META_EXCLUDE_FIELDS = new Set([
@@ -356,7 +571,8 @@ const OrdersService = {
     return order;
   },
 
-  async create(payload, actorId) {
+  async create(payload, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const tagIds = Array.isArray(payload?.tagIds) ? payload.tagIds : [];
     const data = buildOrderData(payload);
 
@@ -392,11 +608,18 @@ const OrdersService = {
 
     const created = await prisma.order.create({ data, include: baseInclude });
     await upsertTags(created.id, tagIds);
-    await logChange({ orderId: created.id, employeeId: actorId, action: 'created', newValue: created });
+    await logChange({
+      orderId: created.id,
+      employeeId: actorMeta.actorId,
+      action: 'created',
+      newValue: created,
+    });
+    await emitClientOrderCreatedLog({ order: created, actorMeta });
     return this.byId(created.id);
   },
 
-  async update(id, payload, actorId) {
+  async update(id, payload, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
     const existing = await prisma.order.findUnique({ where: { id: actualId }, include: { tags: true } });
     if (!existing) {
@@ -450,7 +673,7 @@ const OrdersService = {
     if (stageChanged) {
       await logChange({
         orderId: actualId,
-        employeeId: actorId,
+        employeeId: actorMeta.actorId,
         action: 'stage_changed',
         field: 'stage',
         oldValue: { stage: existing.stage, stageIndex: existing.stageIndex },
@@ -459,7 +682,7 @@ const OrdersService = {
     } else {
       await logChange({
         orderId: actualId,
-        employeeId: actorId,
+        employeeId: actorMeta.actorId,
         action: 'updated',
         field: Object.keys(data)[0] || 'general',
         oldValue: existing,
@@ -467,10 +690,17 @@ const OrdersService = {
       });
     }
 
+    await emitClientOrderUpdateLogs({
+      before: existing,
+      after: updated,
+      actorMeta,
+    });
+
     return this.byId(actualId);
   },
 
-  async changeStage(id, { stage, stageIndex }, actorId) {
+  async changeStage(id, { stage, stageIndex }, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
     const existing = await prisma.order.findUnique({ where: { id: actualId } });
     if (!existing) {
@@ -494,17 +724,24 @@ const OrdersService = {
 
     await logChange({
       orderId: actualId,
-      employeeId: actorId,
+      employeeId: actorMeta.actorId,
       action: 'stage_changed',
       field: 'stage',
       oldValue: { stage: existing.stage, stageIndex: existing.stageIndex },
       newValue: { stage: updated.stage, stageIndex: updated.stageIndex },
     });
 
+    await emitClientOrderUpdateLogs({
+      before: existing,
+      after: updated,
+      actorMeta,
+    });
+
     return updated;
   },
 
-  async delete(id, actorId) {
+  async delete(id, actor) {
+    const actorMeta = normalizeActorMeta(actor);
     const actualId = await resolveEntityId(prisma.order, id, { notFoundMessage: 'Order not found' });
     const existing = await prisma.order.findUnique({ where: { id: actualId } });
     if (!existing) {
@@ -519,7 +756,19 @@ const OrdersService = {
       include: baseInclude,
     });
 
-    await logChange({ orderId: actualId, employeeId: actorId, action: 'deleted', oldValue: existing, newValue: deleted });
+    await logChange({
+      orderId: actualId,
+      employeeId: actorMeta.actorId,
+      action: 'deleted',
+      oldValue: existing,
+      newValue: deleted,
+    });
+
+    await emitClientOrderUpdateLogs({
+      before: existing,
+      after: deleted,
+      actorMeta,
+    });
     return deleted;
   },
 };

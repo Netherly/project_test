@@ -1,5 +1,12 @@
 const OrdersService = require('../services/orders.service');
 
+const buildActorMeta = (req) => ({
+  actorId: req.user?.employeeId || null,
+  source: 'manual',
+  ip: req.ip,
+  userAgent: req.headers['user-agent'],
+});
+
 const OrdersController = {
   async list(req, res) {
     try {
@@ -26,8 +33,7 @@ const OrdersController = {
   async create(req, res) {
     try {
       const payload = req.body;
-      const actorId = req.user?.employeeId;
-      const order = await OrdersService.create(payload, actorId);
+      const order = await OrdersService.create(payload, buildActorMeta(req));
       res.status(201).json({ ok: true, data: order });
     } catch (err) {
       console.error('Order create error:', err);
@@ -39,8 +45,7 @@ const OrdersController = {
     try {
       const { id } = req.params;
       const payload = req.body;
-      const actorId = req.user?.employeeId;
-      const order = await OrdersService.update(id, payload, actorId);
+      const order = await OrdersService.update(id, payload, buildActorMeta(req));
       res.json({ ok: true, data: order });
     } catch (err) {
       console.error('Order update error:', err);
@@ -52,8 +57,7 @@ const OrdersController = {
     try {
       const { id } = req.params;
       const { stage, stageIndex } = req.body;
-      const actorId = req.user?.employeeId;
-      const order = await OrdersService.changeStage(id, { stage, stageIndex }, actorId);
+      const order = await OrdersService.changeStage(id, { stage, stageIndex }, buildActorMeta(req));
       res.json({ ok: true, data: order });
     } catch (err) {
       console.error('Order changeStage error:', err);
@@ -64,8 +68,7 @@ const OrdersController = {
   async delete(req, res) {
     try {
       const { id } = req.params;
-      const actorId = req.user?.employeeId;
-      const order = await OrdersService.delete(id, actorId);
+      const order = await OrdersService.delete(id, buildActorMeta(req));
       res.json({ ok: true, data: order });
     } catch (err) {
       console.error('Order delete error:', err);

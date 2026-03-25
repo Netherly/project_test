@@ -471,7 +471,7 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
         render={({ field }) => (
           <div className="form-field full-width">
             <label>Адрес прописки</label>
-            <textarea {...field} placeholder="Полный адрес" rows="3" />
+            <input {...field} placeholder="Полный адрес"/>
           </div>
         )}
       />

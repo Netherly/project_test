@@ -1533,6 +1533,7 @@ async function getAll(db) {
       paymentSystem: paymentSystems.map((p) => ({
         id: p.id,
         name: p.name,
+        url: p.imageUrl || '',
         order: p.order,
         isLinked: linkedPaymentSystemIds.has(p.id),
       })),
@@ -1882,6 +1883,7 @@ async function getInactive(db) {
       paymentSystem: paymentSystems.map((p) => ({
         id: p.id,
         name: p.name,
+        url: p.imageUrl || '',
         order: p.order,
         isLinked: linkedPaymentSystemIds.has(p.id),
       })),
@@ -2252,8 +2254,105 @@ async function saveAll(payload) {
 
       // 7. ASSETS
       await syncSimpleDict(tx, 'assetTypeDict', arrToUniqueStrings(payload?.assetsFields?.type, 'name'));
-      await syncSimpleDict(tx, 'paymentSystemDict', arrToUniqueStrings(payload?.assetsFields?.paymentSystem, 'name'));
+      
+      // -- Payment System Upload Logic --
+      const psPayload = Array.isArray(payload?.assetsFields?.paymentSystem) ? payload.assetsFields.paymentSystem : [];
+      const incomingPS = psPayload
+        .filter((d) => d?.isDeleted !== true)
+        .map((d, index) => ({
+          id: d?.id || null,
+          name: pickStr(d?.name),
+          url: typeof d?.url === 'string' ? d.url : '',
+          order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
+        }))
+        .filter((d) => d.name);
+      const hiddenPS = psPayload
+        .filter((d) => d?.isDeleted === true && pickStr(d?.deleteAction).toLowerCase() === 'hide')
+        .map((d) => ({
+          id: pickStr(d?.id) || null,
+          key: pickStr(d?.name),
+        }))
+        .filter((d) => d.id || pickStr(d.key));
 
+      const existingPS = await tx.paymentSystemDict.findMany({
+        select: { id: true, name: true, imageUrl: true, isActive: true },
+      });
+      const existingPsById = new Map(existingPS.map((d) => [d.id, d]));
+
+      for (const d of incomingPS) {
+        let imageUrl = d.url;
+
+        if (imageUrl && imageUrl.startsWith('data:image/')) {
+          const baseName = `${Date.now()}_${Math.round(Math.random() * 1e9)}`;
+          imageUrl = await saveDataUrlToFile(imageUrl, baseName);
+        }
+
+        if (d.id && existingPsById.has(d.id)) {
+          const prev = existingPsById.get(d.id);
+          const isNew = imageUrl && imageUrl !== prev.imageUrl;
+
+          await tx.paymentSystemDict.update({
+            where: { id: d.id },
+            data: {
+              name: d.name,
+              imageUrl: imageUrl || prev.imageUrl || null,
+              isActive: true,
+              order: d.order,
+            },
+          });
+
+          if (isNew && prev.imageUrl) {
+            const abs = urlToAbsPath(prev.imageUrl);
+            if (abs) await safeUnlink(abs);
+          }
+        } else {
+          await tx.paymentSystemDict.create({
+            data: {
+              id: d.id || rid(),
+              name: d.name,
+              imageUrl: imageUrl || null,
+              isActive: true,
+              order: d.order,
+            },
+          });
+        }
+      }
+
+      const incomingPsIds = new Set(incomingPS.filter((d) => d.id).map((d) => d.id));
+      const removedPS = existingPS.filter((d) => !incomingPsIds.has(d.id));
+      if (removedPS.length) {
+        const psSplit = await splitRowsForHideOrDelete(
+          tx,
+          removedPS,
+          FIELD_LINK_CONFIGS.paymentSystemDict
+        );
+        const { toHideIds, toDeleteIds } = applyForcedHide(
+          removedPS,
+          psSplit,
+          hiddenPS,
+          (row) => row?.name
+        );
+
+        if (toHideIds.length) {
+          await tx.paymentSystemDict.updateMany({
+            where: { id: { in: toHideIds } },
+            data: { isActive: false },
+          });
+        }
+
+        if (toDeleteIds.length) {
+          await tx.paymentSystemDict.deleteMany({
+            where: { id: { in: toDeleteIds } },
+          });
+
+          for (const item of removedPS.filter((item) => toDeleteIds.includes(item.id))) {
+            const abs = urlToAbsPath(item.imageUrl);
+            if (abs) await safeUnlink(abs);
+          }
+        }
+      }
+
+      // -- Card Design Upload Logic --
       const designsPayload = Array.isArray(payload?.assetsFields?.cardDesigns) ? payload.assetsFields.cardDesigns : [];
       const incomingDesigns = designsPayload
         .filter((d) => d?.isDeleted !== true)
@@ -2306,6 +2405,7 @@ async function saveAll(payload) {
         } else {
           await tx.cardDesign.create({
             data: {
+              id: d.id || rid(),
               name: d.name,
               imageUrl: imageUrl || null,
               isActive: true,

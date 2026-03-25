@@ -68,7 +68,6 @@ const CompaniesPage = () => {
                     setCompanies(prev => prev.map(c => c.id === companyData.id ? { ...c, ...companyData } : c));
                 }
             } else {
-                let created = null;
                 try {
                     created = await createCompany(companyData);
                     setCompanies(prev => [...prev, created]);
@@ -103,8 +102,33 @@ const CompaniesPage = () => {
     };
     
     const processedCompanies = useMemo(() => {
-        return companies;
-    }, [companies]);
+        return companies.map(company => {
+            const companyClients = clients.filter(c => {
+                const byId = String(c.companyId) === String(company.id) ||
+                             String(c.company_id) === String(company.id) ||
+                             (c.company && String(c.company) === String(company.id)) ||
+                             (c.company && typeof c.company === 'object' && String(c.company.id) === String(company.id));
+                const byName = (c.companyName && c.companyName === company.name) || 
+                               (c.company_name && c.company_name === company.name);
+                const byCompanyArray = Array.isArray(company.clients) && company.clients.some(cl => String(cl?.id || cl) === String(c.id));
+                
+                return byId || byName || byCompanyArray;
+            });
+
+            const getClientName = (c) => c?.full_name || c?.fullName || c?.name || 'Без имени';
+
+            const firstClientName = companyClients.length > 0 ? getClientName(companyClients[0]) : '-';
+            const otherClientsNames = companyClients.length > 1 
+                ? companyClients.slice(1).map(getClientName).join(', ') 
+                : '-';
+
+            return {
+                ...company,
+                firstClientName,
+                otherClientsNames
+            };
+        });
+    }, [companies, clients]);
 
     const modalCompany = useMemo(() => {
         if (!companyId) return null;
@@ -149,26 +173,18 @@ const CompaniesPage = () => {
                             <table className="executors-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: "320px" }}>Название</th>
-                                        <th>Телефон</th>
-                                        <th>Email</th>
-                                        <th>Дата добавления</th>
+                                        <th>Название</th>
+                                        <th>Первый клиент</th>
+                                        <th>Остальные клиенты</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr className="table-spacer-row"><td colSpan={4}></td></tr>
+                                    <tr className="table-spacer-row"><td colSpan={3}></td></tr>
                                     {processedCompanies.map((company) => (
-                                        <tr key={company.id} className="executor-row" onClick={() => openCompany(company)}>
-                                            <td style={{ width: "320px" }}>
-                                                <div style={{ minWidth: 0 }}>
-                                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                        {company.name || '-'}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>{company.phone || '-'}</td>
-                                            <td>{company.email || '-'}</td>
-                                            <td>{formatDate(company.dateAdded || company.createdAt)}</td>
+                                        <tr key={company.id} className="executor-row" onClick={() => setModalCompany(company)}>
+                                            <td>{company.name || '-'}</td>
+                                            <td>{company.firstClientName}</td>
+                                            <td>{company.otherClientsNames}</td>
                                         </tr>
                                     ))}
                                 </tbody>

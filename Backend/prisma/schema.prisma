@@ -117,6 +117,7 @@ model AssetTypeDict {
 model PaymentSystemDict {
   id       String  @id @default(uuid())
   name     String  @unique @db.VarChar(100)
+  imageUrl String? @db.VarChar(1000)
   isActive Boolean @default(true)
   order    Int     @default(0)
 
@@ -187,14 +188,14 @@ model OrderDiscountReasonDict {
 }
 
 model FinanceArticleDict {
-  id           String                  @id @default(uuid())
-  name         String                  @unique @db.VarChar(150)
-  isActive     Boolean                 @default(true)
-  order        Int                     @default(0)
+  id             String                  @id @default(uuid())
+  name           String                  @unique @db.VarChar(150)
+  isActive       Boolean                 @default(true)
+  order          Int                     @default(0)
 
   // обратки
-  subarticles  FinanceSubarticleDict[]
-  transactions Transaction[]
+  subarticles    FinanceSubarticleDict[]
+  transactions   Transaction[]
   regularPayments RegularPayment[]
 }
 
@@ -291,76 +292,76 @@ enum OrderChangeAction {
    ========================= */
 
 model Employee {
-  id                   String   @id @default(cuid())
-  urlId                Int      @unique @default(autoincrement())
-  status               EmployeeStatus?
-  full_name            String?
-  phone                String?
-  email                String?
-  login                String?  @unique
-  password             String?
-  folder               String?
-  userid String? @unique @db.VarChar(8)
+  id                 String   @id @default(cuid())
+  urlId              Int      @unique @default(autoincrement())
+  status             EmployeeStatus?
+  full_name          String?
+  phone              String?
+  email              String?
+  login              String?  @unique
+  password           String?
+  folder             String?
+  userid             String?  @unique @db.VarChar(8)
 
 
   // связь с компанией как Client (НЕ модель Company)
-  companyId            String?
-  company              Client?           @relation("EmployeeCompany", fields: [companyId], references: [id])
+  companyId          String?
+  company            Client?           @relation("EmployeeCompany", fields: [companyId], references: [id])
 
-  publicId             String?
-  roleId               String?
-  countryId            String?
+  publicId           String?
+  roleId             String?
+  countryId          String?
 
   // валюта сотрудника
-  currencyId           String?
-  currency             CurrencyDict?     @relation(fields: [currencyId], references: [id])
+  currencyId         String?
+  currency           CurrencyDict?     @relation(fields: [currencyId], references: [id])
 
   // Telegram/contacts
-  telegramUserId       BigInt?  @unique
-  telegramChatId       BigInt?
-  telegramUsername     String?
-  telegramLinkedAt     DateTime?
-  telegramVerified     Boolean? @default(false)
+  telegramUserId     BigInt?  @unique
+  telegramChatId     BigInt?
+  telegramUsername   String?
+  telegramLinkedAt   DateTime?
+  telegramVerified   Boolean? @default(false)
 
-  balance              Decimal? @default(0)
+  balance            Decimal? @default(0)
 
-  birthDate            DateTime?
-  passport             String?
-  address              String?
-  chatLink             String?
-  telegramDateTime     DateTime?
-  telegramId           BigInt?
-  telegramName         String?
-  telegramNickname     String?
+  birthDate          DateTime?
+  passport           String?
+  address            String?
+  chatLink           String?
+  telegramDateTime   DateTime?
+  telegramId         BigInt?
+  telegramName       String?
+  telegramNickname   String?
   telegramBindingLink  String?
-  photoLink            String?
-  rates                Json?
-  mainCurrency         String?
+  photoLink          String?
+  rates              Json?
+  mainCurrency       String?
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // внешние связи
-  country              Country?          @relation(fields: [countryId], references: [id])
-  role                 ExecutorRoleDict? @relation(fields: [roleId], references: [id])
+  country            Country?          @relation(fields: [countryId], references: [id])
+  role               ExecutorRoleDict? @relation(fields: [roleId], references: [id])
 
   // ОДИН-К-ОДНОМУ настройки — обратка для EmployeeSettings.employee
-  settings             EmployeeSettings?
+  settings           EmployeeSettings?
 
   // обратки
-  telegramTickets      TelegramLinkTicket[]
-  orders               Order[]           // обратка: Order.employee
-  transactions         Transaction[]     // обратка: Transaction.employee
-  tags                 EmployeeTag[]
-  requisites           EmployeeRequisite[]
-  assets               Asset[]
-  orderChanges        OrderChange[]
-  activityLogs        ActivityLog[]
+  telegramTickets    TelegramLinkTicket[]
+  orders             Order[]           // обратка: Order.employee
+  transactions       Transaction[]     // обратка: Transaction.employee
+  tags               EmployeeTag[]
+  requisites         EmployeeRequisite[]
+  assets             Asset[]
+  orderChanges       OrderChange[]
+  activityLogs       ActivityLog[]
 
   // менеджер ⇄ клиенты (именованная связь)
-  clients              Client[]          @relation("ManagerClients")
+  clients            Client[]          @relation("ManagerClients")
 
-  tasks                Task[]
+  tasks              Task[]
 
   @@index([companyId])
   @@index([roleId])
@@ -881,19 +882,19 @@ model OrderTag {
    ========================= */
 
 model Asset {
-  id                   String             @id @default(uuid())
-  urlId                Int                @unique @default(autoincrement())
-  accountName          String             @db.VarChar(255)
-  externalId           String?            @db.VarChar(255)
-  isActive             Boolean            @default(true)
-  currencyId           String
-  typeId               String?
-  paymentSystemId      String?
-  cardDesignId         String?
-  employeeId           String?
-  companyId            String?
-  balance              Decimal            @default(0) @db.Decimal(14, 2)
-  limitTurnover        Decimal?           @db.Decimal(14, 2)
+  id                 String             @id @default(uuid())
+  urlId              Int                @unique @default(autoincrement())
+  accountName        String             @db.VarChar(255)
+  externalId         String?            @db.VarChar(255)
+  isActive           Boolean            @default(true)
+  currencyId         String
+  typeId             String?
+  paymentSystemId    String?
+  cardDesignId       String?
+  employeeId         String?
+  companyId          String?
+  balance            Decimal            @default(0) @db.Decimal(14, 2)
+  limitTurnover      Decimal?           @db.Decimal(14, 2)
   turnoverStartBalance Decimal            @default(0) @db.Decimal(14, 2)
   turnoverIncoming     Decimal            @default(0) @db.Decimal(14, 2)
   turnoverOutgoing     Decimal            @default(0) @db.Decimal(14, 2)
