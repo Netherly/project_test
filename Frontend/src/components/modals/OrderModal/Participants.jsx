@@ -14,8 +14,11 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
   const performerDropdownRef = useRef(null);
   const { watch, setValue, getValues } = useFormContext();
   const [selectedClientInfo, setSelectedClientInfo] = useState(null);
+  
   const [customThirdParty, setCustomThirdParty] = useState('');
   const [showThirdPartyDropdown, setShowThirdPartyDropdown] = useState(false);
+  const [isAddingThirdParty, setIsAddingThirdParty] = useState(false); // Флаг для кнопки Третьих лиц
+  
   const thirdPartyInputRef = useRef(null);
   const thirdPartyDropdownRef = useRef(null);
   const [isExecutorModalOpen, setIsExecutorModalOpen] = useState(false);
@@ -101,6 +104,18 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
       ) {
         setShowPerformerDropdown(false);
       }
+      
+      // Закрываем поиск Третьих лиц при клике вне зоны
+      if (
+        thirdPartyDropdownRef.current &&
+        !thirdPartyDropdownRef.current.contains(event.target) &&
+        thirdPartyInputRef.current &&
+        !thirdPartyInputRef.current.contains(event.target)
+      ) {
+        setShowThirdPartyDropdown(false);
+        setIsAddingThirdParty(false);
+        setCustomThirdParty('');
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -160,12 +175,11 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
       </div>
 
       <div className="tab-content-row">
-        <div className="tab-content-title">Добавить участника</div>
+        <div className="tab-content-title">Третьи лица</div>
         <Controller
           name="third_parties"
           control={control}
           render={({ field: { onChange, value } }) => { 
-              
               const selectedParties = Array.isArray(value) ? value : [];
 
               const availableOptions = allClientsOptions.filter(
@@ -179,6 +193,7 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
                       onChange([...selectedParties, option]); 
                       setCustomThirdParty('');
                       setShowThirdPartyDropdown(false);
+                      setIsAddingThirdParty(false); // Прячем поле ввода после выбора
                   }
               };
               
@@ -187,35 +202,9 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
               };
 
               return (
-                  <div className="tags-section"> 
-                      <div className="tag-input-container" ref={thirdPartyInputRef}>
-                          <input
-                              type="text"
-                              placeholder="Найти или добавить..."
-                              className="input-tag"
-                              value={customThirdParty}
-                              onChange={(e) => {
-                                  setCustomThirdParty(e.target.value);
-                                  setShowThirdPartyDropdown(true);
-                              }}
-                              onFocus={() => setShowThirdPartyDropdown(true)}
-                              autoComplete="off"
-                          />
-                          {showThirdPartyDropdown && availableOptions.length > 0 && (
-                              <div className="tag-dropdown" ref={thirdPartyDropdownRef}>
-                                  {availableOptions.map((opt) => (
-                                      <div
-                                          key={opt.value}
-                                          className="tag-dropdown-item"
-                                          onClick={() => handleSelect(opt)}
-                                      >
-                                          {opt.label}
-                                      </div>
-                                  ))}
-                              </div>
-                          )}
-                      </div>
-                      <div className="tag-chips-container">
+                  <div className="tags-section">
+                      {/* Выбранные третьи лица */}
+                      <div className="tag-chips-container" style={{ marginBottom: selectedParties.length > 0 ? '10px' : '0' }}>
                           {selectedParties.map((party, index) => (
                               <span
                                   key={index}
@@ -226,13 +215,57 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
                               </span>
                           ))}
                       </div>
+
+                      {/* Если не в режиме добавления — показываем синюю кнопку */}
+                      {!isAddingThirdParty ? (
+                          <button
+                              type="button"
+                              className="add-performer-button"
+                              onClick={() => {
+                                  setIsAddingThirdParty(true);
+                                  setShowThirdPartyDropdown(true);
+                                  setTimeout(() => thirdPartyInputRef.current?.focus(), 0);
+                              }}
+                          >
+                              + Добавить участника
+                          </button>
+                      ) : (
+                          /* Режим добавления — поле поиска */
+                          <div className="tag-input-container" ref={thirdPartyDropdownRef}>
+                              <input
+                                  type="text"
+                                  placeholder="Найти или добавить..."
+                                  className="input-tag"
+                                  ref={thirdPartyInputRef}
+                                  value={customThirdParty}
+                                  onChange={(e) => {
+                                      setCustomThirdParty(e.target.value);
+                                      setShowThirdPartyDropdown(true);
+                                  }}
+                                  onFocus={() => setShowThirdPartyDropdown(true)}
+                                  autoComplete="off"
+                              />
+                              {showThirdPartyDropdown && availableOptions.length > 0 && (
+                                  <div className="tag-dropdown">
+                                      {availableOptions.map((opt) => (
+                                          <div
+                                              key={opt.value}
+                                              className="tag-dropdown-item"
+                                              onClick={() => handleSelect(opt)}
+                                          >
+                                              {opt.label}
+                                          </div>
+                                      ))}
+                                  </div>
+                              )}
+                          </div>
+                      )}
                   </div>
               );
           }}
       />
       </div>
 
-      
       <div className="tab-content-row">
         <div className="tab-content-title">Страна</div>
         <span className='modal-content-span-info'>{clientInfo.country}</span>
@@ -261,7 +294,6 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
         <div className="tab-content-title">Первый заказ?</div>
         <span className='modal-content-span-info'>{clientInfo.isFirstOrder ? "Да" : "Нет"}</span>
       </div>
-
 
       <div className="tab-content-row">
         <Controller
@@ -382,61 +414,59 @@ const Participants = ({ control, clientsData, employeesData, onOpenAddExecutorMo
         }}
       />
       
-           <div className="performers-section">
+      <div className="performers-section">
+        <div className="tab-content-row">
+            <div className="tab-content-title">Список исполнителей</div>
+            <button
+                type="button"
+                className="add-performer-button"
+                onClick={onOpenAddExecutorModal}
+            >
+                + Добавить исполнителя
+            </button>
+        </div>
 
-              
-              <div className="tab-content-row">
-                  <div className="tab-content-title">Список исполнителей</div>
-                  <button
-                      type="button"
-                      className="add-performer-button"
-                      onClick={onOpenAddExecutorModal}
-                  >
-                      + Добавить исполнителя
-                  </button>
-              </div>
+        <Controller
+            name="performers"
+            control={control}
+            render={({ field: { onChange, value: selectedPerformers = [] } }) => {
+                const handleRemovePerformer = (performerIdToRemove) => {
+                    onChange(selectedPerformers.filter(p => p.id !== performerIdToRemove));
+                };
 
-              
-              <Controller
-                  name="performers"
-                  control={control}
-                  render={({ field: { onChange, value: selectedPerformers = [] } }) => {
-                      const handleRemovePerformer = (performerIdToRemove) => {
-                          onChange(selectedPerformers.filter(p => p.id !== performerIdToRemove));
-                      };
-
-                      return (
-                          <div className="performer-cards-container">
-                              {selectedPerformers.map(performer => (
-                                  <PerformerCard
-                                      key={performer.id}
-                                      performer={performer}
-                                      onRemove={() => setPerformerToDelete(performer)} 
-                                  />
-                              ))}
-                          </div>
-                      );
-                  }}
-              />
-          </div>
+                return (
+                    <div className="performer-cards-container">
+                        {selectedPerformers.map(performer => (
+                            <PerformerCard
+                                key={performer.id}
+                                performer={performer}
+                                onRemove={() => setPerformerToDelete(performer)} 
+                            />
+                        ))}
+                    </div>
+                );
+            }}
+        />
+      </div>
      
-            {isExecutorModalOpen && (
-                <AddExecutorModal
-                    onAdd={handleAddExecutor} 
-                    onClose={() => setIsExecutorModalOpen(false)} 
-                    employees={employeesData} 
-                />
-            )}
-            {performerToDelete && (
-                <ConfirmationModal
-                    title="Удалить исполнителя"
-                    message={`Вы уверены, что хотите удалить исполнителя "${performerToDelete.fullName}" из заказа? Это действие также полностью удалит запись о его работе в этом заказе из системы.`}
-                    confirmText="Да, удалить"
-                    cancelText="Отмена"
-                    onConfirm={handleConfirmDelete}
-                    onCancel={() => setPerformerToDelete(null)}
-                />
-            )}
+      {isExecutorModalOpen && (
+          <AddExecutorModal
+              onAdd={handleAddExecutor} 
+              onClose={() => setIsExecutorModalOpen(false)} 
+              employees={employeesData} 
+          />
+      )}
+      
+      {performerToDelete && (
+          <ConfirmationModal
+              title="Удалить исполнителя"
+              message={`Вы уверены, что хотите удалить исполнителя "${performerToDelete.fullName}" из заказа? Это действие также полностью удалит запись о его работе в этом заказе из системы.`}
+              confirmText="Да, удалить"
+              cancelText="Отмена"
+              onConfirm={handleConfirmDelete}
+              onCancel={() => setPerformerToDelete(null)}
+          />
+      )}
     </div>
   );
 };

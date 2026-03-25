@@ -249,7 +249,14 @@ const Sidebar = () => {
     <>
       <nav className="sidebar">
         <div className="avatar-link" onMouseEnter={handleAvatarEnter}>
-          <img src="/avatar.jpg" alt="Profile" className="avatar-sidebar" />
+          {/* Добавили onClick для перехода на /profile при клике на картинку */}
+          <img 
+            src="/avatar.jpg" 
+            alt="Profile" 
+            className="avatar-sidebar" 
+            onClick={() => navigate('/profile')} 
+            style={{ cursor: "pointer" }} 
+          />
           <div className="avatar-dropdown">
             <div className="avatar-info">
               <div className="avatar-name">{profile.nickname || "Nickname"}</div>

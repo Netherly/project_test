@@ -68,6 +68,8 @@ const getComparableAssetState = (data) => ({
   design: String(data?.design ?? "").trim(),
   employeeId: String(data?.employeeId ?? data?.employee?.id ?? "").trim(),
   status: String(data?.status ?? "Активен").trim(),
+  cardDate: String(data?.cardDate ?? "").trim(),
+  cardCVV: String(data?.cardCVV ?? "").trim(),
   requisites: normalizeComparableRequisites(data?.requisites),
 });
 
@@ -119,23 +121,34 @@ const AssetDetailsModal = ({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const getInitialState = (data) => ({
-    ...data,
-    limitTurnover:
-      data?.limitTurnover !== undefined && data?.limitTurnover !== null
-        ? data.limitTurnover
-        : "",
-    status: data?.status || "Активен",
-    employeeId: data?.employeeId || data?.employee?.id || "",
-    employee: data?.employee || data?.employeeName || "",
-    paymentSystem: data?.paymentSystem || "",
-    design: data?.design || "",
-    currency: data?.currency || "UAH",
-    type: data?.type || "",
-    requisites: Array.isArray(data?.requisites) 
+  const getInitialState = (data) => {
+    const allReqs = Array.isArray(data?.requisites) 
       ? data.requisites.map(r => ({ ...r, internalId: r.internalId || rid() })) 
-      : [],
-  });
+      : [];
+    
+    const cardDate = allReqs.find(r => r.label === "Срок действия")?.value || "";
+    const cardCVV = allReqs.find(r => r.label === "CVV")?.value || "";
+    
+    const dynamicReqs = allReqs.filter(r => r.label !== "Срок действия" && r.label !== "CVV");
+
+    return {
+      ...data,
+      limitTurnover:
+        data?.limitTurnover !== undefined && data?.limitTurnover !== null
+          ? data.limitTurnover
+          : "",
+      status: data?.status || "Активен",
+      employeeId: data?.employeeId || data?.employee?.id || "",
+      employee: data?.employee || data?.employeeName || "",
+      paymentSystem: data?.paymentSystem || "",
+      design: data?.design || "",
+      currency: data?.currency || "UAH",
+      type: data?.type || "",
+      cardDate,
+      cardCVV, 
+      requisites: dynamicReqs,
+    };
+  };
 
   const initialEditableAsset = useMemo(() => getInitialState(asset || {}), [asset]);
   const [editableAsset, setEditableAsset] = useState(initialEditableAsset);
@@ -151,15 +164,15 @@ const AssetDetailsModal = ({
   }, [transactions, asset]);
 
   const currencyOptions = useMemo(() => {
-    return fields?.generalFields?.currency?.map(item => item?.value ?? item) || [];
+    return fields?.generalFields?.currency?.map(item => item?.code ?? item?.name ?? item?.value ?? item) || [];
   }, [fields]);
 
   const typeOptions = useMemo(() => {
-    return fields?.assetsFields?.type?.map(item => item?.value ?? item) || [];
+    return fields?.assetsFields?.type?.map(item => item?.name ?? item?.value ?? item) || [];
   }, [fields]);
 
   const paymentSystemOptions = useMemo(() => {
-    return fields?.assetsFields?.paymentSystem?.map(item => item?.value ?? item) || [];
+    return fields?.assetsFields?.paymentSystem?.map(item => item?.name ?? item?.value ?? item) || [];
   }, [fields]);
 
   useEffect(() => {
@@ -167,7 +180,6 @@ const AssetDetailsModal = ({
     setIsEditingRequisites(false);
     setShowOptionsMenu(false);
   }, [initialEditableAsset]);
-
 
   useEffect(() => {
     let ignore = false;
@@ -214,6 +226,31 @@ const AssetDetailsModal = ({
       }
       return { ...prev, [name]: value };
     });
+  };
+
+  const handleCardDateChange = (e) => {
+    const prevValue = editableAsset.cardDate || "";
+    const value = e.target.value;
+    
+    if (value.length < prevValue.length) {
+      setEditableAsset(prev => ({ ...prev, cardDate: value }));
+      return;
+    }
+    
+    let v = value.replace(/\D/g, '').substring(0, 4);
+    if (v.length >= 2) {
+      let month = v.substring(0, 2);
+      if (parseInt(month, 10) > 12) month = '12';
+      if (month === '00') month = '01';
+      v = `${month}/${v.substring(2)}`;
+    }
+    
+    setEditableAsset(prev => ({ ...prev, cardDate: v }));
+  };
+
+  const handleCardCVVChange = (e) => {
+    const v = e.target.value.replace(/\D/g, '').substring(0, 3);
+    setEditableAsset(prev => ({ ...prev, cardCVV: v }));
   };
 
   const handleRequisiteChange = (index, e) => {
@@ -266,6 +303,13 @@ const AssetDetailsModal = ({
     );
     const requisitesToSave = filteredRequisites.map(({ internalId, ...rest }) => rest);
 
+    if (editableAsset.cardDate?.trim()) {
+      requisitesToSave.push({ label: "Срок действия", value: editableAsset.cardDate.trim() });
+    }
+    if (editableAsset.cardCVV?.trim()) {
+      requisitesToSave.push({ label: "CVV", value: editableAsset.cardCVV.trim() });
+    }
+
     const limitToSave =
       editableAsset.limitTurnover === "" ? null : parseFloat(editableAsset.limitTurnover);
 
@@ -274,6 +318,10 @@ const AssetDetailsModal = ({
       limitTurnover: limitToSave,
       requisites: requisitesToSave,
     };
+
+    delete assetToSave.cardDate;
+    delete assetToSave.cardCVV;
+
     onSave(assetToSave);
   };
 
@@ -325,6 +373,15 @@ const AssetDetailsModal = ({
 
   const currentBalance = asset.balance || 0;
   const freeBalance = asset.freeBalance ?? asset.balance;
+
+  const designOptions = (fields?.assetsFields?.cardDesigns || []).map(d => d?.name).filter(Boolean);
+  const getDesignName = (id) => (fields?.assetsFields?.cardDesigns || []).find(d => d?.id === id)?.name || "";
+
+  const employeeOptions = employees?.map(emp => emp.fullName || emp.full_name || emp.name || emp.id).filter(Boolean) || [];
+  const getEmployeeName = (id) => {
+    const emp = employees?.find(e => e.id === id);
+    return emp ? (emp.fullName || emp.full_name || emp.name || emp.id) : "";
+  };
 
   return (
     <div className="assets-modal-overlay" onClick={onClose}>
@@ -525,62 +582,78 @@ const AssetDetailsModal = ({
                 <label htmlFor="design" className="form-label">
                   Дизайн
                 </label>
-                <select
-                  name="design"
-                  value={editableAsset.design}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {fields?.assetsFields?.cardDesigns?.map((design, index) => (
-                    <option key={design?.id || index} value={design?.id}>
-                      {design?.name}
-                    </option>
-                  ))}
-                </select>
+                <CreatableSelect
+                  value={getDesignName(editableAsset.design)}
+                  onChange={(val) => {
+                    const selected = (fields?.assetsFields?.cardDesigns || []).find(d => d?.name === val);
+                    handleChange({ target: { name: 'design', value: selected ? selected.id : "" } });
+                  }}
+                  options={designOptions}
+                  placeholder="Без темы"
+                />
               </div>
 
               <div className="form-row">
                 <label htmlFor="employeeId" className="form-label">
                   Сотрудник
                 </label>
-                <select
-                  name="employeeId"
-                  value={editableAsset.employeeId || ""}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {employees?.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.fullName || emp.full_name || emp.name || emp.id}
-                    </option>
-                  ))}
-                </select>
+                <CreatableSelect
+                  value={getEmployeeName(editableAsset.employeeId)}
+                  onChange={(val) => {
+                    const selected = employees?.find(emp => (emp.fullName || emp.full_name || emp.name || emp.id) === val);
+                    handleChange({ target: { name: 'employeeId', value: selected ? selected.id : "" } });
+                  }}
+                  options={employeeOptions}
+                  placeholder="Не выбрано"
+                />
               </div>
 
               <div className="form-row">
                 <label htmlFor="status" className="form-label">
                   Статус
                 </label>
-                <select
-                  id="status"
-                  name="status"
+                <CreatableSelect
                   value={editableAsset.status}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  <option value="Активен">Активен</option>
-                  <option value="Неактивен">Неактивен</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                  options={["Активен", "Неактивен"]}
+                  placeholder="Не выбрано"
+                />
               </div>
+
+              <div className="form-row">
+                <label className="form-label">
+                  Срок и CVV
+                </label>
+                <div style={{ display: 'flex', gap: '10px', flexBasis: '70%', width: '100%' }}>
+                  <input
+                    type="text"
+                    name="cardDate"
+                    value={editableAsset.cardDate || ""}
+                    onChange={handleCardDateChange}
+                    placeholder="ММ/ГГ"
+                    className="form-input1"
+                    style={{ minWidth: '0', flex: 1 }}
+                    maxLength={5}
+                  />
+                  <input
+                    type="text"
+                    name="cardCVV"
+                    value={editableAsset.cardCVV || ""}
+                    onChange={handleCardCVVChange}
+                    placeholder="CVV"
+                    className="form-input1"
+                    style={{ minWidth: '0', flex: 1 }}
+                    maxLength={3}
+                  />
+                </div>
+              </div>
+
             </div>
           </div>
 
           <div className="modal-section requisites-block">
             <div className="requisites-header">
-              <h3>Реквизиты</h3>
+              <h3>Доп. реквизиты</h3>
               <div className="requisite-header-controls">
                 <button
                   type="button"

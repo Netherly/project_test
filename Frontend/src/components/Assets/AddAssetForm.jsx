@@ -24,6 +24,8 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
     paymentSystem: "",
     design: "",
     employeeId: "",
+    cardDate: "", 
+    cardCVV: "",  
     requisites: [{ label: "", value: "" }],
   });
 
@@ -39,6 +41,34 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
 
   const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    handleFormChange();
+  };
+
+  const handleCardDateChange = (e) => {
+    const prevValue = formData.cardDate;
+    const value = e.target.value;
+    
+    if (value.length < prevValue.length) {
+      setFormData(prev => ({ ...prev, cardDate: value }));
+      handleFormChange();
+      return;
+    }
+    
+    let v = value.replace(/\D/g, '').substring(0, 4);
+    if (v.length >= 2) {
+      let month = v.substring(0, 2);
+      if (parseInt(month, 10) > 12) month = '12';
+      if (month === '00') month = '01';
+      v = `${month}/${v.substring(2)}`;
+    }
+    
+    setFormData(prev => ({ ...prev, cardDate: v }));
+    handleFormChange();
+  };
+
+  const handleCardCVVChange = (e) => {
+    const v = e.target.value.replace(/\D/g, '').substring(0, 3);
+    setFormData(prev => ({ ...prev, cardCVV: v }));
     handleFormChange();
   };
 
@@ -80,6 +110,13 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
       (req) => req.label.trim() !== "" || req.value.trim() !== ""
     );
 
+    if (formData.cardDate.trim()) {
+      filteredRequisites.push({ label: "Срок действия", value: formData.cardDate.trim() });
+    }
+    if (formData.cardCVV.trim()) {
+      filteredRequisites.push({ label: "CVV", value: formData.cardCVV.trim() });
+    }
+
     const selectedEmployee = employees?.find((emp) => emp.id === formData.employeeId);
 
     const newAssetPayload = {
@@ -94,13 +131,16 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
         "",
     };
 
+    delete newAssetPayload.cardDate;
+    delete newAssetPayload.cardCVV;
+
     try {
       if (onAdd) {
         await onAdd(newAssetPayload);
       }
       setHasUnsavedChanges(false);
     } catch (error) {
-      console.error("Ошибка при отправке данных родителю:", error);
+      console.error(error);
       setIsLoading(false);
     }
   };
@@ -122,9 +162,18 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
     setShowConfirmationModal(false);
   };
 
-  const currencyOptions = (generalFields.currency || []).map(item => item?.value ?? item);
-  const typeOptions = (assetsFields.type || []).map(item => item?.value ?? item);
-  const paymentSystemOptions = (assetsFields.paymentSystem || []).map(item => item?.value ?? item);
+  const currencyOptions = (generalFields.currency || []).map(item => item?.code ?? item?.name ?? item?.value ?? item);
+  const typeOptions = (assetsFields.type || []).map(item => item?.name ?? item?.value ?? item);
+  const paymentSystemOptions = (assetsFields.paymentSystem || []).map(item => item?.name ?? item?.value ?? item);
+
+  const designOptions = (assetsFields.cardDesigns || []).map(d => d?.name).filter(Boolean);
+  const getDesignName = (id) => (assetsFields.cardDesigns || []).find(d => d?.id === id)?.name || "";
+
+  const employeeOptions = employees?.map(emp => emp.fullName || emp.full_name || emp.name || emp.id).filter(Boolean) || [];
+  const getEmployeeName = (id) => {
+    const emp = employees?.find(e => e.id === id);
+    return emp ? (emp.fullName || emp.full_name || emp.name || emp.id) : "";
+  };
 
   return (
     <>
@@ -244,46 +293,66 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
               <label htmlFor="design" className="form-label">
                 Дизайн
               </label>
-              <select
-                id="design"
-                name="design"
-                value={formData.design}
-                onChange={handleChange}
-                className="form-input1"
+              <CreatableSelect
+                value={getDesignName(formData.design)}
+                onChange={(val) => {
+                  const selected = (assetsFields.cardDesigns || []).find(d => d?.name === val);
+                  handleChange({ target: { name: 'design', value: selected ? selected.id : "" } });
+                }}
+                options={designOptions}
+                placeholder="Без темы"
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>Не выбрано</option>
-                {(assetsFields.cardDesigns || []).map((design, index) => (
-                  <option key={design?.id || index} value={design?.id}>
-                    {design?.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             <div className="form-row">
               <label htmlFor="employeeId" className="form-label">
                 Сотрудник
               </label>
-              <select
-                id="employeeId"
-                name="employeeId"
-                value={formData.employeeId}
-                onChange={handleChange}
-                className="form-input1"
+              <CreatableSelect
+                value={getEmployeeName(formData.employeeId)}
+                onChange={(val) => {
+                  const selected = employees?.find(emp => (emp.fullName || emp.full_name || emp.name || emp.id) === val);
+                  handleChange({ target: { name: 'employeeId', value: selected ? selected.id : "" } });
+                }}
+                options={employeeOptions}
+                placeholder="Не выбрано"
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>Не выбрано</option>
-                {employees?.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.fullName || emp.full_name || emp.name || emp.id}
-                  </option>
-                ))}
-              </select>
+              />
+            </div>
+
+            <div className="form-row">
+              <label className="form-label">
+                Срок и CVV
+              </label>
+              <div style={{ display: 'flex', gap: '10px', flexBasis: '70%', width: '100%' }}>
+                <input
+                  type="text"
+                  name="cardDate"
+                  value={formData.cardDate}
+                  onChange={handleCardDateChange}
+                  placeholder="ММ/ГГ"
+                  className="form-input1"
+                  style={{ minWidth: '0', flex: 1 }}
+                  maxLength={5}
+                  disabled={isLoading}
+                />
+                <input
+                  type="text"
+                  name="cardCVV"
+                  value={formData.cardCVV}
+                  onChange={handleCardCVVChange}
+                  placeholder="CVV"
+                  className="form-input1"
+                  style={{ minWidth: '0', flex: 1 }}
+                  maxLength={3}
+                  disabled={isLoading}
+                />
+              </div>
             </div>
 
             <div className="requisites-section">
-              <h3 className="requisites-header">Реквизиты</h3>
+              <h3 className="requisites-header">Доп. реквизиты</h3>
               <div className="requisites-table-wrapper">
                 {formData.requisites.map((req, index) => (
                   <div key={index} className="requisites-table-row">

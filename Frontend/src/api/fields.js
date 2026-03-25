@@ -9,12 +9,23 @@ export function clone(v) {
   return JSON.parse(JSON.stringify(v));
 }
 
+export const sortByOrder = (arr) => {
+  if (!Array.isArray(arr)) return [];
+  return [...arr].sort((a, b) => {
+    const orderA = a && Number.isFinite(Number(a.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+    const orderB = b && Number.isFinite(Number(b.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+    return orderA - orderB;
+  });
+};
+
 const normalizeCodeValue = (value) => tidy(value).toUpperCase();
 const normalizeDeleteAction = (value) => {
   const action = tidy(value).toLowerCase();
   return action === "hide" ? "hide" : "";
 };
 
+<<<<<<< HEAD
+=======
 const normalizeFieldTargetKey = (groupKey, fieldName) => `${tidy(groupKey)}.${tidy(fieldName)}`;
 
 const createStringItem = (value, order, extraData = {}) => ({
@@ -284,15 +295,14 @@ const assertSupportedFieldOptionTarget = (target) => {
 
 // --- Нормализация (чтение с сервера) ---
 
+>>>>>>> develope
 export const normStrs = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const item of source) {
-    const v =
-      typeof item === "string"
-        ? tidy(item)
-        : tidy(item?.value ?? item?.name ?? item?.code);
+    const v = typeof item === "string" ? tidy(item) : tidy(item?.value ?? item?.name ?? item?.code);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
@@ -303,7 +313,9 @@ export const normStrs = (arr) => {
         order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
         isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
         isDeleted: item?.isDeleted || false,
+        order: Number.isFinite(item?.order) ? item.order : idx
       });
+      idx++;
     }
   }
   return out;
@@ -312,21 +324,16 @@ export const normStrs = (arr) => {
 export const normCodeStrs = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const item of source) {
-    const code =
-      typeof item === "string"
-        ? normalizeCodeValue(item)
-        : normalizeCodeValue(item?.code ?? item?.value);
+    const code = typeof item === "string" ? normalizeCodeValue(item) : normalizeCodeValue(item?.code ?? item?.value);
     if (!code) continue;
     const key = code.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const name =
-      typeof item === "string"
-        ? code
-        : tidy(item?.name ?? item?.label ?? code);
+    const name = typeof item === "string" ? code : tidy(item?.name ?? item?.label ?? code);
 
     out.push({
       id: item?.id || rid(),
@@ -337,7 +344,9 @@ export const normCodeStrs = (arr) => {
       order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
       isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
+      order: Number.isFinite(item?.order) ? item.order : idx
     });
+    idx++;
   }
   return out;
 };
@@ -345,7 +354,8 @@ export const normCodeStrs = (arr) => {
 export const normCountries = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const item of source) {
     if (typeof item === "string") {
       const name = tidy(item);
@@ -353,7 +363,8 @@ export const normCountries = (arr) => {
       const key = name.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ id: rid(), value: name, name, isDeleted: false });
+      out.push({ id: rid(), value: name, name, isDeleted: false, order: idx });
+      idx++;
       continue;
     }
 
@@ -375,59 +386,60 @@ export const normCountries = (arr) => {
       nameUk: tidy(item?.nameUk),
       iso2,
       iso3,
-      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
       isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
+      order: Number.isFinite(item?.order) ? item.order : idx
     });
+    idx++;
   }
   return out;
 };
 
-export const normIntervals = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normIntervals = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
     intervalValue: tidy(it?.intervalValue ?? it?.value ?? it),
     order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
-export const normCategories = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normCategories = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
-    categoryInterval: tidy(
-      it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group
-    ),
+    categoryInterval: tidy(it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
     order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
-export const normArticles = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normArticles = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
     articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
     order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
-export const normSubarticles = (arr) =>
-  (Array.isArray(arr) ? arr : []).map((it) => ({
+export const normSubarticles = (arr) => {
+  return sortByOrder(arr).map((it, idx) => ({
     id: it?.id || rid(),
-    subarticleInterval: tidy(
-      it?.subarticleInterval ??
-        it?.interval ??
-        it?.group ??
-        it?.parentArticleName ??
-        it?.parentSubcategoryName
-    ),
+    subarticleInterval: tidy(it?.subarticleInterval ?? it?.interval ?? it?.group ?? it?.parentArticleName ?? it?.parentSubcategoryName),
     subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
     order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
     isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
+    order: Number.isFinite(it?.order) ? it.order : idx
   }));
+};
 
 const deriveCardDesignImageVersion = (explicitVersion, sourceUrl) => {
   const version = tidy(explicitVersion);
@@ -448,30 +460,35 @@ export const normDesigns = (arr) =>
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
     imageVersion: deriveCardDesignImageVersion(d?.imageVersion ?? d?.version, d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
-    order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
     isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined,
     isDeleted: d?.isDeleted || false,
+    order: Number.isFinite(d?.order) ? d.order : undefined
   }));
 
 export const normTags = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = Array.isArray(arr) ? arr : [];
+  const source = sortByOrder(arr);
+  let idx = 0;
   for (const t of source) {
     const name = typeof t === "string" ? tidy(t) : tidy(t?.name ?? t?.value);
     if (!name) continue;
     const k = name.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      const color =
-        typeof t === "string" ? "#ffffff" : isHex(t?.color) ? t.color : "#ffffff";
-      out.push({ id: t?.id || rid(), name, color, isDeleted: t?.isDeleted || false });
+      const color = typeof t === "string" ? "#ffffff" : isHex(t?.color) ? t.color : "#ffffff";
+      out.push({ 
+        id: t?.id || rid(), 
+        name, 
+        color, 
+        isDeleted: t?.isDeleted || false,
+        order: Number.isFinite(t?.order) ? t.order : idx
+      });
+      idx++;
     }
   }
   return out;
 };
-
-// --- API ---
 
 const unwrap = (resp) => {
   if (resp && typeof resp === "object" && "ok" in resp) {
@@ -541,19 +558,11 @@ export async function fetchInactiveFields() {
   return normalizeFieldsBundle(unwrap(r));
 }
 
-// --- Defaults (UI structure) ---
-
 export function withDefaults(fields) {
   const safeObj = (x) => (x && typeof x === "object" ? x : {});
   const f = safeObj(fields);
-  const sharedCountries =
-    f?.generalFields?.country ?? f?.clientFields?.country ?? f?.employeeFields?.country;
-  const sharedCurrencies =
-    f?.generalFields?.currency ??
-    f?.orderFields?.currency ??
-    f?.executorFields?.currency ??
-    f?.clientFields?.currency ??
-    f?.assetsFields?.currency;
+  const sharedCountries = f?.generalFields?.country ?? f?.clientFields?.country ?? f?.employeeFields?.country;
+  const sharedCurrencies = f?.generalFields?.currency ?? f?.orderFields?.currency ?? f?.executorFields?.currency ?? f?.clientFields?.currency ?? f?.assetsFields?.currency;
 
   return {
     generalFields: {
@@ -598,7 +607,10 @@ export function withDefaults(fields) {
     assetsFields: {
       currency: normCodeStrs(f?.assetsFields?.currency ?? sharedCurrencies),
       type: normStrs(f?.assetsFields?.type),
-      paymentSystem: normStrs(f?.assetsFields?.paymentSystem),
+      paymentSystem: normDesigns(f?.assetsFields?.paymentSystem).map((d) => ({
+        ...d,
+        viewUrl: fileUrl(d?.url || "", d?.imageVersion || ""),
+      })),
       cardDesigns: normDesigns(f?.assetsFields?.cardDesigns).map((d) => ({
         ...d,
         viewUrl: fileUrl(d?.url || "", d?.imageVersion || ""),
@@ -617,8 +629,6 @@ export function withDefaults(fields) {
     },
   };
 }
-
-// --- Serializers (Подготовка к отправке) ---
 
 export const serByName = (arr) => {
   const seen = new Set();
@@ -648,6 +658,7 @@ export const serCountries = (arr) => {
   const seen = new Set();
   const out = [];
   const source = Array.isArray(arr) ? arr : [];
+  let idx = 0;
   for (const item of source) {
     const name = tidy(item?.value ?? item?.name);
     const iso2 = tidy(item?.iso2).toUpperCase();
@@ -670,6 +681,7 @@ export const serCountries = (arr) => {
         ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
         : {}),
     });
+    idx++;
   }
   return out;
 };
@@ -771,6 +783,7 @@ export const serTags = (arr) => {
   const seen = new Set();
   const out = [];
   const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  let idx = 0;
   for (const t of source) {
     const name = tidy(t?.name);
     if (!name) continue;
@@ -778,7 +791,8 @@ export const serTags = (arr) => {
     const k = name.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: t?.id || rid(), name, color });
+      out.push({ id: t?.id || rid(), name, color, order: t?.order ?? idx });
+      idx++;
     }
   }
   return out;
@@ -829,7 +843,7 @@ export function serializeForSave(values) {
     assetsFields: {
       currency: serByCode(values?.assetsFields?.currency),
       type: serByName(values?.assetsFields?.type),
-      paymentSystem: serByName(values?.assetsFields?.paymentSystem),
+      paymentSystem: serDesigns(values?.assetsFields?.paymentSystem),
       cardDesigns: serDesigns(values?.assetsFields?.cardDesigns),
     },
     financeFields: {

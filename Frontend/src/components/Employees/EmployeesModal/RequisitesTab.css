@@ -10,7 +10,6 @@
     width: 100%;
     background-color: transparent;
     transition: background-color 0.2s;
-    border-radius: 4px;
 }
 
 .requisites-tab-wrapper .requisites-row.dragging {
@@ -29,7 +28,6 @@
     align-items: center;
     color: white;
     background-color: rgb(20, 27, 46);
-    border-radius: 6px;
     margin-bottom: 5px;
 }
 

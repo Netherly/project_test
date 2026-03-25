@@ -39,7 +39,6 @@
   right: 0;
   background: #19213a;
   border: 1px solid var(--border-form-color, #444);
-  border-radius: 6px;
   margin-top: 4px;
   z-index: 2000;
   max-height: 220px;
