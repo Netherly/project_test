@@ -391,7 +391,6 @@ const ExecutorsPage = () => {
 
     setOrders(updatedOrders);
     safeSetStorage("ordersData", updatedOrders);
-    closeModal();
   };
 
   const handleDeleteExecutor = async (executorToDelete) => {

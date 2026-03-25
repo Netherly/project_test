@@ -176,9 +176,13 @@
     border: none;
     outline: none;
     color: var(--container-text-color);
-    padding: 4px 0;
+    padding: 10px 0;
     border-bottom: 1px solid rgba(128, 128, 128, 0.3);
     transition: border-color 0.2s ease;
+    height: 40px;
+    line-height: 40px;
+    vertical-align: middle;
+    font-size: 14px;
 }
 .input-tag:focus {
     border-bottom-color: var(--container-text-color);
@@ -226,6 +230,7 @@
     display: flex;
     flex-wrap: wrap;          
     gap: 5px;
+    align-items: center;
 }
 .tag-chips-container.expanded {
     overflow: visible;
@@ -239,11 +244,11 @@
 .tag-chips {
     border: 1px solid var(--input-bg);
     color: var(--chips-color);
-    padding: 4px 8px;
+    padding: 6px 8px;
     font-size: 12px;
     cursor: pointer;
     white-space: nowrap;
-    height: 22px; 
+    height: auto;
     display: inline-flex;
     align-items: center;
     box-sizing: border-box;
@@ -544,20 +549,20 @@
 .tab-content-row {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
     gap: 15px;
 }
 .tab-content-row:last-child {
     border-bottom: none;
 }
 .tab-content-title {
+    display: flex;
     align-items: center;
     width: 220px;
     font-weight: 500;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--chips-color);
     flex-shrink: 0;
-    padding-top: 9px;
 }
 .order-menu-title {
     margin-right: 8px;
@@ -574,6 +579,15 @@
     padding: 10px 12px;
     width: 100%; 
     box-sizing: border-box;
+    height: 40px;
+    line-height: 40px;
+    vertical-align: middle;
+    font-size: 14px;
+}
+
+.tab-content-input::placeholder {
+    font-size: 14px;
+
 }
 
 .tab-content-input[type="date"]::-webkit-calendar-picker-indicator {
@@ -589,10 +603,13 @@
     -webkit-appearance: none;
     -moz-appearance: none;
     color: var(--container-text-color);
-    padding: 10px 12px;
+    padding: 0px 12px;
     border-bottom: 1px solid rgba(128, 128, 128, 0.3);
     width: 100%; 
     box-sizing: border-box;
+    line-height: 40px;
+    vertical-align: middle;
+    font-size: 14px;
 }
 
 .workplan-textarea {
@@ -602,8 +619,8 @@
     border-bottom: 1px solid rgba(128, 128, 128, 0.2);
     outline: none;
     color: var(--container-text-color);
-    padding: 8px;
-    min-height: 38px;
+    padding: 10px 12px;
+    min-height: 40px;
     overflow-y: hidden;
     width: 100%;
     resize: vertical;
@@ -748,12 +765,13 @@
     border-bottom: 1px solid rgba(128, 128, 128, 0.2);
     outline: none;
     color: var(--container-text-color);
-    padding: 4px 0;
+    padding: 10px 12px;
     width: 100%;
+    min-height: 40px;
     resize: none; 
     overflow-y: hidden; 
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.4;
     transition: border-color 0.2s ease;
 }

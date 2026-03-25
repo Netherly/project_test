@@ -23,6 +23,7 @@ export default function InfoTab({
   sources = [],
   tagOptions = [],
   loadingLists = false,
+  isNew = false,
   onAddCompany,
   onAddCategory, // Добавлено для сохранения
   onAddSource,   // Добавлено для сохранения
@@ -310,7 +311,7 @@ export default function InfoTab({
         }}
       />
 
-      {watchedCompanyId && (
+      {watchedCompanyId && isNew && (
         <Controller
           name="company_photo_link"
           control={control}

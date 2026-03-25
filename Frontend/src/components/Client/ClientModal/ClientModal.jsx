@@ -197,7 +197,6 @@ export default function ClientModal({
       await onSave?.(payload);
       
       reset(data);
-      closeHandler();
     } catch (e) {
       setFormErrors({ submit: [e?.message || "Ошибка сохранения"] });
       console.error("saveClient failed:", e);
@@ -272,6 +271,7 @@ export default function ClientModal({
                   sources={fieldOptions.sources}        
                   businesses={fieldOptions.businesses}   
                   tagOptions={fieldOptions.tags}         
+                  isNew={isNew}
                   onAddCompany={handleAddCompanyDirect} 
                   onAddCategory={(val) => handleAddNewField("clientFields", "category", val)}
                   onAddSource={(val) => handleAddNewField("clientFields", "source", val)}

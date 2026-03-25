@@ -61,11 +61,14 @@ select option:disabled {
 .input-tag-control {
   background: var(--input-bg);
   border: 1px solid var(--input-border);
-  padding: 8px 12px;
+  padding: 10px 12px;
   color: var(--text-color);
   font-size: 0.95rem;
   width: 100%;
   box-sizing: border-box;
+  height: 40px;
+  line-height: 40px;
+  vertical-align: middle;
 }
 
 .input-tag-control:focus {

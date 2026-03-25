@@ -619,7 +619,6 @@ function OrderModal({
       });
     }
     reset(data);
-    onClose?.();
   };
 
   const resetChanges = () => {
