@@ -4,9 +4,7 @@ import defaultAvatar from '../../../assets/avatar-placeholder.svg';
 import styles from './EmployeeHeader.module.css';
 import { Trash2 } from 'lucide-react';
 
-const defaultTags = ["Full-time", "Part-time", "Remote", "Top-performer", "Intern"];
-
-export default function EmployeeHeader({ onClose, onDelete }) {
+export default function EmployeeHeader({ onClose, onDelete, tagOptions = [], onAddNewField }) {
     const { watch, control } = useFormContext();
     const fullName = watch('fullName')?.trim() || 'Имя сотрудника';
     const login = watch('login')?.trim() || 'Логин';
@@ -17,7 +15,7 @@ export default function EmployeeHeader({ onClose, onDelete }) {
             try {
                 window.dispatchEvent(new CustomEvent('profile:photo-updated', { detail: { photo: avatarSrc } }));
             } catch (error) {
-                console.error('Ошибка диспатча события обновления фото:', error);
+                console.error(error);
             }
         }
     }, [avatarSrc]);
@@ -28,6 +26,8 @@ export default function EmployeeHeader({ onClose, onDelete }) {
     const tagDropdownRef = useRef(null);
 
     const watchedTags = watch('tags', []);
+
+    const availableTags = (tagOptions || []).map(t => typeof t === 'object' ? t.name || t.value : t);
 
     const handleTagInputChange = (e) => setCustomTag(e.target.value);
     const handleTagInputFocus = () => setShowTagDropdown(true);
@@ -44,7 +44,9 @@ export default function EmployeeHeader({ onClose, onDelete }) {
     const handleCustomTagAdd = (e, fieldOnChange) => {
         if (e.key === 'Enter' && customTag.trim()) {
             e.preventDefault();
-            handleTagSelect(customTag.trim(), fieldOnChange);
+            const newTag = customTag.trim();
+            handleTagSelect(newTag, fieldOnChange);
+            if (onAddNewField) onAddNewField("employeeFields", "tags", newTag);
         }
     };
     
@@ -53,7 +55,7 @@ export default function EmployeeHeader({ onClose, onDelete }) {
         fieldOnChange(currentTags.filter(tag => tag.name !== tagToRemove.name));
     };
 
-    const filteredTags = defaultTags.filter(
+    const filteredTags = availableTags.filter(
         tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !watchedTags.find(t => t.name === tagString)
     );
     
@@ -107,7 +109,6 @@ export default function EmployeeHeader({ onClose, onDelete }) {
                                     <div className={styles.tagInputContainer} ref={tagInputRef}>
                                         <input
                                             type="text"
-                                            
                                             size={22} 
                                             placeholder="Добавить тег"
                                             className={styles.inputTag}
@@ -117,15 +118,18 @@ export default function EmployeeHeader({ onClose, onDelete }) {
                                             onFocus={handleTagInputFocus}
                                             autoComplete="off"
                                         />
-                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !availableTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
                                             <div className={styles.tagDropdown} ref={tagDropdownRef}>
                                                 {filteredTags.map(tag => (
                                                     <div key={tag} className={styles.tagDropdownItem} onClick={() => handleTagSelect(tag, onChange)}>
                                                         {tag}
                                                     </div>
                                                 ))}
-                                                {customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
-                                                    <div className={styles.tagDropdownItem} onClick={() => handleTagSelect(customTag.trim(), onChange)}>
+                                                {customTag.trim() && !availableTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                                    <div className={styles.tagDropdownItem} onClick={() => {
+                                                        handleTagSelect(customTag.trim(), onChange);
+                                                        if (onAddNewField) onAddNewField("employeeFields", "tags", customTag.trim());
+                                                    }}>
                                                         Добавить: "{customTag.trim()}"
                                                     </div>
                                                 )}
@@ -133,7 +137,6 @@ export default function EmployeeHeader({ onClose, onDelete }) {
                                         )}
                                     </div>
 
-                                    
                                     {currentTags.map((tag, index) => (
                                         <span
                                             key={tag.id || index}
@@ -176,7 +179,6 @@ export default function EmployeeHeader({ onClose, onDelete }) {
                             strokeLinecap="round" 
                             strokeLinejoin="round"
                         >
-                            
                             <path d="M18 6 6 18" style={{display: 'none'}} /> 
                             <path d="M20 4 4 20" />
                             <path d="M4 4 20 20" />

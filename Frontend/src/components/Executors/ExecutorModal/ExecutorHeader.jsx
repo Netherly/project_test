@@ -5,21 +5,15 @@ import defaultAvatar from '../../../assets/avatar-placeholder.svg';
 import styles from '../../Employees/EmployeesModal/EmployeeHeader.module.css'; 
 import { Trash2, Save, RotateCcw } from 'lucide-react';
 
-
-const defaultTags = ["Срочно", "VIP", "Повторный", "Проблема"];
-
-export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
+export default function ExecutorHeader({ onClose, onDelete }) {
     const { watch, control } = useFormContext();
 
-    
     const performerName = watch('performer')?.trim() || 'Имя исполнителя';
     const orderNumber = watch('orderNumber');
     const orderNumberDisplay = orderNumber ? `Заказ №${orderNumber}` : 'Выберите заказ';
     
-    
     const avatarSrc = defaultAvatar; 
 
-    
     const [customTag, setCustomTag] = useState('');
     const [showTagDropdown, setShowTagDropdown] = useState(false);
     const tagInputRef = useRef(null);
@@ -27,13 +21,14 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
 
     const watchedTags = watch('tags', []);
 
+    const availableTags = [];
+
     const handleTagInputChange = (e) => setCustomTag(e.target.value);
     const handleTagInputFocus = () => setShowTagDropdown(true);
 
     const handleTagSelect = (tagName, fieldOnChange) => {
         const currentTags = Array.isArray(watchedTags) ? watchedTags : [];
         if (tagName && !currentTags.find(t => t.name === tagName)) {
-            
             fieldOnChange([...currentTags, { name: tagName, color: '#777' }]);
         }
         setCustomTag('');
@@ -43,7 +38,8 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
     const handleCustomTagAdd = (e, fieldOnChange) => {
         if (e.key === 'Enter' && customTag.trim()) {
             e.preventDefault();
-            handleTagSelect(customTag.trim(), fieldOnChange);
+            const newTag = customTag.trim();
+            handleTagSelect(newTag, fieldOnChange);
         }
     };
     
@@ -52,10 +48,9 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
         fieldOnChange(currentTags.filter(tag => tag.name !== tagToRemove.name));
     };
 
-    const filteredTags = defaultTags.filter(
+    const filteredTags = availableTags.filter(
         tagString => tagString.toLowerCase().includes(customTag.toLowerCase()) && !watchedTags.find(t => t.name === tagString)
     );
-    
     
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef(null);
@@ -83,11 +78,9 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
         return () => document.removeEventListener('keydown', handleEsc);
     }, [handleEsc]);
 
-    
     return (
         <div className={styles.employeeHeader}>
             <div className={styles.avatarContainer}>
-                
                 <img src={avatarSrc} alt="Аватар исполнителя" className={styles.avatar} />
             </div>
 
@@ -96,7 +89,6 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
                     <h2 className={performerName === 'Имя исполнителя' ? styles.placeholder : ''}>{performerName}</h2>
                     <span className={!orderNumber ? styles.placeholder : ''}>{orderNumberDisplay}</span>
                 </div>
-                
                 
                 <div className={styles.tagsSectionHeader}>
                     <Controller
@@ -118,15 +110,17 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
                                             onFocus={handleTagInputFocus}
                                             autoComplete="off"
                                         />
-                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
+                                        {showTagDropdown && (filteredTags.length > 0 || (customTag.trim() && !availableTags.includes(customTag) && !currentTags.find(t => t.name === customTag))) && (
                                             <div className={styles.tagDropdown} ref={tagDropdownRef}>
                                                 {filteredTags.map(tag => (
                                                     <div key={tag} className={styles.tagDropdownItem} onClick={() => handleTagSelect(tag, onChange)}>
                                                         {tag}
                                                     </div>
                                                 ))}
-                                                {customTag.trim() && !defaultTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
-                                                    <div className={styles.tagDropdownItem} onClick={() => handleTagSelect(customTag.trim(), onChange)}>
+                                                {customTag.trim() && !availableTags.includes(customTag) && !currentTags.find(t => t.name === customTag.trim()) && (
+                                                    <div className={styles.tagDropdownItem} onClick={() => {
+                                                        handleTagSelect(customTag.trim(), onChange);
+                                                    }}>
                                                         Добавить: "{customTag.trim()}"
                                                     </div>
                                                 )}
@@ -150,7 +144,6 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
                 </div>
             </div>
 
-            
             <div className={styles.actions}>
                 <div ref={menuRef} className={styles.actionItem}>
                     <button className={styles.btn} type="button" onClick={() => setMenuOpen(o => !o)}>
@@ -177,7 +170,6 @@ export default function ExecutorHeader({ onClose, onDelete, isDirty, reset }) {
                             strokeLinecap="round" 
                             strokeLinejoin="round"
                         >
-                            
                             <path d="M18 6 6 18" style={{display: 'none'}} />
                             <path d="M20 4 4 20" />
                             <path d="M4 4 20 20" />

@@ -14,11 +14,13 @@ import OrdersTab from "./OrdersTab";
 import ChatPanel from "../../Client/ClientModal/ChatPanel";
 
 import { normalizeEmployee } from "../../../api/employees";
-import { fetchFields, withDefaults } from "../../../api/fields";
+import { useFields } from "../../../context/FieldsContext";
+import { addFieldOption, fetchFields, withDefaults } from "../../../api/fields";
 import { fetchTransactions } from "../../../api/transactions";
 import { fetchAssets } from "../../../api/assets";
 import { fetchOrders } from "../../../api/orders";
 import { fetchProfile } from "../../../api/profile";
+import { RESOURCE_CACHE_EVENT } from "../../../utils/resourceCache";
 
 import "../../../styles/EmployeeModal.css";
 
@@ -27,6 +29,8 @@ const toText = (value) => String(value ?? '').trim();
 export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   const safeEmployee = useMemo(() => normalizeEmployee(employee ?? {}), [employee]);
   const isNew = !safeEmployee.id;
+
+  const { refreshFields } = useFields();
 
   const [activeTab, setActiveTab] = useState(isNew ? "general" : "summary");
   const [closing, setClosing] = useState(false);
@@ -48,6 +52,21 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     const t = setTimeout(() => setIsOpen(true), 10);
     return () => clearTimeout(t);
   }, []);
+
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      const normalized = await addFieldOption(group, fieldName, newValue);
+      setAppData((prev) => ({
+        ...prev,
+        fields: normalized || prev.fields,
+      }));
+      if (refreshFields) {
+        await refreshFields();
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -101,6 +120,24 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
 
     return () => { mounted = false; };
   }, [isNew, safeEmployee?.id]);
+
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      try {
+        const nextFields = withDefaults(event.detail.value);
+        setAppData((prev) => ({
+          ...prev,
+          fields: nextFields,
+        }));
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
 
 
   const methods = useForm({
@@ -173,13 +210,15 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       <div className="employee-modal tri-layout" onClick={(e) => e.stopPropagation()}>
         <div className="left-panel">
           <FormProvider {...methods}>
-            <form id={formId} className="employee-modal-body" onSubmit={handleSubmit(submitHandler, onInvalid)}>
+            <form id={formId} className="employee-modal-body custom-scrollbar" onSubmit={handleSubmit(submitHandler, onInvalid)}>
               <EmployeeHeader
                 isNew={isNew}
                 onClose={closeHandler}
                 onDelete={!isNew && onDelete ? deleteHandler : null}
                 isDirty={isDirty}
                 reset={reset}
+                tagOptions={appData.fields?.employeeFields?.tags || []}
+                onAddNewField={handleAddNewField}
               />
 
               <TabsNav activeTab={activeTab} setActiveTab={setActiveTab} errors={groupErrors(errors)} isNew={isNew} />
@@ -199,6 +238,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                     employeeId={safeEmployee.id}
                     fieldsData={appData.fields}
                     crmLanguage={appData.profile?.crmLanguage || "ru"}
+                    onAddCountry={(val) => handleAddNewField("generalFields", "country", val)}
                   />
                 )}
                 
@@ -224,7 +264,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
             </form>
           </FormProvider>
 
-          {/* ДОБАВЛЕН класс visible с условием isDirty */}
           <div className={`employee-modal-actions ${isDirty ? "visible" : ""}`}>
             <button className="cancel-order-btn" type="button" onClick={() => reset()} disabled={!isDirty}>
               Сбросить

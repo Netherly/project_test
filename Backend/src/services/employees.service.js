@@ -3,16 +3,17 @@ const prisma = require('../../prisma/client');
 const { createLinkTokenForEmployee } = require('./link-token.service');
 const { logActivity, diffObjects } = require('./activity-log.service');
 const tempPasswordService = require('./employee-temp-password.service');
+const { buildTelegramStartLink } = require('./telegram-bot.service');
 const {
   clearState: clearTelegramAvatarState,
   markSyncDisabled,
 } = require('./telegram-avatar-state.service');
 const {
-  buildCountryNames,
-  inferPhoneCountryIso2,
   normalizeIso2,
   normalizeIso3,
 } = require('../utils/country-localization');
+const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
+const { isTelegramManagedPhotoLink } = require('../utils/telegram-avatar');
 
 const SALT_ROUNDS = 10;
 
@@ -56,8 +57,7 @@ const arraysEqual = (a = [], b = []) => {
 
 const isEmpty = (value) => value === null || value === undefined || String(value).trim() === '';
 const toText = (value) => (value === null || value === undefined ? '' : String(value).trim());
-const isTelegramFileUrl = (value) =>
-  /^https:\/\/api\.telegram\.org\/file\/bot/i.test(String(value || '').trim());
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const genUserId8 = () => {
   const n = Math.floor(Math.random() * 100_000_000);
@@ -120,6 +120,128 @@ const fetchEmployeeRequisiteLabels = async (employeeId) => {
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, 'ru'));
 };
+
+const normalizeRatesPayload = (raw) => {
+  if (!isPlainObject(raw)) return {};
+  const out = {};
+
+  for (const [key, value] of Object.entries(raw)) {
+    const code = toText(key).toLowerCase();
+    if (!code) continue;
+    if (value === '' || value === null || value === undefined) continue;
+
+    const num = Number(value);
+    if (Number.isFinite(num)) {
+      out[code] = num;
+      continue;
+    }
+
+    const text = toText(value);
+    if (text) out[code] = text;
+  }
+
+  return out;
+};
+
+const sortObject = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(sortObject);
+  }
+  if (isPlainObject(value)) {
+    return Object.keys(value)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce((acc, key) => {
+        acc[key] = sortObject(value[key]);
+        return acc;
+      }, {});
+  }
+  return value;
+};
+
+const ratesEqual = (left, right) =>
+  JSON.stringify(sortObject(normalizeRatesPayload(left))) ===
+  JSON.stringify(sortObject(normalizeRatesPayload(right)));
+
+const parseRequisiteLabel = (label) => {
+  const text = toText(label);
+  if (!text) return { currency: '', bank: '' };
+  const idx = text.indexOf(':');
+  if (idx === -1) return { currency: '', bank: text };
+  return {
+    currency: toText(text.slice(0, idx)).toUpperCase(),
+    bank: toText(text.slice(idx + 1)),
+  };
+};
+
+const parseRequisiteValue = (value) => {
+  const text = toText(value);
+  if (!text) return {};
+
+  if (text.startsWith('{') || text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (isPlainObject(parsed)) {
+        return {
+          currency: toText(parsed.currency).toUpperCase(),
+          bank: toText(parsed.bank),
+          card: toText(parsed.card || parsed.account || parsed.number),
+          owner: toText(parsed.owner || parsed.holder || parsed.name),
+        };
+      }
+    } catch (_) {}
+  }
+
+  return { card: text };
+};
+
+const normalizeRequisiteEntry = (req = {}) => {
+  const labelParts = parseRequisiteLabel(req.label);
+  const valueParts = parseRequisiteValue(req.value);
+  const currency = toText(req.currency || valueParts.currency || labelParts.currency).toUpperCase();
+  const bank = toText(req.bank || valueParts.bank || labelParts.bank);
+  const card = toText(req.card || valueParts.card || req.value);
+  const owner = toText(req.owner || req.holder || valueParts.owner);
+
+  if (!currency && !bank && !card && !owner) return null;
+
+  return {
+    currency,
+    bank,
+    card,
+    owner,
+  };
+};
+
+const sortRequisites = (items = []) =>
+  items
+    .map((item) => ({
+      currency: toText(item.currency).toUpperCase(),
+      bank: toText(item.bank),
+      card: toText(item.card),
+      owner: toText(item.owner),
+    }))
+    .sort((a, b) =>
+      JSON.stringify(a).localeCompare(JSON.stringify(b), 'ru')
+    );
+
+const fetchEmployeeRequisitesCanonical = async (employeeId) => {
+  const requisites = await prisma.employeeRequisite.findMany({
+    where: { employeeId },
+    select: {
+      bank: true,
+      currency: true,
+      card: true,
+      owner: true,
+      label: true,
+      value: true,
+    },
+  });
+
+  return sortRequisites(requisites.map(normalizeRequisiteEntry).filter(Boolean));
+};
+
+const requisitesEqual = (left, right) =>
+  JSON.stringify(sortRequisites(left)) === JSON.stringify(sortRequisites(right));
 
 const diffStringList = (before = [], after = []) => {
   const beforeCount = new Map();
@@ -202,62 +324,6 @@ const buildCountryNameMatchers = (text) => [
   { nameUk: { equals: text, mode: 'insensitive' } },
 ];
 
-const updateCountryTranslations = async (country, names) => {
-  if (!country?.id || !names) return country;
-
-  const data = {};
-  if (!toText(country.name) && toText(names.name)) data.name = names.name;
-  if (!toText(country.nameEn) && toText(names.nameEn)) data.nameEn = names.nameEn;
-  if (!toText(country.nameRu) && toText(names.nameRu)) data.nameRu = names.nameRu;
-  if (!toText(country.nameUk) && toText(names.nameUk)) data.nameUk = names.nameUk;
-  if (!toText(country.iso2) && toText(names.iso2)) data.iso2 = names.iso2;
-  if (country.isActive === false) data.isActive = true;
-
-  if (!Object.keys(data).length) return country;
-
-  return prisma.country.update({
-    where: { id: country.id },
-    data,
-    select: COUNTRY_SELECT,
-  });
-};
-
-const ensureCountryByIso2 = async (iso2) => {
-  const normalizedIso2 = normalizeIso2(iso2);
-  if (!normalizedIso2) return null;
-
-  const names = buildCountryNames(normalizedIso2);
-  if (!names) return null;
-
-  let existing = await prisma.country.findFirst({
-    where: {
-      OR: [
-        { iso2: normalizedIso2 },
-        ...buildCountryNameMatchers(names.nameEn),
-        ...buildCountryNameMatchers(names.nameRu),
-        ...buildCountryNameMatchers(names.nameUk),
-      ],
-    },
-    select: COUNTRY_SELECT,
-  });
-
-  if (existing) {
-    return updateCountryTranslations(existing, names);
-  }
-
-  return prisma.country.create({
-    data: {
-      name: names.name,
-      nameEn: names.nameEn,
-      nameRu: names.nameRu,
-      nameUk: names.nameUk,
-      iso2: names.iso2,
-      isActive: true,
-    },
-    select: COUNTRY_SELECT,
-  });
-};
-
 const findCountryByText = async (value) => {
   const text = toText(value);
   if (!text) return null;
@@ -297,22 +363,15 @@ const resolveCountryId = async (payload = {}) => {
     payload.country,
     payload.countryName,
   ]);
-  const phoneIso2 = inferPhoneCountryIso2(payload.phone);
 
   for (const candidate of explicitCandidates) {
     const matched = await findCountryByText(candidate);
     if (matched?.id) {
-      if (phoneIso2) {
-        const enriched = await updateCountryTranslations(matched, buildCountryNames(phoneIso2));
-        return enriched?.id ?? matched.id;
-      }
       return matched.id;
     }
   }
 
-  const explicitIso2 = explicitCandidates.map(normalizeIso2).find(Boolean);
-  const countryByIso = await ensureCountryByIso2(explicitIso2 || phoneIso2);
-  return countryByIso?.id ?? null;
+  return null;
 };
 
 const EmployeesService = {
@@ -354,8 +413,7 @@ const EmployeesService = {
   },
 
   async byId(id) {
-    const employee = await prisma.employee.findUnique({
-      where: { id },
+    const employee = await findByEntityRef(prisma.employee, id, {
       include: {
         country: true,
         role: true,
@@ -435,7 +493,9 @@ const EmployeesService = {
       telegramNickname: payload.telegram?.nickname,
       telegramBindingLink: payload.telegram?.bindingLink,
       photoLink: payload.photoLink,
-      rates: payload.rates,
+      rates: Object.keys(normalizeRatesPayload(payload.rates)).length
+        ? normalizeRatesPayload(payload.rates)
+        : null,
       mainCurrency: payload.mainCurrency,
     };
     if (!data.userid) {
@@ -475,10 +535,7 @@ const EmployeesService = {
       try {
         const ttlMinutes = Number(payload?.telegramLinkTtlMinutes) || 60;
         const token = await createLinkTokenForEmployee(employee.id, ttlMinutes);
-        const botName = String(process.env.PUBLIC_BOT_NAME || 'gsse_assistant_bot')
-          .trim()
-          .replace(/^@/, '');
-        const link = `https://t.me/${botName}?start=${token.code}`;
+        const link = await buildTelegramStartLink(token.code);
         await prisma.employee.update({
           where: { id: employee.id },
           data: { telegramBindingLink: link },
@@ -512,7 +569,7 @@ const EmployeesService = {
         finalEmployee?.telegramVerified ||
         finalEmployee?.chatLink
     );
-    if (finalLinked && finalPhotoLink && !isTelegramFileUrl(finalPhotoLink)) {
+    if (finalLinked && finalPhotoLink && !isTelegramManagedPhotoLink(finalPhotoLink)) {
       await markSyncDisabled(finalEmployee.id, {
         linkedAt: finalEmployee?.telegramLinkedAt,
       });
@@ -531,7 +588,8 @@ const EmployeesService = {
 
   async update(id, payload, actor = {}) {
     const actorMeta = normalizeActorMeta(actor);
-    const before = await prisma.employee.findUnique({ where: { id } });
+    const actualId = await resolveEntityId(prisma.employee, id, { notFoundMessage: 'Employee not found' });
+    const before = await prisma.employee.findUnique({ where: { id: actualId } });
     const beforeLinked = Boolean(
       before?.telegramUserId ||
         before?.telegramChatId ||
@@ -541,8 +599,8 @@ const EmployeesService = {
     );
     const shouldTrackTags = payload.tags !== undefined;
     const shouldTrackRequisites = payload.requisites !== undefined;
-    const beforeTagNames = shouldTrackTags ? await fetchEmployeeTagNames(id) : null;
-    const beforeReqs = shouldTrackRequisites ? await fetchEmployeeRequisiteLabels(id) : null;
+    const beforeTagNames = shouldTrackTags ? await fetchEmployeeTagNames(actualId) : null;
+    const beforeReqs = shouldTrackRequisites ? await fetchEmployeeRequisiteLabels(actualId) : null;
 
     const data = {};
     if (payload.status !== undefined) data.status = payload.status;
@@ -562,7 +620,7 @@ const EmployeesService = {
     if (
       payload.countryId !== undefined ||
       payload.country !== undefined ||
-      (payload.phone !== undefined && !before?.countryId)
+      payload.countryName !== undefined
     ) {
       data.countryId = await resolveCountryId(payload);
     }
@@ -583,11 +641,16 @@ const EmployeesService = {
     if (payload.telegram?.nickname !== undefined) data.telegramNickname = payload.telegram.nickname;
     if (payload.telegram?.bindingLink !== undefined) data.telegramBindingLink = payload.telegram.bindingLink;
     if (payload.photoLink !== undefined) data.photoLink = payload.photoLink;
-    if (payload.rates !== undefined) data.rates = payload.rates;
+    if (payload.rates !== undefined) {
+      const nextRates = normalizeRatesPayload(payload.rates);
+      if (!ratesEqual(before?.rates, nextRates)) {
+        data.rates = Object.keys(nextRates).length ? nextRates : null;
+      }
+    }
     if (payload.mainCurrency !== undefined) data.mainCurrency = payload.mainCurrency;
 
     const employee = await prisma.employee.update({
-      where: { id },
+      where: { id: actualId },
       data,
       include: {
         country: true,
@@ -614,7 +677,7 @@ const EmployeesService = {
       needsRefetch = true;
     }
 
-    const after = await prisma.employee.findUnique({ where: { id } });
+    const after = await prisma.employee.findUnique({ where: { id: actualId } });
     const beforePhotoLink = toText(before?.photoLink);
     const afterPhotoLink = toText(after?.photoLink);
     const photoLinkProvided = payload.photoLink !== undefined;
@@ -627,16 +690,19 @@ const EmployeesService = {
         after?.chatLink
     );
     const changes = diffObjects(before, after, { exclude: EMPLOYEE_LOG_EXCLUDE_FIELDS });
+    if (ratesEqual(before?.rates, after?.rates)) {
+      delete changes.rates;
+    }
 
     if (shouldTrackTags) {
-      const afterTags = await fetchEmployeeTagNames(id);
+      const afterTags = await fetchEmployeeTagNames(actualId);
       if (!arraysEqual(beforeTagNames || [], afterTags || [])) {
         changes.tags = { from: beforeTagNames || [], to: afterTags || [] };
       }
     }
 
     if (shouldTrackRequisites) {
-      const afterReqs = await fetchEmployeeRequisiteLabels(id);
+      const afterReqs = await fetchEmployeeRequisiteLabels(actualId);
       const { added, removed } = diffStringList(beforeReqs || [], afterReqs || []);
       if (beforeReqs && afterReqs && beforeReqs.length !== afterReqs.length) {
         changes.requisitesCount = { from: beforeReqs.length, to: afterReqs.length };
@@ -649,7 +715,7 @@ const EmployeesService = {
     if (Object.keys(changes).length) {
       await safeLog({
         entityType: 'employee',
-        entityId: id,
+        entityId: actualId,
         action: 'updated',
         changes,
         ...actorMeta,
@@ -657,16 +723,16 @@ const EmployeesService = {
     }
 
     if (beforeLinked && !afterLinked) {
-      await clearTelegramAvatarState(id);
-      await safeLog({
-        entityType: 'employee',
-        entityId: id,
-        action: 'telegram_unlinked',
-        message: 'Telegram отвязан',
-        ...actorMeta,
+      await clearTelegramAvatarState(actualId);
+        await safeLog({
+          entityType: 'employee',
+          entityId: actualId,
+          action: 'telegram_unlinked',
+          message: 'Telegram отвязан',
+          ...actorMeta,
       });
-    } else if (afterLinked && photoLinkChangedManually && !isTelegramFileUrl(afterPhotoLink)) {
-      await markSyncDisabled(id, {
+    } else if (afterLinked && photoLinkChangedManually && !isTelegramManagedPhotoLink(afterPhotoLink)) {
+      await markSyncDisabled(actualId, {
         linkedAt: after?.telegramLinkedAt,
       });
     }
@@ -689,18 +755,19 @@ const EmployeesService = {
 
   async delete(id, actor = {}) {
     const actorMeta = normalizeActorMeta(actor);
-    const before = await prisma.employee.findUnique({ where: { id } });
+    const actualId = await resolveEntityId(prisma.employee, id, { notFoundMessage: 'Employee not found' });
+    const before = await prisma.employee.findUnique({ where: { id: actualId } });
     // Delete related tags and requisites first
-    await prisma.employeeTag.deleteMany({ where: { employeeId: id } });
-    await prisma.employeeRequisite.deleteMany({ where: { employeeId: id } });
+    await prisma.employeeTag.deleteMany({ where: { employeeId: actualId } });
+    await prisma.employeeRequisite.deleteMany({ where: { employeeId: actualId } });
 
     const removed = await prisma.employee.delete({
-      where: { id },
+      where: { id: actualId },
     });
 
     await safeLog({
       entityType: 'employee',
-      entityId: id,
+      entityId: actualId,
       action: 'deleted',
       message: `Удалён сотрудник "${getEmployeeLabel(before)}"`,
       ...actorMeta,
@@ -747,23 +814,34 @@ const EmployeesService = {
   },
 
  async updateRequisites(employeeId, requisites) {
-    
+    const normalizedIncoming = sortRequisites(
+      (Array.isArray(requisites) ? requisites : [])
+        .map(normalizeRequisiteEntry)
+        .filter(Boolean)
+    );
+    const current = await fetchEmployeeRequisitesCanonical(employeeId);
+
+    if (requisitesEqual(current, normalizedIncoming)) {
+      return false;
+    }
+
     await prisma.employeeRequisite.deleteMany({ where: { employeeId } });
 
-    
-    if (requisites.length > 0) {
-      const reqData = requisites.map(req => ({
+    if (normalizedIncoming.length > 0) {
+      const reqData = normalizedIncoming.map((req) => ({
         employeeId,
         bank: req.bank || '',
         currency: req.currency || 'UAH',
         card: req.card || '',
         owner: req.owner || '',
-        label: req.label || `${req.bank || ''} ${req.currency || ''}`.trim(),
-        value: req.value || req.card || '', 
+        label: req.bank ? `${req.currency || 'CARD'}:${req.bank}` : (req.currency || 'CARD'),
+        value: req.card || '',
       }));
-      
+
       await prisma.employeeRequisite.createMany({ data: reqData });
     }
+
+    return true;
   },
 };
 

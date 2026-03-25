@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { useFields } from "../context/FieldsContext";
 import "../styles/Fields.css";
@@ -36,17 +36,87 @@ import ConfirmationModal from "../components/modals/confirm/ConfirmationModal";
 import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
+import { getCardDesignFallback } from "../utils/cardDesigns";
+import { RESOURCE_CACHE_EVENT, hasDataChanged, writeCachedValue } from "../utils/resourceCache";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
-const MAX_IMAGE_BYTES = 500 * 1024;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
+const ACTIVE_TAB_STORAGE_KEY = "crm_active_field_tab";
+const SHOW_HIDDEN_STORAGE_KEY = "crm_fields_show_hidden_v1";
+const VISIBLE_FIELD_CURRENCIES = [
+  { code: "UAH", name: "Ukrainian Hryvnia" },
+  { code: "USD", name: "US Dollar" },
+  { code: "EUR", name: "Euro" },
+  { code: "RUB", name: "Russian Ruble" },
+  { code: "USDT", name: "Tether USDT" },
+];
+const SYSTEM_FIELD_CURRENCIES = [];
+const CURRENCY_FIELD_GROUPS = [
+  "generalFields",
+  "orderFields",
+  "executorFields",
+  "clientFields",
+  "assetsFields",
+];
+const COUNTRY_FIELD_GROUPS = [
+  "generalFields",
+  "clientFields",
+  "employeeFields",
+];
 
-const safeFileUrl = (u) => {
+const safeFileUrl = (u, version = "") => {
   if (!u) return "";
   const s = tidy(u);
   if (s.startsWith("data:")) return s;
   if (/^https?:\/\//i.test(s)) return s;
-  try { return fileUrl(s); } catch { return s; }
+  try { return fileUrl(s, version); } catch { return s; }
+};
+
+const joinFieldLabel = (...parts) => {
+  const values = parts.map((part) => tidy(part)).filter(Boolean);
+  return values.join(" / ");
+};
+
+const CardDesignPreviewMedia = ({ design, onClick, disabled }) => {
+  const [hasImageError, setHasImageError] = useState(false);
+  const previewUrl = design?.viewUrl || safeFileUrl(design?.url, design?.imageVersion);
+  const fallback = getCardDesignFallback(design?.name);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [design?.url, design?.name]);
+
+  const showImage = Boolean(previewUrl) && !hasImageError;
+  const previewClass = [
+    "card-design-preview",
+    !showImage ? "card-design-preview--fallback" : "",
+    fallback ? `card-design-preview--${fallback.key}` : "card-design-preview--generic",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className={previewClass}
+      title={disabled ? design?.name : "Кликните, чтобы заменить"}
+      onClick={() => !disabled && onClick?.()}
+      style={{ position: "relative" }}
+    >
+      {showImage ? (
+        <img
+          src={previewUrl}
+          alt={design?.name || "design"}
+          className="card-design-image"
+          onError={() => setHasImageError(true)}
+        />
+      ) : (
+        <div className="card-design-fallback-label">
+          {design?.name || fallback?.label || "Дизайн"}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const tabsConfig = [
@@ -65,8 +135,8 @@ const tabsConfig = [
 const initialValues = {
   generalFields: { currency: [], country: [], businessLine: [] },
   orderFields: {
-    intervals: [{ id: rid(), intervalValue: "", isDeleted: false }],
-    categories: [{ id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }],
+    intervals: [{ id: rid(), intervalValue: "", isDeleted: false, order: 0 }],
+    categories: [{ id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false, order: 0 }],
     statuses: [], closeReasons: [], projects: [], tags: [], techTags: [], taskTags: [], discountReason: [], minOrderAmount: [], readySolution: [],
   },
   executorFields: { role: [] },
@@ -75,8 +145,8 @@ const initialValues = {
   employeeFields: { country: [], tags: [] },
   assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
   financeFields: {
-    articles: [{ id: rid(), articleValue: "", isDeleted: false }],
-    subarticles: [{ id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false }],
+    articles: [{ id: rid(), articleValue: "", isDeleted: false, order: 0 }],
+    subarticles: [{ id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: 0 }],
     subcategory: [],
   },
   sundryFields:{ typeWork: [] },
@@ -95,6 +165,201 @@ const initialFieldOrders = {
   financeFields: ["articles", "subcategory", "subarticles"],
   sundryFields: ["typeWork"],
   taskFields: ["tags"],
+};
+
+const mergeFieldOrders = (saved = {}) =>
+  Object.fromEntries(
+    Object.entries(initialFieldOrders).map(([groupKey, defaults]) => {
+      const current = Array.isArray(saved?.[groupKey]) ? saved[groupKey] : [];
+      const merged = [
+        ...current.filter((key) => defaults.includes(key)),
+        ...defaults.filter((key) => !current.includes(key)),
+      ];
+      return [groupKey, merged];
+    })
+  );
+
+const buildFixedCurrencyList = (source = [], includeSystem = false) => {
+  const allowedCodes = new Set(
+    (includeSystem
+      ? [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES]
+      : VISIBLE_FIELD_CURRENCIES
+    ).map((item) => item.code)
+  );
+  const orderByCode = new Map(
+    [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES].map((item, index) => [item.code, index])
+  );
+  const existingByCode = new Map(
+    (Array.isArray(source) ? source : [])
+      .map((item) => {
+        const code = tidy(item?.code ?? item?.value).toUpperCase();
+        return code && allowedCodes.has(code) ? [code, item] : null;
+      })
+      .filter(Boolean)
+  );
+  const items = Array.from(existingByCode.values())
+    .map((existing) => {
+      const code = tidy(existing?.code ?? existing?.value).toUpperCase();
+      const fallback =
+        [...VISIBLE_FIELD_CURRENCIES, ...SYSTEM_FIELD_CURRENCIES].find((item) => item.code === code) || null;
+      return {
+        ...existing,
+        id: existing?.id || `field-currency-${code.toLowerCase()}`,
+        value: code,
+        code,
+        name: tidy(existing?.name) || fallback?.name || code,
+        label: tidy(existing?.label) || tidy(existing?.name) || fallback?.name || code,
+        order: Number.isFinite(Number(existing?.order))
+          ? Number(existing.order)
+          : (orderByCode.get(code) ?? Number.MAX_SAFE_INTEGER),
+        isDeleted: code === "UAH" ? false : Boolean(existing?.isDeleted),
+      };
+    })
+    .sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+      const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return String(a?.code || "").localeCompare(String(b?.code || ""));
+    });
+
+  if (includeSystem && !existingByCode.has("UAH")) {
+    items.push({
+      id: "field-currency-uah",
+      value: "UAH",
+      code: "UAH",
+      name: "Ukrainian Hryvnia",
+      label: "Ukrainian Hryvnia",
+      order: orderByCode.get("UAH") ?? Number.MAX_SAFE_INTEGER,
+      isDeleted: false,
+    });
+  }
+
+  return items;
+};
+
+const buildSharedCountryList = (source = []) =>
+  (Array.isArray(source) ? source : []).map((item, index) => ({
+    ...item,
+    id: item?.id || `field-country-${index}`,
+    order: Number.isFinite(Number(item?.order)) ? Number(item.order) : index,
+    isDeleted: Boolean(item?.isDeleted),
+  }));
+
+const applyFieldsPagePreset = (values) => {
+  const next = clone(values);
+  const currencySource =
+    next?.generalFields?.currency ??
+    next?.orderFields?.currency ??
+    next?.executorFields?.currency ??
+    next?.clientFields?.currency ??
+    next?.assetsFields?.currency ??
+    [];
+  const fixedCurrencies = buildFixedCurrencyList(currencySource, false);
+  const countrySource =
+    next?.generalFields?.country ??
+    next?.clientFields?.country ??
+    next?.employeeFields?.country ??
+    [];
+  const sharedCountries = buildSharedCountryList(countrySource);
+
+  for (const groupKey of CURRENCY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      currency: clone(fixedCurrencies),
+    };
+  }
+
+  for (const groupKey of COUNTRY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      country: clone(sharedCountries),
+    };
+  }
+
+  return next;
+};
+
+const prepareFieldsPageSaveValues = (values) => {
+  const next = clone(values);
+  const currencySource =
+    next?.generalFields?.currency ??
+    next?.orderFields?.currency ??
+    next?.executorFields?.currency ??
+    next?.clientFields?.currency ??
+    next?.assetsFields?.currency ??
+    [];
+  const saveCurrencies = buildFixedCurrencyList(currencySource, true);
+  const countrySource =
+    next?.generalFields?.country ??
+    next?.clientFields?.country ??
+    next?.employeeFields?.country ??
+    [];
+  const saveCountries = buildSharedCountryList(countrySource);
+
+  for (const groupKey of CURRENCY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      currency: clone(saveCurrencies),
+    };
+  }
+
+  for (const groupKey of COUNTRY_FIELD_GROUPS) {
+    if (!next[groupKey]) continue;
+    next[groupKey] = {
+      ...next[groupKey],
+      country: clone(saveCountries),
+    };
+  }
+
+  return next;
+};
+
+const markHiddenFieldItem = (item) => ({
+  ...item,
+  isDeleted: true,
+  deleteAction: "hide",
+});
+
+const mergeInactiveFieldsIntoValues = (currentValues, inactiveValues) => {
+  const nextValues = clone(currentValues);
+  const activeIds = {};
+  const sortByConfiguredOrder = (list) =>
+    [...list].sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+      const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return 0;
+    });
+
+  for (const groupKey of Object.keys(inactiveValues || {})) {
+    const group = inactiveValues[groupKey];
+    if (!nextValues[groupKey] || typeof group !== "object" || group === null) continue;
+
+    activeIds[groupKey] = {};
+
+    for (const fieldKey of Object.keys(group)) {
+      if (!Object.prototype.hasOwnProperty.call(nextValues[groupKey], fieldKey)) continue;
+
+      const activeList = Array.isArray(nextValues[groupKey][fieldKey])
+        ? nextValues[groupKey][fieldKey]
+        : [];
+      activeIds[groupKey][fieldKey] = new Set(activeList.map((item) => item.id));
+
+      const inactiveList = (Array.isArray(group[fieldKey]) ? group[fieldKey] : []).map(markHiddenFieldItem);
+      const currentActiveIds = activeIds[groupKey][fieldKey];
+      const mergedList = sortByConfiguredOrder([
+        ...activeList,
+        ...inactiveList.filter((item) => !currentActiveIds.has(item.id)),
+      ]);
+
+      nextValues[groupKey][fieldKey] = mergedList;
+    }
+  }
+
+  return nextValues;
 };
 
 const SortableFieldRow = ({ id, children, isDragEnabled }) => {
@@ -183,9 +448,11 @@ const EditableList = ({
   onReorder,       
   placeholder,
   showHidden,
-  isDragEnabled
+  isDragEnabled,
+  readOnly = false,
 }) => {
   const refs = useRef([]);
+  const dndId = useMemo(() => rid(), []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
@@ -198,17 +465,18 @@ const EditableList = ({
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((item) => item.id === active.id);
       const newIndex = items.findIndex((item) => item.id === over.id);
-      const newItems = arrayMove(items, oldIndex, newIndex);
+      const newItems = arrayMove(items, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
       onReorder?.(newItems);
     }
   };
 
   return (
     <div className="category-fields-container">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((item, index) => {
             if (item.isDeleted && !showHidden) return null;
@@ -227,12 +495,13 @@ const EditableList = ({
                         placeholder={placeholder}
                         className="text-input"
                         disabled={item.isDeleted}
+                        readOnly={readOnly}
                       />
                     </div>
                     <button
                       type="button"
                       className={`remove-category-btn ${item.isDeleted ? 'restore' : ''}`}
-                      onClick={() => onToggleDelete(index)}
+                      onClick={() => onToggleDelete(index, item)}
                       title={item.isDeleted ? "Восстановить" : "Удалить"}
                     >
                       {item.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -244,15 +513,18 @@ const EditableList = ({
           })}
         </SortableContext>
       </DndContext>
-      <button type="button" className="add-category-btn" onClick={onAdd}>
-        <Plus size={20} color='white'/> Добавить
-      </button>
+      {typeof onAdd === "function" && (
+        <button type="button" className="add-category-btn" onClick={onAdd}>
+          <Plus size={20} color='white'/> Добавить
+        </button>
+      )}
     </div>
   );
 };
 
-const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
+const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDragEnabled }) => {
   const nameRefs = useRef([]);
+  const dndId = useMemo(() => rid(), []);
    
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -261,15 +533,17 @@ const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       const oldIndex = tags.findIndex((t) => t.id === active.id);
       const newIndex = tags.findIndex((t) => t.id === over.id);
-      onChange(arrayMove(tags, oldIndex, newIndex));
+      const newItems = arrayMove(tags, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onChange(newItems);
     }
   };
 
   const add = () => {
-    const next = [...(tags || []), { id: rid(), name: "", color: "#ffffff", isDeleted: false }];
+    const next = [...(tags || []), { id: rid(), name: "", color: "#ffffff", isDeleted: false, order: (tags || []).length }];
     onChange(next);
     setTimeout(() => nameRefs.current[next.length - 1]?.focus(), 0);
   };
@@ -320,7 +594,7 @@ const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
     <div className="field-row">
       {title && <label className="field-label">{title}</label>}
       <div className="category-fields-container">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={tags.map(t => t.id)} strategy={verticalListSortingStrategy}>
             {tags.map((t, i) => {
               if (t.isDeleted && !showHidden) return null;
@@ -370,8 +644,8 @@ const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
                       <button
                         type="button"
                         className={`remove-category-btn ${t.isDeleted ? 'restore' : ''}`}
-                        onClick={() => toggleDelete(t.id)}
-                        title={t.isDeleted ? "Восстановить" : "Удалить"}
+                        onClick={() => (onToggleDelete ? onToggleDelete(t.id, t) : toggleDelete(t.id))}
+                        title={t.isDeleted ? "Восстановить" : "Скрыть"}
                       >
                         {t.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
                       </button>
@@ -391,6 +665,7 @@ const TagList = ({ title, tags = [], onChange, showHidden, isDragEnabled }) => {
 };
 
 const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAddInterval, onToggleDelete, onReorder, showHidden, isDragEnabled }) => {
+  const dndId = useMemo(() => rid(), []);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -398,21 +673,29 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       const oldIndex = intervals.findIndex((item) => item.id === active.id);
       const newIndex = intervals.findIndex((item) => item.id === over.id);
-      onReorder?.(arrayMove(intervals, oldIndex, newIndex));
+      const newItems = arrayMove(intervals, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
     }
   };
+
+  const visibleItems = useMemo(
+    () => intervals.map((item, index) => ({ ...item, originalIndex: index }))
+                   .filter(item => !item.isDeleted || showHidden),
+    [intervals, showHidden]
+  );
 
   return (
     <div className="field-row">
       <label className="field-label">Интервал</label>
       <div className="category-fields-container">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={intervals.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            {intervals.map((interval, index) => {
-              if (interval.isDeleted && !showHidden) return null;
+            {visibleItems.map((interval) => {
+              const originalIndex = interval.originalIndex;
               return (
                 <SortableItem key={interval.id} id={interval.id} disabled={interval.isDeleted} showHandle={isDragEnabled}>
                    <div className={`category-field-group ${interval.isDeleted ? 'is-hidden-item' : ''}`}>
@@ -421,8 +704,8 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
                         <input
                           type="text"
                           value={interval?.intervalValue || ""}
-                          onChange={(e) => onIntervalChange(index, e.target.value)}
-                          onBlur={() => onIntervalBlur(index)}
+                          onChange={(e) => onIntervalChange(originalIndex, e.target.value)}
+                          onBlur={() => onIntervalBlur(originalIndex)}
                           placeholder="Введите интервал"
                           className="text-input"
                           disabled={interval.isDeleted}
@@ -431,7 +714,7 @@ const IntervalFields = ({ intervals = [], onIntervalChange, onIntervalBlur, onAd
                       <button
                         type="button"
                         className={`remove-category-btn ${interval.isDeleted ? 'restore' : ''}`}
-                        onClick={() => onToggleDelete(index)}
+                        onClick={() => onToggleDelete(originalIndex)}
                         title={interval.isDeleted ? "Восстановить" : "Удалить"}
                       >
                         {interval.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
@@ -460,8 +743,27 @@ const CategoryFields = ({
   openDropdowns = {},
   onToggleDropdown,
   availableIntervals = [],
-  showHidden
+  showHidden,
+  isDragEnabled,
+  onReorder
 }) => {
+  const dndId = useMemo(() => rid(), []);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = categories.findIndex((item) => item.id === active.id);
+      const newIndex = categories.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(categories, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
+
   const visibleItems = useMemo(
     () => categories.map((item, index) => ({ ...item, originalIndex: index }))
                 .filter(item => !item.isDeleted || showHidden),
@@ -472,63 +774,69 @@ const CategoryFields = ({
     <div className="field-row category-field">
       <label className="field-label">Категория</label>
       <div className="category-fields-container">
-        {visibleItems.map((category) => {
-          const i = category.originalIndex;
-          return (
-            <div key={category.id} className={`category-field-group ${category.isDeleted ? 'is-hidden-item' : ''}`}>
-              <div className="category-container">
-                <div className="category-left">
-                  <div className="dropdown-container">
-                    <div
-                      className={`dropdown-trigger-category ${category.categoryInterval ? "has-value" : ""} ${category.isDeleted ? 'disabled' : ''}`}
-                      onClick={(e) => !category.isDeleted && onToggleDropdown(i, e)}
-                    >
-                      <span className="dropdown-value">{category.categoryInterval || "Выберите интервал"}</span>
-                      <span className={`dropdown-arrow ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>▼</span>
-                    </div>
-                    <div className={`dropdown-menu ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>
-                      {(availableIntervals || []).length > 0 ? (
-                        availableIntervals.map((option, optionIndex) => (
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+            {visibleItems.map((category) => {
+              const i = category.originalIndex;
+              return (
+                <SortableItem key={category.id} id={category.id} disabled={category.isDeleted} showHandle={isDragEnabled}>
+                  <div className={`category-field-group ${category.isDeleted ? 'is-hidden-item' : ''}`}>
+                    <div className="category-container">
+                      <div className="category-left">
+                        <div className="dropdown-container">
                           <div
-                            key={optionIndex}
-                            className={`dropdown-option ${category.categoryInterval === option ? "selected" : ""}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCategoryChange(i, "categoryInterval", option);
-                            }}
+                            className={`dropdown-trigger-category ${category.categoryInterval ? "has-value" : ""} ${category.isDeleted ? 'disabled' : ''}`}
+                            onClick={(e) => !category.isDeleted && onToggleDropdown(i, e)}
                           >
-                            {option}
+                            <span className="dropdown-value">{category.categoryInterval || "Выберите интервал"}</span>
+                            <span className={`dropdown-arrow ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>▼</span>
                           </div>
-                        ))
-                      ) : (
-                        <div className="dropdown-option disabled-option">Сначала добавьте интервалы</div>
-                      )}
+                          <div className={`dropdown-menu ${openDropdowns[`category-${i}-interval`] ? "open" : ""}`}>
+                            {(availableIntervals || []).length > 0 ? (
+                              availableIntervals.map((option, optionIndex) => (
+                                <div
+                                  key={optionIndex}
+                                  className={`dropdown-option ${category.categoryInterval === option ? "selected" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCategoryChange(i, "categoryInterval", option);
+                                  }}
+                                >
+                                  {option}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="dropdown-option disabled-option">Сначала добавьте интервалы</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="category-right">
+                        <input
+                          type="text"
+                          value={category.categoryValue || ""}
+                          onChange={(e) => onCategoryChange(i, "categoryValue", e.target.value)}
+                          onBlur={() => onCategoryBlur(i)}
+                          placeholder="Введите значение"
+                          className="text-input"
+                          disabled={category.isDeleted}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={`remove-category-btn ${category.isDeleted ? 'restore' : ''}`}
+                        onClick={() => onToggleDelete(i)}
+                        title={category.isDeleted ? "Восстановить" : "Удалить"}
+                      >
+                        {category.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                      </button>
                     </div>
                   </div>
-                </div>
-                <div className="category-right">
-                  <input
-                    type="text"
-                    value={category.categoryValue || ""}
-                    onChange={(e) => onCategoryChange(i, "categoryValue", e.target.value)}
-                    onBlur={() => onCategoryBlur(i)}
-                    placeholder="Введите значение"
-                    className="text-input"
-                    disabled={category.isDeleted}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={`remove-category-btn ${category.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i)}
-                  title={category.isDeleted ? "Восстановить" : "Удалить"}
-                >
-                  {category.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
         <button type="button" className="add-category-btn" onClick={onAddCategory}>
           <Plus size={20} color='white'/> Добавить
         </button>
@@ -537,7 +845,24 @@ const CategoryFields = ({
   );
 };
 
-const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArticle, onToggleDelete, showHidden }) => {
+const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArticle, onToggleDelete, showHidden, isDragEnabled, onReorder }) => {
+  const dndId = useMemo(() => rid(), []);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = articles.findIndex((item) => item.id === active.id);
+      const newIndex = articles.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(articles, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
+
   const visibleItems = useMemo(
     () => articles.map((item, index) => ({ ...item, originalIndex: index }))
                 .filter(item => !item.isDeleted || showHidden),
@@ -548,34 +873,40 @@ const ArticleFields = ({ articles = [], onArticleChange, onArticleBlur, onAddArt
     <div className="field-row">
       <label className="field-label">Статья</label>
       <div className="category-fields-container">
-        {visibleItems.map((article) => {
-          const i = article.originalIndex;
-          return (
-            <div key={article.id} className={`category-field-group ${article.isDeleted ? 'is-hidden-item' : ''}`}>
-              <div className="category-container">
-                <div className="category-full">
-                  <input
-                    type="text"
-                    value={article.articleValue || ""}
-                    onChange={(e) => onArticleChange(i, e.target.value)}
-                    onBlur={() => onArticleBlur(i)}
-                    placeholder="Введите статью"
-                    className="text-input"
-                    disabled={article.isDeleted}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={`remove-category-btn ${article.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i)}
-                  title={article.isDeleted ? "Восстановить" : "Удалить"}
-                >
-                  {article.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={articles.map(a => a.id)} strategy={verticalListSortingStrategy}>
+            {visibleItems.map((article) => {
+              const i = article.originalIndex;
+              return (
+                <SortableItem key={article.id} id={article.id} disabled={article.isDeleted} showHandle={isDragEnabled}>
+                  <div className={`category-field-group ${article.isDeleted ? 'is-hidden-item' : ''}`}>
+                    <div className="category-container">
+                      <div className="category-full">
+                        <input
+                          type="text"
+                          value={article.articleValue || ""}
+                          onChange={(e) => onArticleChange(i, e.target.value)}
+                          onBlur={() => onArticleBlur(i)}
+                          placeholder="Введите статью"
+                          className="text-input"
+                          disabled={article.isDeleted}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={`remove-category-btn ${article.isDeleted ? 'restore' : ''}`}
+                        onClick={() => onToggleDelete(i)}
+                        title={article.isDeleted ? "Восстановить" : "Удалить"}
+                      >
+                        {article.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
         <button type="button" className="add-category-btn" onClick={onAddArticle}>
           <Plus size={20} color='white'/> Добавить
         </button>
@@ -594,8 +925,27 @@ const SubarticleFields = ({
   onToggleDropdown,
   availableArticles = [],
   availableSubcategories = [],
-  showHidden
+  showHidden,
+  isDragEnabled,
+  onReorder
 }) => {
+  const dndId = useMemo(() => rid(), []);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = subarticles.findIndex((item) => item.id === active.id);
+      const newIndex = subarticles.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(subarticles, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
+
   const visibleItems = useMemo(
     () => subarticles.map((item, index) => ({ ...item, originalIndex: index }))
                        .filter(item => !item.isDeleted || showHidden),
@@ -606,71 +956,77 @@ const SubarticleFields = ({
     <div className="field-row article-field">
       <label className="field-label">Подстатья</label>
       <div className="category-fields-container">
-        {visibleItems.map((subarticle) => {
-          const i = subarticle.originalIndex;
-          return (
-            <div key={subarticle.id} className={`category-field-group ${subarticle.isDeleted ? 'is-hidden-item' : ''}`}>
-              <div className="category-container">
-                <div className="category-left">
-                  <div className="dropdown-container">
-                    <div
-                      className={`dropdown-trigger-article ${subarticle.subarticleInterval ? "has-value" : ""} ${subarticle.isDeleted ? 'disabled' : ''}`}
-                      onClick={(e) => !subarticle.isDeleted && onToggleDropdown(i, e)}
-                    >
-                      <span className="dropdown-value">{subarticle.subarticleInterval || "Выберите статью/подкатегорию"}</span>
-                      <span className={`dropdown-arrow ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>▼</span>
-                    </div>
-                    <div className={`dropdown-menu ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>
-                      {(availableArticles || []).map((option, optionIndex) => (
-                        <div
-                          key={`art-${optionIndex}`}
-                          className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSubarticleChange(i, "subarticleInterval", option);
-                          }}
-                        >
-                          {option}
+        <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={subarticles.map(s => s.id)} strategy={verticalListSortingStrategy}>
+            {visibleItems.map((subarticle) => {
+              const i = subarticle.originalIndex;
+              return (
+                <SortableItem key={subarticle.id} id={subarticle.id} disabled={subarticle.isDeleted} showHandle={isDragEnabled}>
+                  <div className={`category-field-group ${subarticle.isDeleted ? 'is-hidden-item' : ''}`}>
+                    <div className="category-container">
+                      <div className="category-left">
+                        <div className="dropdown-container">
+                          <div
+                            className={`dropdown-trigger-article ${subarticle.subarticleInterval ? "has-value" : ""} ${subarticle.isDeleted ? 'disabled' : ''}`}
+                            onClick={(e) => !subarticle.isDeleted && onToggleDropdown(i, e)}
+                          >
+                            <span className="dropdown-value">{subarticle.subarticleInterval || "Выберите статью/подкатегорию"}</span>
+                            <span className={`dropdown-arrow ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>▼</span>
+                          </div>
+                          <div className={`dropdown-menu ${openDropdowns[`subarticle-${i}-interval`] ? "open" : ""}`}>
+                            {(availableArticles || []).map((option, optionIndex) => (
+                              <div
+                                key={`art-${optionIndex}`}
+                                className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSubarticleChange(i, "subarticleInterval", option);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
+                            {(availableSubcategories || []).map((option, optionIndex) => (
+                              <div
+                                key={`subcat-${optionIndex}`}
+                                className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSubarticleChange(i, "subarticleInterval", option);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                      {(availableSubcategories || []).map((option, optionIndex) => (
-                        <div
-                          key={`subcat-${optionIndex}`}
-                          className={`dropdown-option ${subarticle.subarticleInterval === option ? "selected" : ""}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSubarticleChange(i, "subarticleInterval", option);
-                          }}
-                        >
-                          {option}
-                        </div>
-                      ))}
+                      </div>
+                      <div className="category-right">
+                        <input
+                          type="text"
+                          value={subarticle.subarticleValue || ""}
+                          onChange={(e) => onSubarticleChange(i, "subarticleValue", e.target.value)}
+                          onBlur={() => onSubarticleBlur(i)}
+                          placeholder="Введите значение"
+                          className="text-input"
+                          disabled={subarticle.isDeleted}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={`remove-category-btn ${subarticle.isDeleted ? 'restore' : ''}`}
+                        onClick={() => onToggleDelete(i)}
+                        title={subarticle.isDeleted ? "Восстановить" : "Удалить"}
+                      >
+                        {subarticle.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                      </button>
                     </div>
                   </div>
-                </div>
-                <div className="category-right">
-                  <input
-                    type="text"
-                    value={subarticle.subarticleValue || ""}
-                    onChange={(e) => onSubarticleChange(i, "subarticleValue", e.target.value)}
-                    onBlur={() => onSubarticleBlur(i)}
-                    placeholder="Введите значение"
-                    className="text-input"
-                    disabled={subarticle.isDeleted}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className={`remove-category-btn ${subarticle.isDeleted ? 'restore' : ''}`}
-                  onClick={() => onToggleDelete(i)}
-                  title={subarticle.isDeleted ? "Восстановить" : "Удалить"}
-                >
-                  {subarticle.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+        </DndContext>
         <button type="button" className="add-category-btn" onClick={onAddSubarticle}>
           <Plus size={20} color='white'/> Добавить
         </button>
@@ -679,14 +1035,25 @@ const SubarticleFields = ({
   );
 };
 
-const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, showHidden }) => {
+const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, showHidden, isDragEnabled, onReorder }) => {
   const fileInputRefs = useRef([]);
+  const dndId = useMemo(() => rid(), []);
 
-  const visibleItems = useMemo(
-    () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index }))
-                     .filter(item => !item.isDeleted || showHidden),
-    [cardDesigns, showHidden]
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      const oldIndex = cardDesigns.findIndex((item) => item.id === active.id);
+      const newIndex = cardDesigns.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(cardDesigns, oldIndex, newIndex).map((item, idx) => ({ ...item, order: idx }));
+      onReorder?.(newItems);
+    }
+  };
 
   const ensureDesign = (arr, index) => {
     const copy = [...arr];
@@ -713,7 +1080,7 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
       return;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      onError?.({ title: "Слишком большой файл", message: `Максимум ${(MAX_IMAGE_BYTES / 1024).toFixed(0)} КБ.` });
+      onError?.({ title: "Слишком большой файл", message: "Максимум 5 МБ." });
       event.target.value = "";
       return;
     }
@@ -742,93 +1109,106 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
     onAdd(next);
   };
 
-  const addEmpty = () => onAdd([...(cardDesigns || []), { id: rid(), name: "", url: "", size: null, isDeleted: false }]);
+  const addEmpty = () => onAdd([...(cardDesigns || []), { id: rid(), name: "", url: "", size: null, isDeleted: false, order: (cardDesigns || []).length }]);
+
+  const visibleItems = useMemo(
+    () => cardDesigns.map((item, index) => ({ ...item, originalIndex: index }))
+                     .filter(item => !item.isDeleted || showHidden),
+    [cardDesigns, showHidden]
+  );
 
   return (
     <div className="category-fields-container">
-      {visibleItems.map((design, visibleIndex) => {
-        const i = design.originalIndex;
-        return (
-          <div
-            key={design.id}
-            className={`category-field-group ${design.isDeleted ? 'is-hidden-item' : ''}`}
-          >
-            <div className="card-design-row">
-              <div className="card-design-input">
-                <input
-                  type="text"
-                  value={design.name || ""}
-                  onChange={(e) => handleNameChange(i, e.target.value)}
-                  placeholder="Введите название дизайна"
-                  className="text-input"
-                  disabled={design.isDeleted}
-                />
-              </div>
-              <div className="card-design-upload">
-                <input
-                  ref={(el) => (fileInputRefs.current[i] = el)}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, i)}
-                  style={{ display: "none" }}
-                  disabled={design.isDeleted}
-                />
-                {design.url ? (
-                  <div className="card-design-item">
-                    <div
-                      className="card-design-preview"
-                      title={design.isDeleted ? design.name : "Кликните, чтобы заменить"}
-                      onClick={() => !design.isDeleted && triggerFile(i)}
-                      style={{ position: 'relative' }} 
-                    >
-                      <img src={safeFileUrl(design.url)} alt={design.name || "design"} className="card-design-image" />
-                       
-                      {!design.isDeleted && (
-                        <button 
+      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={cardDesigns.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          {visibleItems.map((design) => {
+            const i = design.originalIndex;
+            return (
+              <SortableItem key={design.id} id={design.id} disabled={design.isDeleted} showHandle={isDragEnabled}>
+                <div className={`category-field-group ${design.isDeleted ? 'is-hidden-item' : ''}`}>
+                  <div className="card-design-row">
+                    <div className="card-design-input">
+                      <input
+                        type="text"
+                        value={design.name || ""}
+                        onChange={(e) => handleNameChange(i, e.target.value)}
+                        placeholder="Введите название дизайна"
+                        className="text-input"
+                        disabled={design.isDeleted}
+                      />
+                    </div>
+                    <div className="card-design-upload">
+                      <input
+                        ref={(el) => (fileInputRefs.current[i] = el)}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, i)}
+                        style={{ display: "none" }}
+                        disabled={design.isDeleted}
+                      />
+                      {design.url ? (
+                        <div className="card-design-item">
+                          <div
+                            className="card-design-preview"
+                            title={design.isDeleted ? design.name : "Кликните, чтобы заменить"}
+                            onClick={() => !design.isDeleted && triggerFile(i)}
+                            style={{ position: 'relative' }} 
+                          >
+                            <img
+                              src={design?.viewUrl || safeFileUrl(design.url, design?.imageVersion)}
+                              alt={design.name || "design"}
+                              className="card-design-image"
+                            />
+                             
+                            {!design.isDeleted && (
+                              <button 
+                                type="button"
+                                className="remove-image-overlay-btn"
+                                onClick={(e) => handleRemoveImage(e, i)}
+                                title="Удалить изображение"
+                              >
+                                 <X size={14} color="white" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="card-design-actions">
+                            <button
+                              type="button"
+                              className="upload-design-btn"
+                              onClick={() => triggerFile(i)}
+                              disabled={design.isDeleted}
+                            >
+                              Заменить
+                            </button>
+                            <button
+                              type="button"
+                              className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
+                              onClick={() => onToggleDelete(i)}
+                              title={design.isDeleted ? "Восстановить" : "Удалить"}
+                            >
+                              {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
                           type="button"
-                          className="remove-image-overlay-btn"
-                          onClick={(e) => handleRemoveImage(e, i)}
-                          title="Удалить изображение"
+                          className="upload-design-btn"
+                          onClick={() => triggerFile(i)}
+                          disabled={design.isDeleted}
                         >
-                           <X size={14} color="white" />
+                          + Загрузить изображение
                         </button>
                       )}
                     </div>
-
-                    <div className="card-design-actions">
-                      <button
-                        type="button"
-                        className="upload-design-btn"
-                        onClick={() => triggerFile(i)}
-                        disabled={design.isDeleted}
-                      >
-                        Заменить
-                      </button>
-                      <button
-                        type="button"
-                        className={`remove-category-btn ${design.isDeleted ? 'restore' : ''}`}
-                        onClick={() => onToggleDelete(i)}
-                        title={design.isDeleted ? "Восстановить" : "Удалить"}
-                      >
-                        {design.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
-                      </button>
-                    </div>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="upload-design-btn"
-                    onClick={() => triggerFile(i)}
-                    disabled={design.isDeleted}
-                  >
-                    + Загрузить изображение
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+                </div>
+              </SortableItem>
+            );
+          })}
+        </SortableContext>
+      </DndContext>
       <button type="button" className="add-category-btn" onClick={addEmpty}>
         <Plus size={20} color='white'/> Добавить
       </button>
@@ -843,12 +1223,26 @@ function FieldsPage() {
   const [selectedValues, setSelectedValues] = useState(initialValues);
   const [savedValues, setSavedValues] = useState(initialValues);
   const [hasChanges, setHasChanges] = useState(false);
-  const [activeTab, setActiveTab] = useState("generalFields");
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem(ACTIVE_TAB_STORAGE_KEY);
+    return saved || "generalFields";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
   const [openDropdowns, setOpenDropdowns] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
-  const [showHidden, setShowHidden] = useState(false);
+  const [showHidden, setShowHidden] = useState(() => {
+    try {
+      return localStorage.getItem(SHOW_HIDDEN_STORAGE_KEY) === "1";
+    } catch (_) {
+      return false;
+    }
+  });
   const [inactiveLoaded, setInactiveLoaded] = useState(false);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(false);
@@ -859,41 +1253,99 @@ function FieldsPage() {
       const saved = localStorage.getItem(ORDER_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return { ...initialFieldOrders, ...parsed };
+        return mergeFieldOrders(parsed);
       }
     } catch (e) {
       console.error("Failed to load field orders", e);
     }
-    return initialFieldOrders;
+    return mergeFieldOrders();
   };
 
   const [fieldOrders, setFieldOrders] = useState(loadSavedOrders);
   const [savedFieldOrders, setSavedFieldOrders] = useState(loadSavedOrders);
 
   const [modal, setModal] = useState({
-    open: false, title: "", message: "", confirmText: "OK", cancelText: "Отмена", onConfirm: null, onCancel: null,
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "OK",
+    secondaryText: "",
+    cancelText: "Отмена",
+    onConfirm: null,
+    onSecondary: null,
+    onCancel: null,
+    onDismiss: null,
   });
 
   const containerRef = useRef(null);
+  const initialShowHiddenRef = useRef(showHidden);
+  const pageDndId = useMemo(() => rid(), []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const closeModal = () => setModal((m) => ({ ...m, open: false }));
+
   const openErrorModal = (title, message) => {
     setModal({
       open: true, title, message, confirmText: "OK", cancelText: "Закрыть",
-      onConfirm: () => setModal((m) => ({ ...m, open: false })),
-      onCancel: () => setModal((m) => ({ ...m, open: false })),
+      onConfirm: closeModal,
+      onCancel: closeModal,
+      onDismiss: closeModal,
     });
   };
 
   const openChoiceModal = ({ title, message, onSave, onDiscard }) => {
     setModal({
       open: true, title, message, confirmText: "Сохранить", cancelText: "Не сохранять",
-      onConfirm: async () => { setModal((m) => ({ ...m, open: false })); await onSave?.(); },
-      onCancel: () => { setModal((m) => ({ ...m, open: false })); onDiscard?.(); },
+      onConfirm: async () => { closeModal(); await onSave?.(); },
+      onCancel: () => { closeModal(); onDiscard?.(); },
+      onDismiss: closeModal,
+    });
+  };
+
+  const openDeleteFieldModal = ({ fieldLabel, onHide, onConfirm }) => {
+    const safeFieldLabel = tidy(fieldLabel) || "Без названия";
+    setModal({
+      open: true,
+      title: "Скрыть или удалить?",
+      message: `Поле "${safeFieldLabel}" можно скрыть из списков или удалить навсегда.\n\nУдаленное поле восстановить нельзя.`,
+      confirmText: "Удалить навсегда",
+      secondaryText: "Скрыть",
+      cancelText: "Отмена",
+      onConfirm: async () => {
+        closeModal();
+        await onConfirm?.();
+      },
+      onSecondary: async () => {
+        closeModal();
+        await onHide?.();
+      },
+      onCancel: closeModal,
+      onDismiss: closeModal,
+    });
+  };
+
+  const requestDeleteToggle = ({ item, fieldLabel, onToggle, allowHardDelete = true }) => {
+    if (!item) return;
+    if (item.isDeleted) {
+      onToggle?.();
+      return;
+    }
+    if (!allowHardDelete) {
+      onToggle?.("hide");
+      return;
+    }
+    if (item.isLinked === true) {
+      onToggle?.("hide");
+      return;
+    }
+    openDeleteFieldModal({
+      fieldLabel,
+      onHide: () => onToggle?.("hide"),
+      onConfirm: () => onToggle?.("delete"),
     });
   };
 
@@ -908,6 +1360,39 @@ function FieldsPage() {
     checkChanges(next, fieldOrders);
   };
 
+  const fetchNormalizedInactiveValues = useCallback(async () => {
+    const inactiveValues = await fetchInactiveFields();
+    return withDefaults(inactiveValues);
+  }, []);
+
+  const mergeWithInactiveValues = useCallback(
+    async (baseValues) => {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      return mergeInactiveFieldsIntoValues(baseValues, inactiveValues);
+    },
+    [fetchNormalizedInactiveValues]
+  );
+
+  const loadHiddenFieldsIntoState = useCallback(async () => {
+    setLoadingInactive(true);
+    try {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      setSelectedValues((currentSelectedValues) =>
+        mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
+      );
+      if (!hasChanges) {
+        setSavedValues((currentSavedValues) =>
+          mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
+        );
+      }
+      setInactiveLoaded(true);
+    } catch (e) {
+      openErrorModal("Ошибка загрузки скрытых полей", e?.message || "Не удалось получить данные.");
+    } finally {
+      setLoadingInactive(false);
+    }
+  }, [fetchNormalizedInactiveValues, hasChanges]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -915,11 +1400,22 @@ function FieldsPage() {
       setForbidden(false);
       try {
         const raw = await fetchFields();
-        const normalized = withDefaults(raw);
+        const normalized = applyFieldsPagePreset(withDefaults(raw));
+        let hydratedValues = normalized;
+        let hiddenLoaded = false;
+        if (initialShowHiddenRef.current) {
+          try {
+            hydratedValues = await mergeWithInactiveValues(normalized);
+            hiddenLoaded = true;
+          } catch (inactiveError) {
+            console.error("Не удалось загрузить скрытые поля при открытии страницы:", inactiveError);
+          }
+        }
         if (!mounted) return;
-        setSelectedValues(normalized);
-        setSavedValues(normalized);
+        setSelectedValues(hydratedValues);
+        setSavedValues(hydratedValues);
         setHasChanges(false);
+        setInactiveLoaded(hiddenLoaded);
       } catch (e) {
         if (isForbiddenError(e)) {
           if (!mounted) return;
@@ -932,7 +1428,46 @@ function FieldsPage() {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [mergeWithInactiveValues]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      if (hasChanges || saving) return;
+
+      (async () => {
+        try {
+          const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
+          let nextValues = normalized;
+          let hiddenLoaded = false;
+          if (showHidden) {
+            try {
+              nextValues = await mergeWithInactiveValues(normalized);
+              hiddenLoaded = true;
+            } catch (inactiveError) {
+              console.error("Не удалось заново подмешать скрытые поля после обновления кэша:", inactiveError);
+            }
+          }
+          if (!mounted) return;
+          setSelectedValues((prev) => (hasDataChanged(prev, nextValues) ? nextValues : prev));
+          setSavedValues((prev) => (hasDataChanged(prev, nextValues) ? nextValues : prev));
+          setHasChanges(false);
+          setInactiveLoaded(hiddenLoaded);
+        } catch (error) {
+          if (!mounted) return;
+          console.error("Не удалось синхронизировать скрытые поля из кэша:", error);
+        }
+      })();
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      mounted = false;
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, [hasChanges, saving, showHidden]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -945,22 +1480,35 @@ function FieldsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = serializeForSave(selectedValues);
-      await saveFields(payload);
+      const payload = serializeForSave(prepareFieldsPageSaveValues(selectedValues));
+      const savedRaw = await saveFields(payload);
+      writeCachedValue("fieldsData", savedRaw);
+
+      const normalizedSavedValues = applyFieldsPagePreset(withDefaults(savedRaw));
+      let finalSavedValues = normalizedSavedValues;
+      let hiddenLoaded = false;
+
+      if (showHidden) {
+        try {
+          finalSavedValues = await mergeWithInactiveValues(normalizedSavedValues);
+          hiddenLoaded = true;
+        } catch (inactiveError) {
+          console.error("Не удалось сразу загрузить скрытые поля после сохранения:", inactiveError);
+        }
+      }
       
       localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
       setSavedFieldOrders(fieldOrders);
 
-      const nextSavedValues = clone(selectedValues); 
-      setSelectedValues(nextSavedValues);
-      setSavedValues(nextSavedValues); 
+      setSelectedValues(finalSavedValues);
+      setSavedValues(finalSavedValues);
       setHasChanges(false);
       setOpenDropdowns({});
-
-      await refreshFields();
+      setInactiveLoaded(hiddenLoaded);
 
       if (pendingTab) {
         setActiveTab(pendingTab);
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, pendingTab);
         setPendingTab(null);
       }
     } catch (e) {
@@ -975,7 +1523,6 @@ function FieldsPage() {
     setFieldOrders(savedFieldOrders);
     setHasChanges(false);
     setOpenDropdowns({});
-    setShowHidden(false);
     setInactiveLoaded(false);
   };
 
@@ -983,6 +1530,7 @@ function FieldsPage() {
     if (tabKey === activeTab) return;
     if (!hasChanges) {
       setActiveTab(tabKey);
+      localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
       setOpenDropdowns({});
       return;
     }
@@ -996,9 +1544,9 @@ function FieldsPage() {
         setFieldOrders(savedFieldOrders);
         setHasChanges(false);
         setActiveTab(tabKey);
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
         setPendingTab(null);
         setOpenDropdowns({});
-        setShowHidden(false);
         setInactiveLoaded(false);
       },
     });
@@ -1014,59 +1562,37 @@ function FieldsPage() {
     applyAndCheck(next);
   };
 
+  const handleToggleShowHidden = () => {
+    setOpenDropdowns({});
+    const next = !showHidden;
+    setShowHidden(next);
+    try {
+      localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, next ? "1" : "0");
+    } catch (_) {}
+    setInactiveLoaded(false);
+    if (next && !loading) {
+      void loadHiddenFieldsIntoState();
+    }
+  };
 
   useEffect(() => {
-  if (showHidden && !inactiveLoaded && !loadingInactive) {
+  if (!loading && showHidden && !inactiveLoaded && !loadingInactive) {
     let mounted = true;
     (async () => {
       setLoadingInactive(true);
       try {
-        const rawInactive = await fetchInactiveFields();
-        const normalizedInactive = withDefaults(rawInactive);
+        const inactiveValues = await fetchNormalizedInactiveValues();
 
         if (!mounted) return;
 
-        const mergeInactive = (currentSelectedValues) => {
-          const nextValues = clone(currentSelectedValues);
-          const activeIds = {}; 
-          const sortByConfiguredOrder = (list) =>
-            [...list].sort((a, b) => {
-              const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
-              const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
-              if (aOrder !== bOrder) return aOrder - bOrder;
-              return 0;
-            });
-
-          for (const groupKey of Object.keys(normalizedInactive)) {
-            const group = normalizedInactive[groupKey];
-            if (!nextValues[groupKey] || typeof group !== 'object' || group === null) continue;
-            
-            activeIds[groupKey] = {};
-
-            for (const fieldKey of Object.keys(group)) {
-              if (!nextValues[groupKey].hasOwnProperty(fieldKey)) continue;
-
-              const activeList = nextValues[groupKey][fieldKey] || [];
-              activeIds[groupKey][fieldKey] = new Set(activeList.map(item => item.id));
-
-              const inactiveList = (group[fieldKey] || []).map(item => ({
-                ...item,
-                isDeleted: true
-              }));
-
-              const currentActiveIds = activeIds[groupKey][fieldKey];
-              const mergedList = sortByConfiguredOrder([
-                ...activeList,
-                ...inactiveList.filter(item => !currentActiveIds.has(item.id))
-              ]);
-
-              nextValues[groupKey][fieldKey] = mergedList;
-            }
-          }
-          return nextValues; 
-        };
-
-        setSelectedValues(mergeInactive);
+        setSelectedValues((currentSelectedValues) =>
+          mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
+        );
+        if (!hasChanges) {
+          setSavedValues((currentSavedValues) =>
+            mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
+          );
+        }
         setInactiveLoaded(true); 
 
       } catch (e) {
@@ -1078,26 +1604,39 @@ function FieldsPage() {
 
     return () => { mounted = false; };
   }
-}, [showHidden, inactiveLoaded, loadingInactive]);
+}, [showHidden, inactiveLoaded, loadingInactive, hasChanges, loading, fetchNormalizedInactiveValues]);
 
- 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
     const copy = [...list];
     copy[index] = { ...copy[index], value: newValue };
     handleInputChange(group, field, copy);
   };
- 
-  const handleStringItemToggleDelete = (group, field, index) => {
+  
+  const handleStringItemToggleDelete = (group, field, index, deleteAction = "") => {
     const list = selectedValues[group]?.[field] || [];
     const copy = [...list];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange(group, field, copy);
   };
- 
+
+  const requestStringItemToggleDelete = (group, field, index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.value ?? item?.name ?? item?.code),
+      onToggle: (deleteAction) => handleStringItemToggleDelete(group, field, index, deleteAction),
+    });
+  };
+  
   const handleStringItemAdd = (group, field) => {
     const list = selectedValues[group]?.[field] || [];
-    const newItem = { id: rid(), value: "", isDeleted: false };
+    const newItem = { id: rid(), value: "", isDeleted: false, order: list.length };
     handleInputChange(group, field, [...list, newItem]);
   };
 
@@ -1121,156 +1660,244 @@ function FieldsPage() {
     }
   };
 
-  const updateIntervalValue = (index, value) => {
+  const updateIntervalValue = (originalIndex, value) => {
     const intervals = selectedValues.orderFields.intervals || [];
     const copy = [...intervals];
-    copy[index] = { ...copy[index], intervalValue: value };
+    copy[originalIndex] = { ...copy[originalIndex], intervalValue: value };
     handleInputChange("orderFields", "intervals", copy);
   };
 
-  const validateIntervalOnBlur = (index) => {
+  const validateIntervalOnBlur = (originalIndex) => {
     const intervals = selectedValues.orderFields.intervals || [];
-    const item = intervals[index];
+    const item = intervals[originalIndex];
     const value = tidy(item.intervalValue);
     if (!value && !item.isDeleted) {
-      handleInputChange("orderFields", "intervals", intervals.filter((_, i) => i !== index));
+      handleInputChange("orderFields", "intervals", intervals.filter((_, i) => i !== originalIndex));
       return;
     }
-    const isDuplicate = intervals.some((it, i) => i !== index && !it.isDeleted && tidy(it.intervalValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = intervals.some((it, i) => i !== originalIndex && !it.isDeleted && tidy(it.intervalValue).toLowerCase() === value.toLowerCase());
     if (isDuplicate) {
       alert("Такой интервал уже существует!");
       const copy = [...intervals];
-      copy[index] = { ...copy[index], intervalValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], intervalValue: "" };
       handleInputChange("orderFields", "intervals", copy);
     }
   };
 
-  const toggleDeleteInterval = (index) => {
+  const toggleDeleteInterval = (originalIndex, deleteAction = "") => {
     const intervals = selectedValues.orderFields.intervals || [];
     const copy = [...intervals];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("orderFields", "intervals", copy);
   };
 
-  const updateCategoryValue = (index, field, value) => {
+  const updateCategoryValue = (originalIndex, field, value) => {
     const categories = selectedValues.orderFields.categories || [];
     const copy = [...categories];
-    copy[index] = { ...copy[index], [field]: value };
+    copy[originalIndex] = { ...copy[originalIndex], [field]: value };
     handleInputChange("orderFields", "categories", copy);
     if (field === "categoryInterval") {
-      setOpenDropdowns((prev) => ({ ...prev, [`category-${index}-interval`]: false }));
+      setOpenDropdowns((prev) => ({ ...prev, [`category-${originalIndex}-interval`]: false }));
     }
   };
 
-  const validateCategoryOnBlur = (index) => {
+  const validateCategoryOnBlur = (originalIndex) => {
     const categories = selectedValues.orderFields.categories || [];
-    const current = categories[index];
+    const current = categories[originalIndex];
     const value = tidy(current?.categoryValue);
     const interval = tidy(current?.categoryInterval);
 
     if (!value && !interval && !current.isDeleted) {
-      handleInputChange("orderFields", "categories", categories.filter((_, i) => i !== index));
+      handleInputChange("orderFields", "categories", categories.filter((_, i) => i !== originalIndex));
       return;
     }
     if (!value) return; 
 
-    const isDuplicate = categories.some((item, i) => i !== index && !item.isDeleted && tidy(item.categoryInterval).toLowerCase() === interval.toLowerCase() && tidy(item.categoryValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = categories.some((item, i) => i !== originalIndex && !item.isDeleted && tidy(item.categoryInterval).toLowerCase() === interval.toLowerCase() && tidy(item.categoryValue).toLowerCase() === value.toLowerCase());
 
     if (isDuplicate) {
       alert("Такая категория уже существует в этом интервале!");
       const copy = [...categories];
-      copy[index] = { ...copy[index], categoryValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], categoryValue: "" };
       handleInputChange("orderFields", "categories", copy);
     }
   };
- 
-  const toggleDeleteCategory = (index) => {
+  
+  const toggleDeleteCategory = (originalIndex, deleteAction = "") => {
     const categories = selectedValues.orderFields.categories || [];
     const copy = [...categories];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("orderFields", "categories", copy);
   };
 
-  const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { id: rid(), intervalValue: "", isDeleted: false }]);
-  const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false }]);
+  const addInterval = () => handleInputChange("orderFields", "intervals", [...(selectedValues.orderFields.intervals || []), { id: rid(), intervalValue: "", isDeleted: false, order: (selectedValues.orderFields.intervals || []).length }]);
+  const addCategory = () => handleInputChange("orderFields", "categories", [...(selectedValues.orderFields.categories || []), { id: rid(), categoryInterval: "", categoryValue: "", isDeleted: false, order: (selectedValues.orderFields.categories || []).length }]);
 
- const updateArticleValue = (index, value) => {
+  const updateArticleValue = (originalIndex, value) => {
     const articles = selectedValues.financeFields.articles || [];
     const copy = [...articles];
-    copy[index] = { ...copy[index], articleValue: value };
+    copy[originalIndex] = { ...copy[originalIndex], articleValue: value };
     handleInputChange("financeFields", "articles", copy);
   };
 
-  const validateArticleOnBlur = (index) => {
+  const validateArticleOnBlur = (originalIndex) => {
     const articles = selectedValues.financeFields.articles || [];
-    const item = articles[index];
+    const item = articles[originalIndex];
     const value = tidy(item.articleValue);
 
     if (!value && !item.isDeleted) {
-      handleInputChange("financeFields", "articles", articles.filter((_, i) => i !== index));
+      handleInputChange("financeFields", "articles", articles.filter((_, i) => i !== originalIndex));
       return;
     }
-    const isDuplicate = articles.some((it, i) => i !== index && !it.isDeleted && tidy(it.articleValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = articles.some((it, i) => i !== originalIndex && !it.isDeleted && tidy(it.articleValue).toLowerCase() === value.toLowerCase());
     if (isDuplicate) {
       alert("Такая статья уже существует!");
       const copy = [...articles];
-      copy[index] = { ...copy[index], articleValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], articleValue: "" };
       handleInputChange("financeFields", "articles", copy);
     }
   };
- 
-  const toggleDeleteArticle = (index) => {
+  
+  const toggleDeleteArticle = (originalIndex, deleteAction = "") => {
     const articles = selectedValues.financeFields.articles || [];
     const copy = [...articles];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("financeFields", "articles", copy);
   };
 
-  const updateSubarticleValue = (index, field, value) => {
+  const updateSubarticleValue = (originalIndex, field, value) => {
     const subs = selectedValues.financeFields.subarticles || [];
     const copy = [...subs];
-    copy[index] = { ...copy[index], [field]: value };
+    copy[originalIndex] = { ...copy[originalIndex], [field]: value };
     handleInputChange("financeFields", "subarticles", copy);
     if (field === "subarticleInterval") {
-      setOpenDropdowns((prev) => ({ ...prev, [`subarticle-${index}-interval`]: false }));
+      setOpenDropdowns((prev) => ({ ...prev, [`subarticle-${originalIndex}-interval`]: false }));
     }
   };
 
-  const validateSubarticleOnBlur = (index) => {
+  const validateSubarticleOnBlur = (originalIndex) => {
     const subs = selectedValues.financeFields.subarticles || [];
-    const current = subs[index];
+    const current = subs[originalIndex];
     const value = tidy(current?.subarticleValue);
     const interval = tidy(current?.subarticleInterval);
     if (!value && !interval && !current.isDeleted) {
-      handleInputChange("financeFields", "subarticles", subs.filter((_, i) => i !== index));
+      handleInputChange("financeFields", "subarticles", subs.filter((_, i) => i !== originalIndex));
       return;
     }
     if (!value) return;
-    const isDuplicate = subs.some((item, i) => i !== index && !item.isDeleted && tidy(item.subarticleInterval).toLowerCase() === interval.toLowerCase() && tidy(item.subarticleValue).toLowerCase() === value.toLowerCase());
+    const isDuplicate = subs.some((item, i) => i !== originalIndex && !item.isDeleted && tidy(item.subarticleInterval).toLowerCase() === interval.toLowerCase() && tidy(item.subarticleValue).toLowerCase() === value.toLowerCase());
     if (isDuplicate) {
       alert("Такая подстатья уже существует!");
       const copy = [...subs];
-      copy[index] = { ...copy[index], subarticleValue: "" };
+      copy[originalIndex] = { ...copy[originalIndex], subarticleValue: "" };
       handleInputChange("financeFields", "subarticles", copy);
     }
   };
- 
-  const toggleDeleteSubarticle = (index) => {
+  
+  const toggleDeleteSubarticle = (originalIndex, deleteAction = "") => {
     const subs = selectedValues.financeFields.subarticles || [];
     const copy = [...subs];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[originalIndex];
+    const nextDeleted = !current?.isDeleted;
+    copy[originalIndex] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("financeFields", "subarticles", copy);
   };
- 
-  const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { id: rid(), articleValue: "", isDeleted: false }]);
-  const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false }]);
+  
+  const addArticle = () => handleInputChange("financeFields", "articles", [...(selectedValues.financeFields.articles || []), { id: rid(), articleValue: "", isDeleted: false, order: (selectedValues.financeFields.articles || []).length }]);
+  const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: (selectedValues.financeFields.subarticles || []).length }]);
 
   const updateCardDesigns = (newItems) => handleInputChange("assetsFields", "cardDesigns", newItems);
-  const toggleDeleteCardDesign = (index) => {
+  const toggleDeleteCardDesign = (index, deleteAction = "") => {
     const designs = selectedValues.assetsFields.cardDesigns || [];
     const copy = [...designs];
-    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
     handleInputChange("assetsFields", "cardDesigns", copy);
+  };
+
+  const requestDeleteCardDesign = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      onToggle: (deleteAction) => toggleDeleteCardDesign(index, deleteAction),
+    });
+  };
+
+  const requestDeleteInterval = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.intervalValue),
+      onToggle: (deleteAction) => toggleDeleteInterval(index, deleteAction),
+    });
+  };
+
+  const requestDeleteCategory = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.categoryInterval, item?.categoryValue),
+      onToggle: (deleteAction) => toggleDeleteCategory(index, deleteAction),
+    });
+  };
+
+  const requestDeleteArticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.articleValue),
+      onToggle: (deleteAction) => toggleDeleteArticle(index, deleteAction),
+    });
+  };
+
+  const requestDeleteSubarticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.subarticleInterval, item?.subarticleValue),
+      onToggle: (deleteAction) => toggleDeleteSubarticle(index, deleteAction),
+    });
+  };
+
+  const toggleTagDelete = (group, field, id) => {
+    const list = selectedValues[group]?.[field] || [];
+    const index = list.findIndex((item) => item.id === id);
+    if (index === -1) return;
+    const copy = [...list];
+    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    handleInputChange(group, field, copy);
+  };
+
+  const requestTagDelete = (group, field, id, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      allowHardDelete: false,
+      onToggle: () => toggleTagDelete(group, field, id),
+    });
   };
 
   const toggleCategoryDropdown = (index, e) => {
@@ -1286,6 +1913,7 @@ function FieldsPage() {
 
   const handleSectionDragEnd = (event) => {
     const { active, over } = event;
+    if (!over) return;
     if (active.id !== over.id) {
       setFieldOrders((prevOrders) => {
         const currentOrder = prevOrders[activeTab] || [];
@@ -1319,15 +1947,15 @@ function FieldsPage() {
             <div className="field-row">
               <label className="field-label">Валюта</label>
               <EditableList
-                items={selectedValues.generalFields?.currency || []}
-                onChange={(index, val) => handleStringItemChange("generalFields", "currency", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "currency", index)}
-                onAdd={() => handleStringItemAdd("generalFields", "currency")}
-                onCommit={(index) => handleStringItemBlur("generalFields", "currency", index)}
+                items={buildFixedCurrencyList(selectedValues.generalFields?.currency || [], false)}
+                onChange={() => {}}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("generalFields", "currency", index, item)}
+                onCommit={() => {}}
                 onReorder={(newItems) => handleInputChange("generalFields", "currency", newItems)}
-                placeholder="Введите валюту"
+                placeholder="Код валюты"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
+                readOnly
               />
             </div>
           ),
@@ -1337,11 +1965,11 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.generalFields?.country || []}
                 onChange={(index, val) => handleStringItemChange("generalFields", "country", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "country", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("generalFields", "country", index, item)}
                 onAdd={() => handleStringItemAdd("generalFields", "country")}
                 onCommit={(index) => handleStringItemBlur("generalFields", "country", index)}
                 onReorder={(newItems) => handleInputChange("generalFields", "country", newItems)}
-                placeholder="Введите страну"
+                placeholder="Название страны"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
               />
@@ -1353,9 +1981,10 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.generalFields?.businessLine || []}
                 onChange={(index, val) => handleStringItemChange("generalFields", "businessLine", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("generalFields", "businessLine", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("generalFields", "businessLine", index, item)}
                 onAdd={() => handleStringItemAdd("generalFields", "businessLine")}
                 onCommit={(index) => handleStringItemBlur("generalFields", "businessLine", index)}
+                onReorder={(newItems) => handleInputChange("generalFields", "businessLine", newItems)}
                 placeholder="Введите направление"
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
@@ -1373,7 +2002,7 @@ function FieldsPage() {
               onIntervalChange={updateIntervalValue} 
               onIntervalBlur={validateIntervalOnBlur}
               onAddInterval={addInterval}
-              onToggleDelete={toggleDeleteInterval}
+              onToggleDelete={requestDeleteInterval}
               onReorder={(newItems) => handleInputChange("orderFields", "intervals", newItems)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
@@ -1385,11 +2014,13 @@ function FieldsPage() {
               onCategoryChange={updateCategoryValue}
               onCategoryBlur={validateCategoryOnBlur}
               onAddCategory={addCategory}
-              onToggleDelete={toggleDeleteCategory}
+              onToggleDelete={requestDeleteCategory}
               openDropdowns={openDropdowns}
               onToggleDropdown={toggleCategoryDropdown}
               availableIntervals={intervalsOptions}
               showHidden={showHidden}
+              isDragEnabled={isDragEnabled}
+              onReorder={(newItems) => handleInputChange("orderFields", "categories", newItems)}
             />
           ),
           statuses: (
@@ -1398,7 +2029,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.statuses || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "statuses", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "statuses", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "statuses", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "statuses")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "statuses", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "statuses", newItems)}
@@ -1414,7 +2045,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.closeReasons || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "closeReasons", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "closeReasons", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "closeReasons", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "closeReasons")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "closeReasons", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "closeReasons", newItems)}
@@ -1430,7 +2061,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.projects || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "projects", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "projects", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "projects", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "projects")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "projects", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "projects", newItems)}
@@ -1446,7 +2077,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.discountReason || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "discountReason", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "discountReason", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "discountReason", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "discountReason")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "discountReason", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "discountReason", newItems)}
@@ -1462,7 +2093,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.minOrderAmount || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "minOrderAmount", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "minOrderAmount", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "minOrderAmount", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "minOrderAmount")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "minOrderAmount", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "minOrderAmount", newItems)}
@@ -1478,7 +2109,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.orderFields.readySolution || []}
                 onChange={(index, val) => handleStringItemChange("orderFields", "readySolution", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("orderFields", "readySolution", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("orderFields", "readySolution", index, item)}
                 onAdd={() => handleStringItemAdd("orderFields", "readySolution")}
                 onCommit={(index) => handleStringItemBlur("orderFields", "readySolution", index)}
                 onReorder={(newItems) => handleInputChange("orderFields", "readySolution", newItems)}
@@ -1493,6 +2124,7 @@ function FieldsPage() {
               title="Теги заказа"
               tags={selectedValues.orderFields.tags || []}
               onChange={(v) => handleInputChange("orderFields", "tags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("orderFields", "tags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1502,6 +2134,7 @@ function FieldsPage() {
               title="Теги технологий"
               tags={selectedValues.orderFields.techTags || []}
               onChange={(v) => handleInputChange("orderFields", "techTags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("orderFields", "techTags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1511,6 +2144,7 @@ function FieldsPage() {
               title="Теги задач"
               tags={selectedValues.orderFields.taskTags || []}
               onChange={(v) => handleInputChange("orderFields", "taskTags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("orderFields", "taskTags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1526,7 +2160,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.executorFields.role || []}
                 onChange={(index, val) => handleStringItemChange("executorFields", "role", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("executorFields", "role", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("executorFields", "role", index, item)}
                 onAdd={() => handleStringItemAdd("executorFields", "role")}
                 onCommit={(index) => handleStringItemBlur("executorFields", "role", index)}
                 onReorder={(newItems) => handleInputChange("executorFields", "role", newItems)}
@@ -1547,7 +2181,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.category || []}
                 onChange={(index, val) => handleStringItemChange("clientFields", "category", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "category", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("clientFields", "category", index, item)}
                 onAdd={() => handleStringItemAdd("clientFields", "category")}
                 onCommit={(index) => handleStringItemBlur("clientFields", "category", index)}
                 onReorder={(newItems) => handleInputChange("clientFields", "category", newItems)}
@@ -1563,7 +2197,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.source || []}
                 onChange={(index, val) => handleStringItemChange("clientFields", "source", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "source", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("clientFields", "source", index, item)}
                 onAdd={() => handleStringItemAdd("clientFields", "source")}
                 onCommit={(index) => handleStringItemBlur("clientFields", "source", index)}
                 onReorder={(newItems) => handleInputChange("clientFields", "source", newItems)}
@@ -1579,7 +2213,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.clientFields.business || []}
                 onChange={(index, val) => handleStringItemChange("clientFields", "business", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("clientFields", "business", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("clientFields", "business", index, item)}
                 onAdd={() => handleStringItemAdd("clientFields", "business")}
                 onCommit={(index) => handleStringItemBlur("clientFields", "business", index)}
                 onReorder={(newItems) => handleInputChange("clientFields", "business", newItems)}
@@ -1594,6 +2228,7 @@ function FieldsPage() {
               title="Теги клиента"
               tags={selectedValues.clientFields.tags || []}
               onChange={(v) => handleInputChange("clientFields", "tags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("clientFields", "tags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1609,6 +2244,7 @@ function FieldsPage() {
                 title="Теги компании"
                 tags={selectedValues.companyFields?.tags || []}
                 onChange={(v) => handleInputChange("companyFields", "tags", v)}
+                onToggleDelete={(id, item) => requestTagDelete("companyFields", "tags", id, item)}
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
               />
@@ -1624,6 +2260,7 @@ function FieldsPage() {
               title="Теги сотрудника"
               tags={selectedValues.employeeFields.tags || []}
               onChange={(v) => handleInputChange("employeeFields", "tags", v)}
+              onToggleDelete={(id, item) => requestTagDelete("employeeFields", "tags", id, item)}
               showHidden={showHidden}
               isDragEnabled={isDragEnabled}
             />
@@ -1639,7 +2276,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.assetsFields.type || []}
                 onChange={(index, val) => handleStringItemChange("assetsFields", "type", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("assetsFields", "type", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("assetsFields", "type", index, item)}
                 onAdd={() => handleStringItemAdd("assetsFields", "type")}
                 onCommit={(index) => handleStringItemBlur("assetsFields", "type", index)}
                 onReorder={(newItems) => handleInputChange("assetsFields", "type", newItems)}
@@ -1655,7 +2292,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.assetsFields.paymentSystem || []}
                 onChange={(index, val) => handleStringItemChange("assetsFields", "paymentSystem", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("assetsFields", "paymentSystem", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("assetsFields", "paymentSystem", index, item)}
                 onAdd={() => handleStringItemAdd("assetsFields", "paymentSystem")}
                 onCommit={(index) => handleStringItemBlur("assetsFields", "paymentSystem", index)}
                 onReorder={(newItems) => handleInputChange("assetsFields", "paymentSystem", newItems)}
@@ -1671,9 +2308,11 @@ function FieldsPage() {
               <CardDesignUpload
                 cardDesigns={selectedValues.assetsFields.cardDesigns || []}
                 onAdd={(newItems) => updateCardDesigns(newItems)}
-                onToggleDelete={toggleDeleteCardDesign}
+                onToggleDelete={requestDeleteCardDesign}
                 onError={({ title, message }) => openErrorModal(title, message)}
                 showHidden={showHidden}
+                isDragEnabled={isDragEnabled}
+                onReorder={(newItems) => handleInputChange("assetsFields", "cardDesigns", newItems)}
               />
             </div>
           )
@@ -1688,8 +2327,10 @@ function FieldsPage() {
               onArticleChange={updateArticleValue}
               onArticleBlur={validateArticleOnBlur}
               onAddArticle={addArticle}
-              onToggleDelete={toggleDeleteArticle}
+              onToggleDelete={requestDeleteArticle}
               showHidden={showHidden}
+              isDragEnabled={isDragEnabled}
+              onReorder={(newItems) => handleInputChange("financeFields", "articles", newItems)}
             />
           ),
           subcategory: (
@@ -1698,7 +2339,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.financeFields?.subcategory || []}
                 onChange={(index, val) => handleStringItemChange("financeFields", "subcategory", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("financeFields", "subcategory", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("financeFields", "subcategory", index, item)}
                 onAdd={() => handleStringItemAdd("financeFields", "subcategory")}
                 onCommit={(index) => handleStringItemBlur("financeFields", "subcategory", index)}
                 onReorder={(newItems) => handleInputChange("financeFields", "subcategory", newItems)}
@@ -1714,12 +2355,14 @@ function FieldsPage() {
               onSubarticleChange={updateSubarticleValue}
               onSubarticleBlur={validateSubarticleOnBlur}
               onAddSubarticle={addSubarticle}
-              onToggleDelete={toggleDeleteSubarticle}
+              onToggleDelete={requestDeleteSubarticle}
               openDropdowns={openDropdowns}
               onToggleDropdown={toggleSubarticleDropdown}
               availableArticles={articleOptions}
               availableSubcategories={subcategoryOptions} 
               showHidden={showHidden}
+              isDragEnabled={isDragEnabled}
+              onReorder={(newItems) => handleInputChange("financeFields", "subarticles", newItems)}
             />
           )
         };
@@ -1733,7 +2376,7 @@ function FieldsPage() {
               <EditableList
                 items={selectedValues.sundryFields?.typeWork || []} 
                 onChange={(index, val) => handleStringItemChange("sundryFields", "typeWork", index, val)}
-                onToggleDelete={(index) => handleStringItemToggleDelete("sundryFields", "typeWork", index)}
+                onToggleDelete={(index, item) => requestStringItemToggleDelete("sundryFields", "typeWork", index, item)}
                 onAdd={() => handleStringItemAdd("sundryFields", "typeWork")}
                 onCommit={(index) => handleStringItemBlur("sundryFields", "typeWork", index)}
                 onReorder={(newItems) => handleInputChange("sundryFields", "typeWork", newItems)}
@@ -1754,6 +2397,7 @@ function FieldsPage() {
                 title="Теги задач"
                 tags={selectedValues.taskFields?.tags || []}
                 onChange={(v) => handleInputChange("taskFields", "tags", v)}
+                onToggleDelete={(id, item) => requestTagDelete("taskFields", "tags", id, item)}
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
               />
@@ -1768,7 +2412,7 @@ function FieldsPage() {
 
     return (
       <div className="fields-vertical-grid" style={{ transition: 'padding 0.2s' }}>
-         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+         <DndContext id={pageDndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
           <SortableContext items={currentOrder} strategy={verticalListSortingStrategy}>
             {currentOrder.map((key) => {
               if (!componentsMap[key]) return null;
@@ -1797,9 +2441,10 @@ function FieldsPage() {
               </h1>
             </div>
             
+            <div className="fields-view-toggle-buttons">
               <button
                 type="button"
-                className={`header-action-btn ${isDragEnabled ? 'active' : ''}`}
+                className={`fields-view-mode-button ${isDragEnabled ? 'active' : ''}`}
                 title={isDragEnabled ? "Выключить сортировку" : "Включить сортировку"}
                 onClick={() => setIsDragEnabled(!isDragEnabled)}
                 disabled={saving || loading || forbidden}
@@ -1809,13 +2454,15 @@ function FieldsPage() {
 
               <button
                 type="button"
-                className={`header-action-btn ${showHidden ? 'active' : ''}`}
-                title={showHidden ? "Скрыть удаленные" : "Показать удаленные"}
-                onClick={() => setShowHidden(!showHidden)}
+                className={`fields-view-mode-button ${showHidden ? 'active' : ''}`}
+                title={showHidden ? "Скрыть скрытые" : "Показать скрытые"}
+                onClick={handleToggleShowHidden}
                 disabled={saving || loading || forbidden}
               >
                 {showHidden ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
+            </div>
+
             <div className="header-actions">
               {loading && <span className="loading-label">Загрузка…</span>}
               {saving && <span className="loading-label">Сохранение…</span>}
@@ -1869,9 +2516,12 @@ function FieldsPage() {
           title={modal.title}
           message={modal.message}
           confirmText={modal.confirmText}
+          secondaryText={modal.secondaryText}
           cancelText={modal.cancelText}
           onConfirm={modal.onConfirm}
+          onSecondary={modal.onSecondary}
           onCancel={modal.onCancel}
+          onDismiss={modal.onDismiss}
         />
       )}
     </div>

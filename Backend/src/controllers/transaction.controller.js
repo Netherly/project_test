@@ -1,5 +1,7 @@
 const { OperationType } = require('@prisma/client');
 const prisma = require('../../prisma/client');
+const { logActivity } = require('../services/activity-log.service');
+const { resolveEntityId } = require('../utils/entity-ref');
 
 /** ===== HELPERS ===== */
 
@@ -95,12 +97,28 @@ const trxInclude = {
   account: {
     select: {
       id: true,
+      urlId: true,
       accountName: true,
+      employeeId: true,
+      employee: { select: { id: true, full_name: true } },
       currency: { select: { code: true } },
     },
   },
   categoryDict: { select: { id: true, name: true } },
   subcategoryDict: { select: { id: true, name: true } },
+  employee: { select: { id: true, full_name: true } },
+  client: { select: { id: true, urlId: true, name: true } },
+  order: {
+    select: {
+      id: true,
+      urlId: true,
+      numberOrder: true,
+      name: true,
+      title: true,
+      clientId: true,
+      client: { select: { id: true, urlId: true, name: true } },
+    },
+  },
 };
 
 function viewModel(trx) {
@@ -119,6 +137,333 @@ function viewModel(trx) {
     accountName,
     accountCurrency,
   };
+}
+
+const buildActorMeta = (req) => ({
+  actorId: req.user?.employeeId || null,
+  source: 'manual',
+  ip: req.ip,
+  userAgent: req.headers['user-agent'],
+});
+
+const safeActivityLog = async (payload) => {
+  try {
+    return await logActivity(payload);
+  } catch (error) {
+    console.warn('[log] transaction activity failed:', error?.message || error);
+    return null;
+  }
+};
+
+const getTargetLabel = (target) => target?.employeeName || target?.employeeId || 'сотрудник';
+
+const buildOrderLinkLabel = (order) => {
+  const number = String(order?.numberOrder || '').trim();
+  if (number) return `заказ №${number}`;
+
+  const name = String(order?.name || order?.title || '').trim();
+  if (name) return `заказ "${name}"`;
+
+  return 'заказ';
+};
+
+const buildOrderLinkPart = (order) => {
+  if (!order?.id) return null;
+
+  return {
+    type: 'link',
+    text: buildOrderLinkLabel(order),
+    targetType: 'order',
+    id: order.id,
+    urlId: order.urlId || null,
+  };
+};
+
+const formatTransactionAmount = (trx) => {
+  const amount = Number(trx?.amount);
+  if (!Number.isFinite(amount)) return '';
+  const currency = trx?.account?.currency?.code || trx?.accountCurrency || '';
+  return `${amount}${currency ? ` ${currency}` : ''}`;
+};
+
+const buildTransactionMessageParts = ({ trx, target, verb }) => {
+  const verbLabel = verb === 'created' ? 'создана' : verb === 'deleted' ? 'удалена' : 'обновлена';
+  const employeeLabel = getTargetLabel(target);
+  const amountLabel = formatTransactionAmount(trx);
+  const assetLabel = target?.accountName || trx?.account?.accountName || null;
+
+  const parts = [
+    { type: 'text', text: `Для сотрудника "${employeeLabel}" ${verbLabel} ` },
+  ];
+
+  if (trx?.id) {
+    parts.push({
+      type: 'link',
+      text: 'транзакция',
+      targetType: 'transaction',
+      id: trx.id,
+      urlId: trx.urlId || null,
+    });
+  } else {
+    parts.push({ type: 'text', text: 'транзакция' });
+  }
+
+  if (amountLabel) {
+    parts.push({ type: 'text', text: ` на сумму ${amountLabel}` });
+  }
+
+  if (assetLabel && trx?.accountId) {
+    parts.push({ type: 'text', text: ' по активу ' });
+    parts.push({
+      type: 'link',
+      text: `"${assetLabel}"`,
+      targetType: 'asset',
+      id: trx.accountId,
+      urlId: target?.accountUrlId || trx?.account?.urlId || null,
+    });
+  }
+
+  return parts;
+};
+
+const stringifyMessageParts = (parts = []) =>
+  parts
+    .map((part) => (part && typeof part.text === 'string' ? part.text : ''))
+    .join('');
+
+const buildTransactionMeta = ({ trx, target, verb }) => {
+  const messageParts = buildTransactionMessageParts({ trx, target, verb });
+  const meta = {};
+
+  if (trx?.id) {
+    meta.target = {
+      type: 'transaction',
+      id: trx.id,
+      urlId: trx.urlId || null,
+      label: 'транзакция',
+    };
+  }
+
+  if (messageParts.length) {
+    meta.messageParts = messageParts;
+  }
+
+  return meta;
+};
+
+function collectClientTargets(trx) {
+  const targets = new Map();
+
+  if (trx?.clientId) {
+    targets.set(trx.clientId, {
+      clientId: trx.clientId,
+      clientName: trx.client?.name || null,
+    });
+  }
+
+  const orderClientId = trx?.order?.clientId || trx?.order?.client?.id;
+  if (orderClientId) {
+    targets.set(orderClientId, {
+      clientId: orderClientId,
+      clientName: trx.order?.client?.name || targets.get(orderClientId)?.clientName || null,
+    });
+  }
+
+  return targets;
+}
+
+function buildClientTransactionAction(verb) {
+  const suffix = verb === 'created' ? 'created' : verb === 'deleted' ? 'deleted' : 'updated';
+  return `transaction_${suffix}`;
+}
+
+const buildClientTransactionMessageParts = ({ trx, verb }) => {
+  const prefix =
+    verb === 'created'
+      ? 'Создана '
+      : verb === 'deleted'
+        ? 'Удалена '
+        : 'Обновлена ';
+
+  const parts = [
+    { type: 'text', text: prefix },
+    {
+      type: 'link',
+      text: 'транзакция',
+      targetType: 'transaction',
+      id: trx?.id || null,
+      urlId: trx?.urlId || null,
+    },
+  ];
+
+  const amountLabel = formatTransactionAmount(trx);
+  if (amountLabel) {
+    parts.push({ type: 'text', text: ` на сумму ${amountLabel}` });
+  }
+
+  const orderLinkPart = buildOrderLinkPart(trx?.order);
+  if (orderLinkPart) {
+    parts.push({ type: 'text', text: ' по ' });
+    parts.push(orderLinkPart);
+  }
+
+  return parts;
+};
+
+const buildClientTransactionMessage = ({ trx, verb }) =>
+  stringifyMessageParts(buildClientTransactionMessageParts({ trx, verb }));
+
+const buildClientTransactionMeta = ({ trx, verb }) => {
+  const messageParts = buildClientTransactionMessageParts({ trx, verb });
+  const meta = {};
+
+  if (trx?.id) {
+    meta.target = {
+      type: 'transaction',
+      id: trx.id,
+      urlId: trx.urlId || null,
+      label: 'транзакция',
+    };
+  }
+
+  if (messageParts.length) {
+    meta.messageParts = messageParts;
+  }
+
+  return meta;
+};
+
+function collectEmployeeTargets(trx) {
+  const targets = new Map();
+
+  if (trx?.employeeId) {
+    targets.set(trx.employeeId, {
+      employeeId: trx.employeeId,
+      employeeName: trx.employee?.full_name || null,
+      kind: 'transaction',
+      accountName: trx.account?.accountName || null,
+      accountUrlId: trx.account?.urlId || null,
+    });
+  }
+
+  if (trx?.account?.employeeId) {
+    targets.set(trx.account.employeeId, {
+      employeeId: trx.account.employeeId,
+      employeeName: trx.account.employee?.full_name || targets.get(trx.account.employeeId)?.employeeName || null,
+      kind: 'asset_transaction',
+      accountName: trx.account?.accountName || null,
+      accountUrlId: trx.account?.urlId || null,
+    });
+  }
+
+  return targets;
+}
+
+function buildTransactionAction(kind, verb) {
+  const suffix = verb === 'created' ? 'created' : verb === 'deleted' ? 'deleted' : 'updated';
+  return kind === 'asset_transaction' ? `asset_transaction_${suffix}` : `transaction_${suffix}`;
+}
+
+function buildTransactionMessage({ trx, target, verb }) {
+  return stringifyMessageParts(buildTransactionMessageParts({ trx, target, verb }));
+}
+
+async function emitEmployeeTransactionLogs({ before, after, verb, actorMeta }) {
+  const beforeTargets = before ? collectEmployeeTargets(before) : new Map();
+  const afterTargets = after ? collectEmployeeTargets(after) : new Map();
+  const targetIds = new Set();
+
+  if (verb === 'deleted') {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+  } else if (verb === 'created') {
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  } else {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  }
+
+  for (const employeeId of targetIds) {
+    if (!employeeId) continue;
+
+    let currentVerb = verb;
+    let target = afterTargets.get(employeeId) || beforeTargets.get(employeeId);
+    let trx = after || before;
+
+    if (verb === 'updated') {
+      const hadBefore = beforeTargets.has(employeeId);
+      const hasAfter = afterTargets.has(employeeId);
+      if (hadBefore && hasAfter) {
+        currentVerb = 'updated';
+        target = afterTargets.get(employeeId);
+        trx = after;
+      } else if (hadBefore) {
+        currentVerb = 'deleted';
+        target = beforeTargets.get(employeeId);
+        trx = before;
+      } else {
+        currentVerb = 'created';
+        target = afterTargets.get(employeeId);
+        trx = after;
+      }
+    }
+
+    const meta = buildTransactionMeta({ trx, target, verb: currentVerb });
+
+    await safeActivityLog({
+      entityType: 'employee',
+      entityId: employeeId,
+      action: buildTransactionAction(target?.kind, currentVerb),
+      message: buildTransactionMessage({ trx, target, verb: currentVerb }),
+      meta,
+      ...actorMeta,
+    });
+  }
+}
+
+async function emitClientTransactionLogs({ before, after, verb, actorMeta }) {
+  const beforeTargets = before ? collectClientTargets(before) : new Map();
+  const afterTargets = after ? collectClientTargets(after) : new Map();
+  const targetIds = new Set();
+
+  if (verb === 'deleted') {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+  } else if (verb === 'created') {
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  } else {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  }
+
+  for (const clientId of targetIds) {
+    if (!clientId) continue;
+
+    let currentVerb = verb;
+    let trx = after || before;
+
+    if (verb === 'updated') {
+      const hadBefore = beforeTargets.has(clientId);
+      const hasAfter = afterTargets.has(clientId);
+      if (hadBefore && hasAfter) {
+        currentVerb = 'updated';
+        trx = after;
+      } else if (hadBefore) {
+        currentVerb = 'deleted';
+        trx = before;
+      } else {
+        currentVerb = 'created';
+        trx = after;
+      }
+    }
+
+    await safeActivityLog({
+      entityType: 'client',
+      entityId: clientId,
+      action: buildClientTransactionAction(currentVerb),
+      message: buildClientTransactionMessage({ trx, verb: currentVerb }),
+      meta: buildClientTransactionMeta({ trx, verb: currentVerb }),
+      ...actorMeta,
+    });
+  }
 }
 
 /**
@@ -310,8 +655,11 @@ exports.list = async (req, res, next) => {
 /** GET /api/transactions/:id */
 exports.getById = async (req, res, next) => {
   try {
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
     const trx = await prisma.transaction.findUnique({
-      where: { id: req.params.id },
+      where: { id: actualId },
       include: trxInclude,
     });
     if (!trx) return res.status(404).json({ message: 'Transaction not found' });
@@ -325,9 +673,10 @@ exports.getById = async (req, res, next) => {
 exports.create = async (req, res) => {
   try {
     const body = req.body;
+    const actorMeta = buildActorMeta(req);
 
     const createOne = async (rawItem) => {
-      return prisma.$transaction(async (tx) => {
+      const created = await prisma.$transaction(async (tx) => {
         const data = await prepareTransactionData(rawItem, tx);
 
         if (!data.accountId) throw new Error('accountId is required');
@@ -343,6 +692,10 @@ exports.create = async (req, res) => {
 
         return created;
       });
+
+      await emitEmployeeTransactionLogs({ after: created, verb: 'created', actorMeta });
+      await emitClientTransactionLogs({ after: created, verb: 'created', actorMeta });
+      return created;
     };
 
     if (Array.isArray(body)) {
@@ -367,8 +720,15 @@ exports.create = async (req, res) => {
 /** PUT /api/transactions/:id */
 exports.update = async (req, res, next) => {
   try {
-    const updated = await prisma.$transaction(async (tx) => {
-      const before = await tx.transaction.findUnique({ where: { id: req.params.id } });
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
+    const actorMeta = buildActorMeta(req);
+    const result = await prisma.$transaction(async (tx) => {
+      const before = await tx.transaction.findUnique({
+        where: { id: actualId },
+        include: trxInclude,
+      });
       if (!before) {
         const err = new Error('Transaction not found');
         err.status = 404;
@@ -377,7 +737,7 @@ exports.update = async (req, res, next) => {
 
       const data = await prepareTransactionData(req.body, tx);
       const after = await tx.transaction.update({
-        where: { id: req.params.id },
+        where: { id: actualId },
         data,
         include: trxInclude,
       });
@@ -393,10 +753,23 @@ exports.update = async (req, res, next) => {
         await applyAssetEffect(tx, after.accountId, afterEffect);
       }
 
-      return after;
+      return { before, after };
     });
 
-    res.json(viewModel(updated));
+    await emitEmployeeTransactionLogs({
+      before: result.before,
+      after: result.after,
+      verb: 'updated',
+      actorMeta,
+    });
+    await emitClientTransactionLogs({
+      before: result.before,
+      after: result.after,
+      verb: 'updated',
+      actorMeta,
+    });
+
+    res.json(viewModel(result.after));
   } catch (err) {
     if (err.status === 404 || err.code === 'P2025') {
       return res.status(404).json({ message: 'Transaction not found' });
@@ -408,18 +781,37 @@ exports.update = async (req, res, next) => {
 /** DELETE /api/transactions/:id */
 exports.removeOne = async (req, res, next) => {
   try {
-    await prisma.$transaction(async (tx) => {
-      const trx = await tx.transaction.findUnique({ where: { id: req.params.id } });
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
+    const actorMeta = buildActorMeta(req);
+    const removed = await prisma.$transaction(async (tx) => {
+      const trx = await tx.transaction.findUnique({
+        where: { id: actualId },
+        include: trxInclude,
+      });
       if (!trx) {
         const err = new Error('Transaction not found');
         err.status = 404;
         throw err;
       }
 
-      await tx.transaction.delete({ where: { id: req.params.id } });
+      await tx.transaction.delete({ where: { id: actualId } });
 
       const effect = buildAssetEffect(trx);
       await applyAssetEffect(tx, trx.accountId, invertEffect(effect));
+      return trx;
+    });
+
+    await emitEmployeeTransactionLogs({
+      before: removed,
+      verb: 'deleted',
+      actorMeta,
+    });
+    await emitClientTransactionLogs({
+      before: removed,
+      verb: 'deleted',
+      actorMeta,
     });
 
     res.json({ ok: true });
@@ -434,8 +826,12 @@ exports.removeOne = async (req, res, next) => {
 /** POST /api/transactions/:id/duplicate */
 exports.duplicate = async (req, res, next) => {
   try {
+    const actualId = await resolveEntityId(prisma.transaction, req.params.id, {
+      notFoundMessage: 'Transaction not found',
+    });
+    const actorMeta = buildActorMeta(req);
     const copy = await prisma.$transaction(async (tx) => {
-      const trx = await tx.transaction.findUnique({ where: { id: req.params.id } });
+      const trx = await tx.transaction.findUnique({ where: { id: actualId } });
       if (!trx) {
         const err = new Error('Transaction not found');
         err.status = 404;
@@ -457,6 +853,17 @@ exports.duplicate = async (req, res, next) => {
       await applyAssetEffect(tx, created.accountId, effect);
 
       return created;
+    });
+
+    await emitEmployeeTransactionLogs({
+      after: copy,
+      verb: 'created',
+      actorMeta,
+    });
+    await emitClientTransactionLogs({
+      after: copy,
+      verb: 'created',
+      actorMeta,
     });
 
     res.status(201).json(viewModel(copy));

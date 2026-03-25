@@ -1,9 +1,41 @@
 const prisma = require('../../prisma/client');
+const LOG_META_KEY = '__meta';
 
 const ENTITY_LABELS = {
   client: 'клиент',
   employee: 'сотрудник',
 };
+const IMPORTANT_EMPLOYEE_ACTIONS = new Set([
+  'created',
+  'deleted',
+  'note',
+  'telegram_linked',
+  'telegram_unlinked',
+  'asset_attached',
+  'asset_detached',
+  'asset_removed',
+  'transaction_created',
+  'transaction_updated',
+  'transaction_deleted',
+  'asset_transaction_created',
+  'asset_transaction_updated',
+  'asset_transaction_deleted',
+]);
+const IMPORTANT_CLIENT_ACTIONS = new Set([
+  'created',
+  'deleted',
+  'note',
+  'order_created',
+  'order_linked',
+  'order_unlinked',
+  'order_status_updated',
+  'transaction_created',
+  'transaction_updated',
+  'transaction_deleted',
+  'regular_payment_created',
+  'regular_payment_updated',
+  'regular_payment_deleted',
+]);
 
 const sanitizeUserAgent = (value) => {
   if (!value) return null;
@@ -20,6 +52,30 @@ const sanitizeIp = (value) => {
 };
 
 const jsonReplacer = (_key, value) => (typeof value === 'bigint' ? value.toString() : value);
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const normalizeMessageParts = (value) => {
+  if (!Array.isArray(value)) return null;
+
+  const parts = value
+    .map((part) => {
+      if (!isPlainObject(part)) return null;
+
+      const text = part.text === undefined || part.text === null ? '' : String(part.text);
+      if (!text) return null;
+
+      return {
+        type: part.type === 'link' ? 'link' : 'text',
+        text,
+        targetType: part.targetType ? String(part.targetType) : null,
+        id: part.id ? String(part.id) : null,
+        urlId: part.urlId ?? null,
+      };
+    })
+    .filter(Boolean);
+
+  return parts.length ? parts : null;
+};
 
 const toPlain = (value) => {
   if (value === undefined) return undefined;
@@ -34,6 +90,41 @@ const toPlain = (value) => {
     }
   }
   return value;
+};
+
+const extractLogMeta = (changes) => {
+  if (!isPlainObject(changes) || !isPlainObject(changes[LOG_META_KEY])) return {};
+  return changes[LOG_META_KEY];
+};
+
+const stripLogMeta = (changes) => {
+  if (!isPlainObject(changes)) return changes ?? null;
+  const next = { ...changes };
+  delete next[LOG_META_KEY];
+  return Object.keys(next).length ? next : null;
+};
+
+const applyLogMeta = (changes, patch = {}) => {
+  const base = isPlainObject(changes) ? { ...changes } : {};
+  const currentMeta = extractLogMeta(base);
+  const nextMeta = { ...currentMeta };
+
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    if (value === null || value === false || value === '') {
+      delete nextMeta[key];
+    } else {
+      nextMeta[key] = value;
+    }
+  }
+
+  if (Object.keys(nextMeta).length) {
+    base[LOG_META_KEY] = nextMeta;
+  } else {
+    delete base[LOG_META_KEY];
+  }
+
+  return Object.keys(base).length ? base : null;
 };
 
 const diffObjects = (before = {}, after = {}, { exclude = [] } = {}) => {
@@ -82,11 +173,13 @@ const logActivity = async ({
   actorName,
   message,
   changes,
+  meta,
   ip,
   userAgent,
 }) => {
   if (!entityType || !entityId || !action) return null;
   const resolvedActorName = await resolveActorName(actorId, actorName);
+  const preparedChanges = meta ? applyLogMeta(changes, meta) : changes ?? null;
 
   return prisma.activityLog.create({
     data: {
@@ -97,21 +190,80 @@ const logActivity = async ({
       actorId: actorId || null,
       actorName: resolvedActorName,
       message: message ?? null,
-      changes: changes ?? null,
+      changes: preparedChanges,
       ip: sanitizeIp(ip),
       userAgent: sanitizeUserAgent(userAgent),
     },
   });
 };
 
+const decorateLog = (log) => {
+  const { actor, ...rest } = log || {};
+  const meta = extractLogMeta(log?.changes);
+  const cleanChanges = stripLogMeta(log?.changes);
+  const isEmployeeImportant =
+    log?.entityType === 'employee' &&
+    IMPORTANT_EMPLOYEE_ACTIONS.has(log?.action);
+  const isClientImportant =
+    log?.entityType === 'client' &&
+    IMPORTANT_CLIENT_ACTIONS.has(log?.action);
+  const presentation = log?.entityType === 'employee'
+    ? isEmployeeImportant
+      ? 'important'
+      : 'inline'
+    : log?.entityType === 'client'
+      ? isClientImportant
+        ? 'important'
+        : 'inline'
+      : 'card';
+
+  return {
+    ...rest,
+    changes: cleanChanges,
+    target: isPlainObject(meta?.target) ? meta.target : null,
+    messageParts: normalizeMessageParts(meta?.messageParts),
+    actorUrlId: actor?.urlId ?? null,
+    pinned: Boolean(meta?.pinned),
+    important: presentation === 'important',
+    presentation,
+    editable: log?.action === 'note',
+    deletable: log?.action === 'note',
+    pinnable: log?.entityType === 'employee'
+      ? presentation === 'important'
+      : log?.action === 'note',
+  };
+};
+
+const getLogOrThrow = async ({ entityType, entityId, logId }) => {
+  const log = await prisma.activityLog.findFirst({
+    where: {
+      id: logId,
+      entityType,
+      entityId,
+    },
+  });
+
+  if (!log) {
+    const err = new Error('Log not found');
+    err.status = 404;
+    throw err;
+  }
+
+  return log;
+};
+
 const listLogs = async ({ entityType, entityId, limit = 200, order = 'asc' }) => {
   const take = Math.min(Math.max(Number(limit) || 200, 1), 500);
   const sort = order === 'desc' ? 'desc' : 'asc';
-  return prisma.activityLog.findMany({
+  const rows = await prisma.activityLog.findMany({
     where: { entityType, entityId },
     orderBy: { createdAt: sort },
     take,
+    include: {
+      actor: { select: { urlId: true } },
+    },
   });
+  return rows.map(decorateLog);
 };
 
 const createNote = async ({
@@ -126,7 +278,7 @@ const createNote = async ({
 }) => {
   const text = String(message || '').trim();
   if (!text) return null;
-  return logActivity({
+  const created = await logActivity({
     entityType,
     entityId,
     action: 'note',
@@ -137,13 +289,90 @@ const createNote = async ({
     ip,
     userAgent,
   });
+  return decorateLog(created);
+};
+
+const updateNote = async ({
+  entityType,
+  entityId,
+  logId,
+  message,
+}) => {
+  const existing = await getLogOrThrow({ entityType, entityId, logId });
+  if (existing.action !== 'note') {
+    const err = new Error('Only notes can be edited');
+    err.status = 400;
+    throw err;
+  }
+
+  const text = String(message || '').trim();
+  if (!text) {
+    const err = new Error('message is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const updated = await prisma.activityLog.update({
+    where: { id: existing.id },
+    data: {
+      message: text,
+      changes: applyLogMeta(existing.changes, {
+        editedAt: new Date().toISOString(),
+      }),
+    },
+  });
+
+  return decorateLog(updated);
+};
+
+const deleteNote = async ({
+  entityType,
+  entityId,
+  logId,
+}) => {
+  const existing = await getLogOrThrow({ entityType, entityId, logId });
+  if (existing.action !== 'note') {
+    const err = new Error('Only notes can be deleted');
+    err.status = 400;
+    throw err;
+  }
+
+  await prisma.activityLog.delete({
+    where: { id: existing.id },
+  });
+
+  return existing;
+};
+
+const setPinned = async ({
+  entityType,
+  entityId,
+  logId,
+  pinned,
+}) => {
+  const existing = await getLogOrThrow({ entityType, entityId, logId });
+  const updated = await prisma.activityLog.update({
+    where: { id: existing.id },
+    data: {
+      changes: applyLogMeta(existing.changes, {
+        pinned: Boolean(pinned),
+        pinnedAt: pinned ? new Date().toISOString() : null,
+      }),
+    },
+  });
+
+  return decorateLog(updated);
 };
 
 module.exports = {
   ENTITY_LABELS,
+  LOG_META_KEY,
   toPlain,
   diffObjects,
   logActivity,
   listLogs,
   createNote,
+  updateNote,
+  deleteNote,
+  setPinned,
 };

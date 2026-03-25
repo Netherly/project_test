@@ -3,6 +3,7 @@ import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
 import { Plus, X, Minus} from 'lucide-react';
 import { createTransaction } from '../../api/transactions';
+import CreatableSelect from '../Client/ClientModal/CreatableSelect'; 
 
 const getArticleValue = (article) =>
   String(article?.articleValue ?? article?.name ?? article?.value ?? '').trim();
@@ -22,14 +23,12 @@ const generateId = (prefix) => {
   return prefix + Math.random().toString(36).substring(2, 9) + Date.now().toString(36).substring(4, 9);
 };
 
-
 const extractString = (val) => {
   if (!val) return null;
   if (typeof val === 'string') return val;
   if (typeof val === 'object') return val.value || val.label || val.name || null;
   return String(val);
 };
-
 
 const parseRequisites = (reqData) => {
   if (!reqData) return [];
@@ -59,14 +58,39 @@ const parseRequisites = (reqData) => {
   return [];
 };
 
-
 const formatEmployeeRequisite = (req) => {
-  const bank = extractString(req.bank) || extractString(req.bankName) || '—';
-  const currency = extractString(req.currency) || extractString(req.accountCurrency) || '—';
-  const card = extractString(req.card) || extractString(req.cardNumber) || extractString(req.number) || '—';
-  const owner = extractString(req.owner) || extractString(req.holder) || extractString(req.fio) || extractString(req.name) || '—';
-  
-  return `Банк: ${bank} (${currency}) Номер карты: ${card} Владелец: ${owner}`;
+  if (!req) return '';
+  if (typeof req === 'string') return req;
+
+  const bank = extractString(req.bank) || extractString(req.bankName);
+  const currency = extractString(req.currency) || extractString(req.accountCurrency);
+  const card = extractString(req.card) || extractString(req.cardNumber) || extractString(req.number);
+  const owner = extractString(req.owner) || extractString(req.holder) || extractString(req.fio) || extractString(req.name);
+
+  const parts = [];
+
+  if (bank) {
+    parts.push(`Банк: ${bank}${currency ? `(${currency})` : ''}`);
+  }
+  if (card) {
+    parts.push(`Номер карты: ${card}`);
+  }
+  if (owner) {
+    parts.push(`Владелец: ${owner}`);
+  }
+
+  if (parts.length > 0) {
+    return parts.join(', ');
+  }
+
+  const label = extractString(req.label);
+  const val = extractString(req.value) || extractString(req.text);
+
+  if (label && val) return `${label}: ${val}`;
+  if (val) return val;
+  if (label) return label;
+
+  return '';
 };
 
 const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialData = {}, orders = [], counterparties = [], onAddNewField }) => {
@@ -117,7 +141,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         amount: "",
         commission: "",
         counterparty: initialData?.counterparty || "",
-        counterpartyKey: defaultKey, 
         counterpartyRequisites: "",
         orderId: "", 
         orderNumber: "", 
@@ -178,9 +201,7 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
           setCurrentRates(rates[0]);
         }
       }
-    } catch (error) {
-      console.error("Ошибка загрузки курсов из localStorage:", error);
-    }
+    } catch (error) {}
   }, []);
 
   const convertCurrency = (amount, fromCurrency, toCurrency) => {
@@ -209,7 +230,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
     if (!reqs || typeof reqs !== 'object') return "";
     
     let requisitesString = "";
-    
     
     const requisitesForCurrency = Array.isArray(reqs) ? reqs.filter(r => extractString(r.currency) === currency) : reqs[currency];
     
@@ -940,7 +960,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
                             }
                         }
                     } catch (e) {
-                        console.error("Ошибка парсинга employees:", e);
                     }
                 }
                 employeeRequisites = parseRequisites(rawEmployeeReqs);

@@ -19,8 +19,14 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { rid } from "../../api/fields.js";
-
 import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
+import { 
+  readLatestRatesSnapshot, 
+  writeLatestRatesSnapshot, 
+  convertAmountByRates, 
+  normalizeCurrencyCode 
+} from "../../utils/exchangeRates.js";
+import { fetchLatestRatesSnapshot } from "../../api/rates.js";
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -100,6 +106,7 @@ const AssetDetailsModal = ({
   onSave,
   fields,
   employees,
+  onAddNewField,
 }) => {
   const { transactions } = useTransactions();
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
@@ -143,6 +150,18 @@ const AssetDetailsModal = ({
     return filtered.slice(0, 5);
   }, [transactions, asset]);
 
+  const currencyOptions = useMemo(() => {
+    return fields?.generalFields?.currency?.map(item => item?.value ?? item) || [];
+  }, [fields]);
+
+  const typeOptions = useMemo(() => {
+    return fields?.assetsFields?.type?.map(item => item?.value ?? item) || [];
+  }, [fields]);
+
+  const paymentSystemOptions = useMemo(() => {
+    return fields?.assetsFields?.paymentSystem?.map(item => item?.value ?? item) || [];
+  }, [fields]);
+
   useEffect(() => {
     setEditableAsset(initialEditableAsset);
     setIsEditingRequisites(false);
@@ -164,7 +183,7 @@ const AssetDetailsModal = ({
           writeLatestRatesSnapshot(latest);
         }
       } catch (err) {
-        console.error("Error loading exchange rates:", err);
+        console.error(err);
       }
     };
 
@@ -428,23 +447,13 @@ const AssetDetailsModal = ({
                 <label htmlFor="currency" className="form-label">
                   Валюта
                 </label>
-                <select
-                  id="currency"
-                  name="currency"
+                <CreatableSelect
                   value={editableAsset.currency}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {fields?.generalFields?.currency?.map((item, index) => {
-                    const val = item?.value ?? item;
-                    return (
-                      <option key={item?.id || index} value={val}>
-                        {val}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'currency', value: val } })}
+                  options={currencyOptions}
+                  placeholder="Выберите или введите валюту..."
+                  onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
+                />
               </div>
 
               <div className="form-row">
@@ -467,7 +476,7 @@ const AssetDetailsModal = ({
                     className="num-btn minus-btn" 
                     onClick={() => {
                       const numValue = parseFloat(editableAsset.limitTurnover) || 0;
-                      handleSelectChange("limitTurnover", Math.max(0, numValue - 1000));
+                      handleChange({ target: { name: 'limitTurnover', value: Math.max(0, numValue - 1000) } });
                     }} 
                     disabled={(parseFloat(editableAsset.limitTurnover) || 0) <= 0}
                   >
@@ -478,7 +487,7 @@ const AssetDetailsModal = ({
                     className="num-btn plus-btn" 
                     onClick={() => {
                       const numValue = parseFloat(editableAsset.limitTurnover) || 0;
-                      handleSelectChange("limitTurnover", numValue + 1000);
+                      handleChange({ target: { name: 'limitTurnover', value: numValue + 1000 } });
                     }}
                   >
                     <Plus />
@@ -490,44 +499,26 @@ const AssetDetailsModal = ({
                 <label htmlFor="type" className="form-label">
                   Тип
                 </label>
-                <select
-                  name="type"
+                <CreatableSelect
                   value={editableAsset.type}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {fields?.assetsFields?.type?.map((item, index) => {
-                    const val = item?.value ?? item;
-                    return (
-                      <option key={item?.id || index} value={val}>
-                        {val}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'type', value: val } })}
+                  options={typeOptions}
+                  placeholder="Выберите или введите тип..."
+                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
+                />
               </div>
 
               <div className="form-row">
                 <label htmlFor="paymentSystem" className="form-label">
                   Платежная система
                 </label>
-                <select
-                  name="paymentSystem"
+                <CreatableSelect
                   value={editableAsset.paymentSystem}
-                  onChange={handleChange}
-                  className="form-input1"
-                >
-                  <option value="" disabled hidden>Не выбрано</option>
-                  {fields?.assetsFields?.paymentSystem?.map((item, index) => {
-                    const val = item?.value ?? item;
-                    return (
-                      <option key={item?.id || index} value={val}>
-                        {val}
-                      </option>
-                    );
-                  })}
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'paymentSystem', value: val } })}
+                  options={paymentSystemOptions}
+                  placeholder="Выберите или введите..."
+                  onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "paymentSystem", val)}
+                />
               </div>
 
               <div className="form-row">

@@ -6,7 +6,10 @@ import ViewEditRegularPaymentModal from "./ViewEditRegularPaymentModal";
 import "../../styles/RegularPaymentsPage.css";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 import { fetchAssets } from "../../api/assets";
-import { fetchFields, withDefaults } from "../../api/fields";
+import { addFieldOption, fetchFields, withDefaults } from "../../api/fields";
+import { useFields } from "../../context/FieldsContext";
+import { rid } from "../../utils/rid";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import {
   fetchRegularPayments,
   createRegularPayment,
@@ -17,7 +20,8 @@ import {
 
 const RegularPaymentsPage = () => {
   const navigate = useNavigate();
-  const { paymentId } = useParams();
+  const { regular_payId: paymentId } = useParams();
+  const { refreshFields } = useFields();
 
   const [regularPayments, setRegularPayments] = useState([]);
   const [assets, setAssets] = useState([]);
@@ -25,49 +29,65 @@ const RegularPaymentsPage = () => {
 
   const selectedPayment = useMemo(() => {
     if (!paymentId || paymentId === "new") return null;
-    return regularPayments.find((p) => String(p.id) === String(paymentId)) || null;
+    return regularPayments.find((p) => matchesEntityRouteParam(p, paymentId)) || null;
   }, [regularPayments, paymentId]);
 
   const isAddMode = paymentId === "new";
 
+  const loadData = async (mounted = true) => {
+    try {
+      const [payments, assetsData, fieldsData] = await Promise.all([
+        fetchRegularPayments(),
+        fetchAssets(),
+        fetchFields(),
+      ]);
+      if (!mounted) return;
+      setRegularPayments(Array.isArray(payments) ? payments : []);
+      setAssets(Array.isArray(assetsData) ? assetsData : []);
+      const normalized = withDefaults(fieldsData);
+      setFinanceFields(normalized.financeFields || {});
+    } catch (e) {
+      console.error("Failed to load regular payments data:", e);
+      if (mounted) {
+        setRegularPayments([]);
+        setAssets([]);
+        setFinanceFields({});
+      }
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      try {
-        const [payments, assetsData, fieldsData] = await Promise.all([
-          fetchRegularPayments(),
-          fetchAssets(),
-          fetchFields(),
-        ]);
-        if (!mounted) return;
-        setRegularPayments(Array.isArray(payments) ? payments : []);
-        setAssets(Array.isArray(assetsData) ? assetsData : []);
-        const normalized = withDefaults(fieldsData);
-        setFinanceFields(normalized.financeFields || {});
-      } catch (e) {
-        console.error("Failed to load regular payments data:", e);
-        if (mounted) {
-          setRegularPayments([]);
-          setAssets([]);
-          setFinanceFields({});
-        }
-      }
-    })();
+    loadData(mounted);
     return () => {
       mounted = false;
     };
   }, []);
 
+  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
+    try {
+      const normalized = await addFieldOption(group, fieldName, newValue, extraData);
+      setFinanceFields(normalized?.financeFields || {});
+      if (refreshFields) {
+        await refreshFields();
+      }
+      return normalized;
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+      return null;
+    }
+  };
+
   const handleCloseModal = () => {
-    navigate("/regular");
+    navigate("/regular_pays");
   };
 
   const openAddModal = () => {
-    navigate("/regular/new");
+    navigate("/regular_pays/new");
   };
 
   const openViewEditModal = (payment) => {
-    navigate(`/regular/${payment.id}`);
+    navigate(buildEntityPath("/regular_pays", payment));
   };
 
   const handleAddPayment = async (newPaymentData) => {
@@ -203,6 +223,7 @@ const RegularPaymentsPage = () => {
           onClose={handleCloseModal}
           assets={assets}
           financeFields={financeFields}
+          onAddNewField={handleAddNewField}
         />
       )}
 
@@ -215,6 +236,7 @@ const RegularPaymentsPage = () => {
           onClose={handleCloseModal}
           assets={assets}
           financeFields={financeFields}
+          onAddNewField={handleAddNewField}
         />
       )}
     </div>

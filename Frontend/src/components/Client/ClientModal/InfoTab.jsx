@@ -3,6 +3,7 @@ import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { Download, X } from "lucide-react";
 import TextareaWithCounter from "../TextareaWithCounter";
 import CreatableSelect from "./CreatableSelect";
+import { buildCompanyPhotoDisplayName } from "../../../utils/companyPhoto";
 import "./InfoTab.css";
 
 const defaultTags = ["Lead", "Hot", "VIP", "Test", "Internal"];
@@ -23,13 +24,21 @@ export default function InfoTab({
   tagOptions = [],
   loadingLists = false,
   onAddCompany,
+  onAddCategory, // Добавлено для сохранения
+  onAddSource,   // Добавлено для сохранения
+  onAddBusiness, // Добавлено для сохранения
 }) {
   const {
     control,
+    getValues,
+    setValue,
     formState: { errors },
   } = useFormContext();
 
   const watchedCompanyId = useWatch({ control, name: "company_id" });
+  const selectedCompany = (companies || []).find(
+    (company) => String(company?.id) === String(watchedCompanyId)
+  );
 
   const [customTag, setCustomTag] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
@@ -37,6 +46,8 @@ export default function InfoTab({
 
   const tagInputRef = useRef(null);
   const tagDropdownRef = useRef(null);
+  const prevCompanyIdRef = useRef(watchedCompanyId);
+  const lastSyncedCompanyPhotoRef = useRef("");
 
   const handleTagInputChange = (e) => setCustomTag(e.target.value);
   const handleTagInputFocus = () => setShowTagDropdown(true);
@@ -80,6 +91,28 @@ export default function InfoTab({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const nextSyncedValue = selectedCompany?.photo_link || "";
+    const currentValue = String(getValues("company_photo_link") || "");
+    const companyChanged = prevCompanyIdRef.current !== watchedCompanyId;
+    const looksLikeSavedCompanyPhoto = currentValue.startsWith("/uploads/company-photos/");
+    const canSyncCurrentValue =
+      currentValue === "" ||
+      currentValue === lastSyncedCompanyPhotoRef.current ||
+      looksLikeSavedCompanyPhoto;
+
+    if (companyChanged || canSyncCurrentValue) {
+      setValue("company_photo_link", nextSyncedValue, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: false,
+      });
+      lastSyncedCompanyPhotoRef.current = nextSyncedValue;
+    }
+
+    prevCompanyIdRef.current = watchedCompanyId;
+  }, [getValues, selectedCompany?.photo_link, setValue, watchedCompanyId]);
+
   return (
     <div className="tab-section info-tab">
       <Controller
@@ -100,6 +133,7 @@ export default function InfoTab({
         )}
       />
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="category"
         control={control}
@@ -108,20 +142,15 @@ export default function InfoTab({
             <label>
               Категория<span className="req">*</span>
             </label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={categories}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.category ? "input-error" : ""}
-            >
-              <option value="" disabled hidden>
-                Не выбрано
-              </option>
-              {categories.map((c, i) => (
-                <option key={`${c}-${i}`} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              error={!!errors.category}
+              onAdd={(val) => onAddCategory && onAddCategory(val)}
+            />
             {errors.category && (
               <p className="error grid-error">{errors.category.message}</p>
             )}
@@ -129,6 +158,7 @@ export default function InfoTab({
         )}
       />
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="source"
         control={control}
@@ -137,20 +167,15 @@ export default function InfoTab({
             <label>
               Источник<span className="req">*</span>
             </label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={sources}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.source ? "input-error" : ""}
-            >
-              <option value="" disabled hidden>
-                Не выбрано
-              </option>
-              {sources.map((s, i) => (
-                <option key={`${s}-${i}`} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              error={!!errors.source}
+              onAdd={(val) => onAddSource && onAddSource(val)}
+            />
             {errors.source && <p className="error grid-error">{errors.source.message}</p>}
           </div>
         )}
@@ -315,11 +340,12 @@ export default function InfoTab({
               const reader = new FileReader();
               reader.onloadend = () => {
                 const fileData = {
-                  name: file.name,
+                  name: buildCompanyPhotoDisplayName(selectedCompany, file.name),
                   size: file.size,
                   url: reader.result,
                 };
                 field.onChange(JSON.stringify(fileData));
+                lastSyncedCompanyPhotoRef.current = "";
               };
               reader.readAsDataURL(file);
             };
@@ -334,8 +360,17 @@ export default function InfoTab({
             if (field.value) {
               try {
                 parsedFile = JSON.parse(field.value);
+                if (parsedFile?.url && !parsedFile?.name) {
+                  parsedFile = {
+                    ...parsedFile,
+                    name: buildCompanyPhotoDisplayName(selectedCompany, parsedFile.url),
+                  };
+                }
               } catch (err) {
-                parsedFile = { name: "Изображение по ссылке", url: field.value };
+                parsedFile = {
+                  name: buildCompanyPhotoDisplayName(selectedCompany, field.value),
+                  url: field.value,
+                };
               }
             }
 
@@ -389,7 +424,7 @@ export default function InfoTab({
                       </label>
 
                       <span style={{ fontSize: "13px", color: "var(--chips-color)" }}>
-                        Фото до 5 МБ
+                        Общая картинка для всех клиентов этой компании, до 5 МБ
                       </span>
                     </div>
                   ) : (
@@ -494,26 +529,22 @@ export default function InfoTab({
         />
       )}
 
+      {/* ЗАМЕНЕНО НА CREATABLE SELECT */}
       <Controller
         name="business"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Вид деятельности</label>
-            <select
-              {...field}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={businesses}
+              placeholder={loadingLists ? "Загрузка..." : "Выберите или введите..."}
               disabled={loadingLists}
-              className={errors.business ? "input-error" : ""}
-            >
-              <option value="" disabled>
-                {loadingLists ? "Загрузка..." : "-- выбрать --"}
-              </option>
-              {businesses.map((b, i) => (
-                <option key={`${b}-${i}`} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
+              error={!!errors.business}
+              onAdd={(val) => onAddBusiness && onAddBusiness(val)}
+            />
             {errors.business && <p className="error grid-error">{errors.business.message}</p>}
           </div>
         )}

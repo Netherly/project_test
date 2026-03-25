@@ -2,8 +2,26 @@ server {
     listen 80;
     server_name TEST_DOMAIN;
 
+    # Увеличиваем лимит на размер тела запроса до 10 МБ
+    client_max_body_size 10m;
+
     root /var/www/crm-frontend-test;
     index index.html;
+
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        try_files $uri =404;
+    }
+
+    location = /sw.js {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        try_files $uri =404;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
 
     location = /health {
         proxy_pass http://127.0.0.1:3001/api/health;

@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import Lottie from "lottie-react";
@@ -63,7 +62,7 @@ const MediaIcon = ({ src, alt, className, active }) => {
         clearTimeout(pauseTimerRef.current);
         pauseTimerRef.current = null;
       }
-    };
+    }
   }, [active]);
 
   if (typeof src === "string" && src.endsWith(".webm")) {
@@ -91,7 +90,6 @@ const Sidebar = () => {
   const [loggingOut, setLoggingOut] = useState(false);
   const leaveTimerRef = useRef(null); 
 
-  
   const [profile, setProfile] = useState({ nickname: "Nickname", userId: "" });
   
   const loadProfile = useCallback(async () => {
@@ -105,7 +103,6 @@ const Sidebar = () => {
   
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  
   useEffect(() => {
     const handleNicknameUpdate = (e) => {
       setProfile((prev) => ({ ...prev, nickname: e.detail.nickname || prev.nickname }));
@@ -130,11 +127,12 @@ const Sidebar = () => {
       { name: "Клиенты", path: "/clients", icon: ClientsWebm },
       { name: "Сотрудники", path: "/employees", icon: EmployesWebm },
       { name: "Отчёты", path: "/reports", icon: ReportWebm },
+      { name: "Компании", path: "/company", icon: ReportWebm},
     ],
     transactions: [
-      { name: "Активы", path: "/assets", icon: AssetsWebm },
-      { name: "Транзакции", path: "/list", icon: TransactionWebm },
-      { name: "Регулярные платежи", path: "/regular", icon: TransactionNewWebm },
+      { name: "Активы", path: "/accounts", icon: AssetsWebm },
+      { name: "Транзакции", path: "/transactions", icon: TransactionWebm },
+      { name: "Регулярные платежи", path: "/regular_pays", icon: TransactionNewWebm },
     ],
     settings: [
       { name: "Доступы", path: "/access", icon: RolesWebm },
@@ -167,16 +165,25 @@ const Sidebar = () => {
     }, 300); 
   };
 
-  const isActivePath = useCallback((path) => location.pathname === path, [location.pathname]);
-  const isParentMenuActive = useCallback(
-    (menuKey) => submenus[menuKey]?.some((submenuItem) => location.pathname === submenuItem.path) || false,
+  const matchesPath = useCallback(
+    (path) => location.pathname === path || location.pathname.startsWith(`${path}/`),
     [location.pathname]
+  );
+  const isActivePath = useCallback((path) => matchesPath(path), [matchesPath]);
+  const isParentMenuActive = useCallback(
+    (menuKey) => submenus[menuKey]?.some((submenuItem) => matchesPath(submenuItem.path)) || false,
+    [matchesPath]
   );
 
   const handleParentClick = (menuKey) => {
-    const firstItem = submenus[menuKey]?.[0];
-    if (firstItem && firstItem.path) {
-      navigate(firstItem.path);
+    let targetPath = submenus[menuKey]?.[0]?.path;
+    
+    if (menuKey === "settings") {
+      targetPath = "/fields";
+    }
+
+    if (targetPath) {
+      navigate(targetPath);
       setActiveMenu(null); 
     }
   };
@@ -224,7 +231,7 @@ const Sidebar = () => {
                       src={icon}
                       alt={name}
                       className="submenu-icon"
-                      active={location.pathname === path}
+                      active={matchesPath(path)}
                     />
                   )}
                   <span>{name}</span>
@@ -235,7 +242,7 @@ const Sidebar = () => {
         </div>
       );
     },
-    [location.pathname]
+    [matchesPath]
   );
 
   return (

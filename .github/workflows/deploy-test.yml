@@ -1,5 +1,7 @@
 name: deploy-crm-test
 
+run-name: "test:${{ github.ref_name }} @ ${{ github.sha }}"
+
 on:
   workflow_dispatch:
   push:
@@ -18,10 +20,19 @@ jobs:
       FRONTEND_TARGET_DIR: crm-frontend-test
       BACKEND_TARGET_DIR: crm-backend-test
       PM2_APP_NAME: crm-backend-test
+      DEPLOY_TMP_DIR: /var/www/.deploy/test
+      BACKUP_ROOT: /var/www/.deploy/backups/test
+      BACKUP_KEEP: 14
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Print deploy context
+        run: |
+          echo "Environment: test"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
 
       - name: Detect frontend/backend dirs
         run: |
@@ -54,7 +65,6 @@ jobs:
           env_prod = Path(".env.production")
           env_prod.write_text(data.rstrip("\n") + "\n", encoding="utf-8")
 
-          # fallback
           Path(".env").write_text(env_prod.read_text(encoding="utf-8"), encoding="utf-8")
           PY
 
@@ -160,8 +170,82 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           source: "frontend.tgz"
-          target: "/var/www"
+          target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
+
+      - name: Backup current deployment on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          script: |
+            set -euo pipefail
+
+            STAMP="$(date +%Y%m%d_%H%M%S)"
+            BACKUP_ROOT="${{ env.BACKUP_ROOT }}"
+            FILES_DIR="$BACKUP_ROOT/files"
+            DB_DIR="$BACKUP_ROOT/db"
+            META_DIR="$BACKUP_ROOT/meta"
+            KEEP="${{ env.BACKUP_KEEP }}"
+            FRONTEND_DIR="/var/www/${{ env.FRONTEND_TARGET_DIR }}"
+            BACKEND_DIR="/var/www/${{ env.BACKEND_TARGET_DIR }}"
+
+            mkdir -p "$FILES_DIR" "$DB_DIR" "$META_DIR"
+
+            if [ -d "$FRONTEND_DIR" ] && [ "$(find "$FRONTEND_DIR" -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
+              tar -C /var/www -czf "$FILES_DIR/frontend_${STAMP}.tgz" "${{ env.FRONTEND_TARGET_DIR }}"
+            else
+              echo "Frontend dir missing or empty, skipping frontend backup"
+            fi
+
+            if [ -d "$BACKEND_DIR" ] && [ "$(find "$BACKEND_DIR" -mindepth 1 -maxdepth 1 | head -n 1)" ]; then
+              tar \
+                --exclude="${{ env.BACKEND_TARGET_DIR }}/node_modules" \
+                --exclude="${{ env.BACKEND_TARGET_DIR }}/.git" \
+                -C /var/www \
+                -czf "$FILES_DIR/backend_${STAMP}.tgz" \
+                "${{ env.BACKEND_TARGET_DIR }}"
+            else
+              echo "Backend dir missing or empty, skipping backend backup"
+            fi
+
+            if [ -f "$BACKEND_DIR/.env" ]; then
+              if ! command -v pg_dump >/dev/null 2>&1; then
+                echo "pg_dump is not installed on server" >&2
+                exit 1
+              fi
+
+              DB_URL="$(grep -E '^DATABASE_URL=' "$BACKEND_DIR/.env" | tail -n1 | cut -d= -f2- | tr -d '\r')"
+              DB_URL="${DB_URL#\"}"
+              DB_URL="${DB_URL%\"}"
+              DB_URL="${DB_URL#\'}"
+              DB_URL="${DB_URL%\'}"
+              DB_URL="${DB_URL%%\?*}"
+              if [ -z "$DB_URL" ]; then
+                echo "DATABASE_URL missing in $BACKEND_DIR/.env" >&2
+                exit 1
+              fi
+
+              pg_dump "$DB_URL" | gzip -9 > "$DB_DIR/db_${STAMP}.sql.gz"
+            else
+              echo "Backend .env missing, skipping DB backup"
+            fi
+
+            {
+              echo "timestamp=$STAMP"
+              echo "frontend=$FILES_DIR/frontend_${STAMP}.tgz"
+              echo "backend=$FILES_DIR/backend_${STAMP}.tgz"
+              echo "db=$DB_DIR/db_${STAMP}.sql.gz"
+            } > "$META_DIR/latest.env"
+
+            ls -1dt "$FILES_DIR"/frontend_*.tgz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+            ls -1dt "$FILES_DIR"/backend_*.tgz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+            ls -1dt "$DB_DIR"/db_*.sql.gz 2>/dev/null | awk "NR>${KEEP}" | xargs -r rm -f
+
+            echo "Backup completed: $STAMP"
 
       - name: Unpack frontend on server (atomic)
         uses: appleboy/ssh-action@v1.0.3
@@ -174,16 +258,21 @@ jobs:
           script: |
             set -e
             cd /var/www
-            mkdir -p "${{ env.FRONTEND_TARGET_DIR }}" .releases
-            rm -rf .releases/frontend_new
-            mkdir -p .releases/frontend_new
-            tar -xzf frontend.tgz -C .releases/frontend_new
-            if [ -d ".releases/frontend_new/${{ env.FE_OUT }}" ]; then
-              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/${{ env.FE_OUT }}/" "${{ env.FRONTEND_TARGET_DIR }}/"
+            RELEASE_DIR=".releases/${{ env.FRONTEND_TARGET_DIR }}"
+            mkdir -p "${{ env.FRONTEND_TARGET_DIR }}" "${{ env.DEPLOY_TMP_DIR }}" "$RELEASE_DIR"
+            rm -rf "$RELEASE_DIR/new"
+            mkdir -p "$RELEASE_DIR/new"
+
+            test -f "${{ env.DEPLOY_TMP_DIR }}/frontend.tgz"
+            tar -xzf "${{ env.DEPLOY_TMP_DIR }}/frontend.tgz" -C "$RELEASE_DIR/new"
+
+            if [ -d "$RELEASE_DIR/new/${{ env.FE_OUT }}" ]; then
+              rsync -a --delete --exclude='.well-known' "$RELEASE_DIR/new/${{ env.FE_OUT }}/" "${{ env.FRONTEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude='.well-known' ".releases/frontend_new/" "${{ env.FRONTEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude='.well-known' "$RELEASE_DIR/new/" "${{ env.FRONTEND_TARGET_DIR }}/"
             fi
-            rm -f frontend.tgz
+
+            rm -f "${{ env.DEPLOY_TMP_DIR }}/frontend.tgz"
 
       # ---------- BACKEND ----------
       - name: Pack backend source
@@ -206,7 +295,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           source: "backend.tgz"
-          target: "/var/www"
+          target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
 
       - name: Unpack backend on server (atomic)
@@ -220,18 +309,23 @@ jobs:
           script: |
             set -e
             cd /var/www
-            mkdir -p "${{ env.BACKEND_TARGET_DIR }}" .releases
-            rm -rf .releases/backend_new
-            mkdir -p .releases/backend_new
-            tar -xzf backend.tgz -C .releases/backend_new
-            if [ -d ".releases/backend_new/backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
-            elif [ -d ".releases/backend_new/Backend" ]; then
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+            RELEASE_DIR=".releases/${{ env.BACKEND_TARGET_DIR }}"
+            mkdir -p "${{ env.BACKEND_TARGET_DIR }}" "${{ env.DEPLOY_TMP_DIR }}" "$RELEASE_DIR"
+            rm -rf "$RELEASE_DIR/new"
+            mkdir -p "$RELEASE_DIR/new"
+
+            test -f "${{ env.DEPLOY_TMP_DIR }}/backend.tgz"
+            tar -xzf "${{ env.DEPLOY_TMP_DIR }}/backend.tgz" -C "$RELEASE_DIR/new"
+
+            if [ -d "$RELEASE_DIR/new/backend" ]; then
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/backend/" "${{ env.BACKEND_TARGET_DIR }}/"
+            elif [ -d "$RELEASE_DIR/new/Backend" ]; then
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/Backend/" "${{ env.BACKEND_TARGET_DIR }}/"
             else
-              rsync -a --delete --exclude=".schema.sha256" ".releases/backend_new/" "${{ env.BACKEND_TARGET_DIR }}/"
+              rsync -a --delete --exclude=".schema.sha256" --exclude="uploads" --exclude="node_modules" "$RELEASE_DIR/new/" "${{ env.BACKEND_TARGET_DIR }}/"
             fi
-            rm -f backend.tgz
+
+            rm -f "${{ env.DEPLOY_TMP_DIR }}/backend.tgz"
 
       - name: Prepare backend .env file
         env:
@@ -269,8 +363,6 @@ jobs:
           if missing:
               raise SystemExit(f"BACKEND_ENV missing keys: {', '.join(missing)}")
 
-          # Force test bot username for this environment even if BACKEND_ENV secret
-          # doesn't contain PUBLIC_BOT_NAME (or contains a production value).
           forced_bot_name = "gameboticBot"
           out_lines = []
           found_public_bot = False
@@ -315,7 +407,22 @@ jobs:
           out_lines = upsert_env(out_lines, "ADMIN_NAME", "Test Admin")
           out_lines = upsert_env(out_lines, "ADMIN_EMAIL", "admin-test@gsse.dev")
 
-          normalized = "\n".join(out_lines).rstrip("\n") + "\n"
+          normalized_lines = []
+          for raw_line in out_lines:
+              stripped = raw_line.strip()
+              if stripped.startswith("TELEGRAM_BOT_TOKEN="):
+                  key, value = raw_line.split("=", 1)
+                  value = value.strip()
+                  if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                      quote = value[0]
+                      inner = value[1:-1].strip().lstrip(".")
+                      normalized_lines.append(f"{key}={quote}{inner}{quote}")
+                  else:
+                      normalized_lines.append(f"{key}={value.lstrip('.')}")
+              else:
+                  normalized_lines.append(raw_line)
+
+          normalized = "\n".join(normalized_lines).rstrip("\n") + "\n"
           Path("backend.env").write_text(normalized, encoding="utf-8")
           PY
 
@@ -328,7 +435,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           source: "backend.env"
-          target: "/var/www"
+          target: "${{ env.DEPLOY_TMP_DIR }}"
           overwrite: true
 
       - name: Upload nginx test template
@@ -353,13 +460,21 @@ jobs:
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
           script: |
             set -e
-            cd /var/www
-            test -f backend.env
-            mkdir -p "${{ env.BACKEND_TARGET_DIR }}"
+            TARGET_DIR="/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            TMP_ENV="${{ env.DEPLOY_TMP_DIR }}/backend.env"
+
+            mkdir -p "${{ env.DEPLOY_TMP_DIR }}"
+            test -f "$TMP_ENV"
+            mkdir -p "$TARGET_DIR"
+
             umask 027
-            mv -f backend.env "${{ env.BACKEND_TARGET_DIR }}/.env"
-            chmod 640 "${{ env.BACKEND_TARGET_DIR }}/.env"
-            chown "$(id -un)":"$(id -gn)" "${{ env.BACKEND_TARGET_DIR }}/.env"
+            mv -f "$TMP_ENV" "$TARGET_DIR/.env"
+            chmod 640 "$TARGET_DIR/.env"
+            chown "$(id -un)":"$(id -gn)" "$TARGET_DIR/.env"
+
+            test -f "$TARGET_DIR/.env"
+            grep '^DATABASE_URL=' "$TARGET_DIR/.env" >/dev/null
+            echo ".env moved successfully to $TARGET_DIR/.env"
 
       - name: Install Node and pm2 on server if missing
         uses: appleboy/ssh-action@v1.0.3
@@ -382,6 +497,7 @@ jobs:
       - name: Sync nginx test config and reload
         env:
           LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -389,15 +505,29 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
-          envs: LETSENCRYPT_EMAIL
+          envs: LETSENCRYPT_EMAIL,TEST_DOMAIN
           script: |
             set -e
             TEMPLATE="/tmp/deploy/nginx/test.conf.template"
             TARGET="/etc/nginx/sites-available/crm-test.conf"
-            DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            TARGET_ENABLED="/etc/nginx/sites-enabled/crm-test.conf"
+            DOMAIN="${TEST_DOMAIN:-gsse.dev}"
+
             test -f "$TEMPLATE"
             sed "s/TEST_DOMAIN/$DOMAIN/g" "$TEMPLATE" | sudo tee "$TARGET" >/dev/null
-            sudo ln -sf "$TARGET" /etc/nginx/sites-enabled/crm-test.conf
+            sudo ln -sf "$TARGET" "$TARGET_ENABLED"
+
+            for enabled in /etc/nginx/sites-enabled/*; do
+              [ -e "$enabled" ] || continue
+              if [ "$(readlink -f "$enabled")" = "$(readlink -f "$TARGET_ENABLED")" ]; then
+                continue
+              fi
+              if sudo grep -q "$DOMAIN" "$enabled"; then
+                echo "Disabling conflicting nginx site $enabled for domain $DOMAIN"
+                sudo rm -f "$enabled"
+              fi
+            done
+
             sudo nginx -t
             sudo systemctl reload nginx
 
@@ -418,6 +548,8 @@ jobs:
             sudo systemctl reload nginx
 
       - name: Verify test TLS certificate
+        env:
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -425,9 +557,10 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: TEST_DOMAIN
           script: |
             set -e
-            DOMAIN="${{ secrets.PRIMARY_DOMAIN }}"
+            DOMAIN="${TEST_DOMAIN:-gsse.dev}"
             CERT_TEXT="$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | openssl x509 -noout -text)"
             echo "$CERT_TEXT" | grep -q "DNS:$DOMAIN"
 
@@ -442,11 +575,16 @@ jobs:
           envs: PRISMA_ACCEPT_DATA_LOSS
           script: |
             set -e
-            chown -R "$(id -un)":"$(id -gn)" "/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            TARGET_DIR="/var/www/${{ env.BACKEND_TARGET_DIR }}"
 
-            cd "/var/www/${{ env.BACKEND_TARGET_DIR }}"
+            chown -R "$(id -un)":"$(id -gn)" "$TARGET_DIR"
+
+            cd "$TARGET_DIR"
             export HUSKY=0
             export NODE_ENV=production
+
+            test -f .env || (echo ".env file not found in $TARGET_DIR" >&2 && exit 1)
+            grep '^DATABASE_URL=' .env >/dev/null || (echo "DATABASE_URL is missing in .env" >&2 && exit 1)
 
             echo 'Checking DB readiness (127.0.0.1:5432)...'
             if command -v pg_isready >/dev/null 2>&1; then
@@ -462,17 +600,8 @@ jobs:
 
             npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
             npx prisma generate
-            if [ -d prisma/migrations ] && [ "$(find prisma/migrations -mindepth 1 -maxdepth 1 -type d | wc -l | xargs)" -gt 0 ]; then
-              echo 'Running prisma migrate deploy...'
-              npx prisma migrate deploy
-            else
-              echo 'No migrations found. Running prisma db push...'
-              if [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'yes' ] || [ "${PRISMA_ACCEPT_DATA_LOSS}" = 'true' ]; then
-                npx prisma db push --accept-data-loss
-              else
-                npx prisma db push
-              fi
-            fi
+            echo 'Running prisma migrate deploy...'
+            npx prisma migrate deploy
 
             echo 'Running seed for test default admin...'
             npm run seed
@@ -501,10 +630,40 @@ jobs:
               done
             fi
 
-            (pm2 reload ${{ env.PM2_APP_NAME }} || pm2 start npm --name ${{ env.PM2_APP_NAME }} -- run start)
+            (pm2 restart ${{ env.PM2_APP_NAME }} --update-env || pm2 start npm --name ${{ env.PM2_APP_NAME }} --cwd "$TARGET_CWD" -- run start)
             pm2 save
 
+            if [ -n "$APP_PORT" ]; then
+              EXPECTED_LISTENER=""
+              for i in {1..20}; do
+                LISTEN_PIDS="$(ss -ltnp 2>/dev/null | grep ":$APP_PORT " | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)"
+                if [ -n "$LISTEN_PIDS" ]; then
+                  for pid in $LISTEN_PIDS; do
+                    PROC_CWD="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+                    echo "Port :$APP_PORT listener pid=$pid cwd=${PROC_CWD:-unknown}"
+                    if [ "$PROC_CWD" = "/var/www/crm-backend" ]; then
+                      echo "Legacy backend is unexpectedly listening on test port :$APP_PORT" >&2
+                      exit 1
+                    fi
+                    if [ "$PROC_CWD" = "$TARGET_CWD" ]; then
+                      EXPECTED_LISTENER=1
+                    fi
+                  done
+                fi
+                [ -n "$EXPECTED_LISTENER" ] && break
+                echo "Waiting for ${{ env.PM2_APP_NAME }} to bind :$APP_PORT from $TARGET_CWD... ($i/20)"
+                sleep 2
+              done
+
+              if [ -z "$EXPECTED_LISTENER" ]; then
+                echo "Expected test listener from $TARGET_CWD was not found on :$APP_PORT" >&2
+                exit 1
+              fi
+            fi
+
       - name: Backend health check (follow redirects)
+        env:
+          TEST_DOMAIN: ${{ secrets.TEST_DOMAIN }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -512,9 +671,10 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_SSH_PASSPHRASE }}
+          envs: TEST_DOMAIN
           script: |
             set -e
-            HOST_HEADER="${{ secrets.PRIMARY_DOMAIN }}"
+            HOST_HEADER="${TEST_DOMAIN:-gsse.dev}"
 
             for i in {1..20}; do
               code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: $HOST_HEADER" "http://127.0.0.1/health" || true)

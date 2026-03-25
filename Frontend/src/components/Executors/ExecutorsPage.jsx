@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import ExecutorModal from "./ExecutorModal/ExecutorModal.jsx";
@@ -11,10 +11,15 @@ import { fetchFields, withDefaults } from "../../api/fields";
 import { fetchOrders, updateOrder } from "../../api/orders";
 import { fetchTransactions } from "../../api/transactions";
 import { fetchEmployees } from "../../api/employees";
+import { buildEntityPath } from "../../utils/entityRoutes";
+import { RESOURCE_CACHE_EVENT, hasDataChanged } from "../../utils/resourceCache";
 
-/* ------------------------- helpers ------------------------- */
+const safeSetStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {}
+};
 
-// Собираем journalEntries из workLog заказов (чтобы работало без отдельного API журнала)
 const buildJournalEntriesFromOrders = (orders = []) => {
   const entries = [];
 
@@ -65,7 +70,6 @@ const getOrders = () => {
     const saved = localStorage.getItem("ordersData");
     return saved ? JSON.parse(saved) : [];
   } catch (error) {
-    console.error("Ошибка при чтении заказов из localStorage:", error);
     return [];
   }
 };
@@ -75,7 +79,6 @@ const getJournalEntries = () => {
     const saved = localStorage.getItem("journalEntries");
     return saved ? JSON.parse(saved) : [];
   } catch (error) {
-    console.error("Ошибка при чтении журнала из localStorage:", error);
     return [];
   }
 };
@@ -85,7 +88,6 @@ const getTransactions = () => {
     const saved = localStorage.getItem("transactionsData");
     return saved ? JSON.parse(saved) : [];
   } catch (error) {
-    console.error("Ошибка при чтении транзакций из localStorage:", error);
     return [];
   }
 };
@@ -95,7 +97,6 @@ const getAssets = () => {
     const saved = localStorage.getItem("assetsData");
     return saved ? JSON.parse(saved) : [];
   } catch (error) {
-    console.error("Ошибка при чтении активов из localStorage:", error);
     return [];
   }
 };
@@ -124,24 +125,18 @@ const formatDate = (dateString) => {
   return `${day}.${month}.${year}`;
 };
 
-/* ------------------------- component ------------------------- */
-
 const ExecutorsPage = () => {
   const navigate = useNavigate();
   const { executorId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // старое локальное состояние из executorService — оставляем, чтобы ничего не ломать
   const [executors, setExecutors] = useState(executorService.getExecutors());
-
   const [userSettings, setUserSettings] = useState({ currency: "₴" });
-
   const [activeEmployees, setActiveEmployees] = useState([]);
   const [orders, setOrders] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [assets, setAssets] = useState([]);
-
   const [fields, setFields] = useState({ currency: [], role: [] });
 
   const viewMode = searchParams.get("view") || "card";
@@ -150,25 +145,27 @@ const ExecutorsPage = () => {
   };
 
   const handleNavigateToOrder = (orderId) => {
-    navigate(`/orders/${orderId}`);
+    const targetOrder = orders.find(
+      (order) =>
+        String(order.id) === String(orderId) ||
+        String(order.orderSequence ?? order.numberOrder ?? order.id) === String(orderId)
+    );
+    navigate(targetOrder ? buildEntityPath("/orders", targetOrder) : `/orders/${orderId}`);
   };
 
   const generateId = () => `perf_${Date.now()}${Math.random().toString(36).substring(2, 9)}`;
 
   useEffect(() => {
-    // 1) Быстрый старт: поднимаем данные из localStorage (вторая версия)
     setOrders(getOrders());
     setJournalEntries(getJournalEntries());
     setTransactions(getTransactions());
     setAssets(getAssets());
 
-    // 2) Далее подтягиваем актуальное с API (первая версия)
     const loadOrders = async () => {
       try {
         const response = await fetchOrders({ page: 1, limit: 1000 });
-        const list = Array.isArray(response?.orders) ? response.orders : [];
+        const list = Array.isArray(response?.orders) ? response.orders : (Array.isArray(response) ? response : []);
 
-        // фильтруем LEAD, сортируем стабильно
         const filtered = list.filter((order) => String(order.stage) !== "LEAD");
         const sorted = filtered.slice().sort((a, b) => {
           const aSeq = a?.orderSequence ?? Number.POSITIVE_INFINITY;
@@ -180,23 +177,17 @@ const ExecutorsPage = () => {
         });
 
         setOrders(sorted);
-
-        // journalEntries строим из workLog
         const built = buildJournalEntriesFromOrders(sorted);
         setJournalEntries(built);
 
-        localStorage.setItem("ordersData", JSON.stringify(sorted));
-        localStorage.setItem("journalEntries", JSON.stringify(built));
+        safeSetStorage("ordersData", sorted);
+        safeSetStorage("journalEntries", built);
       } catch (error) {
-        console.error("Ошибка при загрузке заказов с сервера:", error);
-
-        // fallback localStorage
         const fallbackOrders = getOrders();
         setOrders(fallbackOrders);
-
         const built = buildJournalEntriesFromOrders(fallbackOrders);
         setJournalEntries(built);
-        localStorage.setItem("journalEntries", JSON.stringify(built));
+        safeSetStorage("journalEntries", built);
       }
     };
 
@@ -210,9 +201,8 @@ const ExecutorsPage = () => {
           : [];
 
         setTransactions(items);
-        localStorage.setItem("transactionsData", JSON.stringify(items));
+        safeSetStorage("transactionsData", items);
       } catch (error) {
-        console.error("Ошибка при загрузке транзакций:", error);
         setTransactions(getTransactions());
       }
     };
@@ -220,10 +210,9 @@ const ExecutorsPage = () => {
     const loadEmployees = async () => {
       try {
         const list = await fetchEmployees();
-        localStorage.setItem("employees", JSON.stringify(list));
+        safeSetStorage("employees", list);
         setActiveEmployees(list.filter((emp) => emp.status === "active"));
       } catch (error) {
-        console.error("Ошибка при загрузке сотрудников:", error);
         const fromStorage = safeJsonParse(localStorage.getItem("employees"), []);
         setActiveEmployees((fromStorage || []).filter((emp) => emp.status === "active"));
       }
@@ -239,10 +228,8 @@ const ExecutorsPage = () => {
           role: allFields.executorFields?.role || [],
         });
 
-        localStorage.setItem("fieldsData", JSON.stringify(allFields));
+        safeSetStorage("fieldsData", allFields);
       } catch (err) {
-        console.error("Failed to load fields from API", err);
-
         const savedFields = safeJsonParse(localStorage.getItem("fieldsData"), null);
         if (savedFields) {
           setFields({
@@ -259,32 +246,45 @@ const ExecutorsPage = () => {
     loadEmployees();
   }, []);
 
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+
+      try {
+        const allFields = withDefaults(event.detail.value);
+        const next = {
+          currency: allFields.generalFields?.currency || [],
+          role: allFields.executorFields?.role || [],
+        };
+        setFields((prev) => (hasDataChanged(prev, next) ? next : prev));
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
+
   const enrichedExecutors = useMemo(() => {
     const allPerformers = orders.flatMap((order) =>
       Array.isArray(order?.performers)
         ? order.performers.map((performer) => ({
             ...performer,
             orderId: order.id,
-
-            // ✅ объединяем две версии: порядок/номер заказа
             orderNumber: order.orderSequence ?? order.numberOrder ?? order.id,
-
-            // ✅ объединяем две версии: имя заказа и клиент
             orderName: order.name || order.title || "Название заказа отсутствует",
             order_main_client:
               order.clientName ||
               order.orderMainClient ||
               order.order_main_client ||
               "Не заполнено",
-
             orderDescription: order.orderDescription,
           }))
         : []
     );
 
     return allPerformers.map((performer) => {
-      // ✅ здесь логика сохранена как была в исходнике:
-      // journalEntries хранят executorRole (в worklog) и сравнение идет с performer.performer
       const relevantEntries = journalEntries.filter(
         (entry) =>
           entry.executorRole === performer.performer &&
@@ -341,13 +341,6 @@ const ExecutorsPage = () => {
     });
   };
 
-  /**
-   * ✅ Сохранение/удаление:
-   * объединяем обе версии:
-   * - корректно находим orderId (orderId/orderNumber)
-   * - сохраняем employeeId по fullName
-   * - шлём updateOrder на сервер (если доступно), но UI обновляем сразу
-   */
   const handleSaveExecutor = async (executorData) => {
     const isNew = !executorData.id;
 
@@ -389,20 +382,15 @@ const ExecutorsPage = () => {
         );
       }
 
-      // Пытаемся синхронизировать с сервером, но не блокируем UI
       try {
-        updateOrder(order.id, { performers: updatedPerformers }).catch((error) => {
-          console.error("Ошибка сохранения исполнителя в заказе:", error);
-        });
-      } catch (error) {
-        console.error("Ошибка сохранения исполнителя в заказе:", error);
-      }
+        updateOrder(order.id, { performers: updatedPerformers }).catch(() => {});
+      } catch (error) {}
 
       return { ...order, performers: updatedPerformers };
     });
 
     setOrders(updatedOrders);
-    localStorage.setItem("ordersData", JSON.stringify(updatedOrders));
+    safeSetStorage("ordersData", updatedOrders);
     closeModal();
   };
 
@@ -419,18 +407,14 @@ const ExecutorsPage = () => {
       );
 
       try {
-        updateOrder(order.id, { performers: updatedPerformers }).catch((error) => {
-          console.error("Ошибка удаления исполнителя из заказа:", error);
-        });
-      } catch (error) {
-        console.error("Ошибка удаления исполнителя из заказа:", error);
-      }
+        updateOrder(order.id, { performers: updatedPerformers }).catch(() => {});
+      } catch (error) {}
 
       return { ...order, performers: updatedPerformers };
     });
 
     setOrders(updatedOrders);
-    localStorage.setItem("ordersData", JSON.stringify(updatedOrders));
+    safeSetStorage("ordersData", updatedOrders);
     closeModal();
   };
 

@@ -8,6 +8,10 @@ import MultiSelectCheckboxDropdown from "../../components/Journal/MultiSelectChe
 import "../../styles/TransactionsPage.css";
 import "../../components/Journal/JournalPage.css";
 import { useTransactions } from "../../context/TransactionsContext";
+import { useFields } from "../../context/FieldsContext";
+import { addFieldOption } from "../../api/fields";
+import { rid } from "../../utils/rid";
+import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 
 const defaultFilterData = {
   searchGlobal: "",
@@ -122,6 +126,8 @@ const TransactionsPage = () => {
     orders,
     counterparties,
   } = useTransactions();
+
+  const { refreshFields } = useFields();
 
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const searchContainerRef = useRef(null);
@@ -309,6 +315,19 @@ const TransactionsPage = () => {
     setSearchParams({});
   };
 
+  const handleAddNewField = async (group, fieldName, newValue, extraData = {}) => {
+    try {
+      const normalized = await addFieldOption(group, fieldName, newValue, extraData);
+      if (refreshFields) {
+        await refreshFields();
+      }
+      return normalized;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  };
+
   const activeFiltersCount = Object.entries(filterData).filter(([key, value]) => {
     if (key === "searchGlobal") return false;
     return Array.isArray(value) ? value.length > 0 : value !== "";
@@ -334,22 +353,26 @@ const TransactionsPage = () => {
   const selectedTransaction = useMemo(() => {
     if (!transactionId || transactionId === "new") return null;
     return (
-      transactionsWithBalances.find((t) => String(t.id) === String(transactionId)) || null
+      transactionsWithBalances.find((t) => matchesEntityRouteParam(t, transactionId)) || null
     );
   }, [transactionsWithBalances, transactionId]);
 
   const isAddMode = transactionId === "new";
 
   const handleOpenTransaction = (transaction) => {
-    navigate(`/list/${transaction.sourceTransactionId || transaction.id}`);
+    if (transaction?.sourceTransactionId) {
+      navigate(`/transactions/${transaction.sourceTransactionId}`);
+      return;
+    }
+    navigate(buildEntityPath("/transactions", transaction));
   };
 
   const handleOpenAddModal = () => {
-    navigate("/list/new");
+    navigate("/transactions/new");
   };
 
   const handleCloseModal = () => {
-    navigate("/list");
+    navigate("/transactions");
   };
 
   const handleAddTransaction = async (data) => {
@@ -597,6 +620,7 @@ const TransactionsPage = () => {
           financeFields={financeFields}
           orders={orders}
           counterparties={counterparties}
+          onAddNewField={handleAddNewField}
         />
       )}
 
@@ -611,6 +635,7 @@ const TransactionsPage = () => {
           financeFields={financeFields}
           orders={orders}
           counterparties={counterparties}
+          onAddNewField={handleAddNewField}
         />
       )}
     </div>

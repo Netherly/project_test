@@ -12,6 +12,10 @@ import DashboardTab from './tabs/DashboardTab';
 import ChatPanel from '../../Client/ClientModal/ChatPanel';
 import ConfirmationModal from '../../modals/confirm/ConfirmationModal';
 
+import { useFields } from "../../../context/FieldsContext";
+import { addFieldOption } from "../../../api/fields";
+import { rid } from "../../../utils/rid";
+
 import '../../../styles/ExecutorModal.css';
 
 export default function ExecutorModal({
@@ -30,6 +34,8 @@ export default function ExecutorModal({
   const safeExecutor = executor ?? {};
   const isNew = !safeExecutor.id;
 
+  const { refreshFields, executorRoles = [], currencies = [], fields = [] } = useFields();
+
   const [activeTab, setActiveTab] = useState('general');
   const [closing, setClosing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -41,26 +47,45 @@ export default function ExecutorModal({
     return () => clearTimeout(timer);
   }, []);
 
+  const handleAddNewField = async (group, fieldName, newValue) => {
+    try {
+      await addFieldOption(group, fieldName, newValue);
+      if (refreshFields) {
+        await refreshFields();
+      }
+    } catch (e) {
+      console.error("Ошибка при сохранении нового поля в БД:", e);
+    }
+  };
+
+  const formDefaults = {
+    orderId: '',
+    orderNumber: '',
+    performer: '', 
+    dateForPerformer: new Date().toISOString().split('T')[0], 
+    hideClient: false,
+    roundHours: false,
+    currency: safeExecutor.currency || (currencyOptions.length > 0 ? currencyOptions[0] : 'UAH'), 
+    hourlyRate: '',
+    amountInput: '',
+    maxAmount: '',
+    ...safeExecutor,
+    role: safeExecutor.performerRole || (roleOptions.length > 0 ? roleOptions[0] : ''),
+  };
+
   const methods = useForm({
     resolver: yupResolver(executorSchema),
     mode: 'onChange',
-    defaultValues: {
-        orderId: '',
-        orderNumber: '',
-        performer: '', 
-        dateForPerformer: new Date().toISOString().split('T')[0], 
-        hideClient: false,
-        roundHours: false,
-        currency: safeExecutor.currency || (currencyOptions.length > 0 ? currencyOptions[0] : 'UAH'), 
-        hourlyRate: '',
-        amountInput: '',
-        maxAmount: '',
-        ...safeExecutor,
-        role: safeExecutor.performerRole || (roleOptions.length > 0 ? roleOptions[0] : ''),
-    },
+    defaultValues: formDefaults,
   });
 
   const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
+
+  const defaultsString = JSON.stringify(formDefaults);
+
+  useEffect(() => {
+    reset(JSON.parse(defaultsString));
+  }, [defaultsString, reset]);
 
   const submitHandler = (data) => {
     const dataToSave = {
@@ -160,9 +185,10 @@ export default function ExecutorModal({
                   <GeneralInfoTab 
                     orders={orders} 
                     employees={employees} 
-                    roleOptions={roleOptions}        
-                    currencyOptions={currencyOptions} 
-                    onAddNewField={onAddNewField}     
+                    roleOptions={executorRoles.length ? executorRoles : roleOptions}        
+                    currencyOptions={currencies.length ? currencies : currencyOptions} 
+                    fields={fields}
+                    onAddNewField={handleAddNewField}     
                   />
                 )}
                 {activeTab === 'journal'   && <JournalTab isNew={isNew} executor={safeExecutor} journalEntries={journalEntries} />}
@@ -172,9 +198,8 @@ export default function ExecutorModal({
             </form>
           </FormProvider>
 
-          {/* ДОБАВЛЕН класс visible с условием isDirty */}
           <div className={`form-actions-bottom ${isDirty ? "visible" : ""}`}>
-              <button className='cancel-order-btn' type="button" onClick={() => reset()} disabled={!isDirty}>
+              <button className='cancel-order-btn' type="button" onClick={() => reset(JSON.parse(defaultsString))} disabled={!isDirty}>
                   Сбросить
               </button>
               <button className='save-order-btn' type="submit" form="executor-form" disabled={!isDirty}>
@@ -204,28 +229,29 @@ export default function ExecutorModal({
         </div>
 
       </div>
+
       {showCloseConfirm && (
-                <ConfirmationModal
-                    title="Сообщение"
-                    message="У вас есть несохраненные изменения. Вы уверены, что хотите закрыть без сохранения?"
-                    confirmText="Да, закрыть"
-                    cancelText="Отмена"
-                    onConfirm={handleConfirmClose}
-                    onCancel={handleCancelClose}
-                />
-            )}
-            
-            {showDeleteConfirm && (
-                <ConfirmationModal
-                    title="Подтверждение удаления"
-                    message={`Вы уверены, что хотите удалить исполнителя "${safeExecutor.performer}" из заказа №${safeExecutor.orderNumber}?`}
-                    confirmText="Удалить"
-                    cancelText="Отмена"
-                    onConfirm={handleConfirmDelete}
-                    onCancel={handleCancelDelete}
-                    isDelete={true} 
-                />
-            )}
+          <ConfirmationModal
+              title="Сообщение"
+              message="У вас есть несохраненные изменения. Вы уверены, что хотите закрыть без сохранения?"
+              confirmText="Да, закрыть"
+              cancelText="Отмена"
+              onConfirm={handleConfirmClose}
+              onCancel={handleCancelClose}
+          />
+      )}
+      
+      {showDeleteConfirm && (
+          <ConfirmationModal
+              title="Подтверждение удаления"
+              message={`Вы уверены, что хотите удалить исполнителя "${safeExecutor.performer}" из заказа №${safeExecutor.orderNumber}?`}
+              confirmText="Удалить"
+              cancelText="Отмена"
+              onConfirm={handleConfirmDelete}
+              onCancel={handleCancelDelete}
+              isDelete={true} 
+          />
+      )}
     </div>
   );
 }

@@ -18,6 +18,9 @@ import { useTransactions } from "../../../context/TransactionsContext";
 import { addLogEntry, getEmployees } from "../../Journal/journalApi";
 import { getStageColor } from "../../Orders/stageColors";
 import { fetchClients } from "../../../api/clients";
+import { useFields } from "../../../context/FieldsContext";
+import { addFieldOption, fetchFields, withDefaults } from "../../../api/fields";
+import { rid } from "../../../utils/rid";
 import "../../../styles/OrderModal.css";
 import { X, Trash2, Copy, MoreVertical } from "lucide-react";
 
@@ -39,8 +42,6 @@ const stages = [
   "Неудачно завершён",
   "Удаленные",
 ];
-
-const defaultTagsFallback = ["Срочный", "В приоритете", "На паузе", "Клиент VIP"];
 
 const tabs = ["Сводка", "Основное", "Планы", "Участники", "Финансы", "Выполнение", "Завершение"];
 
@@ -116,7 +117,10 @@ function OrderModal({
   onCreateOrder,
   onDeleteOrder,
   journalEntries,
+  onAddNewField
 }) {
+  const { refreshFields } = useFields();
+
   const formDefaults = useMemo(() => {
     if (mode === "create") return newOrderDefaults;
     return {
@@ -253,11 +257,54 @@ function OrderModal({
   const watchedStage = watch("stage");
   const watchedTags = watch("tags") || [];
 
+  const handleAddNewFieldInternal = async (group, fieldName, newValue, extraData = {}) => {
+    const resolvedFieldName = fieldName === "discountReasons" ? "discountReason" : fieldName;
+    if (onAddNewField) {
+      const normalizedFromParent = await onAddNewField(group, resolvedFieldName, newValue, extraData);
+      try {
+        const normalized = normalizedFromParent
+          ? withDefaults(normalizedFromParent)
+          : withDefaults(await fetchFields());
+
+        if (group === "orderFields" || (group === "generalFields" && resolvedFieldName === "currency")) {
+          setOrderFields((prev) => ({
+            ...prev,
+            ...(group === "orderFields"
+              ? {
+                  [resolvedFieldName]:
+                    normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
+                }
+              : {
+                  currency: normalized?.generalFields?.currency || prev?.currency || [],
+                }),
+          }));
+        }
+      } catch (e) {
+        console.error("Ошибка при обновлении локальных полей заказа:", e);
+      }
+    } else {
+      try {
+        const normalized = await addFieldOption(group, resolvedFieldName, newValue, extraData);
+        if (group === "orderFields") {
+          setOrderFields((prev) => ({
+            ...prev,
+            [resolvedFieldName]:
+              normalized?.orderFields?.[resolvedFieldName] || prev?.[resolvedFieldName] || [],
+          }));
+        }
+        if (refreshFields) {
+          await refreshFields();
+        }
+      } catch (e) {
+        console.error("Ошибка при сохранении нового поля в БД:", e);
+      }
+    }
+  };
+
   useEffect(() => {
     try {
       setEmployees(getEmployees());
     } catch (e) {
-      console.error("Не удалось загрузить сотрудников:", e);
       setEmployees([]);
     }
   }, []);
@@ -343,7 +390,14 @@ function OrderModal({
             taskTags: [],
             readySolution: [],
           };
-          setOrderFields({ ...base, ...parsed.orderFields });
+          setOrderFields({
+            ...base,
+            ...parsed.orderFields,
+            discountReason:
+              parsed?.orderFields?.discountReason ??
+              parsed?.orderFields?.discountReasons ??
+              base.discountReason,
+          });
         }
 
         const employeesFromStorage = JSON.parse(localStorage.getItem("employees")) || [];
@@ -416,11 +470,9 @@ function OrderModal({
     return segments;
   };
 
-  const availableOrderTags = (orderFields?.tags || [])
+  const tagOptions = (orderFields?.tags || [])
     .map((t) => (typeof t === "string" ? t : t?.name))
     .filter(Boolean);
-
-  const tagOptions = availableOrderTags.length ? availableOrderTags : defaultTagsFallback;
 
   const filteredTags = tagOptions.filter(
     (tag) => !watchedTags.includes(tag) && tag.toLowerCase().includes(customTag.toLowerCase())
@@ -436,7 +488,9 @@ function OrderModal({
 
   const handleCustomTagAdd = (e, onChange) => {
     if (e.key === "Enter" && customTag.trim() && !watchedTags.includes(customTag.trim())) {
-      onChange([...watchedTags, customTag.trim()]);
+      const newTag = customTag.trim();
+      onChange([...watchedTags, newTag]);
+      handleAddNewFieldInternal("orderFields", "tags", newTag);
       setCustomTag("");
       setShowTagDropdown(false);
       e.preventDefault();
@@ -467,7 +521,6 @@ function OrderModal({
 
   const handleConfirmAction = () => {
     if (confirmAction === "duplicate") {
-      console.log("Дублируем заказ", order?.id);
     } else if (confirmAction === "delete") {
       if (onDeleteOrder && order?.id) onDeleteOrder(order.id);
       onClose?.();
@@ -640,7 +693,6 @@ function OrderModal({
                     </button>
                   </div>
                 </div>
-                {/* Убрали кнопки отмены/сохранения из хедера */}
               </div>
 
               <div className="tags-section-header">
@@ -677,7 +729,10 @@ function OrderModal({
                               !watchedTags.includes(customTag.trim()) && (
                                 <div
                                   className="tag-dropdown-item tag-dropdown-custom-header"
-                                  onClick={() => handleTagSelect(customTag.trim(), onChange)}
+                                  onClick={() => {
+                                    handleTagSelect(customTag.trim(), onChange);
+                                    handleAddNewFieldInternal("orderFields", "tags", customTag.trim());
+                                  }}
                                 >
                                   Добавить: "{customTag}"
                                 </div>
@@ -782,9 +837,9 @@ function OrderModal({
               <div className="tab-content">
                 {activeTab === "Сводка" && <OrderSummary />}
                 {activeTab === "Основное" && (
-                  <GeneralInformation control={control} orderFields={orderFields} mode={mode} />
+                  <GeneralInformation control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewFieldInternal} />
                 )}
-                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} />}
+                {activeTab === "Планы" && <WorkPlan control={control} orderFields={orderFields} mode={mode} onAddNewField={handleAddNewFieldInternal} />}
                 {activeTab === "Участники" && (
                   <Participants
                     control={control}
@@ -795,14 +850,13 @@ function OrderModal({
                   />
                 )}
                 {activeTab === "Финансы" && (
-                  <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions} />
+                  <Finance control={control} orderFields={orderFields} mode={mode} transactions={orderTransactions} onAddNewField={handleAddNewFieldInternal} />
                 )}
                 {activeTab === "Выполнение" && <OrderExecution control={control} mode={mode} />}
                 {activeTab === "Завершение" && <CompletingOrder control={control} mode={mode} />}
               </div>
             </div>
 
-            
             <div className={`order-modal-footer ${isDirty ? "visible" : ""}`}>
               <div className="action-buttons">
                 <button type="button" className="cancel-order-btn" onClick={resetChanges}>

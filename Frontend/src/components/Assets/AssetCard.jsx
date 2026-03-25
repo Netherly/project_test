@@ -1,25 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../../styles/AssetCard.css";
-import { fileUrl } from "../../api/http";
 import { X } from "lucide-react";
+import { withCacheVersion } from "../../api/http";
+import {
+  getCardDesignFallback,
+  normalizeCardDesignName,
+  resolveCardDesignUrl,
+} from "../../utils/cardDesigns";
 
 import visaLogo from "../../assets/assets-card/visa.png";
 import mastercardLogo from "../../assets/assets-card/mastercard.png";
 import mirLogo from "../../assets/assets-card/mir.png";
 import cryptoLogo from "../../assets/assets-card/cryptologo.png";
 import cardChip from "../../assets/assets-card/cardchip.png";
-
-const designNameMap = {
-  Монобанк: "monobank-black",
-  ПриватБанк: "privatbank-green",
-  Сбербанк: "sberbank-light-green",
-  Bybit: "bybit-white",
-  Рубин: "ruby",
-  Сапфир: "saphire",
-  Атлас: "atlas",
-  "3Д": "3d",
-  Красный: "red",
-};
 
 const AssetCard = ({
   asset,
@@ -28,6 +21,7 @@ const AssetCard = ({
   onCopyValue,
   onCopyRequisites,
   cardDesigns = [],
+  designVersion = "",
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
@@ -66,30 +60,67 @@ const AssetCard = ({
   };
 
   const accountName = asset?.accountName || "";
-  const displayAccountName = accountName.includes("Binance")
-    ? accountName.replace("Binance", "CRYPTO")
-    : accountName;
 
   const paymentSystemValue = asset?.paymentSystemRaw ?? asset?.paymentSystem;
   const currencyValue = asset?.currencyRaw ?? asset?.currency;
 
   const designValue =
     asset?.designRaw?.id ?? asset?.designRaw?.name ?? asset?.design ?? "";
-  const designNameValue = asset?.designRaw?.name ?? asset?.design ?? "";
+  const designNameValue =
+    asset?.designRaw?.name ?? asset?.cardDesign?.name ?? asset?.design ?? "";
 
-  const designObj = cardDesigns.find(
-    (d) =>
-      d?.id === designValue ||
-      d?.name === designValue ||
-      designNameMap[d?.name] === designValue ||
-      designNameMap[d?.name] === designNameValue
+  const designObj =
+    cardDesigns.find((d) => d?.id && designValue && d.id === designValue) ||
+    cardDesigns.find(
+      (d) =>
+        normalizeCardDesignName(d?.name) &&
+        normalizeCardDesignName(d?.name) === normalizeCardDesignName(designNameValue)
+    );
+
+  const designFallback = getCardDesignFallback(
+    designObj?.name || asset?.cardDesign?.name || designNameValue || designValue
   );
 
-  const designClass = designValue ? `card-design-${designValue}` : "card-design-default";
+  const designClass = designFallback
+    ? `card-design-${designFallback.key}`
+    : "card-design-default";
 
-  const designUrl = asset?.cardDesign?.url
-    ? fileUrl(asset.cardDesign.url)
-    : designObj?.viewUrl || (designObj?.url ? fileUrl(designObj.url) : null);
+  const rawDesignUrl = resolveCardDesignUrl(
+    designObj?.viewUrl ??
+      designObj?.url ??
+      asset?.cardDesign?.imageUrl ??
+      asset?.cardDesign?.url ??
+      ""
+  );
+  const designImageVersion =
+    designObj?.imageVersion ??
+    asset?.cardDesign?.imageVersion ??
+    designVersion;
+  const versionedDesignUrl = withCacheVersion(rawDesignUrl, designImageVersion);
+
+  const [designUrl, setDesignUrl] = useState("");
+
+  useEffect(() => {
+    if (!versionedDesignUrl || typeof window === "undefined") {
+      setDesignUrl("");
+      return undefined;
+    }
+
+    let active = true;
+    const image = new window.Image();
+
+    image.onload = () => {
+      if (active) setDesignUrl(versionedDesignUrl);
+    };
+    image.onerror = () => {
+      if (active) setDesignUrl("");
+    };
+    image.src = versionedDesignUrl;
+
+    return () => {
+      active = false;
+    };
+  }, [versionedDesignUrl]);
 
   const getCardTypeLogo = () => {
     const ps =
@@ -162,20 +193,25 @@ const AssetCard = ({
 
   const balance = Number.isFinite(Number(asset?.balance)) ? Number(asset.balance) : 0;
   const shouldShowCardElements = true;
+  const designImageStyle = designUrl
+    ? {
+        backgroundImage: `url(${designUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }
+    : undefined;
 
   return (
     <div
       className={`asset-card-wrapper ${isFlipped ? "flipped" : ""} ${designClass}`}
       onClick={onCardClick}
       style={{
-        backgroundImage: designUrl ? `url(${designUrl})` : "none",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundColor: !designUrl ? "#333" : "transparent",
+        backgroundColor: !designUrl && !designFallback ? "#333" : undefined,
       }}
     >
       <div className="asset-card-inner">
-        <div className="asset-card-front">
+        <div className="asset-card-front" style={designImageStyle}>
           <button
             type="button"
             className="asset-card-delete-button"
@@ -186,7 +222,7 @@ const AssetCard = ({
           </button>
 
           <div className="card-top-left-name">
-            <span className="asset-name-top-left">{displayAccountName}</span>
+            <span className="asset-name-top-left">{accountName}</span>
             <span>{asset?.employee}</span>
           </div>
 
@@ -224,7 +260,7 @@ const AssetCard = ({
           </div>
         </div>
 
-        <div className="asset-card-back">
+        <div className="asset-card-back" style={designImageStyle}>
           <div className="magnetic-stripe"></div>
 
           <div className="card-back-details">

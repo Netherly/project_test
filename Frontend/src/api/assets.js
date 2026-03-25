@@ -45,6 +45,7 @@ export function withAssetDefaults(asset) {
   const typeResolved = resolveField(a.type, "");
   const paymentSystemResolved = resolveField(a.paymentSystem, "");
   const designResolved = resolveField(a.design, "default-design");
+  const cardDesignRaw = safeObj(a.cardDesign);
   const employeeName =
     a.employeeName ||
     a.employeeFullName ||
@@ -55,6 +56,7 @@ export function withAssetDefaults(asset) {
   const employeeId = a.employeeId || a.employee?.id || null;
   return {
     id,
+    urlId: a.urlId ?? null,
     accountName: a.accountName ?? a.id ?? "Без названия",
     currency: currencyResolved.value,
     currencyRaw: currencyResolved.raw ?? currencyResolved.value,
@@ -82,6 +84,8 @@ export function withAssetDefaults(asset) {
     })),
     design: designResolved.value,
     designRaw: designResolved.raw ?? designResolved.value,
+    cardDesignId: a.cardDesignId ?? cardDesignRaw.id ?? null,
+    cardDesign: a.cardDesign ?? null,
     paymentSystem: paymentSystemResolved.value,
     paymentSystemRaw: paymentSystemResolved.raw ?? paymentSystemResolved.value,
   };

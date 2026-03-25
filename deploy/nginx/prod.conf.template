@@ -1,9 +1,27 @@
 server {
     listen 80;
-    server_name PROD_DOMAIN;
+    server_name PROD_DOMAIN PROD_DOMAIN_WWW;
+
+    # Увеличиваем лимит на размер тела запроса до 10 МБ
+    client_max_body_size 10m;
 
     root /var/www/crm-frontend-prod;
     index index.html;
+
+    location = /index.html {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        try_files $uri =404;
+    }
+
+    location = /sw.js {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        try_files $uri =404;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
 
     location / {
         try_files $uri /index.html;

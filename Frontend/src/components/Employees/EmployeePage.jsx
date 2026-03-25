@@ -14,9 +14,11 @@ import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon";
 import {
   CACHE_TTL,
   hasDataChanged,
+  RESOURCE_CACHE_EVENT,
   readCacheSnapshot,
   writeCachedValue,
 } from "../../utils/resourceCache";
+import { buildEntityPath } from "../../utils/entityRoutes";
 
 const formatDate = (dateString) => {
   if (!dateString) return "";
@@ -55,8 +57,14 @@ const getFirstRequisite = (requisites) => {
 const EmployeeCard = ({ employee, onClick }) => {
   const avatar = employee.avatarUrl || employee.photoLink || avatarPlaceholder;
   const tags = Array.isArray(employee.tags) ? employee.tags : [];
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick?.();
+    }
+  };
   return (
-    <div className="employee-card" onClick={onClick}>
+    <div className="employee-card" onClick={onClick} onKeyDown={handleKeyDown} role="button" tabIndex={0}>
       <img
         src={avatar}
         alt={employee.fullName || employee.full_name || "Сотрудник"}
@@ -118,25 +126,31 @@ const EmployeePage = () => {
 
   useEffect(() => {
     let mounted = true;
+    const applyEmployees = (value) => {
+      const nextEmployees = Array.isArray(value) ? value : [];
+      setEmployees((prev) =>
+        hasDataChanged(prev, nextEmployees) ? nextEmployees : prev
+      );
+      setLoading(false);
+    };
+
     const snapshot = readCacheSnapshot("employees", {
       fallback: [],
       ttlMs: CACHE_TTL.lists,
     });
 
     if (snapshot.hasData) {
-      const cachedEmployees = Array.isArray(snapshot.data) ? snapshot.data : [];
-      setEmployees((prev) =>
-        hasDataChanged(prev, cachedEmployees) ? cachedEmployees : prev
-      );
-      setLoading(false);
-      if (snapshot.isFresh) {
-        setError("");
-        setForbidden(false);
-        return () => {
-          mounted = false;
-        };
-      }
+      applyEmployees(snapshot.data);
+      setError("");
+      setForbidden(false);
     }
+
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "employees") return;
+      applyEmployees(event.detail.value);
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
 
     (async () => {
       if (!snapshot.hasData) {
@@ -170,6 +184,7 @@ const EmployeePage = () => {
     })();
     return () => {
       mounted = false;
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     };
   }, []);
 
@@ -178,7 +193,7 @@ const EmployeePage = () => {
 
   const handleOpenEmployee = (employee = null) => {
     if (employee?.id) {
-      navigate(`/employees/${employee.id}`);
+      navigate(buildEntityPath("/employees", employee));
     } else {
       navigate("/employees/new");
     }
@@ -345,6 +360,14 @@ const EmployeePage = () => {
                             <tr
                               key={employee.id}
                               onClick={() => handleOpenEmployee(employee)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  handleOpenEmployee(employee);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
                               style={{ cursor: "pointer" }}
                             >
                               <td>{employee.fullName}</td>

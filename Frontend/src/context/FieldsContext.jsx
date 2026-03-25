@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { fetchFields } from "../api/fields";
+import { fetchFields, withDefaults } from "../api/fields";
 import {
   CACHE_TTL,
   hasDataChanged,
+  RESOURCE_CACHE_EVENT,
   readCacheSnapshot,
   writeCachedValue,
 } from "../utils/resourceCache";
@@ -17,10 +18,13 @@ export const useFields = () => {
   return context;
 };
 
+const normalizeCachedFields = (value) => {
+  if (value === null || value === undefined) return null;
+  return withDefaults(value);
+};
+
 export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
-  const [fields, setFields] = useState(() =>
-    readCacheSnapshot("fieldsData").data
-  );
+  const [fields, setFields] = useState(() => normalizeCachedFields(readCacheSnapshot("fieldsData").data));
   const [loading, setLoading] = useState(() => !readCacheSnapshot("fieldsData").hasData);
   const [error, setError] = useState(null);
 
@@ -29,12 +33,10 @@ export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
 
     const snapshot = readCacheSnapshot("fieldsData", { ttlMs: CACHE_TTL.fields });
     if (snapshot.hasData) {
-      setFields((prev) => (hasDataChanged(prev, snapshot.data) ? snapshot.data : prev));
+      const normalizedSnapshot = normalizeCachedFields(snapshot.data);
+      setFields((prev) => (hasDataChanged(prev, normalizedSnapshot) ? normalizedSnapshot : prev));
       setLoading(false);
-      if (snapshot.isFresh) {
-        setError(null);
-        return;
-      }
+      setError(null);
     }
 
     let mounted = true;
@@ -67,6 +69,21 @@ export const FieldsProvider = ({ children, authReady, isAuthenticated }) => {
       mounted = false;
     };
   }, [authReady, isAuthenticated]);
+
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      const nextFields = normalizeCachedFields(event?.detail?.value);
+      setFields((prev) => (hasDataChanged(prev, nextFields) ? nextFields : prev));
+      setLoading(false);
+      setError(null);
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
 
   const refreshFields = async () => {
     try {

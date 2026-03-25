@@ -130,15 +130,15 @@ export default function App() {
           <Route path="/employees/:employeeId" element={<ProtectedRoute element={<EmployeeDetailsPage />} />} />
           <Route path="/journal/:entryId?" element={<ProtectedRoute element={<JournalPage />} />} />
           <Route path="/currency-rates" element={<ProtectedRoute element={<CurrencyRates />} />} />
-          <Route path="/assets/:assetId?" element={<ProtectedRoute element={<AssetsPage />} />} />
-          <Route path="/list/:transactionId?" element={<ProtectedRoute element={<TransactionsPage />} />} />
-          <Route path="/regular/:paymentId?" element={<ProtectedRoute element={<RegularPaymentsPage />} />} />
+          <Route path="/accounts/:accountId?" element={<ProtectedRoute element={<AssetsPage />} />} />
+          <Route path="/transactions/:transactionId?" element={<ProtectedRoute element={<TransactionsPage />} />} />
+          <Route path="/regular_pays/:regular_payId?" element={<ProtectedRoute element={<RegularPaymentsPage />} />} />
           <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
           <Route path="/fields" element={<ProtectedRoute element={<FieldsPage />} />} />
           <Route path="/access/:subPage?" element={<ProtectedRoute element={<AccessSettings />} />} />
           <Route path="/tasks" element={<ProtectedRoute element={<TasksPage />} />} />
           <Route path="/fixes" element={<ProtectedRoute element={<FixesPage />} />} />
-          <Route path="/company" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
+          <Route path="/company/:companyId?" element={<ProtectedRoute element={<CompaniesPage/>}/>}/>
           <Route
             path="/clients"
             element={

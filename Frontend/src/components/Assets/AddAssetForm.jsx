@@ -122,6 +122,10 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
     setShowConfirmationModal(false);
   };
 
+  const currencyOptions = (generalFields.currency || []).map(item => item?.value ?? item);
+  const typeOptions = (assetsFields.type || []).map(item => item?.value ?? item);
+  const paymentSystemOptions = (assetsFields.paymentSystem || []).map(item => item?.value ?? item);
+
   return (
     <>
       <div className="add-asset-overlay" onClick={handleAttemptClose}>
@@ -157,27 +161,14 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
               <label htmlFor="currency" className="form-label">
                 Валюта счета
               </label>
-              <select
-                id="currency"
-                name="currency"
+              <CreatableSelect
                 value={formData.currency}
-                onChange={handleChange}
-                required
-                className="form-input1"
+                onChange={(val) => handleSelectChange("currency", val)}
+                options={currencyOptions}
+                placeholder="Выберите или введите валюту..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>
-                  Не выбрано
-                </option>
-                {(generalFields.currency || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
+                onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
+              />
             </div>
 
             <div className="form-row">
@@ -225,51 +216,28 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
               <label htmlFor="type" className="form-label">
                 Тип
               </label>
-              <select
-                id="type"
-                name="type"
+              <CreatableSelect
                 value={formData.type}
-                onChange={handleChange}
-                required
-                className="form-input1"
+                onChange={(val) => handleSelectChange("type", val)}
+                options={typeOptions}
+                placeholder="Выберите или введите тип..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>
-                  Не выбрано
-                </option>
-                {(assetsFields.type || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
+                onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "type", val)}
+              />
             </div>
 
             <div className="form-row">
               <label htmlFor="paymentSystem" className="form-label">
                 Платежная система
               </label>
-              <select
-                id="paymentSystem"
-                name="paymentSystem"
+              <CreatableSelect
                 value={formData.paymentSystem}
-                onChange={handleChange}
-                className="form-input1"
+                onChange={(val) => handleSelectChange("paymentSystem", val)}
+                options={paymentSystemOptions}
+                placeholder="Выберите или введите..."
                 disabled={isLoading}
-              >
-                <option value="" disabled hidden>Не выбрано</option>
-                {(assetsFields.paymentSystem || []).map((item, index) => {
-                  const val = item?.value ?? item;
-                  return (
-                    <option key={item?.id || index} value={val}>
-                      {val}
-                    </option>
-                  );
-                })}
-              </select>
+                onAdd={(val) => onAddNewField && onAddNewField("assetsFields", "paymentSystem", val)}
+              />
             </div>
 
             <div className="form-row">
@@ -324,7 +292,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
                         type="text"
                         name="label"
                         value={req.label}
-                        onInput={(e) => handleRequisiteChange(index, e)}
+                        onChange={(e) => handleRequisiteChange(index, e)}
                         placeholder="Введите название"
                         className="form-input1"
                         disabled={isLoading}

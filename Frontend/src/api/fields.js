@@ -1,4 +1,5 @@
 import { httpGet, httpPut, fileUrl } from "./http";
+import { writeCachedValue } from "../utils/resourceCache";
 
 export const rid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 export const tidy = (v) => String(v ?? "").trim();
@@ -9,6 +10,277 @@ export function clone(v) {
 }
 
 const normalizeCodeValue = (value) => tidy(value).toUpperCase();
+const normalizeDeleteAction = (value) => {
+  const action = tidy(value).toLowerCase();
+  return action === "hide" ? "hide" : "";
+};
+
+const normalizeFieldTargetKey = (groupKey, fieldName) => `${tidy(groupKey)}.${tidy(fieldName)}`;
+
+const createStringItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  value,
+  name: value,
+  order,
+  isDeleted: false,
+  ...extraData,
+});
+
+const createTagItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  name: value,
+  color: isHex(extraData?.color) ? extraData.color : "#ffffff",
+  order,
+  isDeleted: false,
+});
+
+const createCurrencyItem = (value, order, extraData = {}) => {
+  const code = normalizeCodeValue(value);
+  return {
+    id: rid(),
+    value: code,
+    code,
+    name: tidy(extraData?.name) || code,
+    label: tidy(extraData?.label) || tidy(extraData?.name) || code,
+    order,
+    isDeleted: false,
+  };
+};
+
+const createCountryItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  value,
+  name: value,
+  nameEn: tidy(extraData?.nameEn),
+  nameRu: tidy(extraData?.nameRu),
+  nameUk: tidy(extraData?.nameUk),
+  iso2: tidy(extraData?.iso2).toUpperCase(),
+  iso3: tidy(extraData?.iso3).toUpperCase(),
+  order,
+  isDeleted: false,
+});
+
+const createIntervalItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  intervalValue: tidy(extraData?.intervalValue ?? value),
+  order,
+  isDeleted: false,
+});
+
+const createCategoryItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  categoryInterval: tidy(extraData?.categoryInterval),
+  categoryValue: tidy(extraData?.categoryValue ?? value),
+  order,
+  isDeleted: false,
+});
+
+const createArticleItem = (value, order) => ({
+  id: rid(),
+  articleValue: value,
+  order,
+  isDeleted: false,
+});
+
+const createSubarticleItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  subarticleInterval: tidy(extraData?.subarticleInterval ?? extraData?.parentName),
+  subarticleValue: tidy(extraData?.subarticleValue ?? value),
+  order,
+  isDeleted: false,
+});
+
+const normalizeIdentity = (value) => tidy(value).toLowerCase();
+const stringifyCompoundIdentity = (...parts) => parts.map(normalizeIdentity).join("::");
+
+const getStringIdentity = (item) => normalizeIdentity(item?.value ?? item?.name);
+const getTagIdentity = (item) => normalizeIdentity(item?.name ?? item?.value);
+const getCurrencyIdentity = (item) => normalizeCodeValue(item?.code ?? item?.value ?? item?.name);
+const getCountryIdentity = (item) =>
+  normalizeIdentity(item?.iso2 ?? item?.iso3 ?? item?.name ?? item?.value);
+const getIntervalIdentity = (item) => normalizeIdentity(item?.intervalValue ?? item?.value);
+const getCategoryIdentity = (item) =>
+  stringifyCompoundIdentity(
+    item?.categoryInterval ?? item?.intervalValue ?? item?.interval,
+    item?.categoryValue ?? item?.value ?? item?.name
+  );
+const getArticleIdentity = (item) => normalizeIdentity(item?.articleValue ?? item?.value ?? item?.name);
+const getSubarticleIdentity = (item) =>
+  stringifyCompoundIdentity(
+    item?.subarticleInterval ?? item?.parentName ?? item?.articleName ?? item?.subcategoryName,
+    item?.subarticleValue ?? item?.value ?? item?.name
+  );
+
+const FIELD_OPTION_TARGETS = {
+  "generalFields.country": {
+    buildIncomingIdentity: (value, extraData = {}) =>
+      normalizeIdentity(extraData?.iso2 ?? extraData?.iso3 ?? value),
+    getItemIdentity: getCountryIdentity,
+    createItem: createCountryItem,
+  },
+  "generalFields.currency": {
+    buildIncomingIdentity: (value) => normalizeCodeValue(value),
+    getItemIdentity: getCurrencyIdentity,
+    createItem: createCurrencyItem,
+  },
+  "employeeFields.tags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "clientFields.category": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "clientFields.source": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "clientFields.business": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "clientFields.tags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "companyFields.tags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "executorFields.role": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.intervals": {
+    buildIncomingIdentity: (value, extraData = {}) => normalizeIdentity(extraData?.intervalValue ?? value),
+    getItemIdentity: getIntervalIdentity,
+    createItem: createIntervalItem,
+  },
+  "orderFields.categories": {
+    buildIncomingIdentity: (value, extraData = {}) => {
+      const interval = tidy(extraData?.categoryInterval);
+      const categoryValue = tidy(extraData?.categoryValue ?? value);
+      return interval && categoryValue ? stringifyCompoundIdentity(interval, categoryValue) : "";
+    },
+    getItemIdentity: getCategoryIdentity,
+    createItem: createCategoryItem,
+  },
+  "orderFields.statuses": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.closeReasons": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.projects": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.discountReason": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.readySolution": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.techTags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "orderFields.taskTags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "financeFields.articles": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getArticleIdentity,
+    createItem: createArticleItem,
+  },
+  "financeFields.subarticles": {
+    buildIncomingIdentity: (value, extraData = {}) => {
+      const parent = tidy(extraData?.subarticleInterval ?? extraData?.parentName);
+      const subarticleValue = tidy(extraData?.subarticleValue ?? value);
+      return parent && subarticleValue ? stringifyCompoundIdentity(parent, subarticleValue) : "";
+    },
+    getItemIdentity: getSubarticleIdentity,
+    createItem: createSubarticleItem,
+  },
+  "assetsFields.type": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "assetsFields.paymentSystem": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+};
+
+const FIELD_OPTION_ALIASES = {
+  "employeeFields.country": "generalFields.country",
+  "clientFields.country": "generalFields.country",
+  "clientFields.currency": "generalFields.currency",
+  "employeeFields.currency": "generalFields.currency",
+  "executorFields.currency": "generalFields.currency",
+  "orderFields.currency": "generalFields.currency",
+  "assetsFields.currency": "generalFields.currency",
+  "orderFields.tag": "orderFields.tags",
+  "orderFields.status": "orderFields.statuses",
+  "orderFields.closeReason": "orderFields.closeReasons",
+  "orderFields.discountReasons": "orderFields.discountReason",
+  "financeFields.article": "financeFields.articles",
+  "financeFields.subarticle": "financeFields.subarticles",
+  "clientFields.tag": "clientFields.tags",
+  "companyFields.tag": "companyFields.tags",
+  "employeeFields.tag": "employeeFields.tags",
+  "assetsFields.cardDesign": "assetsFields.cardDesigns",
+};
+
+const normalizeFieldsBundle = (bundle) => withDefaults(bundle);
+const writeFieldsBundleCache = (bundle) => {
+  const normalized = normalizeFieldsBundle(bundle);
+  writeCachedValue("fieldsData", normalized);
+  return normalized;
+};
+
+const resolveFieldOptionTarget = (groupKey, fieldName) => {
+  const rawKey = normalizeFieldTargetKey(groupKey, fieldName);
+  const canonicalKey = FIELD_OPTION_ALIASES[rawKey] || rawKey;
+  const [resolvedGroupKey = "", resolvedFieldName = ""] = canonicalKey.split(".");
+  const config = FIELD_OPTION_TARGETS[canonicalKey] || null;
+
+  return {
+    key: canonicalKey,
+    groupKey: resolvedGroupKey,
+    fieldName: resolvedFieldName,
+    config,
+    supported: Boolean(config),
+  };
+};
+
+const assertSupportedFieldOptionTarget = (target) => {
+  if (target?.supported) return target;
+  throw new Error(
+    `Автодобавление поля "${target?.groupKey || ""}.${target?.fieldName || ""}" не поддерживается.`
+  );
+};
 
 // --- Нормализация (чтение с сервера) ---
 
@@ -25,7 +297,13 @@ export const normStrs = (arr) => {
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), value: v, isDeleted: item?.isDeleted || false });
+      out.push({
+        id: item?.id || rid(),
+        value: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+        isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
+        isDeleted: item?.isDeleted || false,
+      });
     }
   }
   return out;
@@ -56,6 +334,8 @@ export const normCodeStrs = (arr) => {
       code,
       name,
       label: name || code,
+      order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+      isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
     });
   }
@@ -96,6 +376,7 @@ export const normCountries = (arr) => {
       iso2,
       iso3,
       order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+      isLinked: typeof item?.isLinked === "boolean" ? item.isLinked : undefined,
       isDeleted: item?.isDeleted || false,
     });
   }
@@ -106,6 +387,8 @@ export const normIntervals = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     intervalValue: tidy(it?.intervalValue ?? it?.value ?? it),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -116,6 +399,8 @@ export const normCategories = (arr) =>
       it?.categoryInterval ?? it?.interval?.value ?? it?.intervalValue ?? it?.interval ?? it?.group
     ),
     categoryValue: tidy(it?.categoryValue ?? it?.value ?? it?.name),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -123,6 +408,8 @@ export const normArticles = (arr) =>
   (Array.isArray(arr) ? arr : []).map((it) => ({
     id: it?.id || rid(),
     articleValue: tidy(it?.articleValue ?? it?.value ?? it?.name ?? it),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
 
@@ -137,16 +424,32 @@ export const normSubarticles = (arr) =>
         it?.parentSubcategoryName
     ),
     subarticleValue: tidy(it?.subarticleValue ?? it?.value ?? it?.name),
+    order: Number.isFinite(Number(it?.order)) ? Number(it.order) : undefined,
+    isLinked: typeof it?.isLinked === "boolean" ? it.isLinked : undefined,
     isDeleted: it?.isDeleted || false,
   }));
+
+const deriveCardDesignImageVersion = (explicitVersion, sourceUrl) => {
+  const version = tidy(explicitVersion);
+  if (version) return version;
+
+  const rawUrl = tidy(sourceUrl);
+  if (!rawUrl) return "";
+
+  const [pathPart = ""] = rawUrl.split("?");
+  const segments = pathPart.split("/").filter(Boolean);
+  return segments[segments.length - 1] || rawUrl;
+};
 
 export const normDesigns = (arr) =>
   (Array.isArray(arr) ? arr : []).map((d) => ({
     id: d?.id || rid(),
     name: tidy(d?.name),
     url: tidy(d?.url ?? d?.imageUrl ?? d?.src),
+    imageVersion: deriveCardDesignImageVersion(d?.imageVersion ?? d?.version, d?.url ?? d?.imageUrl ?? d?.src),
     size: d?.size ?? null,
     order: Number.isFinite(Number(d?.order)) ? Number(d.order) : undefined,
+    isLinked: typeof d?.isLinked === "boolean" ? d.isLinked : undefined,
     isDeleted: d?.isDeleted || false,
   }));
 
@@ -183,17 +486,59 @@ const unwrap = (resp) => {
 
 export async function fetchFields() {
   const r = await httpGet("/fields");
-  return unwrap(r);
+  return normalizeFieldsBundle(unwrap(r));
 }
 
 export async function saveFields(payload) {
   const r = await httpPut("/fields", payload);
-  return unwrap(r);
+  return normalizeFieldsBundle(unwrap(r));
+}
+
+export async function addFieldOption(groupKey, fieldName, rawValue, extraData = {}) {
+  const value = tidy(rawValue);
+  if (!value) {
+    return fetchFields();
+  }
+
+  const target = assertSupportedFieldOptionTarget(resolveFieldOptionTarget(groupKey, fieldName));
+
+  const normalized = await fetchFields();
+  const list = Array.isArray(normalized?.[target.groupKey]?.[target.fieldName])
+    ? [...normalized[target.groupKey][target.fieldName]]
+    : [];
+  const incomingIdentity = target.config.buildIncomingIdentity(value, extraData);
+
+  if (!incomingIdentity) {
+    throw new Error(`Недостаточно данных для добавления поля "${target.key}".`);
+  }
+
+  const exists = list.some((item) => target.config.getItemIdentity(item) === incomingIdentity);
+
+  if (exists) {
+    return normalized;
+  }
+
+  const nextOrder =
+    list.reduce((max, item, index) => {
+      const order = Number.isFinite(Number(item?.order)) ? Number(item.order) : index;
+      return Math.max(max, order);
+    }, -1) + 1;
+
+  normalized[target.groupKey] = {
+    ...(normalized[target.groupKey] || {}),
+    [target.fieldName]: [
+      ...list,
+      target.config.createItem(value, nextOrder, extraData),
+    ],
+  };
+
+  const saved = await saveFields(serializeForSave(normalized));
+  return writeFieldsBundleCache(saved);
 }
 
 export async function fetchInactiveFields() {
   const r = await httpGet("/fields/inactive");
-  return unwrap(r);
+  return normalizeFieldsBundle(unwrap(r));
 }
 
 // --- Defaults (UI structure) ---
@@ -256,7 +601,7 @@ export function withDefaults(fields) {
       paymentSystem: normStrs(f?.assetsFields?.paymentSystem),
       cardDesigns: normDesigns(f?.assetsFields?.cardDesigns).map((d) => ({
         ...d,
-        viewUrl: fileUrl(d?.url || ""),
+        viewUrl: fileUrl(d?.url || "", d?.imageVersion || ""),
       })),
     },
     financeFields: {
@@ -278,14 +623,22 @@ export function withDefaults(fields) {
 export const serByName = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const v = tidy(item?.value ?? item?.name);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), name: v });
+      out.push({
+        id: item?.id || rid(),
+        name: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+        ...(item?.isDeleted ? { isDeleted: true } : {}),
+        ...(normalizeDeleteAction(item?.deleteAction)
+          ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+          : {}),
+      });
     }
   }
   return out;
@@ -294,7 +647,7 @@ export const serByName = (arr) => {
 export const serCountries = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item?.isDeleted);
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const name = tidy(item?.value ?? item?.name);
     const iso2 = tidy(item?.iso2).toUpperCase();
@@ -312,6 +665,10 @@ export const serCountries = (arr) => {
       iso2: iso2 || undefined,
       iso3: iso3 || undefined,
       order: Number.isFinite(Number(item?.order)) ? Number(item.order) : undefined,
+      ...(item?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(item?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+        : {}),
     });
   }
   return out;
@@ -320,14 +677,22 @@ export const serCountries = (arr) => {
 export const serByCode = (arr) => {
   const seen = new Set();
   const out = [];
-  const source = (Array.isArray(arr) ? arr : []).filter((item) => !item.isDeleted);
+  const source = Array.isArray(arr) ? arr : [];
   for (const item of source) {
     const v = normalizeCodeValue(item?.code ?? item?.value);
     if (!v) continue;
     const k = v.toLowerCase();
     if (!seen.has(k)) {
       seen.add(k);
-      out.push({ id: item?.id || rid(), code: v });
+      out.push({
+        id: item?.id || rid(),
+        code: v,
+        order: Number.isFinite(Number(item?.order)) ? Number(item.order) : out.length,
+        ...(item?.isDeleted ? { isDeleted: true } : {}),
+        ...(normalizeDeleteAction(item?.deleteAction)
+          ? { deleteAction: normalizeDeleteAction(item?.deleteAction) }
+          : {}),
+      });
     }
   }
   return out;
@@ -335,45 +700,70 @@ export const serByCode = (arr) => {
 
 export const serIntervals = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), value: tidy(it?.intervalValue ?? it?.value) }))
+    .map((it, index) => ({
+      id: it?.id || rid(),
+      value: tidy(it?.intervalValue ?? it?.value),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
+    }))
     .filter((x) => x.value !== "");
 
 export const serCategories = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({
+    .map((it, index) => ({
       id: it?.id || rid(),
       intervalValue: tidy(it?.categoryInterval),
       value: tidy(it?.categoryValue),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.intervalValue && x.value);
 
 export const serArticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({ id: it?.id || rid(), name: tidy(it?.articleValue) }))
+    .map((it, index) => ({
+      id: it?.id || rid(),
+      name: tidy(it?.articleValue),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
+    }))
     .filter((x) => x.name !== "");
 
 export const serSubarticles = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
-    .map((it) => ({
+    .map((it, index) => ({
       id: it?.id || rid(),
       parentName: tidy(it?.subarticleInterval),
       name: tidy(it?.subarticleValue),
+      order: Number.isFinite(Number(it?.order)) ? Number(it.order) : index,
+      ...(it?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(it?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(it?.deleteAction) }
+        : {}),
     }))
     .filter((x) => x.parentName && x.name);
 
 export const serDesigns = (arr) =>
   (Array.isArray(arr) ? arr : [])
-    .filter((item) => !item.isDeleted)
     .map((d, index) => ({
       id: d?.id || rid(),
       name: tidy(d?.name),
       url: tidy(d?.url),
       size: d?.size ?? null,
       order: Number.isFinite(Number(d?.order)) ? Number(d.order) : index,
+      ...(d?.isDeleted ? { isDeleted: true } : {}),
+      ...(normalizeDeleteAction(d?.deleteAction)
+        ? { deleteAction: normalizeDeleteAction(d?.deleteAction) }
+        : {}),
     }))
     .filter((d) => d.name);
 

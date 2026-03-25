@@ -209,7 +209,6 @@ const ViewEditRegularPaymentModal = ({
             />
           </div>
 
-          
           {(availableSubcategories.length > 0 || formData.category) && (
             <div className="form-row">
               <label htmlFor="subcategory" className="form-label">Подстатья</label>
@@ -227,13 +226,11 @@ const ViewEditRegularPaymentModal = ({
             </div>
           )}
           
-          
           <div className="form-row">
             <label htmlFor="description" className="form-label">Описание</label>
             <input type="text" id="description" name="description" value={formData.description || ''} onChange={handleChange} placeholder="Введите описание" className="form-input1" />
           </div>
 
-          
           <div className="form-row">
             <label htmlFor="account" className="form-label">Счет ({formData.accountCurrency})</label>
             <select id="account" name="account" value={formData.account} onChange={handleChange} required className="form-input1">
@@ -244,7 +241,6 @@ const ViewEditRegularPaymentModal = ({
             </select>
           </div>
 
-          
           <div className="form-row">
             <label htmlFor="operation" className="form-label">Операция</label>
             <select id="operation" name="operation" value={formData.operation} onChange={handleChange} required className="form-input1">
@@ -254,7 +250,6 @@ const ViewEditRegularPaymentModal = ({
             </select>
           </div>
 
-          
           <div className="form-row">
             <label htmlFor="amount" className="form-label">Сумма операции</label>
             <div className="custom-number-input">
@@ -293,8 +288,7 @@ const ViewEditRegularPaymentModal = ({
               </button>
             </div>
           </div>
-        
-          
+
           <div className="form-row">
             <label htmlFor="period" className="form-label">Период</label>
             <select id="period" name="period" value={formData.period} onChange={handleChange} required className="form-input1">
@@ -306,7 +300,6 @@ const ViewEditRegularPaymentModal = ({
             </select>
           </div>
 
-          
           {formData.period === "Еженедельно" && (
             <div className="form-row">
               <label htmlFor="cycleDay" className="form-label">День недели (1-7)</label>
@@ -324,7 +317,6 @@ const ViewEditRegularPaymentModal = ({
             </div>
           )}
 
-          
           {formData.period === "Ежемесячно" && (
             <div className="form-row">
               <label htmlFor="cycleDay" className="form-label">Число месяца (1-31)</label>
@@ -342,7 +334,6 @@ const ViewEditRegularPaymentModal = ({
             </div>
           )}
 
-          
           {formData.period === "Ежегодно" && (
             <div className="form-row">
               <label htmlFor="cycleDay" className="form-label">Дата (в формате ДД.ММ)</label>
@@ -359,13 +350,11 @@ const ViewEditRegularPaymentModal = ({
             </div>
           )}
 
-          
           <div className="form-row">
             <label htmlFor="time" className="form-label">Время</label>
             <input type="time" id="time" name="time" value={formData.time} onChange={handleChange} required className="form-input1" />
           </div>
 
-         
           <div className="form-row">
             <label htmlFor="status" className="form-label">Статус</label>
             <select id="status" name="status" value={formData.status} onChange={handleChange} required className="form-input1">
@@ -388,7 +377,7 @@ const ViewEditRegularPaymentModal = ({
           )}
         </form>
 
-        <div className="view-transaction-form-actions">
+        <div className="view-transaction-form-actions" style={{marginRight: "15px"}}>
           <button type="button" className="cancel-order-btn" onClick={handleCloseModal}>Отмена</button>
           <button type="submit" form="edit-regular-payment-form" className="save-order-btn">Сохранить</button>
         </div>

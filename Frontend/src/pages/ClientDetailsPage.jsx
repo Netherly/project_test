@@ -12,6 +12,7 @@ import {
 import { fetchEmployees } from "../api/employees";
 import { fetchCompanies, createCompany as createCompanyApi } from "../api/companies";
 import { isForbiddenError } from "../utils/isForbiddenError";
+import { buildEntityPath, matchesEntityRouteParam } from "../utils/entityRoutes";
 import "../styles/ClientsPage.css";
 
 const withReferrerNames = (client) => {
@@ -30,7 +31,8 @@ export default function ClientDetailsPage() {
   const [forbidden, setForbidden] = useState(false);
   const [companiesList, setCompaniesList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
-  const [referrerOptions, setReferrerOptions] = useState([]);
+  const [clientsList, setClientsList] = useState([]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -70,12 +72,6 @@ export default function ClientDetailsPage() {
   }, []);
 
   useEffect(() => {
-    if (!clientId || clientId === "new") {
-      setClient({});
-      setLoading(false);
-      return;
-    }
-
     let mounted = true;
     (async () => {
       setLoading(true);
@@ -84,12 +80,19 @@ export default function ClientDetailsPage() {
       try {
         const data = await fetchClients();
         if (!mounted) return;
+        
         const normalized = Array.isArray(data) ? data.map(withReferrerNames) : [];
-        const found = normalized.find((c) => c.id === clientId);
-        if (found) {
-          setClient(found);
+        setClientsList(normalized); 
+
+        if (!clientId || clientId === "new") {
+          setClient({});
         } else {
-          setError("Клиент не найден");
+          const found = normalized.find((c) => matchesEntityRouteParam(c, clientId));
+          if (found) {
+            setClient(found);
+          } else {
+            setError("Клиент не найден");
+          }
         }
       } catch (e) {
         console.error("fetchClients failed:", e);
@@ -115,7 +118,27 @@ export default function ClientDetailsPage() {
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
+      setCompaniesList((prev) =>
+        prev.map((company) =>
+          String(company?.id) === String(saved?.company_id)
+            ? {
+                ...company,
+                name: saved.company_name || company.name,
+                photo_link: saved.company_photo_link ?? company.photo_link ?? "",
+              }
+            : company
+        )
+      );
       setClient(saved);
+      if (clientId === "new" && saved?.id) {
+        navigate(
+          {
+            pathname: buildEntityPath("/clients", saved),
+            search: location.search,
+          },
+          { replace: true }
+        );
+      }
       return saved;
     } catch (e) {
       console.error("saveClient failed:", e);
@@ -200,7 +223,7 @@ export default function ClientDetailsPage() {
           client={client}
           companies={companiesList}
           employees={employeesList}
-          referrers={referrerOptions}
+          clients={clientsList}
           countries={clientCountries}
           currencies={currencies}
           onClose={handleCloseModal}

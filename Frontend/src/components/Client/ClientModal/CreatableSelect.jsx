@@ -16,60 +16,72 @@ export default function CreatableSelect({
   const containerRef = useRef(null);
 
   useEffect(() => {
+    if (!isOpen) {
+      setSearch(value || '');
+    }
+  }, [value, isOpen]);
+
+  useEffect(() => {
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         if (isOpen) {
-          if (search.trim() === '') {
+          const safeSearchText = search.trim();
+          if (safeSearchText === '') {
             onChange('');
-          } else {
+          } else if (safeSearchText !== String(value || '').trim()) {
             const exactMatch = options.find(
-              (option) => option.toLowerCase() === search.trim().toLowerCase()
+              (opt) => String(opt).trim().toLowerCase() === safeSearchText.toLowerCase()
             );
             if (exactMatch) {
               onChange(exactMatch);
             }
           }
           setIsOpen(false);
-          setSearch('');
         }
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, search, options, onChange]);
+  }, [isOpen, search, options, onChange, value]);
 
-  const showAll = search === (value || '');
+  const handleOpen = () => {
+    if (!disabled && !isOpen) {
+      setIsOpen(true);
+      setSearch(value || '');
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setSearch(e.target.value);
+    if (!isOpen) setIsOpen(true);
+  };
+
+  const safeSearch = String(search || '').toLowerCase().trim();
+  const safeValue = String(value || '').toLowerCase().trim();
+
+  const showAll = !safeSearch || safeSearch === safeValue;
+
   const filteredOptions = showAll
     ? options
-    : options.filter(
-        (option) => option && option.toLowerCase().includes(search.toLowerCase())
-      );
+    : options.filter((opt) => String(opt).toLowerCase().includes(safeSearch));
 
   const isExactMatch = options.some(
-    (option) => option && option.toLowerCase() === search.trim().toLowerCase()
+    (opt) => String(opt).toLowerCase().trim() === safeSearch
   );
-  const showAdd = search.trim() && !isExactMatch;
+
+  const showAdd = Boolean(onAdd) && safeSearch !== '' && !isExactMatch;
 
   return (
     <div className="creatable-select-container" ref={containerRef}>
-      <div
-        className="creatable-input-wrapper"
-        onClick={() => !disabled && setIsOpen(true)}
-      >
+      <div className="creatable-input-wrapper" onClick={handleOpen}>
         <input
           type="text"
           className={`creatable-input ${error ? 'input-error' : ''}`}
           placeholder={placeholder}
-          value={isOpen ? search : value || ''}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setIsOpen(true);
-          }}
-          onFocus={() => {
-            setIsOpen(true);
-            setSearch(value || '');
-          }}
+          value={isOpen ? search : (value || '')}
+          onChange={handleInputChange}
+          onFocus={handleOpen}
           disabled={disabled}
           autoComplete="off"
         />
@@ -78,14 +90,13 @@ export default function CreatableSelect({
       {isOpen && (
         <div className="creatable-dropdown">
           {filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => (
+            filteredOptions.map((option, idx) => (
               <div
-                key={option}
+                key={`${option}-${idx}`}
                 className={`creatable-option ${value === option ? 'selected' : ''}`}
                 onClick={() => {
                   onChange(option);
                   setIsOpen(false);
-                  setSearch('');
                 }}
               >
                 {option}
@@ -103,7 +114,6 @@ export default function CreatableSelect({
                 if (onAdd) onAdd(newVal);
                 onChange(newVal);
                 setIsOpen(false);
-                setSearch('');
               }}
             >
               <Plus size={14} style={{ marginRight: '6px' }} /> Добавить '{search.trim()}'

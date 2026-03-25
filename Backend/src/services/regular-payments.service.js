@@ -1,5 +1,7 @@
 const { OperationType } = require('@prisma/client');
 const prisma = require('../../prisma/client');
+const { logActivity } = require('./activity-log.service');
+const { findByEntityRef, resolveEntityId } = require('../utils/entity-ref');
 
 const DEFAULT_STATUS = 'Активен';
 const DEFAULT_PERIOD = 'Ежемесячно';
@@ -112,7 +114,17 @@ const includePayment = {
   },
   categoryDict: { select: { id: true, name: true } },
   subcategoryDict: { select: { id: true, name: true } },
-  order: { select: { id: true, numberOrder: true } },
+  order: {
+    select: {
+      id: true,
+      urlId: true,
+      numberOrder: true,
+      name: true,
+      title: true,
+      clientId: true,
+      client: { select: { id: true, urlId: true, name: true } },
+    },
+  },
 };
 
 const toViewModel = (row) => {
@@ -130,6 +142,199 @@ const toViewModel = (row) => {
     accountName,
     accountCurrency,
   };
+};
+
+const normalizeActorMeta = (actor = null) => {
+  if (!actor) {
+    return {
+      actorId: null,
+      actorName: null,
+      source: 'manual',
+      ip: undefined,
+      userAgent: undefined,
+    };
+  }
+
+  if (typeof actor === 'string') {
+    return {
+      actorId: actor || null,
+      actorName: null,
+      source: 'manual',
+      ip: undefined,
+      userAgent: undefined,
+    };
+  }
+
+  return {
+    actorId: actor?.actorId || actor?.id || null,
+    actorName: actor?.actorName || null,
+    source: actor?.source || 'manual',
+    ip: actor?.ip,
+    userAgent: actor?.userAgent,
+  };
+};
+
+const safeActivityLog = async (payload) => {
+  try {
+    return await logActivity(payload);
+  } catch (error) {
+    console.warn('[log] regular payment activity failed:', error?.message || error);
+    return null;
+  }
+};
+
+const stringifyMessageParts = (parts = []) =>
+  parts
+    .map((part) => (part && typeof part.text === 'string' ? part.text : ''))
+    .join('');
+
+const buildOrderLinkLabel = (order) => {
+  const number = String(order?.numberOrder || '').trim();
+  if (number) return `заказ №${number}`;
+
+  const name = String(order?.name || order?.title || '').trim();
+  if (name) return `заказ "${name}"`;
+
+  return 'заказ';
+};
+
+const buildOrderLinkPart = (order) => {
+  if (!order?.id) return null;
+  return {
+    type: 'link',
+    text: buildOrderLinkLabel(order),
+    targetType: 'order',
+    id: order.id,
+    urlId: order.urlId || null,
+  };
+};
+
+const formatPaymentAmount = (payment) => {
+  const amount = Number(payment?.amount);
+  if (!Number.isFinite(amount)) return '';
+  const currency = payment?.account?.currency?.code || payment?.accountCurrency || '';
+  return `${amount}${currency ? ` ${currency}` : ''}`;
+};
+
+const collectClientTargets = (payment) => {
+  const targets = new Map();
+  const clientId = payment?.order?.clientId || payment?.order?.client?.id;
+
+  if (clientId) {
+    targets.set(clientId, {
+      clientId,
+      clientName: payment?.order?.client?.name || null,
+    });
+  }
+
+  return targets;
+};
+
+const buildRegularPaymentAction = (verb) => {
+  const suffix = verb === 'created' ? 'created' : verb === 'deleted' ? 'deleted' : 'updated';
+  return `regular_payment_${suffix}`;
+};
+
+const buildRegularPaymentMessageParts = ({ payment, verb }) => {
+  const prefix =
+    verb === 'created'
+      ? 'Создан '
+      : verb === 'deleted'
+        ? 'Удалён '
+        : 'Обновлён ';
+
+  const parts = [
+    { type: 'text', text: prefix },
+    {
+      type: 'link',
+      text: 'регулярный платёж',
+      targetType: 'regular_payment',
+      id: payment?.id || null,
+      urlId: payment?.urlId || null,
+    },
+  ];
+
+  const amountLabel = formatPaymentAmount(payment);
+  if (amountLabel) {
+    parts.push({ type: 'text', text: ` на сумму ${amountLabel}` });
+  }
+
+  const orderLinkPart = buildOrderLinkPart(payment?.order);
+  if (orderLinkPart) {
+    parts.push({ type: 'text', text: ' по ' });
+    parts.push(orderLinkPart);
+  }
+
+  return parts;
+};
+
+const buildRegularPaymentMessage = ({ payment, verb }) =>
+  stringifyMessageParts(buildRegularPaymentMessageParts({ payment, verb }));
+
+const buildRegularPaymentMeta = ({ payment, verb }) => {
+  const messageParts = buildRegularPaymentMessageParts({ payment, verb });
+  const meta = {};
+
+  if (payment?.id) {
+    meta.target = {
+      type: 'regular_payment',
+      id: payment.id,
+      urlId: payment.urlId || null,
+      label: 'регулярный платёж',
+    };
+  }
+
+  if (messageParts.length) {
+    meta.messageParts = messageParts;
+  }
+
+  return meta;
+};
+
+const emitClientRegularPaymentLogs = async ({ before, after, verb, actorMeta }) => {
+  const beforeTargets = before ? collectClientTargets(before) : new Map();
+  const afterTargets = after ? collectClientTargets(after) : new Map();
+  const targetIds = new Set();
+
+  if (verb === 'deleted') {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+  } else if (verb === 'created') {
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  } else {
+    beforeTargets.forEach((_value, key) => targetIds.add(key));
+    afterTargets.forEach((_value, key) => targetIds.add(key));
+  }
+
+  for (const clientId of targetIds) {
+    if (!clientId) continue;
+
+    let currentVerb = verb;
+    let payment = after || before;
+
+    if (verb === 'updated') {
+      const hadBefore = beforeTargets.has(clientId);
+      const hasAfter = afterTargets.has(clientId);
+      if (hadBefore && hasAfter) {
+        currentVerb = 'updated';
+        payment = after;
+      } else if (hadBefore) {
+        currentVerb = 'deleted';
+        payment = before;
+      } else {
+        currentVerb = 'created';
+        payment = after;
+      }
+    }
+
+    await safeActivityLog({
+      entityType: 'client',
+      entityId: clientId,
+      action: buildRegularPaymentAction(currentVerb),
+      message: buildRegularPaymentMessage({ payment, verb: currentVerb }),
+      meta: buildRegularPaymentMeta({ payment, verb: currentVerb }),
+      ...actorMeta,
+    });
+  }
 };
 
 async function buildRegularPaymentData(payload = {}, db, options = {}) {
@@ -226,28 +431,31 @@ class RegularPaymentsService {
   }
 
   async getById(id) {
-    const row = await prisma.regularPayment.findUnique({
-      where: { id },
+    const row = await findByEntityRef(prisma.regularPayment, id, {
       include: includePayment,
     });
     return toViewModel(row);
   }
 
-  async create(payload) {
-    return prisma.$transaction(async (tx) => {
+  async create(payload, actor) {
+    const actorMeta = normalizeActorMeta(actor);
+    const created = await prisma.$transaction(async (tx) => {
       const data = await buildRegularPaymentData(payload, tx, { forceSchedule: true });
 
       if (!data.accountId) throw new Error('accountId is required');
       if (!Object.prototype.hasOwnProperty.call(payload, 'amount')) throw new Error('amount is required');
 
-      const created = await tx.regularPayment.create({ data, include: includePayment });
-      return toViewModel(created);
+      return tx.regularPayment.create({ data, include: includePayment });
     });
+    await emitClientRegularPaymentLogs({ after: created, verb: 'created', actorMeta });
+    return toViewModel(created);
   }
 
-  async update(id, payload) {
-    return prisma.$transaction(async (tx) => {
-      const existing = await tx.regularPayment.findUnique({ where: { id } });
+  async update(id, payload, actor) {
+    const actualId = await resolveEntityId(prisma.regularPayment, id, { notFoundMessage: 'Regular payment not found' });
+    const actorMeta = normalizeActorMeta(actor);
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.regularPayment.findUnique({ where: { id: actualId }, include: includePayment });
       if (!existing) {
         const err = new Error('Regular payment not found');
         err.status = 404;
@@ -255,19 +463,40 @@ class RegularPaymentsService {
       }
 
       const data = await buildRegularPaymentData(payload, tx, { existing });
-      const updated = await tx.regularPayment.update({ where: { id }, data, include: includePayment });
-      return toViewModel(updated);
+      const updated = await tx.regularPayment.update({ where: { id: actualId }, data, include: includePayment });
+      return { existing, updated };
     });
+    await emitClientRegularPaymentLogs({
+      before: result.existing,
+      after: result.updated,
+      verb: 'updated',
+      actorMeta,
+    });
+    return toViewModel(result.updated);
   }
 
-  async remove(id) {
-    await prisma.regularPayment.delete({ where: { id } });
+  async remove(id, actor) {
+    const actualId = await resolveEntityId(prisma.regularPayment, id, { notFoundMessage: 'Regular payment not found' });
+    const actorMeta = normalizeActorMeta(actor);
+    const removed = await prisma.$transaction(async (tx) => {
+      const existing = await tx.regularPayment.findUnique({ where: { id: actualId }, include: includePayment });
+      if (!existing) {
+        const err = new Error('Regular payment not found');
+        err.status = 404;
+        throw err;
+      }
+      await tx.regularPayment.delete({ where: { id: actualId } });
+      return existing;
+    });
+    await emitClientRegularPaymentLogs({ before: removed, verb: 'deleted', actorMeta });
     return { ok: true };
   }
 
-  async duplicate(id) {
-    return prisma.$transaction(async (tx) => {
-      const original = await tx.regularPayment.findUnique({ where: { id } });
+  async duplicate(id, actor) {
+    const actualId = await resolveEntityId(prisma.regularPayment, id, { notFoundMessage: 'Regular payment not found' });
+    const actorMeta = normalizeActorMeta(actor);
+    const created = await prisma.$transaction(async (tx) => {
+      const original = await tx.regularPayment.findUnique({ where: { id: actualId } });
       if (!original) {
         const err = new Error('Regular payment not found');
         err.status = 404;
@@ -286,7 +515,7 @@ class RegularPaymentsService {
       const schedule = resolveSchedule(rest, null);
       const nextDate = calculateNextPaymentDate(schedule, new Date());
 
-      const created = await tx.regularPayment.create({
+      return tx.regularPayment.create({
         data: {
           ...rest,
           status: DEFAULT_STATUS,
@@ -295,9 +524,9 @@ class RegularPaymentsService {
         },
         include: includePayment,
       });
-
-      return toViewModel(created);
     });
+    await emitClientRegularPaymentLogs({ after: created, verb: 'created', actorMeta });
+    return toViewModel(created);
   }
 }
 

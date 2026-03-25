@@ -1,11 +1,16 @@
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import CustomSelect from "../../ui/CustomSelect";
 import AutoResizeTextarea from "./AutoResizeTextarea";
 import { Minus, Plus } from 'lucide-react';
+import CreatableSelect from "../../../components/Client/ClientModal/CreatableSelect.jsx";
 
-const Finance = ({ control, orderFields, transactions = [] }) => {
-  useFormContext();
+const formatNumber = (num) => {
+  if (typeof num !== 'number' || isNaN(num)) return '0,00';
+  return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const Finance = ({ control, orderFields, transactions = [], onAddNewField }) => {
+  const { watch } = useFormContext();
 
   const totalIncome = (transactions || [])
     .filter((t) => t.operation === "Зачисление")
@@ -17,30 +22,64 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
 
   const currencyOptions = (orderFields?.currency || [])
     .map((curr) => {
-      const value =
-        (typeof curr === "string" ? curr : curr?.code ?? curr?.value ?? curr?.name) || "";
-      const label =
-        (typeof curr === "string" ? curr : curr?.name ?? curr?.code ?? curr?.value) || "";
-      return value ? { value, label } : null;
+      return (typeof curr === "string" ? curr : curr?.code ?? curr?.value ?? curr?.name) || "";
     })
     .filter(Boolean);
 
-  const maxData = {
-    ПартнерСумма: "2323",
-    ВыручкаЗаказа: "34234234",
-    СммаИсполнителям: "234234234234",
-    вЧас: "111",
-    Прибыль: "222222222",
-    ПрибыльПроцентВыручки: "345345345",
-    ПрибыльПроцентСуммы: "345345345345",
-    Чаевые: "345345345345",
-    ПрибыльПлюсЧаевые: "345345345345",
-    Оплата: "77777",
-    ОплатаВалюта: "888888",
-    ОплатаАльтернатива: "678666",
-    Возврат: "77777",
-    ВозвратВалюта: "888888",
-    ВозвратАльтернатива: "678666",
+  const discountReasonOptions = (orderFields?.discountReason || orderFields?.discountReasons || [])
+    .map((opt) => opt?.value ?? opt?.name ?? "")
+    .filter(Boolean);
+
+  // --- Вытаскиваем значения из формы ---
+  const budget = parseFloat(watch('budget')) || 0;
+  const partnerSum = parseFloat(watch('partner_payment')) || 0;
+  const expenses = parseFloat(watch('expenses')) || 0;
+  const tips = parseFloat(watch('tips')) || 0;
+  const currencyRate = parseFloat(watch('currency_rate')) || 1;
+  const performers = watch('performers') || [];
+  const workLog = watch('work_log') || [];
+
+  // --- Расчеты ---
+  const executorsSum = performers.reduce((acc, p) => acc + (parseFloat(p.orderSum) || 0), 0);
+  const revenue = budget;
+  const profit = revenue - executorsSum - partnerSum - expenses;
+  
+  const profitPercentRev = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const profitPercentSum = executorsSum > 0 ? (profit / executorsSum) * 100 : 0; 
+  const profitPlusTips = profit + tips;
+
+  const totalMinutes = workLog.reduce((acc, entry) => {
+    if (!entry.hours || typeof entry.hours !== 'string') return acc;
+    const parts = entry.hours.split(':');
+    const hours = parseInt(parts[0], 10) || 0;
+    const mins = parseInt(parts[1], 10) || 0;
+    return acc + (hours * 60) + mins;
+  }, 0);
+  
+  const perHour = totalMinutes > 0 ? profit / (totalMinutes / 60) : 0;
+
+  const payment = totalIncome;
+  const paymentCurrency = currencyRate > 0 ? payment / currencyRate : 0;
+  const refund = totalExpense;
+  const refundCurrency = currencyRate > 0 ? refund / currencyRate : 0;
+
+  // Формируем финальные данные
+  const displayData = {
+    ПартнерСумма: formatNumber(partnerSum),
+    ВыручкаЗаказа: formatNumber(revenue),
+    СммаИсполнителям: formatNumber(executorsSum),
+    вЧас: formatNumber(perHour),
+    Прибыль: formatNumber(profit),
+    ПрибыльПроцентВыручки: formatNumber(profitPercentRev) + '%',
+    ПрибыльПроцентСуммы: formatNumber(profitPercentSum) + '%',
+    Чаевые: formatNumber(tips),
+    ПрибыльПлюсЧаевые: formatNumber(profitPlusTips),
+    Оплата: formatNumber(payment),
+    ОплатаВалюта: formatNumber(paymentCurrency),
+    ОплатаАльтернатива: "0,00", // Если появится отдельный курс/логика — можно будет заменить
+    Возврат: formatNumber(refund),
+    ВозвратВалюта: formatNumber(refundCurrency),
+    ВозвратАльтернатива: "0,00",
   };
 
   const fieldLabels = {
@@ -145,11 +184,12 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
           <div className="tab-content-row">
             <div className="tab-content-title">Валюта</div>
             <div style={{ width: "100%" }}>
-              <CustomSelect
-                {...field}
-                value={field.value}
-                onChange={(e) => field.onChange(e.target.value)}
+              <CreatableSelect
+                value={field.value || ""}
+                onChange={field.onChange}
                 options={currencyOptions}
+                placeholder="Выберите или введите валюту..."
+                onAdd={(val) => onAddNewField && onAddNewField("generalFields", "currency", val)}
               />
             </div>
           </div>
@@ -230,12 +270,15 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
         render={({ field }) => (
           <div className="tab-content-row">
             <div className="tab-content-title">Причина скидки</div>
-            <input
-              {...field}
-              type="text"
-              className="tab-content-input"
-              placeholder="Укажите причину..."
-            />
+            <div style={{ width: "100%" }}>
+              <CreatableSelect
+                value={field.value || ""}
+                onChange={field.onChange}
+                options={discountReasonOptions}
+                placeholder="Укажите причину..."
+                onAdd={(val) => onAddNewField && onAddNewField("orderFields", "discountReason", val)}
+              />
+            </div>
           </div>
         )}
       />
@@ -294,7 +337,7 @@ const Finance = ({ control, orderFields, transactions = [] }) => {
         }}
       />
 
-      {Object.entries(maxData).map(([key, value]) => (
+      {Object.entries(displayData).map(([key, value]) => (
         <div className="tab-content-row" key={key}>
           <div className="tab-content-title">{fieldLabels[key]}</div>
           <span className="modal-content-span-info">{value}</span>

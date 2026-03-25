@@ -3,12 +3,14 @@ import PropTypes from 'prop-types';
 import './ChatPanel.css';
 import { api } from '../../../api/api';
 import { useNavigate } from 'react-router-dom';
+import { buildEntityPath } from '../../../utils/entityRoutes';
 
 
 export default function ChatPanel({ initialLogs = [], storageKey, clientId, employeeId }) {
   const entityType = clientId ? 'client' : employeeId ? 'employee' : null;
   const entityId = clientId || employeeId || null;
   const isRemote = Boolean(entityType && entityId);
+  const isEmployeeRemote = isRemote && entityType === 'employee';
   const entityLabel = entityType === 'client' ? 'клиент' : entityType === 'employee' ? 'сотрудник' : 'объект';
   const [loadError, setLoadError] = useState('');
   const navigate = useNavigate();
@@ -49,6 +51,37 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     rates: 'Ставки',
     mainCurrency: 'Основная валюта',
   };
+  const IMPORTANT_EMPLOYEE_ACTIONS = new Set([
+    'created',
+    'deleted',
+    'note',
+    'telegram_linked',
+    'telegram_unlinked',
+    'asset_attached',
+    'asset_detached',
+    'asset_removed',
+    'transaction_created',
+    'transaction_updated',
+    'transaction_deleted',
+    'asset_transaction_created',
+    'asset_transaction_updated',
+    'asset_transaction_deleted',
+  ]);
+  const IMPORTANT_CLIENT_ACTIONS = new Set([
+    'created',
+    'deleted',
+    'note',
+    'order_created',
+    'order_linked',
+    'order_unlinked',
+    'order_status_updated',
+    'transaction_created',
+    'transaction_updated',
+    'transaction_deleted',
+    'regular_payment_created',
+    'regular_payment_updated',
+    'regular_payment_deleted',
+  ]);
   
   
   const [logs, setLogs] = useState(() => {
@@ -100,32 +133,63 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   const getFieldLabel = (field) => FIELD_LABELS[field] || field;
 
   const buildMessage = (log) => {
-    if (log?.message) return log.message;
+    const hasChanges = Boolean(log?.changes && Object.keys(log.changes).length);
+    if (log?.message && (log?.action !== 'updated' || !hasChanges)) return log.message;
     if (log?.action === 'created') {
       return `Создан ${entityLabel}${log?.source === 'self' ? ' (саморегистрация)' : ''}`;
     }
     if (log?.action === 'deleted') return `Удалён ${entityLabel}`;
+    if (log?.action === 'order_created') return 'Создан заказ';
+    if (log?.action === 'order_linked') return 'К клиенту привязан заказ';
+    if (log?.action === 'order_unlinked') return 'От клиента отвязан заказ';
+    if (log?.action === 'order_status_updated') return 'Изменён статус заказа';
+    if (log?.action === 'transaction_created') return 'Создана транзакция';
+    if (log?.action === 'transaction_updated') return 'Обновлена транзакция';
+    if (log?.action === 'transaction_deleted') return 'Удалена транзакция';
+    if (log?.action === 'regular_payment_created') return 'Создан регулярный платёж';
+    if (log?.action === 'regular_payment_updated') return 'Обновлён регулярный платёж';
+    if (log?.action === 'regular_payment_deleted') return 'Удалён регулярный платёж';
     if (log?.action === 'telegram_linked') return 'Привязан Telegram';
     if (log?.action === 'telegram_unlinked') return 'Telegram отвязан';
     if (log?.action === 'updated') {
       const entries = Object.entries(log?.changes || {});
       if (!entries.length) return 'Изменены данные';
       return entries
-        .map(([field, change]) => {
+        .flatMap(([field, change]) => {
           const label = getFieldLabel(field);
           if (change && (Array.isArray(change.added) || Array.isArray(change.removed))) {
             const added = Array.isArray(change.added) ? change.added : [];
             const removed = Array.isArray(change.removed) ? change.removed : [];
             const parts = [];
-            if (added.length) parts.push(`Добавлено: ${formatValue(added)}`);
-            if (removed.length) parts.push(`Удалено: ${formatValue(removed)}`);
-            return parts.length ? `${label}: ${parts.join('; ')}` : `${label}: —`;
+            if (added.length) parts.push(`${label} добавлено "${formatValue(added)}"`);
+            if (removed.length) parts.push(`${label} удалено "${formatValue(removed)}"`);
+            return parts.length ? parts : [`${label} изменено`];
           }
-          return `${label}: ${formatValue(change?.from)} → ${formatValue(change?.to)}`;
+
+          const from = formatValue(change?.from);
+          const to = formatValue(change?.to);
+          if ((change?.from === null || change?.from === undefined || change?.from === '') && to !== '—') {
+            return `${label} добавлено "${to}"`;
+          }
+          if (change?.to === null || change?.to === undefined || change?.to === '') {
+            return `${label} очищено`;
+          }
+          return `${label} было "${from}" стало "${to}"`;
         })
-        .join('; ');
+        .join('\n');
     }
     return 'Событие';
+  };
+
+  const getRemotePresentation = (log) => {
+    if (log?.presentation) return log.presentation;
+    if (entityType === 'employee') {
+      return IMPORTANT_EMPLOYEE_ACTIONS.has(log?.action) ? 'important' : 'inline';
+    }
+    if (entityType === 'client') {
+      return IMPORTANT_CLIENT_ACTIONS.has(log?.action) ? 'important' : 'inline';
+    }
+    return 'card';
   };
 
   const normalizeRemoteLog = (log) => ({
@@ -134,10 +198,17 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     author: log.actorName || (log.source === 'self' ? 'Самостоятельно' : 'Система'),
     actorId: log.actorId || null,
     message: buildMessage(log),
+    messageParts: Array.isArray(log.messageParts) ? log.messageParts : null,
     action: log.action,
     source: log.source,
     changes: log.changes,
-    pinned: false,
+    target: log.target || null,
+    pinned: Boolean(log.pinned),
+    important: Boolean(log.important ?? getRemotePresentation(log) !== 'inline'),
+    presentation: getRemotePresentation(log),
+    editable: Boolean(log.editable),
+    deletable: Boolean(log.deletable),
+    pinnable: Boolean(log.pinnable ?? getRemotePresentation(log) !== 'inline'),
   });
 
   useEffect(() => {
@@ -164,18 +235,57 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
 
 
   // pin/unpin
-  const handlePin = id => {
+  const handlePin = async (id) => {
+    if (isEmployeeRemote) {
+      const target = logs.find((log) => log.id === id);
+      if (!target?.pinnable) return;
+      try {
+        const updated = await api.pinActivityLog({
+          entityType,
+          entityId,
+          logId: id,
+          pinned: !target.pinned,
+        });
+        if (!updated) return;
+        setLogs((prev) => prev.map((log) => (log.id === id ? normalizeRemoteLog(updated) : log)));
+      } catch (e) {
+        console.error('Ошибка закрепления заметки:', e);
+      }
+      return;
+    }
+
     if (isRemote) return;
     setLogs(logs.map(l => l.id === id ? { ...l, pinned: !l.pinned } : l));
   };
 
   // open confirm dialog
   const requestDelete = id => {
+    if (isEmployeeRemote) {
+      const target = logs.find((log) => log.id === id);
+      if (!target?.deletable) return;
+      setConfirmDeleteId(id);
+      return;
+    }
     if (isRemote) return;
     setConfirmDeleteId(id);
   };
   // actually delete
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
+    if (isEmployeeRemote) {
+      try {
+        await api.deleteActivityNote({
+          entityType,
+          entityId,
+          logId: confirmDeleteId,
+        });
+        setLogs((prev) => prev.filter((log) => log.id !== confirmDeleteId));
+      } catch (e) {
+        console.error('Ошибка удаления заметки:', e);
+      }
+      setConfirmDeleteId(null);
+      return;
+    }
+
     if (isRemote) {
       setConfirmDeleteId(null);
       return;
@@ -187,11 +297,35 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
 
   // edit start/save/cancel
   const startEdit = l => {
+    if (isEmployeeRemote) {
+      if (!l?.editable) return;
+      setEditingId(l.id);
+      setEditText(l.message);
+      return;
+    }
     if (isRemote) return;
     setEditingId(l.id);
     setEditText(l.message);
   };
-  const saveEdit = id => {
+  const saveEdit = async (id) => {
+    if (isEmployeeRemote) {
+      try {
+        const updated = await api.updateActivityNote({
+          entityType,
+          entityId,
+          logId: id,
+          message: editText,
+        });
+        if (!updated) return;
+        setLogs((prev) => prev.map((log) => (log.id === id ? normalizeRemoteLog(updated) : log)));
+        setEditingId(null);
+        setEditText('');
+      } catch (e) {
+        console.error('Ошибка обновления заметки:', e);
+      }
+      return;
+    }
+
     if (isRemote) return;
     setLogs(logs.map(l => l.id === id ? { ...l, message: editText } : l));
     setEditingId(null);
@@ -241,14 +375,18 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
   // grouping unpinned logs by month
   const groups = useMemo(() => {
     const map = {};
-    const baseLogs = isRemote ? logs : logs.filter(l => !l.pinned);
+    const baseLogs = isEmployeeRemote
+      ? logs.filter((log) => !log.pinned)
+      : isRemote
+        ? logs
+        : logs.filter((log) => !log.pinned);
     baseLogs.forEach(log => {
       const d = new Date(log.timestamp);
       const month = d.toLocaleString('ru', { month: 'long', year: 'numeric' });
       (map[month] = map[month] || []).push(log);
     });
     return Object.entries(map).map(([m, items]) => ({ month: m, items }));
-  }, [logs, isRemote]);
+  }, [logs, isRemote, isEmployeeRemote]);
 
   // always show full date/time instead of "Сегодня"
   const formatMeta = log => {
@@ -262,7 +400,214 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
     });
   };
 
-  const pinnedLogs = isRemote ? [] : logs.filter(l => l.pinned);
+  const pinnedLogs = isEmployeeRemote
+    ? logs.filter((log) => log.pinned)
+    : isRemote
+      ? []
+      : logs.filter((log) => log.pinned);
+
+  const renderActor = (log) => {
+    if (!log.author) return null;
+
+    if (log.actorId) {
+      return (
+        <button
+          type="button"
+          className="log-actor-link"
+          onClick={() => navigate(buildEntityPath('/employees', { id: log.actorId, urlId: log.actorUrlId }))}
+        >
+          {log.author}
+        </button>
+      );
+    }
+
+    return <span>{log.author}</span>;
+  };
+
+  const getTargetRoute = (target) => {
+    if (!target?.id) return null;
+    if (target.type === 'transaction') return buildEntityPath('/transactions', target);
+    if (target.type === 'order') return buildEntityPath('/orders', target);
+    if (target.type === 'regular_payment') return buildEntityPath('/regular_pays', target);
+    if (target.type === 'asset') return buildEntityPath('/accounts', target);
+    if (target.type === 'employee') return buildEntityPath('/employees', target);
+    return null;
+  };
+
+  const getImportantLogIcon = (log) => {
+    if (log.action === 'note') return { symbol: '✓', tone: 'note' };
+    if (String(log.action || '').includes('regular_payment')) return { symbol: '↻', tone: 'transaction' };
+    if (String(log.action || '').includes('transaction')) return { symbol: '₴', tone: 'transaction' };
+    if (String(log.action || '').includes('order')) return { symbol: '№', tone: 'create' };
+    if (String(log.action || '').includes('asset')) return { symbol: '◆', tone: 'asset' };
+    if (String(log.action || '').includes('deleted')) return { symbol: '−', tone: 'danger' };
+    return { symbol: '+', tone: 'create' };
+  };
+
+  const renderLinkedText = (text, target, keyPrefix) => {
+    const route = getTargetRoute(target);
+    const rawText = String(text || '');
+    const rawLabel = String(target?.label || '').trim();
+    if (!route || !rawText || !rawLabel) return rawText;
+
+    const quotedLabel = `"${rawLabel}"`;
+    const matchText = rawText.includes(quotedLabel) ? quotedLabel : rawLabel;
+    if (!rawText.includes(matchText)) return rawText;
+
+    const chunks = [];
+    let cursor = 0;
+    let partIndex = 0;
+
+    while (cursor < rawText.length) {
+      const foundIndex = rawText.indexOf(matchText, cursor);
+      if (foundIndex === -1) break;
+
+      if (foundIndex > cursor) {
+        chunks.push(
+          <React.Fragment key={`${keyPrefix}-text-${partIndex}`}>
+            {rawText.slice(cursor, foundIndex)}
+          </React.Fragment>
+        );
+        partIndex += 1;
+      }
+
+      chunks.push(
+        <button
+          key={`${keyPrefix}-link-${partIndex}`}
+          type="button"
+          className="log-actor-link log-inline-link"
+          onClick={() => navigate(route)}
+        >
+          {matchText}
+        </button>
+      );
+      partIndex += 1;
+      cursor = foundIndex + matchText.length;
+    }
+
+    if (cursor < rawText.length) {
+      chunks.push(
+        <React.Fragment key={`${keyPrefix}-tail-${partIndex}`}>
+          {rawText.slice(cursor)}
+        </React.Fragment>
+      );
+    }
+
+    return chunks.length ? chunks : rawText;
+  };
+
+  const renderLogMessageContent = (log) => {
+    if (!Array.isArray(log?.messageParts) || !log.messageParts.length) {
+      return renderLinkedText(log.message, log.target, `${log.id}-fallback`);
+    }
+
+    return log.messageParts.map((part, index) => {
+      if (part?.type !== 'link') {
+        return <React.Fragment key={`${log.id}-text-${index}`}>{part?.text || ''}</React.Fragment>;
+      }
+
+      const route = getTargetRoute({ type: part.targetType, id: part.id, urlId: part.urlId });
+      if (!route) {
+        return <React.Fragment key={`${log.id}-linktext-${index}`}>{part?.text || ''}</React.Fragment>;
+      }
+
+      return (
+        <button
+          key={`${log.id}-link-${part.targetType || 'target'}-${part.id || index}`}
+          type="button"
+          className="log-actor-link log-inline-link"
+          onClick={() => navigate(route)}
+        >
+          {part.text}
+        </button>
+      );
+    });
+  };
+
+  const renderImportantActions = (log) => {
+    const canShowActions = (!isRemote && !isEmployeeRemote) || (isEmployeeRemote && (log.pinnable || log.editable || log.deletable));
+    if (!canShowActions) return null;
+
+    return (
+      <div className="log-actions">
+        {(isEmployeeRemote ? log.pinnable : true) && (
+          <button className="action-btn pin" onClick={() => handlePin(log.id)}>
+            {log.pinned ? '⭐ Открепить' : '⭐ Закрепить'}
+          </button>
+        )}
+        {(isEmployeeRemote ? log.deletable : true) && (
+          <button className="action-btn delete" onClick={() => requestDelete(log.id)}>
+            🚫 Удалить
+          </button>
+        )}
+        {(isEmployeeRemote ? log.editable : true) && (
+          editingId === log.id ? (
+            <>
+              <button className="action-btn save" onClick={() => saveEdit(log.id)}>
+                💾 Сохранить
+              </button>
+              <button className="action-btn cancel" onClick={cancelEdit}>
+                ✖ Отмена
+              </button>
+            </>
+          ) : (
+            <button className="action-btn edit" onClick={() => startEdit(log)}>
+              ✏️ Изменить
+            </button>
+          )
+        )}
+      </div>
+    );
+  };
+
+  const renderEmployeeImportantLog = (log) => {
+    const icon = getImportantLogIcon(log);
+    return (
+      <div key={log.id} className={`log-item log-item--with-actions employee-important-log${log.pinned ? ' pinned' : ''}`}>
+        <div className={`log-item__icon employee-important-log__icon tone-${icon.tone}`}>{icon.symbol}</div>
+        <div className="log-item__body">
+          <div className="log-header">
+            <span className="log-meta">
+              {formatMeta(log)}
+              {log.author && (
+                <>
+                  {' '}
+                  {renderActor(log)}
+                </>
+              )}
+            </span>
+          </div>
+          {editingId === log.id ? (
+            <textarea
+              className="log-edit-textarea"
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+            />
+          ) : (
+            <>
+              <div className="log-message">{renderLogMessageContent(log)}</div>
+            </>
+          )}
+        </div>
+        {renderImportantActions(log)}
+      </div>
+    );
+  };
+
+  const renderEmployeeInlineLog = (log) => (
+    <div key={log.id} className="employee-log-row">
+      <div className="employee-log-row__meta">
+        {formatMeta(log)}
+        {log.author && (
+          <>
+            {' '}
+            {renderActor(log)}
+          </>
+        )}
+      </div>
+      <div className="employee-log-row__message">{renderLogMessageContent(log)}</div>
+    </div>
+  );
 
   return (
     <aside className="chat-panel">
@@ -272,7 +617,7 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
           <div className="chat-empty">Пока нет логов. Сохраните изменения или добавьте примечание.</div>
         )}
         {/* закреплённые */}
-        {!isRemote && pinnedLogs.map(log => (
+        {!isEmployeeRemote && !isRemote && pinnedLogs.map(log => (
           <div key={log.id} className="log-item pinned">
             <div className="log-item__icon">📌</div>
             <div className="log-item__body">
@@ -282,99 +627,59 @@ export default function ChatPanel({ initialLogs = [], storageKey, clientId, empl
                   {log.author && (
                     <>
                       {' '}
-                      {log.actorId ? (
-                        <button
-                          type="button"
-                          className="log-actor-link"
-                          onClick={() => navigate(`/employees/${log.actorId}`)}
-                        >
-                          {log.author}
-                        </button>
-                      ) : (
-                        <span>{log.author}</span>
-                      )}
+                      {renderActor(log)}
                     </>
                   )}
                 </span>
               </div>
               <div className="log-message">{log.message}</div>
             </div>
-            <div className="log-actions">
-              <button className="action-btn pin" onClick={() => handlePin(log.id)}>
-                ⭐ Открепить
-              </button>
-              <button className="action-btn delete" onClick={() => requestDelete(log.id)}>
-                🚫 Удалить
-              </button>
-            </div>
+            {renderImportantActions(log)}
           </div>
         ))}
+
+        {isEmployeeRemote && pinnedLogs.map(renderEmployeeImportantLog)}
 
         {/* группы по месяцам */}
         {groups.map(({ month, items }) => (
           <React.Fragment key={month}>
             <div className="chat-group__header">{month}</div>
-            {items.map(log => (
-              <div key={log.id} className="log-item">
-                <div className="log-item__icon">📄</div>
-                <div className="log-item__body">
-                  <div className="log-header">
-                    <span className="log-meta">
-                      {formatMeta(log)}
-                      {log.author && (
-                        <>
-                          {' '}
-                          {log.actorId ? (
-                            <button
-                              type="button"
-                              className="log-actor-link"
-                              onClick={() => navigate(`/employees/${log.actorId}`)}
-                            >
-                              {log.author}
-                            </button>
-                          ) : (
-                            <span>{log.author}</span>
-                          )}
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  {editingId === log.id ? (
-                    <textarea
-                      className="log-edit-textarea"
-                      value={editText}
-                      onChange={e => setEditText(e.target.value)}
-                    />
-                  ) : (
-                    <div className="log-message">{log.message}</div>
-                  )}
-                </div>
-                {!isRemote && (
-                  <div className="log-actions">
-                    <button className="action-btn pin" onClick={() => handlePin(log.id)}>
-                      ⭐ Закрепить
-                    </button>
-                    <button className="action-btn delete" onClick={() => requestDelete(log.id)}>
-                      🚫 Удалить
-                    </button>
+            {items.map(log => {
+              if (isRemote) {
+                return log.presentation === 'inline'
+                  ? renderEmployeeInlineLog(log)
+                  : renderEmployeeImportantLog(log);
+              }
+
+              return (
+                <div key={log.id} className="log-item">
+                  <div className="log-item__icon">📄</div>
+                  <div className="log-item__body">
+                    <div className="log-header">
+                      <span className="log-meta">
+                        {formatMeta(log)}
+                        {log.author && (
+                          <>
+                            {' '}
+                            {renderActor(log)}
+                          </>
+                        )}
+                      </span>
+                    </div>
                     {editingId === log.id ? (
-                      <>
-                        <button className="action-btn save" onClick={() => saveEdit(log.id)}>
-                          💾 Сохранить
-                        </button>
-                        <button className="action-btn cancel" onClick={cancelEdit}>
-                          ✖ Отмена
-                        </button>
-                      </>
+                      <textarea
+                        className="log-edit-textarea"
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                      />
                     ) : (
-                      <button className="action-btn edit" onClick={() => startEdit(log)}>
-                        ✏️ Изменить
-                      </button>
+                      <div className="log-message">{renderLogMessageContent(log)}</div>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
+                  {!isRemote && renderImportantActions(log)}
+                </div>
+              );
+            })}
           </React.Fragment>
         ))}
       </div>

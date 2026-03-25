@@ -1,6 +1,7 @@
 // src/controllers/rates.controller.js
 const svc = require('../services/rates.service');
 const { ensureLatestToDate, getTodayYMDFromEnv } = require('../services/rates.autofill.service');
+const { importRatesFromExcel, parseBool } = require('../services/rates.excel-import.service');
 
 // ===== helpers =====
 const US_LABELS = [
@@ -123,6 +124,14 @@ exports.ensureToday = async (_req, res, next) => {
       created: Boolean(result?.created),
       exists: Boolean(result?.row),
     });
+  } catch (e) { next(e); }
+};
+
+exports.importFromExcel = async (req, res, next) => {
+  try {
+    const force = parseBool(req.query.force ?? req.body?.force, false);
+    const result = await importRatesFromExcel({ force });
+    return ok(res, result);
   } catch (e) { next(e); }
 };
 

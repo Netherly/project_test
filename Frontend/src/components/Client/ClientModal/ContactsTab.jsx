@@ -1,9 +1,9 @@
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import './ContactsTab.css';
+import CreatableSelect from "./CreatableSelect"; // Добавлен импорт
 
-
-export default function ContactsTab({ countries = [], openImage }) {
+export default function ContactsTab({ countries = [], openImage, onAddCountry }) {
   const { control, formState: { errors } } = useFormContext();
 
   return (
@@ -48,7 +48,7 @@ export default function ContactsTab({ countries = [], openImage }) {
         control={control}
         render={({ field }) => (
           <div className="form-field">
-            <label>Почта<span className="req">*</span></label>
+            <label>Почта</label>
             <input
               {...field}
               placeholder="user@example.com"
@@ -59,20 +59,22 @@ export default function ContactsTab({ countries = [], openImage }) {
         )}
       />
 
-      {/* ---------- Страна ---------- */}
+      {/* ---------- Страна (ЗАМЕНЕНО НА CREATABLE SELECT) ---------- */}
       <Controller
         name="country"
         control={control}
         render={({ field }) => (
           <div className="form-field">
             <label>Страна<span className="req">*</span></label>
-            <select {...field} className={errors.country ? 'input-error' : ''}>
-              <option value="" disabled hidden>Не выбрано</option>
-              {countries.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            {errors.country && <p className="error">{errors.country.message}</p>}
+            <CreatableSelect
+              value={field.value || ""}
+              onChange={field.onChange}
+              options={countries}
+              placeholder="Выберите или введите..."
+              error={!!errors.country}
+              onAdd={(val) => onAddCountry && onAddCountry(val)}
+            />
+            {errors.country && <p className="error grid-error">{errors.country.message}</p>}
           </div>
         )}
       />
@@ -89,7 +91,6 @@ export default function ContactsTab({ countries = [], openImage }) {
         )}
       />
 
-      
       <Controller
         name="messenger_name"
         control={control}

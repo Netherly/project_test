@@ -19,6 +19,7 @@ import {
   readCacheSnapshot,
   writeCachedValue,
 } from "../utils/resourceCache";
+import { buildEntityPath } from "../utils/entityRoutes";
 
 
 const statusToEmojiMap = {
@@ -539,7 +540,7 @@ export default function ClientsPage() {
   const openEdit = (c) => {
     if (c?.id) {
       navigate({
-        pathname: `/clients/${c.id}`,
+        pathname: buildEntityPath("/clients", c),
         search: currentSearch,
       });
     } else {
@@ -597,6 +598,24 @@ export default function ClientsPage() {
     try {
       setError("");
       const saved = withReferrerNames(await saveClientApi(data));
+      setCompaniesList((prev) => {
+        const companyId = String(saved?.company_id || "").trim();
+        if (!companyId) return prev;
+        const next = prev.map((company) =>
+          String(company?.id) === companyId
+            ? {
+                ...company,
+                name: saved.company_name || company.name,
+                photo_link: saved.company_photo_link ?? company.photo_link ?? "",
+              }
+            : company
+        );
+        if (hasDataChanged(prev, next)) {
+          writeCachedValue("companiesData", next);
+          return next;
+        }
+        return prev;
+      });
       setList((prev) => {
         const idx = prev.findIndex((x) => x.id === saved.id);
         if (idx !== -1) {
