@@ -1,4 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
+import { Controller, useFormContext, useWatch } from "react-hook-form";
+import { useFields } from "../../../context/FieldsContext";
+import { Plus, Minus } from 'lucide-react';
 
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
@@ -43,6 +46,26 @@ const matchesEmployee = (trx, employee) => {
 };
 
 export default function FinancesTab({ isNew, employee, transactions = [], assets = [] }) {
+  const { control } = useFormContext();
+  const { fields } = useFields();
+  const [currencies, setCurrencies] = useState([]);
+  
+  const mainCurrencyValue = useWatch({ control, name: "mainCurrency" });
+
+  useEffect(() => {
+    if (!fields) return;
+
+    const loadedCurrencies = Array.isArray(fields?.generalFields?.currency) 
+      ? fields.generalFields.currency 
+      : [];
+
+    const currencyCodes = loadedCurrencies
+      .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
+      .map((s) => String(s || "").trim().toLowerCase())
+      .filter(Boolean);
+      
+    setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
+  }, [fields]);
   
   const filteredTransactions = useMemo(() => {
     if (isNew || !employee) return [];
@@ -70,7 +93,7 @@ export default function FinancesTab({ isNew, employee, transactions = [], assets
   if (isNew) {
     return (
       <div className="tab-section placeholder-tab">
-        <p>Финансовая информация (баланс, транзакции) будет доступна после создания сотрудника.</p>
+        <p>Финансовая информация и настройки будут доступны после создания сотрудника.</p>
       </div>
     );
   }
@@ -98,13 +121,121 @@ export default function FinancesTab({ isNew, employee, transactions = [], assets
         </div>
 
         <div className="form-field">
-          <label>Актив</label>
+          <label>Активы</label>
           <input
             type="text"
             value={hasAssignedAsset ? 'Да' : 'Нет'} 
             disabled
           />
         </div>
+      </div>
+
+      <div className="currency-field">
+        <label className="currency-title">Ставка в час</label>
+        <div className="currency-table">
+        {Array.isArray(currencies) && currencies.length > 0 ? (
+          currencies.map((currency) => {
+            const currencyCode = typeof currency === 'string' ? currency : String(currency || '');
+            const code = currencyCode.trim().toLowerCase();
+            if (!code) return null;
+            return (
+              <div
+                key={code}
+                className={`currency-row ${mainCurrencyValue === code ? "selected" : ""}`}
+              >
+                <span className="currency-label">
+                  {code.toUpperCase()}
+                </span>
+                <Controller
+                  name={`rates.${code}`}
+                  control={control}
+                  defaultValue=""
+                  render={({ field: { onChange, value, ...restField } }) => {
+                    const min = 0, step = 10, numValue = parseFloat(value) || 0;
+                    return (
+                      <div className="custom-number-input">
+                        <input
+                          {...restField}
+                          value={value || ''} 
+                          onChange={onChange} 
+                          type="number"
+                          placeholder="0.00"
+                          className="currency-input"
+                          min={min}
+                        />
+                      </div>
+                    );
+                  }}
+                />
+              </div>
+            );
+          })
+        ) : null}
+        </div>
+      </div>
+
+      <div className="form-field">
+        <label>Основная валюта</label>
+        <Controller
+          name="mainCurrency"
+          control={control}
+          render={({ field }) => (
+            <select {...field}>
+              <option value="" disabled hidden>Не выбрано</option>
+              {Array.isArray(currencies) && currencies.length > 0 ? (
+                currencies.map((currency) => {
+                  const currencyCode = typeof currency === 'string' ? currency : String(currency || '');
+                  const code = currencyCode.trim().toLowerCase();
+                  return code ? (
+                    <option key={code} value={code}>
+                      {code.toUpperCase()}
+                    </option>
+                  ) : null;
+                })
+              ) : null}
+            </select>
+          )}
+        />
+      </div>
+
+      <div className="checkbox-container-modal" style={{ marginBottom: '30px' }}>
+        <Controller
+          name="autoConfirmJournal"
+          control={control}
+          defaultValue={false}
+          render={({ field }) => (
+            <div className="form-field-checkbox">
+              <label htmlFor="autoConfirmJournal">
+                Автоматически подтверждать журнал
+              </label>
+              <input 
+                type="checkbox" 
+                id="autoConfirmJournal" 
+                {...field} 
+                checked={field.value || false} 
+              />
+            </div>
+          )}
+        />
+
+        <Controller
+          name="workTimeControl"
+          control={control}
+          defaultValue={false}
+          render={({ field }) => (
+            <div className="form-field-checkbox">
+              <label htmlFor="workTimeControl">
+                Контроль рабочего времени
+              </label>
+              <input 
+                type="checkbox" 
+                id="workTimeControl" 
+                {...field} 
+                checked={field.value || false}
+              />
+            </div>
+          )}
+        />
       </div>
 
       <div className="tab-content-title">Журнал операций</div>

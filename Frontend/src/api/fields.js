@@ -9,7 +9,6 @@ export function clone(v) {
   return JSON.parse(JSON.stringify(v));
 }
 
-
 export const sortByOrder = (arr) => {
   if (!Array.isArray(arr)) return [];
   return [...arr].sort((a, b) => {
@@ -381,7 +380,10 @@ export function withDefaults(fields) {
     assetsFields: {
       currency: normCodeStrs(f?.assetsFields?.currency ?? sharedCurrencies),
       type: normStrs(f?.assetsFields?.type),
-      paymentSystem: normStrs(f?.assetsFields?.paymentSystem),
+      paymentSystem: normDesigns(f?.assetsFields?.paymentSystem).map((d) => ({
+        ...d,
+        viewUrl: fileUrl(d?.url || "", d?.imageVersion || ""),
+      })),
       cardDesigns: normDesigns(f?.assetsFields?.cardDesigns).map((d) => ({
         ...d,
         viewUrl: fileUrl(d?.url || "", d?.imageVersion || ""),
@@ -614,7 +616,7 @@ export function serializeForSave(values) {
     assetsFields: {
       currency: serByCode(values?.assetsFields?.currency),
       type: serByName(values?.assetsFields?.type),
-      paymentSystem: serByName(values?.assetsFields?.paymentSystem),
+      paymentSystem: serDesigns(values?.assetsFields?.paymentSystem),
       cardDesigns: serDesigns(values?.assetsFields?.cardDesigns),
     },
     financeFields: {

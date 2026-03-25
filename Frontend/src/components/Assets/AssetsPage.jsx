@@ -14,7 +14,7 @@ import {
   deleteAsset as apiDeleteAsset,
 } from "../../api/assets";
 import { fetchLatestRatesSnapshot } from "../../api/rates";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Move } from "lucide-react"; 
 import { useTransactions } from "../../context/TransactionsContext";
 import {
   CACHE_TTL,
@@ -33,6 +33,24 @@ import {
 import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import { rid } from "../../utils/rid";
 
+// Импорты для Drag and Drop
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 const formatNumberWithSpaces = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
     return "0.00";
@@ -41,6 +59,36 @@ const formatNumberWithSpaces = (num) => {
   const parts = fixedNum.split(".");
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return parts.join(".");
+};
+
+const SortableAssetCard = ({ id, disabled, children }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id, disabled });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 999 : 'auto',
+    opacity: isDragging ? 0.8 : 1,
+    position: 'relative'
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="sortable-asset-wrapper">
+      {!disabled && (
+        <div className="asset-drag-handle" {...attributes} {...listeners}>
+          <Move size={24} />
+        </div>
+      )}
+      {children}
+    </div>
+  );
 };
 
 const AssetsPage = () => {
@@ -81,6 +129,8 @@ const AssetsPage = () => {
   const [employees, setEmployees] = useState([]);
   const [cardSize, setCardSize] = useState("medium");
   const cacheWriteStateRef = useRef({ assets: false });
+
+  const [isDragEnabled, setIsDragEnabled] = useState(false);
 
   const viewMode = searchParams.get("view") || "card";
 
@@ -333,25 +383,17 @@ const AssetsPage = () => {
       window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     };
   }, []);
+
   const handleAddAsset = async (newAsset) => {
     try {
+      const maxOrder = Math.max(0, ...assets.map(a => a.order || 0));
+      newAsset.order = maxOrder + 1;
+      
       await apiCreateAsset(newAsset);
       await loadAssets();
       handleCloseModal();
     } catch (err) {
       console.error("Failed to create asset", err);
-      const selectedEmployee = employees?.find((emp) => emp.id === newAsset.employeeId);
-      const assetWithDefaults = {
-        ...newAsset,
-        id: newAsset.accountName,
-        design: newAsset.design || "default-design",
-        paymentSystem: newAsset.paymentSystem || null,
-        turnoverStartBalance: Number(newAsset.turnoverStartBalance) || 0,
-        employeeId: newAsset.employeeId || null,
-        employee: newAsset.employeeName || selectedEmployee?.fullName || "",
-        employeeName: newAsset.employeeName || selectedEmployee?.fullName || "",
-      };
-      setAssets((prevAssets) => [...prevAssets, assetWithDefaults]);
       handleCloseModal();
     }
   };
@@ -370,6 +412,8 @@ const AssetsPage = () => {
   const handleDuplicateAsset = async (assetToDuplicate) => {
     try {
       const newId = `${assetToDuplicate.accountName} (Копия ${Date.now()})`;
+      const maxOrder = Math.max(0, ...assets.map(a => a.order || 0));
+      
       const duplicatedAsset = {
         ...assetToDuplicate,
         id: newId,
@@ -382,9 +426,12 @@ const AssetsPage = () => {
         turnoverIncoming: 0.0,
         turnoverOutgoing: 0.0,
         turnoverEndBalance: 0.0,
+        order: maxOrder + 1,
         requisites: (assetToDuplicate.requisites || []).map((req) => ({ ...req })),
       };
-      setAssets((prevAssets) => [...prevAssets, duplicatedAsset]);
+      
+      await apiCreateAsset(duplicatedAsset);
+      await loadAssets();
     } catch (err) {
       console.error("Failed to duplicate asset", err);
     }
@@ -399,26 +446,20 @@ const AssetsPage = () => {
 
       navigator.clipboard
         .writeText(requisitesText)
-        .then(() => {
-          alert("Реквизиты скопированы!");
-        })
         .catch((err) => {
-          console.error("Не удалось скопировать реквизиты: ", err);
-          alert("Ошибка при копировании реквизитов.");
+          console.error(err);
         });
-    } else {
-      alert("Реквизиты отсутствуют.");
     }
   };
 
   const copyToClipboard = (text) => {
     navigator.clipboard
       .writeText(text)
-      .then(() => alert("Скопировано!"))
-      .catch((err) => console.error("Не удалось скопировать: ", err));
+      .catch((err) => console.error(err));
   };
 
   const handleRowClick = (asset) => {
+    if (isDragEnabled) return; 
     handleOpenAsset(asset);
   };
 
@@ -429,16 +470,39 @@ const AssetsPage = () => {
       handleCloseModal();
     } catch (err) {
       console.error("Failed to update asset", err);
-      setAssets((prevAssets) =>
-        prevAssets.map((asset) =>
-          asset.id === updatedAsset.id ? updatedAsset : asset
-        )
-      );
       handleCloseModal();
     }
   };
 
-  const assetsByCurrency = assets.reduce((acc, asset) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setAssets((items) => {
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+      
+      const newArray = arrayMove(items, oldIndex, newIndex);
+      
+      const arrayWithUpdatedOrder = newArray.map((item, index) => ({
+        ...item,
+        order: index
+      }));
+      
+      return arrayWithUpdatedOrder;
+    });
+  };
+
+  const sortedAssets = useMemo(() => {
+    return [...assets].sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [assets]);
+
+  const assetsByCurrency = sortedAssets.reduce((acc, asset) => {
     if (!acc[asset.currency]) {
       acc[asset.currency] = {
         items: [],
@@ -482,7 +546,7 @@ const AssetsPage = () => {
               onClick={() => setViewMode("card")}
               title="Карточный вид"
             >
-              &#x25A3;
+              <CreditCard size={25} />
             </button>
             <button
               className={`assets-view-mode-button ${viewMode === "table" ? "active" : ""}`}
@@ -494,26 +558,39 @@ const AssetsPage = () => {
           </div>
 
           {viewMode === "card" && (
-            <div className="card-size-selector">
-              <button
-                className={`card-size-button ${cardSize === "large" ? "active" : ""}`}
-                onClick={() => handleSetCardSize("large")}
-              >
-                <CreditCard size={25} />
-              </button>
-              <button
-                className={`card-size-button ${cardSize === "medium" ? "active" : ""}`}
-                onClick={() => handleSetCardSize("medium")}
-              >
-                <CreditCard size={19} />
-              </button>
-              <button
-                className={`card-size-button ${cardSize === "small" ? "active" : ""}`}
-                onClick={() => handleSetCardSize("small")}
-              >
-                <CreditCard size={15} />
-              </button>
-            </div>
+            <>
+              <div className="assets-view-mode-buttons" style={{ padding: '0 15px' }}>
+                 <button
+                  type="button"
+                  className={`assets-view-mode-button ${isDragEnabled ? 'active' : ''}`}
+                  title={isDragEnabled ? "Выключить сортировку" : "Включить сортировку"}
+                  onClick={() => setIsDragEnabled(!isDragEnabled)}
+                >
+                  <Move size={20} />
+                </button>
+              </div>
+
+              <div className="card-size-selector">
+                <button
+                  className={`card-size-button ${cardSize === "large" ? "active" : ""}`}
+                  onClick={() => handleSetCardSize("large")}
+                >
+                  <CreditCard size={25} />
+                </button>
+                <button
+                  className={`card-size-button ${cardSize === "medium" ? "active" : ""}`}
+                  onClick={() => handleSetCardSize("medium")}
+                >
+                  <CreditCard size={19} />
+                </button>
+                <button
+                  className={`card-size-button ${cardSize === "small" ? "active" : ""}`}
+                  onClick={() => handleSetCardSize("small")}
+                >
+                  <CreditCard size={15} />
+                </button>
+              </div>
+            </>
           )}
 
           <button className="add-asset-button" onClick={handleOpenAddForm}>
@@ -531,8 +608,8 @@ const AssetsPage = () => {
             >
               <path d="M5 12h14" />
               <path d="M12 5v14" />
-            </svg>{" "}
-            Добавить
+            </svg>
+            <span className="add-text">Добавить</span>
           </button>
         </header>
 
@@ -612,7 +689,10 @@ const AssetsPage = () => {
                             <div className="copy-button-container">
                               <span
                                 className="copy-button-icon"
-                                onClick={(e) => handleCopyRequisites(e, asset.requisites)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyRequisites(e, asset.requisites);
+                                }}
                                 title="Копировать реквизиты"
                               ></span>
                             </div>
@@ -638,32 +718,38 @@ const AssetsPage = () => {
 
           {viewMode === "card" && (
             <div className={`assets-cards-container card-size-${cardSize}`}>
-              {Object.entries(assetsByCurrency).map(([currency, data]) => (
-                <div key={currency} className="currency-card-group">
-                  <div className="currency-card-header">
-                    <span className="currency-name-card">{currency}</span>
-                    <span className="total-in-currency-сard">
-                      {formatNumberWithSpaces(data.totalBalance)}
-                    </span>
-                    <span className="total-from-settings-сard">
-                      {formatNumberWithSpaces(data.totalBalanceUAH)}
-                    </span>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                {Object.entries(assetsByCurrency).map(([currency, data]) => (
+                  <div key={currency} className="currency-card-group">
+                    <div className="currency-card-header">
+                      <span className="currency-name-card">{currency}</span>
+                      <span className="total-in-currency-сard">
+                        {formatNumberWithSpaces(data.totalBalance)}
+                      </span>
+                      <span className="total-from-settings-сard">
+                        {formatNumberWithSpaces(data.totalBalanceUAH)}
+                      </span>
+                    </div>
+                    <div className="currency-card-items">
+                      <SortableContext items={data.items.map(i => i.id)} strategy={horizontalListSortingStrategy}>
+                        {data.items.map((asset) => (
+                          <SortableAssetCard key={asset.id} id={asset.id} disabled={!isDragEnabled}>
+                            <AssetCard
+                              asset={asset}
+                              cardDesigns={fields?.assetsFields?.cardDesigns || []}
+                              paymentSystems={fields?.assetsFields?.paymentSystem || []}
+                              onCardClick={() => handleRowClick(asset)}
+                              onDeleteClick={() => handleDeleteAsset(asset.id)}
+                              onCopyValue={copyToClipboard}
+                              onCopyRequisites={(e) => handleCopyRequisites(e, asset.requisites)}
+                            />
+                          </SortableAssetCard>
+                        ))}
+                      </SortableContext>
+                    </div>
                   </div>
-                  <div className="currency-card-items">
-                    {data.items.map((asset) => (
-                      <AssetCard
-                        key={asset.id}
-                        asset={asset}
-                        cardDesigns={fields?.assetsFields?.cardDesigns || []}
-                        onCardClick={() => handleRowClick(asset)}
-                        onDeleteClick={() => handleDeleteAsset(asset.id)}
-                        onCopyValue={copyToClipboard}
-                        onCopyRequisites={(e) => handleCopyRequisites(e, asset.requisites)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </DndContext>
             </div>
           )}
         </div>

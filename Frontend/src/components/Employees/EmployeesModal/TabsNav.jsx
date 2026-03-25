@@ -1,18 +1,14 @@
 import React from 'react';
 
 const TABS = [
-  { id: 'summary', label: 'Сводка'},
-  { id: 'general', label: 'Общая информация' },
-  { id: 'contacts', label: 'Контакты' },
-  { id: 'requisites', label: 'Реквизиты' },
+  { id: 'general', label: 'Общее' },
   { id: 'finances', label: 'Финансы' },
-  { id: 'orders', label: 'Заказы' },
+  { id: 'requisites', label: 'Реквизиты' },
 ];
 
 
 export default function TabsNav({ activeTab, setActiveTab, errors = {}, isNew }) {
   
- 
   const visibleTabs = isNew ? TABS.filter(tab => tab.id !== 'summary') : TABS;
 
   return (

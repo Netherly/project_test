@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from "react";
 import "../../styles/AssetCard.css";
-import { X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { withCacheVersion } from "../../api/http";
 import {
-  getCardDesignFallback,
-  normalizeCardDesignName,
   resolveCardDesignUrl,
 } from "../../utils/cardDesigns";
+import { useTransactions } from "../../context/TransactionsContext";
 
 import visaLogo from "../../assets/assets-card/visa.png";
 import mastercardLogo from "../../assets/assets-card/mastercard.png";
 import mirLogo from "../../assets/assets-card/mir.png";
 import cryptoLogo from "../../assets/assets-card/cryptologo.png";
 import cardChip from "../../assets/assets-card/cardchip.png";
+
+const safeFileUrl = (url, version = "") => {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  return resolveCardDesignUrl(url); 
+};
 
 const AssetCard = ({
   asset,
@@ -21,8 +27,15 @@ const AssetCard = ({
   onCopyValue,
   onCopyRequisites,
   cardDesigns = [],
+  paymentSystems = [],
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const { transactions } = useTransactions();
+
+  const hasTransactions = transactions?.some((t) => {
+    const tAccountId = typeof t.account === "object" ? t?.account?.id : t?.account;
+    return String(tAccountId) === String(asset?.id);
+  });
 
   const handleFlip = (e) => {
     e.stopPropagation();
@@ -54,7 +67,7 @@ const AssetCard = ({
     try {
       await onDeleteClick();
     } catch (error) {
-      console.error("Не удалось удалить актив:", error);
+      console.error(error);
     }
   };
 
@@ -72,17 +85,11 @@ const AssetCard = ({
     cardDesigns.find((d) => d?.id && designValue && d.id === designValue) ||
     cardDesigns.find(
       (d) =>
-        normalizeCardDesignName(d?.name) &&
-        normalizeCardDesignName(d?.name) === normalizeCardDesignName(designNameValue)
+        d?.name &&
+        d?.name.toLowerCase() === (designNameValue || "").toLowerCase()
     );
 
-  const designFallback = getCardDesignFallback(
-    designObj?.name || asset?.cardDesign?.name || designNameValue || designValue
-  );
-
-  const designClass = designFallback
-    ? `card-design-${designFallback.key}`
-    : "card-design-default";
+  const designClass = "card-design-default"; // Всегда используем дефолтный класс (для белого текста)
 
   const rawDesignUrl = resolveCardDesignUrl(
     designObj?.viewUrl ??
@@ -122,13 +129,29 @@ const AssetCard = ({
   }, [versionedDesignUrl]);
 
   const getCardTypeLogo = () => {
-    const ps =
-      typeof paymentSystemValue === "object"
-        ? paymentSystemValue?.name || paymentSystemValue?.code
-        : paymentSystemValue;
+    const psNameRaw = typeof paymentSystemValue === "object"
+      ? paymentSystemValue?.name || paymentSystemValue?.code
+      : paymentSystemValue;
 
-    if (ps) {
-      switch (ps) {
+    const psName = String(psNameRaw || "").trim().toLowerCase();
+
+    if (psName) {
+      const psObj = paymentSystems.find(ps => 
+        String(ps?.name || "").trim().toLowerCase() === psName
+      );
+
+      if (psObj && (psObj.viewUrl || psObj.url)) {
+        const logoUrl = psObj.viewUrl || psObj.url;
+        return (
+          <img 
+            src={safeFileUrl(logoUrl, psObj.imageVersion)} 
+            alt={psObj.name || "Payment System"} 
+            className="card-type-logo custom-ps-logo" 
+          />
+        );
+      }
+
+      switch (psNameRaw) {
         case "Visa":
           return <img src={visaLogo} alt="Visa" className="card-type-logo visa" />;
         case "Mastercard":
@@ -192,6 +215,7 @@ const AssetCard = ({
 
   const balance = Number.isFinite(Number(asset?.balance)) ? Number(asset.balance) : 0;
   const shouldShowCardElements = true;
+  
   const designImageStyle = designUrl
     ? {
         backgroundImage: `url(${designUrl})`,
@@ -205,21 +229,9 @@ const AssetCard = ({
     <div
       className={`asset-card-wrapper ${isFlipped ? "flipped" : ""} ${designClass}`}
       onClick={onCardClick}
-      style={{
-        backgroundColor: !designUrl && !designFallback ? "#333" : undefined,
-      }}
     >
       <div className="asset-card-inner">
         <div className="asset-card-front" style={designImageStyle}>
-          <button
-            type="button"
-            className="asset-card-delete-button"
-            onClick={handleDelete}
-            title="Удалить актив"
-          >
-            <X size={16} />
-          </button>
-
           <div className="card-top-left-name">
             <span className="asset-name-top-left">{accountName}</span>
             <span>{asset?.employee}</span>
@@ -269,6 +281,18 @@ const AssetCard = ({
               )}
             </div>
 
+
+            <div className="card-expiry-cvv">
+              <div className="card-expiry">
+                <span className="label">Срок</span>
+                <span className="value">{cardDate || "--/--"}</span>
+              </div>
+              <div className="card-cvv">
+                <span className="label">CVV</span>
+                <span className="value">{cardCVV || "---"}</span>
+              </div>
+            </div>
+
             <div className="card-number-back-container">
               {cardNumber ? (
                 <span
@@ -282,17 +306,33 @@ const AssetCard = ({
               )}
             </div>
 
-            <div className="card-expiry-cvv">
-              <div className="card-expiry">
-                <span className="label">Срок</span>
-                <span className="value">{cardDate || "--/--"}</span>
-              </div>
-              <div className="card-cvv">
-                <span className="label">CVV</span>
-                <span className="value">{cardCVV || "---"}</span>
-              </div>
+
+            <div className="card-requisites-scroll-container custom-scrollbar">
+              {(requisites || []).filter(r => r.label !== "Номер карты" && r.label !== "Срок действия" && r.label !== "CVV").map((req, index) => (
+                <div key={`${req.label}-${index}`} className="card-custom-requisite-item">
+                  <span className="card-custom-requisite-label">{req.label}:</span>
+                  <span 
+                    className="card-custom-requisite-value"
+                    onClick={(e) => handleCopyClick(e, req.value)}
+                    title="Нажмите, чтобы скопировать"
+                  >
+                    {req.value}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
+
+          {!hasTransactions && (
+            <button
+              type="button"
+              className="asset-card-delete-button"
+              onClick={handleDelete}
+              title="Удалить актив"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
 
           <div className="card-bottom-right-actions-back">
             <button className="flip-button" onClick={handleFlip} title="Вернуться">

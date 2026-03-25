@@ -7,7 +7,6 @@ import EmployeeHeader from "./EmployeeHeader";
 import TabsNav from "./TabsNav";
 import GeneralInfoTab from "./GeneralInfoTab";
 import SummaryTab from "./SummaryTab";
-import ContactsTab from "./ContactsTab";
 import RequisitesTab from "./RequisitesTab";
 import FinancesTab from "./FinancesTab";
 import OrdersTab from "./OrdersTab";
@@ -139,8 +138,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
   }, [reset, safeEmployee]);
 
   const errorMap = {
-    general: ["fullName", "login", "password", "countryId"],
-    contacts: ["phone", "email"],
+    general: ["fullName", "login", "password", "countryId", "phone", "email"],
   };
 
   const groupErrors = (err) => {
@@ -210,13 +208,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 
                 {activeTab === "general" && (
                   <GeneralInfoTab 
-                    fieldsData={appData.fields}
-                    onAddCurrency={(val) => handleAddNewField("generalFields", "currency", val)}
-                  />
-                )}
-                
-                {activeTab === "contacts" && (
-                  <ContactsTab
                     isNew={isNew}
                     employeeId={safeEmployee.id}
                     fieldsData={appData.fields}
@@ -224,8 +215,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                     onAddCountry={(val) => handleAddNewField("employeeFields", "country", val)}
                   />
                 )}
-                
-                {activeTab === "requisites" && <RequisitesTab />}
                 
                 {activeTab === "finances" && (
                   <FinancesTab 
@@ -235,6 +224,8 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                     assets={appData.assets}
                   />
                 )}
+
+                {activeTab === "requisites" && <RequisitesTab />}
                 
                 {activeTab === "orders" && (
                   <OrdersTab 

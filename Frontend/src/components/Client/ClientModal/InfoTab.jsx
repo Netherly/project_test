@@ -393,10 +393,8 @@ export default function InfoTab({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        backgroundColor: "var(--bg-menu-color)",
                         padding: "10px 15px",
-                        borderRadius: "6px",
-                        border: "1px solid rgba(128,128,128,0.3)",
+                        borderBottom: "1px solid rgba(128,128,128,0.3)",
                         marginTop: "5px",
                       }}
                     >

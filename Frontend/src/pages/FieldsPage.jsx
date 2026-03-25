@@ -299,7 +299,7 @@ const prepareFieldsPageSaveValues = (values) => {
     next?.clientFields?.country ??
     next?.employeeFields?.country ??
     [];
-  const saveCountries = buildSharedCountryList(countrySource);
+  const sharedCountries = buildSharedCountryList(countrySource);
 
   for (const groupKey of CURRENCY_FIELD_GROUPS) {
     if (!next[groupKey]) continue;
@@ -313,7 +313,7 @@ const prepareFieldsPageSaveValues = (values) => {
     if (!next[groupKey]) continue;
     next[groupKey] = {
       ...next[groupKey],
-      country: clone(saveCountries),
+      country: clone(sharedCountries),
     };
   }
 
@@ -1211,6 +1211,192 @@ const CardDesignUpload = ({ cardDesigns = [], onAdd, onToggleDelete, onError, sh
   );
 };
 
+const PaymentSystemUpload = ({ paymentSystems = [], onAdd, onToggleDelete, onError, showHidden, isDragEnabled, onReorder }) => {
+  const fileInputRefs = useRef([]);
+  const dndId = useMemo(() => rid(), []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const visibleItems = useMemo(
+    () => paymentSystems.map((item, index) => ({ ...item, originalIndex: index })).filter(item => !item.isDeleted || showHidden),
+    [paymentSystems, showHidden]
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = visibleItems.findIndex((item) => item.id === active.id);
+    const newIndex = visibleItems.findIndex((item) => item.id === over.id);
+    
+    const reorderedVisible = arrayMove(visibleItems, oldIndex, newIndex);
+    const hiddenItems = paymentSystems.filter((item) => item.isDeleted && !showHidden);
+    const newItems = [...reorderedVisible, ...hiddenItems].map((item, idx) => {
+      const { originalIndex, ...rest } = item;
+      return { ...rest, order: idx };
+    });
+    
+    onReorder?.(newItems);
+  };
+
+  const ensureItem = (arr, index) => {
+    const copy = [...arr];
+    copy[index] = {
+      id: copy[index]?.id || rid(),
+      name: copy[index]?.name || "",
+      url: copy[index]?.url || "",
+      size: copy[index]?.size ?? null,
+      isDeleted: copy[index]?.isDeleted || false,
+    };
+    return copy;
+  };
+
+  const triggerFile = (i) => fileInputRefs.current[i]?.click();
+
+  const handleFileUpload = (event, index) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    const file = files[0];
+
+    if (!file.type.startsWith("image/")) {
+      onError?.({ title: "Неверный формат файла", message: "Выберите изображение." });
+      event.target.value = "";
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      onError?.({ title: "Слишком большой файл", message: "Максимум 5 МБ." });
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const next = ensureItem(paymentSystems, index);
+      next[index] = { ...next[index], url: e.target.result, size: file.size };
+      onAdd(next);
+    };
+    reader.onerror = () => onError?.({ title: "Ошибка чтения", message: "Не удалось прочитать файл." });
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+    
+  const handleRemoveImage = (e, index) => {
+    e.stopPropagation();
+    const next = ensureItem(paymentSystems, index);
+    next[index] = { ...next[index], url: "", size: null };
+    onAdd(next);
+  };
+
+  const handleNameChange = (index, newName) => {
+    const next = ensureItem(paymentSystems, index);
+    next[index] = { ...next[index], name: newName };
+    onAdd(next);
+  };
+
+  const addEmpty = () => onAdd([...(paymentSystems || []), { id: rid(), name: "", url: "", size: null, isDeleted: false, order: (paymentSystems || []).length }]);
+
+  return (
+    <div className="category-fields-container">
+      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={visibleItems.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          {visibleItems.map((system) => {
+            const i = system.originalIndex;
+            return (
+              <SortableItem key={system.id} id={system.id} disabled={system.isDeleted} showHandle={isDragEnabled}>
+                <div className={`category-field-group ${system.isDeleted ? 'is-hidden-item' : ''}`}>
+                  <div className="card-design-row">
+                    <div className="card-design-input">
+                      <input
+                        type="text"
+                        value={system.name || ""}
+                        onChange={(e) => handleNameChange(i, e.target.value)}
+                        placeholder="Название платежной системы"
+                        className="text-input"
+                        disabled={system.isDeleted}
+                      />
+                    </div>
+                    <div className="card-design-upload">
+                      <input
+                        ref={(el) => (fileInputRefs.current[i] = el)}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, i)}
+                        style={{ display: "none" }}
+                        disabled={system.isDeleted}
+                      />
+                      {system.url ? (
+                        <div className="card-design-item">
+                          <div
+                            className="card-design-preview"
+                            title={system.isDeleted ? system.name : "Кликните, чтобы заменить"}
+                            onClick={() => !system.isDeleted && triggerFile(i)}
+                            style={{ position: 'relative' }} 
+                          >
+                            <img
+                              src={system?.viewUrl || safeFileUrl(system.url, system?.imageVersion)}
+                              alt={system.name || "system"}
+                              className="card-design-image"
+                            />
+                              
+                            {!system.isDeleted && (
+                              <button 
+                                type="button"
+                                className="remove-image-overlay-btn"
+                                onClick={(e) => handleRemoveImage(e, i)}
+                                title="Удалить изображение"
+                              >
+                                 <X size={14} color="white" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="card-design-actions">
+                            <button
+                              type="button"
+                              className="upload-design-btn"
+                              onClick={() => triggerFile(i)}
+                              disabled={system.isDeleted}
+                            >
+                              Заменить
+                            </button>
+                            <button
+                              type="button"
+                              className={`remove-category-btn ${system.isDeleted ? 'restore' : ''}`}
+                              onClick={() => onToggleDelete(i)}
+                              title={system.isDeleted ? "Восстановить" : "Удалить"}
+                            >
+                              {system.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="upload-design-btn"
+                          onClick={() => triggerFile(i)}
+                          disabled={system.isDeleted}
+                        >
+                          Загрузить логотип
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </SortableItem>
+            );
+          })}
+        </SortableContext>
+      </DndContext>
+      <button type="button" className="add-category-btn" onClick={addEmpty}>
+        <Plus size={20} color='white'/> Добавить
+      </button>
+    </div>
+  );
+};
+
 function FieldsPage() {
   const { refreshFields } = useFields(); 
   
@@ -1701,6 +1887,29 @@ function FieldsPage() {
       item,
       fieldLabel: item?.name,
       onToggle: (deleteAction) => toggleDeleteCardDesign(index, deleteAction),
+    });
+  };
+
+  const updatePaymentSystems = (newItems) => handleInputChange("assetsFields", "paymentSystem", newItems);
+
+  const toggleDeletePaymentSystem = (index, deleteAction = "") => {
+    const items = selectedValues.assetsFields.paymentSystem || [];
+    const copy = [...items];
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
+    handleInputChange("assetsFields", "paymentSystem", copy);
+  };
+
+  const requestDeletePaymentSystem = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      onToggle: (deleteAction) => toggleDeletePaymentSystem(index, deleteAction),
     });
   };
 
@@ -2228,16 +2437,14 @@ function FieldsPage() {
           paymentSystem: (
             <div className="field-row">
               <label className="field-label">Платежная система</label>
-              <EditableList
-                items={selectedValues.assetsFields.paymentSystem || []}
-                onChange={(index, val) => handleStringItemChange("assetsFields", "paymentSystem", index, val)}
-                onToggleDelete={(index, item) => requestStringItemToggleDelete("assetsFields", "paymentSystem", index, item)}
-                onAdd={() => handleStringItemAdd("assetsFields", "paymentSystem")}
-                onCommit={(index) => handleStringItemBlur("assetsFields", "paymentSystem", index)}
-                onReorder={(newItems) => handleInputChange("assetsFields", "paymentSystem", newItems)}
-                placeholder="Введите платежную систему"
+              <PaymentSystemUpload
+                paymentSystems={selectedValues.assetsFields.paymentSystem || []}
+                onAdd={(newItems) => updatePaymentSystems(newItems)}
+                onToggleDelete={(index) => requestDeletePaymentSystem(index, selectedValues.assetsFields.paymentSystem[index])}
+                onError={({ title, message }) => openErrorModal(title, message)}
                 showHidden={showHidden}
                 isDragEnabled={isDragEnabled}
+                onReorder={(newItems) => handleInputChange("assetsFields", "paymentSystem", newItems)}
               />
             </div>
           ),
