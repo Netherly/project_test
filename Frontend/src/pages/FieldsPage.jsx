@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { useFields } from "../context/FieldsContext";
 import "../styles/Fields.css";
@@ -37,13 +37,17 @@ import PageHeaderIcon from "../components/HeaderIcon/PageHeaderIcon.jsx"
 import NoAccessState from "../components/ui/NoAccessState";
 import { isForbiddenError } from "../utils/isForbiddenError";
 import { getCardDesignFallback } from "../utils/cardDesigns";
-import { RESOURCE_CACHE_EVENT, hasDataChanged } from "../utils/resourceCache";
+import { RESOURCE_CACHE_EVENT, hasDataChanged, writeCachedValue } from "../utils/resourceCache";
 import { Copy, Plus, Eye, EyeOff, Check, Undo2, X, GripVertical, Move } from 'lucide-react'; 
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ORDER_STORAGE_KEY = "crm_field_orders_v2";
 const ACTIVE_TAB_STORAGE_KEY = "crm_active_field_tab";
+<<<<<<< HEAD
 
+=======
+const SHOW_HIDDEN_STORAGE_KEY = "crm_fields_show_hidden_v1";
+>>>>>>> develope
 const VISIBLE_FIELD_CURRENCIES = [
   { code: "USD", name: "US Dollar" },
   { code: "RUB", name: "Russian Ruble" },
@@ -318,6 +322,51 @@ const prepareFieldsPageSaveValues = (values) => {
   }
 
   return next;
+};
+
+const markHiddenFieldItem = (item) => ({
+  ...item,
+  isDeleted: true,
+  deleteAction: "hide",
+});
+
+const mergeInactiveFieldsIntoValues = (currentValues, inactiveValues) => {
+  const nextValues = clone(currentValues);
+  const activeIds = {};
+  const sortByConfiguredOrder = (list) =>
+    [...list].sort((a, b) => {
+      const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+      const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return 0;
+    });
+
+  for (const groupKey of Object.keys(inactiveValues || {})) {
+    const group = inactiveValues[groupKey];
+    if (!nextValues[groupKey] || typeof group !== "object" || group === null) continue;
+
+    activeIds[groupKey] = {};
+
+    for (const fieldKey of Object.keys(group)) {
+      if (!Object.prototype.hasOwnProperty.call(nextValues[groupKey], fieldKey)) continue;
+
+      const activeList = Array.isArray(nextValues[groupKey][fieldKey])
+        ? nextValues[groupKey][fieldKey]
+        : [];
+      activeIds[groupKey][fieldKey] = new Set(activeList.map((item) => item.id));
+
+      const inactiveList = (Array.isArray(group[fieldKey]) ? group[fieldKey] : []).map(markHiddenFieldItem);
+      const currentActiveIds = activeIds[groupKey][fieldKey];
+      const mergedList = sortByConfiguredOrder([
+        ...activeList,
+        ...inactiveList.filter((item) => !currentActiveIds.has(item.id)),
+      ]);
+
+      nextValues[groupKey][fieldKey] = mergedList;
+    }
+  }
+
+  return nextValues;
 };
 
 const SortableFieldRow = ({ id, children, isDragEnabled }) => {
@@ -614,8 +663,13 @@ const TagList = ({ title, tags = [], onChange, onToggleDelete, showHidden, isDra
                       <button
                         type="button"
                         className={`remove-category-btn ${t.isDeleted ? 'restore' : ''}`}
+<<<<<<< HEAD
                         onClick={() => (onToggleDelete ? onToggleDelete(t.id, t) : onToggleDelete(t.id, t))}
                         title={t.isDeleted ? "Восстановить" : "Удалить"}
+=======
+                        onClick={() => (onToggleDelete ? onToggleDelete(t.id, t) : toggleDelete(t.id))}
+                        title={t.isDeleted ? "Восстановить" : "Скрыть"}
+>>>>>>> develope
                       >
                         {t.isDeleted ? <Undo2 size={18} /> : <X size={18} />}
                       </button>
@@ -1424,7 +1478,13 @@ function FieldsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingTab, setPendingTab] = useState(null);
-  const [showHidden, setShowHidden] = useState(false);
+  const [showHidden, setShowHidden] = useState(() => {
+    try {
+      return localStorage.getItem(SHOW_HIDDEN_STORAGE_KEY) === "1";
+    } catch (_) {
+      return false;
+    }
+  });
   const [inactiveLoaded, setInactiveLoaded] = useState(false);
   const [loadingInactive, setLoadingInactive] = useState(false);
   const [isDragEnabled, setIsDragEnabled] = useState(false);
@@ -1460,6 +1520,7 @@ function FieldsPage() {
   });
 
   const containerRef = useRef(null);
+  const initialShowHiddenRef = useRef(showHidden);
   const pageDndId = useMemo(() => rid(), []);
 
   const sensors = useSensors(
@@ -1509,10 +1570,14 @@ function FieldsPage() {
     });
   };
 
-  const requestDeleteToggle = ({ item, fieldLabel, onToggle }) => {
+  const requestDeleteToggle = ({ item, fieldLabel, onToggle, allowHardDelete = true }) => {
     if (!item) return;
     if (item.isDeleted) {
       onToggle?.();
+      return;
+    }
+    if (!allowHardDelete) {
+      onToggle?.("hide");
       return;
     }
     if (item.isLinked === true) {
@@ -1537,6 +1602,39 @@ function FieldsPage() {
     checkChanges(next, fieldOrders);
   };
 
+  const fetchNormalizedInactiveValues = useCallback(async () => {
+    const inactiveValues = await fetchInactiveFields();
+    return withDefaults(inactiveValues);
+  }, []);
+
+  const mergeWithInactiveValues = useCallback(
+    async (baseValues) => {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      return mergeInactiveFieldsIntoValues(baseValues, inactiveValues);
+    },
+    [fetchNormalizedInactiveValues]
+  );
+
+  const loadHiddenFieldsIntoState = useCallback(async () => {
+    setLoadingInactive(true);
+    try {
+      const inactiveValues = await fetchNormalizedInactiveValues();
+      setSelectedValues((currentSelectedValues) =>
+        mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
+      );
+      if (!hasChanges) {
+        setSavedValues((currentSavedValues) =>
+          mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
+        );
+      }
+      setInactiveLoaded(true);
+    } catch (e) {
+      openErrorModal("Ошибка загрузки скрытых полей", e?.message || "Не удалось получить данные.");
+    } finally {
+      setLoadingInactive(false);
+    }
+  }, [fetchNormalizedInactiveValues, hasChanges]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -1545,10 +1643,21 @@ function FieldsPage() {
       try {
         const raw = await fetchFields();
         const normalized = applyFieldsPagePreset(withDefaults(raw));
+        let hydratedValues = normalized;
+        let hiddenLoaded = false;
+        if (initialShowHiddenRef.current) {
+          try {
+            hydratedValues = await mergeWithInactiveValues(normalized);
+            hiddenLoaded = true;
+          } catch (inactiveError) {
+            console.error("Не удалось загрузить скрытые поля при открытии страницы:", inactiveError);
+          }
+        }
         if (!mounted) return;
-        setSelectedValues(normalized);
-        setSavedValues(normalized);
+        setSelectedValues(hydratedValues);
+        setSavedValues(hydratedValues);
         setHasChanges(false);
+        setInactiveLoaded(hiddenLoaded);
       } catch (e) {
         if (isForbiddenError(e)) {
           if (!mounted) return;
@@ -1561,24 +1670,43 @@ function FieldsPage() {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [mergeWithInactiveValues]);
 
   useEffect(() => {
+    let mounted = true;
+
     const handleCacheChange = (event) => {
       if (event?.detail?.key !== "fieldsData") return;
-      if (hasChanges || saving || showHidden) return;
+      if (hasChanges || saving) return;
 
-      try {
-        const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
-        setSelectedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
-        setSavedValues((prev) => (hasDataChanged(prev, normalized) ? normalized : prev));
-        setHasChanges(false);
-        setInactiveLoaded(false);
-      } catch (_) {}
+      (async () => {
+        try {
+          const normalized = applyFieldsPagePreset(withDefaults(event.detail.value));
+          let nextValues = normalized;
+          let hiddenLoaded = false;
+          if (showHidden) {
+            try {
+              nextValues = await mergeWithInactiveValues(normalized);
+              hiddenLoaded = true;
+            } catch (inactiveError) {
+              console.error("Не удалось заново подмешать скрытые поля после обновления кэша:", inactiveError);
+            }
+          }
+          if (!mounted) return;
+          setSelectedValues((prev) => (hasDataChanged(prev, nextValues) ? nextValues : prev));
+          setSavedValues((prev) => (hasDataChanged(prev, nextValues) ? nextValues : prev));
+          setHasChanges(false);
+          setInactiveLoaded(hiddenLoaded);
+        } catch (error) {
+          if (!mounted) return;
+          console.error("Не удалось синхронизировать скрытые поля из кэша:", error);
+        }
+      })();
     };
 
     window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     return () => {
+      mounted = false;
       window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     };
   }, [hasChanges, saving, showHidden]);
@@ -1596,17 +1724,29 @@ function FieldsPage() {
     try {
       const payload = serializeForSave(prepareFieldsPageSaveValues(selectedValues));
       const savedRaw = await saveFields(payload);
+      writeCachedValue("fieldsData", savedRaw);
+
       const normalizedSavedValues = applyFieldsPagePreset(withDefaults(savedRaw));
+      let finalSavedValues = normalizedSavedValues;
+      let hiddenLoaded = false;
+
+      if (showHidden) {
+        try {
+          finalSavedValues = await mergeWithInactiveValues(normalizedSavedValues);
+          hiddenLoaded = true;
+        } catch (inactiveError) {
+          console.error("Не удалось сразу загрузить скрытые поля после сохранения:", inactiveError);
+        }
+      }
       
       localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(fieldOrders));
       setSavedFieldOrders(fieldOrders);
 
-      setSelectedValues(normalizedSavedValues);
-      setSavedValues(normalizedSavedValues);
+      setSelectedValues(finalSavedValues);
+      setSavedValues(finalSavedValues);
       setHasChanges(false);
       setOpenDropdowns({});
-
-      await refreshFields();
+      setInactiveLoaded(hiddenLoaded);
 
       if (pendingTab) {
         setActiveTab(pendingTab);
@@ -1625,7 +1765,6 @@ function FieldsPage() {
     setFieldOrders(savedFieldOrders);
     setHasChanges(false);
     setOpenDropdowns({});
-    setShowHidden(false);
     setInactiveLoaded(false);
   };
 
@@ -1650,7 +1789,6 @@ function FieldsPage() {
         sessionStorage.setItem(ACTIVE_TAB_STORAGE_KEY, tabKey);
         setPendingTab(null);
         setOpenDropdowns({});
-        setShowHidden(false);
         setInactiveLoaded(false);
       },
     });
@@ -1666,7 +1804,21 @@ function FieldsPage() {
     applyAndCheck(next);
   };
 
+  const handleToggleShowHidden = () => {
+    setOpenDropdowns({});
+    const next = !showHidden;
+    setShowHidden(next);
+    try {
+      localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, next ? "1" : "0");
+    } catch (_) {}
+    setInactiveLoaded(false);
+    if (next && !loading) {
+      void loadHiddenFieldsIntoState();
+    }
+  };
+
   useEffect(() => {
+<<<<<<< HEAD
     if (showHidden && !inactiveLoaded && !loadingInactive) {
       let mounted = true;
       (async () => {
@@ -1674,9 +1826,18 @@ function FieldsPage() {
         try {
           const rawInactive = await fetchInactiveFields();
           const normalizedInactive = withDefaults(rawInactive);
+=======
+  if (!loading && showHidden && !inactiveLoaded && !loadingInactive) {
+    let mounted = true;
+    (async () => {
+      setLoadingInactive(true);
+      try {
+        const inactiveValues = await fetchNormalizedInactiveValues();
+>>>>>>> develope
 
           if (!mounted) return;
 
+<<<<<<< HEAD
           const mergeInactive = (currentSelectedValues) => {
             const nextValues = clone(currentSelectedValues);
             const activeIds = {}; 
@@ -1719,6 +1880,17 @@ function FieldsPage() {
 
           setSelectedValues(mergeInactive);
           setInactiveLoaded(true); 
+=======
+        setSelectedValues((currentSelectedValues) =>
+          mergeInactiveFieldsIntoValues(currentSelectedValues, inactiveValues)
+        );
+        if (!hasChanges) {
+          setSavedValues((currentSavedValues) =>
+            mergeInactiveFieldsIntoValues(currentSavedValues, inactiveValues)
+          );
+        }
+        setInactiveLoaded(true); 
+>>>>>>> develope
 
         } catch (e) {
           openErrorModal("Ошибка загрузки скрытых полей", e?.message || "Не удалось получить данные.");
@@ -1727,9 +1899,15 @@ function FieldsPage() {
         }
       })();
 
+<<<<<<< HEAD
       return () => { mounted = false; };
     }
   }, [showHidden, inactiveLoaded, loadingInactive]);
+=======
+    return () => { mounted = false; };
+  }
+}, [showHidden, inactiveLoaded, loadingInactive, hasChanges, loading, fetchNormalizedInactiveValues]);
+>>>>>>> develope
 
   const handleStringItemChange = (group, field, index, newValue) => {
     const list = selectedValues[group]?.[field] || [];
@@ -2047,6 +2225,79 @@ function FieldsPage() {
   const addSubarticle = () => handleInputChange("financeFields", "subarticles", [...(selectedValues.financeFields.subarticles || []), { id: rid(), subarticleInterval: "", subarticleValue: "", isDeleted: false, order: (selectedValues.financeFields.subarticles || []).length }]);
 
   const updateCardDesigns = (newItems) => handleInputChange("assetsFields", "cardDesigns", newItems);
+<<<<<<< HEAD
+=======
+  const toggleDeleteCardDesign = (index, deleteAction = "") => {
+    const designs = selectedValues.assetsFields.cardDesigns || [];
+    const copy = [...designs];
+    const current = copy[index];
+    const nextDeleted = !current?.isDeleted;
+    copy[index] = {
+      ...current,
+      isDeleted: nextDeleted,
+      deleteAction: nextDeleted ? (deleteAction === "hide" ? "hide" : "") : "",
+    };
+    handleInputChange("assetsFields", "cardDesigns", copy);
+  };
+
+  const requestDeleteCardDesign = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      onToggle: (deleteAction) => toggleDeleteCardDesign(index, deleteAction),
+    });
+  };
+
+  const requestDeleteInterval = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.intervalValue),
+      onToggle: (deleteAction) => toggleDeleteInterval(index, deleteAction),
+    });
+  };
+
+  const requestDeleteCategory = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.categoryInterval, item?.categoryValue),
+      onToggle: (deleteAction) => toggleDeleteCategory(index, deleteAction),
+    });
+  };
+
+  const requestDeleteArticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: tidy(item?.articleValue),
+      onToggle: (deleteAction) => toggleDeleteArticle(index, deleteAction),
+    });
+  };
+
+  const requestDeleteSubarticle = (index, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: joinFieldLabel(item?.subarticleInterval, item?.subarticleValue),
+      onToggle: (deleteAction) => toggleDeleteSubarticle(index, deleteAction),
+    });
+  };
+
+  const toggleTagDelete = (group, field, id) => {
+    const list = selectedValues[group]?.[field] || [];
+    const index = list.findIndex((item) => item.id === id);
+    if (index === -1) return;
+    const copy = [...list];
+    copy[index] = { ...copy[index], isDeleted: !copy[index].isDeleted };
+    handleInputChange(group, field, copy);
+  };
+
+  const requestTagDelete = (group, field, id, item) => {
+    requestDeleteToggle({
+      item,
+      fieldLabel: item?.name,
+      allowHardDelete: false,
+      onToggle: () => toggleTagDelete(group, field, id),
+    });
+  };
+>>>>>>> develope
 
   const toggleCategoryDropdown = (index, e) => {
     e.stopPropagation();
@@ -2601,8 +2852,8 @@ function FieldsPage() {
               <button
                 type="button"
                 className={`fields-view-mode-button ${showHidden ? 'active' : ''}`}
-                title={showHidden ? "Скрыть удаленные" : "Показать удаленные"}
-                onClick={() => setShowHidden(!showHidden)}
+                title={showHidden ? "Скрыть скрытые" : "Показать скрытые"}
+                onClick={handleToggleShowHidden}
                 disabled={saving || loading || forbidden}
               >
                 {showHidden ? <EyeOff size={20} /> : <Eye size={20} />}

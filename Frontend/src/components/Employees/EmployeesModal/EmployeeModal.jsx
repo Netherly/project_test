@@ -19,7 +19,7 @@ import { fetchTransactions } from "../../../api/transactions";
 import { fetchAssets } from "../../../api/assets";
 import { fetchOrders } from "../../../api/orders";
 import { fetchProfile } from "../../../api/profile";
-import { rid } from "../../../utils/rid";
+import { RESOURCE_CACHE_EVENT } from "../../../utils/resourceCache";
 
 import "../../../styles/EmployeeModal.css";
 
@@ -120,6 +120,24 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
     return () => { mounted = false; };
   }, [isNew, safeEmployee?.id]);
 
+  useEffect(() => {
+    const handleCacheChange = (event) => {
+      if (event?.detail?.key !== "fieldsData") return;
+      try {
+        const nextFields = withDefaults(event.detail.value);
+        setAppData((prev) => ({
+          ...prev,
+          fields: nextFields,
+        }));
+      } catch (_) {}
+    };
+
+    window.addEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    return () => {
+      window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
+    };
+  }, []);
+
 
   const methods = useForm({
     resolver: yupResolver(employeeSchema),
@@ -208,11 +226,20 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 
                 {activeTab === "general" && (
                   <GeneralInfoTab 
+<<<<<<< HEAD
+=======
+                    fieldsData={appData.fields}
+                  />
+                )}
+                
+                {activeTab === "contacts" && (
+                  <ContactsTab
+>>>>>>> develope
                     isNew={isNew}
                     employeeId={safeEmployee.id}
                     fieldsData={appData.fields}
                     crmLanguage={appData.profile?.crmLanguage || "ru"}
-                    onAddCountry={(val) => handleAddNewField("employeeFields", "country", val)}
+                    onAddCountry={(val) => handleAddNewField("generalFields", "country", val)}
                   />
                 )}
                 

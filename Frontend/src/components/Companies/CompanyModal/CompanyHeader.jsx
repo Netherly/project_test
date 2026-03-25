@@ -16,6 +16,7 @@ export default function CompanyHeader({
 
   const companyName = watch('name')?.trim() || 'Название компании';
   const companyEmail = watch('email');
+  const companyPhoto = watch('photo_link')?.trim();
   const watchedTags = watch('tags', []);
 
   const displaySubtext = companyEmail
@@ -24,7 +25,7 @@ export default function CompanyHeader({
       ? `Контакт: ${firstContactName}`
       : 'Email не указан';
 
-  const avatarSrc = defaultAvatar;
+  const avatarSrc = companyPhoto || defaultAvatar;
 
   const [customTag, setCustomTag] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);

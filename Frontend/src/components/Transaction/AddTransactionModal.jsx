@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import "../../styles/AddTransactionModal.css";
 import ConfirmationModal from '../modals/confirm/ConfirmationModal';
-import { Plus, X, Minus } from 'lucide-react';
+import { Plus, X, Minus} from 'lucide-react';
 import { createTransaction } from '../../api/transactions';
 import CreatableSelect from '../Client/ClientModal/CreatableSelect'; 
 
@@ -141,7 +141,6 @@ const AddTransactionModal = ({ onAdd, onClose, assets, financeFields, initialDat
         amount: "",
         commission: "",
         counterparty: initialData?.counterparty || "",
-        counterpartyKey: defaultKey, 
         counterpartyRequisites: "",
         orderId: "", 
         orderNumber: "", 

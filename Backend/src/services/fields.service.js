@@ -492,6 +492,20 @@ const buildRowIdsByValueKey = (rows = [], valueField = 'name') => {
   return out;
 };
 
+const normalizeValueKey = (value) => pickStr(value).toLowerCase();
+
+const buildRowMapByFieldValue = (rows = [], field = 'name') => {
+  const out = new Map();
+
+  for (const row of rows) {
+    const key = normalizeValueKey(row?.[field]);
+    if (!key || out.has(key)) continue;
+    out.set(key, row);
+  }
+
+  return out;
+};
+
 const addLinkedIdsByValue = (linkedIds, idsByValueKey, value) => {
   const key = pickStr(value).toLowerCase();
   if (!key || !idsByValueKey.has(key)) return;
@@ -746,30 +760,58 @@ const syncSimpleDict = async (tx, model, list, opts = {}) => {
       ...(hasIsActive ? { isActive: true } : {}),
     },
   });
+  const existingById = new Map(existing.map((item) => [pickStr(item.id), item]));
+  const existingByValue = buildRowMapByFieldValue(existing, field);
+  const keepIds = new Set();
 
   if (values.length) {
-    await Promise.all(
-      values.map((entry, index) =>
-        dbModel.upsert({
-          where: { [field]: entry.value },
-          update: {
-            ...(hasIsActive ? { isActive: true } : {}),
-            order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
-          },
-          create: {
-            id: entry.id || rid(),
+    for (const [index, entry] of values.entries()) {
+      const entryId = pickStr(entry?.id);
+      const valueKey = normalizeValueKey(entry?.value);
+      const existingItemById = existingById.get(entryId);
+      const existingItemByValue = existingByValue.get(valueKey);
+      const order = Number.isFinite(Number(entry.order)) ? Number(entry.order) : index;
+      const target =
+        existingItemById && existingItemByValue && existingItemById.id !== existingItemByValue.id
+          ? existingItemByValue
+          : existingItemById || existingItemByValue || null;
+
+      if (target?.id) {
+        await dbModel.update({
+          where: { id: target.id },
+          data: {
             [field]: entry.value,
-            order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+            order,
             ...(hasIsActive ? { isActive: true } : {}),
           },
-        })
-      )
-    );
+        });
+        keepIds.add(target.id);
+        existingByValue.set(valueKey, { ...target, [field]: entry.value, order });
+        continue;
+      }
+
+      const created = await dbModel.create({
+        data: {
+          id: entryId || rid(),
+          [field]: entry.value,
+          order,
+          ...(hasIsActive ? { isActive: true } : {}),
+        },
+        select: {
+          id: true,
+          [field]: true,
+          order: true,
+          ...(hasIsActive ? { isActive: true } : {}),
+        },
+      });
+      keepIds.add(created.id);
+      existingById.set(created.id, created);
+      existingByValue.set(valueKey, created);
+    }
   }
 
   if (hasIsActive) {
-    const desiredValues = new Set(values.map((item) => item.value));
-    const removedRows = existing.filter((item) => !desiredValues.has(item[field]));
+    const removedRows = existing.filter((item) => !keepIds.has(item.id));
     const split = await splitRowsForHideOrDelete(tx, removedRows, linkConfig);
     const { toHideIds, toDeleteIds } = applyForcedHide(
       removedRows,
@@ -1124,25 +1166,59 @@ async function upsertTags(
   const tagCategory = await ensureTagCategory(tx, categoryCode, categoryName);
 
   const items = Array.isArray(tagsList) ? tagsList : [];
-  const desiredNames = new Set();
+  const existingTags = await tx.tag.findMany({
+    where: { categoryId: tagCategory.id },
+    select: { id: true, name: true, color: true },
+  });
+  const existingById = new Map(existingTags.map((tag) => [pickStr(tag.id), tag]));
+  const existingByName = new Map(
+    existingTags
+      .map((tag) => [normalizeValueKey(tag.name), tag])
+      .filter(([key]) => key)
+  );
+  const keepIds = new Set();
 
   for (const t of items) {
     const name = pickStr(t?.name ?? t);
     if (!name) continue;
     const color = isHexColor(t?.color) ? t.color : '#ffffff';
-    desiredNames.add(name);
+    const nameKey = normalizeValueKey(name);
+    const existingTagById = existingById.get(pickStr(t?.id));
+    const existingTagByName = existingByName.get(nameKey);
+    const target =
+      existingTagById && existingTagByName && existingTagById.id !== existingTagByName.id
+        ? existingTagByName
+        : existingTagById || existingTagByName || null;
 
-    await tx.tag.upsert({
-      where: { name_categoryId: { name, categoryId: tagCategory.id } },
-      update: { color, isActive: true },
-      create: { id: rid(), name, color, categoryId: tagCategory.id, isActive: true },
+    if (target?.id) {
+      await tx.tag.update({
+        where: { id: target.id },
+        data: { name, color, isActive: true },
+      });
+      keepIds.add(target.id);
+      existingByName.set(nameKey, { ...target, name, color });
+      continue;
+    }
+
+    const created = await tx.tag.create({
+      data: {
+        id: pickStr(t?.id) || rid(),
+        name,
+        color,
+        categoryId: tagCategory.id,
+        isActive: true,
+      },
+      select: { id: true, name: true, color: true },
     });
+    keepIds.add(created.id);
+    existingById.set(created.id, created);
+    existingByName.set(nameKey, created);
   }
 
   await tx.tag.updateMany({
     where: {
       categoryId: tagCategory.id,
-      name: { notIn: Array.from(desiredNames) },
+      id: { notIn: Array.from(keepIds) },
     },
     data: { isActive: false },
   });
@@ -1897,23 +1973,52 @@ async function saveAll(payload) {
       const desiredIntervalValues = new Set(intervalsIncoming.map((item) => item.value));
 
       if (intervalsIncoming.length) {
-        await Promise.all(
-          intervalsIncoming.map((entry, index) =>
-            tx.orderIntervalDict.upsert({
-              where: { value: entry.value },
-              update: {
-                isActive: true,
-                order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
-              },
-              create: {
-                id: entry.id || rid(),
+        const existingIntervals = await tx.orderIntervalDict.findMany({
+          select: { id: true, value: true, order: true, isActive: true },
+        });
+        const existingIntervalsById = new Map(
+          existingIntervals.map((item) => [pickStr(item.id), item])
+        );
+        const existingIntervalsByValue = buildRowMapByFieldValue(existingIntervals, 'value');
+
+        for (const [index, entry] of intervalsIncoming.entries()) {
+          const entryId = pickStr(entry?.id);
+          const valueKey = normalizeValueKey(entry?.value);
+          const existingIntervalById = existingIntervalsById.get(entryId);
+          const existingIntervalByValue = existingIntervalsByValue.get(valueKey);
+          const order = Number.isFinite(Number(entry.order)) ? Number(entry.order) : index;
+          const target =
+            existingIntervalById &&
+            existingIntervalByValue &&
+            existingIntervalById.id !== existingIntervalByValue.id
+              ? existingIntervalByValue
+              : existingIntervalById || existingIntervalByValue || null;
+
+          if (target?.id) {
+            await tx.orderIntervalDict.update({
+              where: { id: target.id },
+              data: {
                 value: entry.value,
                 isActive: true,
-                order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : index,
+                order,
               },
-            })
-          )
-        );
+            });
+            existingIntervalsByValue.set(valueKey, { ...target, value: entry.value, order });
+            continue;
+          }
+
+          const created = await tx.orderIntervalDict.create({
+            data: {
+              id: entryId || rid(),
+              value: entry.value,
+              isActive: true,
+              order,
+            },
+            select: { id: true, value: true, order: true, isActive: true },
+          });
+          existingIntervalsById.set(created.id, created);
+          existingIntervalsByValue.set(valueKey, created);
+        }
       }
 
       const categoriesPayload = Array.isArray(payload?.orderFields?.categories) ? payload.orderFields.categories : [];
@@ -1941,19 +2046,53 @@ async function saveAll(payload) {
         }
       }
 
+      const existingCategoriesBeforeSave = await tx.orderCategoryDict.findMany({
+        select: { id: true, value: true, intervalId: true, order: true, isActive: true },
+      });
+      const existingCategoriesById = new Map(
+        existingCategoriesBeforeSave.map((item) => [pickStr(item.id), item])
+      );
+      const existingCategoriesByKey = new Map(
+        existingCategoriesBeforeSave
+          .map((item) => [`${pickStr(item.intervalId)}|${normalizeValueKey(item.value)}`, item])
+          .filter(([key]) => key)
+      );
+
       for (const c of catsIncoming) {
         const intervalRow = intervalByValue.get(c.intervalValue);
         const intervalId = intervalRow?.id || null;
         if (!intervalId) continue;
-        const exists = await tx.orderCategoryDict.findFirst({ where: { value: c.value, intervalId } });
-        if (exists) {
+
+        const categoryKey = `${pickStr(intervalId)}|${normalizeValueKey(c.value)}`;
+        const existingCategoryById = existingCategoriesById.get(pickStr(c.id));
+        const existingCategoryByKey = existingCategoriesByKey.get(categoryKey);
+        const target =
+          existingCategoryById &&
+          existingCategoryByKey &&
+          existingCategoryById.id !== existingCategoryByKey.id
+            ? existingCategoryByKey
+            : existingCategoryById || existingCategoryByKey || null;
+
+        if (target?.id) {
           await tx.orderCategoryDict.update({
-            where: { id: exists.id },
-            data: { isActive: true, order: c.order, intervalId },
+            where: { id: target.id },
+            data: {
+              value: c.value,
+              intervalId,
+              isActive: true,
+              order: c.order,
+            },
+          });
+          existingCategoriesByKey.set(categoryKey, {
+            ...target,
+            value: c.value,
+            intervalId,
+            order: c.order,
           });
           continue;
         }
-        await tx.orderCategoryDict.create({
+
+        const created = await tx.orderCategoryDict.create({
           data: {
             id: c.id || rid(),
             value: c.value,
@@ -1961,7 +2100,10 @@ async function saveAll(payload) {
             isActive: true,
             order: c.order,
           },
+          select: { id: true, value: true, intervalId: true, order: true, isActive: true },
         });
+        existingCategoriesById.set(created.id, created);
+        existingCategoriesByKey.set(categoryKey, created);
       }
 
       const desiredCategoryKeys = new Set();
@@ -2334,27 +2476,65 @@ async function saveAll(payload) {
       const artByName = new Map(arts.map((a) => [a.name, a.id]));
       const subcatByName = new Map(subcats.map((s) => [s.name, s.id]));
 
+      const existingSubarticlesBeforeSave = await tx.financeSubarticleDict.findMany({
+        select: {
+          id: true,
+          name: true,
+          articleId: true,
+          subcategoryId: true,
+          order: true,
+          isActive: true,
+        },
+      });
+      const existingSubarticlesById = new Map(
+        existingSubarticlesBeforeSave.map((item) => [pickStr(item.id), item])
+      );
+      const existingSubarticlesByKey = new Map(
+        existingSubarticlesBeforeSave
+          .map((item) => [
+            `${normalizeValueKey(item.name)}|${pickStr(item.articleId)}|${pickStr(item.subcategoryId)}`,
+            item,
+          ])
+          .filter(([key]) => key)
+      );
+
       for (const s of desiredSubs) {
         const articleId = artByName.get(s.parentName) || null;
         const subcategoryId = !articleId ? subcatByName.get(s.parentName) || null : null;
         if (!articleId && !subcategoryId) continue;
 
-        const exists = await tx.financeSubarticleDict.findFirst({
-          where: { name: s.name, articleId: articleId || undefined, subcategoryId: subcategoryId || undefined },
-        });
-        if (exists) {
+        const subarticleKey = `${normalizeValueKey(s.name)}|${pickStr(articleId)}|${pickStr(subcategoryId)}`;
+        const existingSubarticleById = existingSubarticlesById.get(pickStr(s.id));
+        const existingSubarticleByKey = existingSubarticlesByKey.get(subarticleKey);
+        const target =
+          existingSubarticleById &&
+          existingSubarticleByKey &&
+          existingSubarticleById.id !== existingSubarticleByKey.id
+            ? existingSubarticleByKey
+            : existingSubarticleById || existingSubarticleByKey || null;
+
+        if (target?.id) {
           await tx.financeSubarticleDict.update({
-            where: { id: exists.id },
+            where: { id: target.id },
             data: {
+              name: s.name,
               isActive: true,
               order: s.order,
               articleId,
               subcategoryId,
             },
           });
+          existingSubarticlesByKey.set(subarticleKey, {
+            ...target,
+            name: s.name,
+            articleId,
+            subcategoryId,
+            order: s.order,
+          });
           continue;
         }
-        await tx.financeSubarticleDict.create({
+
+        const created = await tx.financeSubarticleDict.create({
           data: {
             id: s.id || rid(),
             name: s.name,
@@ -2363,7 +2543,17 @@ async function saveAll(payload) {
             isActive: true,
             order: s.order,
           },
+          select: {
+            id: true,
+            name: true,
+            articleId: true,
+            subcategoryId: true,
+            order: true,
+            isActive: true,
+          },
         });
+        existingSubarticlesById.set(created.id, created);
+        existingSubarticlesByKey.set(subarticleKey, created);
       }
 
       const keyOf = (row) => `${row.name}|${row.articleId || ''}|${row.subcategoryId || ''}`;

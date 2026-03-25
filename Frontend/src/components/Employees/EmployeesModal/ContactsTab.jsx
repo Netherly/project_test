@@ -218,7 +218,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
         telegramLinkedAt: null,
         telegramVerified: false,
         chatLink: null,
-        photoLink: null,
         telegram: {
           dateTime: null,
           id: null,
@@ -234,7 +233,6 @@ export default function ContactsTab({ isNew, employeeId, fieldsData, crmLanguage
       setValue('telegramNickname', '', { shouldDirty: true });
       setValue('telegramBindingLink', '', { shouldDirty: true });
       setValue('chatLink', '', { shouldDirty: true });
-      setValue('photoLink', '', { shouldDirty: true });
 
       setUnlinkState('Телеграм отвязан');
       setTimeout(() => setUnlinkState(''), 2000);

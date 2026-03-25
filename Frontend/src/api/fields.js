@@ -24,6 +24,278 @@ const normalizeDeleteAction = (value) => {
   return action === "hide" ? "hide" : "";
 };
 
+<<<<<<< HEAD
+=======
+const normalizeFieldTargetKey = (groupKey, fieldName) => `${tidy(groupKey)}.${tidy(fieldName)}`;
+
+const createStringItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  value,
+  name: value,
+  order,
+  isDeleted: false,
+  ...extraData,
+});
+
+const createTagItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  name: value,
+  color: isHex(extraData?.color) ? extraData.color : "#ffffff",
+  order,
+  isDeleted: false,
+});
+
+const createCurrencyItem = (value, order, extraData = {}) => {
+  const code = normalizeCodeValue(value);
+  return {
+    id: rid(),
+    value: code,
+    code,
+    name: tidy(extraData?.name) || code,
+    label: tidy(extraData?.label) || tidy(extraData?.name) || code,
+    order,
+    isDeleted: false,
+  };
+};
+
+const createCountryItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  value,
+  name: value,
+  nameEn: tidy(extraData?.nameEn),
+  nameRu: tidy(extraData?.nameRu),
+  nameUk: tidy(extraData?.nameUk),
+  iso2: tidy(extraData?.iso2).toUpperCase(),
+  iso3: tidy(extraData?.iso3).toUpperCase(),
+  order,
+  isDeleted: false,
+});
+
+const createIntervalItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  intervalValue: tidy(extraData?.intervalValue ?? value),
+  order,
+  isDeleted: false,
+});
+
+const createCategoryItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  categoryInterval: tidy(extraData?.categoryInterval),
+  categoryValue: tidy(extraData?.categoryValue ?? value),
+  order,
+  isDeleted: false,
+});
+
+const createArticleItem = (value, order) => ({
+  id: rid(),
+  articleValue: value,
+  order,
+  isDeleted: false,
+});
+
+const createSubarticleItem = (value, order, extraData = {}) => ({
+  id: rid(),
+  subarticleInterval: tidy(extraData?.subarticleInterval ?? extraData?.parentName),
+  subarticleValue: tidy(extraData?.subarticleValue ?? value),
+  order,
+  isDeleted: false,
+});
+
+const normalizeIdentity = (value) => tidy(value).toLowerCase();
+const stringifyCompoundIdentity = (...parts) => parts.map(normalizeIdentity).join("::");
+
+const getStringIdentity = (item) => normalizeIdentity(item?.value ?? item?.name);
+const getTagIdentity = (item) => normalizeIdentity(item?.name ?? item?.value);
+const getCurrencyIdentity = (item) => normalizeCodeValue(item?.code ?? item?.value ?? item?.name);
+const getCountryIdentity = (item) =>
+  normalizeIdentity(item?.iso2 ?? item?.iso3 ?? item?.name ?? item?.value);
+const getIntervalIdentity = (item) => normalizeIdentity(item?.intervalValue ?? item?.value);
+const getCategoryIdentity = (item) =>
+  stringifyCompoundIdentity(
+    item?.categoryInterval ?? item?.intervalValue ?? item?.interval,
+    item?.categoryValue ?? item?.value ?? item?.name
+  );
+const getArticleIdentity = (item) => normalizeIdentity(item?.articleValue ?? item?.value ?? item?.name);
+const getSubarticleIdentity = (item) =>
+  stringifyCompoundIdentity(
+    item?.subarticleInterval ?? item?.parentName ?? item?.articleName ?? item?.subcategoryName,
+    item?.subarticleValue ?? item?.value ?? item?.name
+  );
+
+const FIELD_OPTION_TARGETS = {
+  "generalFields.country": {
+    buildIncomingIdentity: (value, extraData = {}) =>
+      normalizeIdentity(extraData?.iso2 ?? extraData?.iso3 ?? value),
+    getItemIdentity: getCountryIdentity,
+    createItem: createCountryItem,
+  },
+  "generalFields.currency": {
+    buildIncomingIdentity: (value) => normalizeCodeValue(value),
+    getItemIdentity: getCurrencyIdentity,
+    createItem: createCurrencyItem,
+  },
+  "employeeFields.tags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "clientFields.category": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "clientFields.source": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "clientFields.business": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "clientFields.tags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "companyFields.tags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "executorFields.role": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.intervals": {
+    buildIncomingIdentity: (value, extraData = {}) => normalizeIdentity(extraData?.intervalValue ?? value),
+    getItemIdentity: getIntervalIdentity,
+    createItem: createIntervalItem,
+  },
+  "orderFields.categories": {
+    buildIncomingIdentity: (value, extraData = {}) => {
+      const interval = tidy(extraData?.categoryInterval);
+      const categoryValue = tidy(extraData?.categoryValue ?? value);
+      return interval && categoryValue ? stringifyCompoundIdentity(interval, categoryValue) : "";
+    },
+    getItemIdentity: getCategoryIdentity,
+    createItem: createCategoryItem,
+  },
+  "orderFields.statuses": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.closeReasons": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.projects": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.discountReason": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.readySolution": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "orderFields.techTags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "orderFields.taskTags": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getTagIdentity,
+    createItem: createTagItem,
+  },
+  "financeFields.articles": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getArticleIdentity,
+    createItem: createArticleItem,
+  },
+  "financeFields.subarticles": {
+    buildIncomingIdentity: (value, extraData = {}) => {
+      const parent = tidy(extraData?.subarticleInterval ?? extraData?.parentName);
+      const subarticleValue = tidy(extraData?.subarticleValue ?? value);
+      return parent && subarticleValue ? stringifyCompoundIdentity(parent, subarticleValue) : "";
+    },
+    getItemIdentity: getSubarticleIdentity,
+    createItem: createSubarticleItem,
+  },
+  "assetsFields.type": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+  "assetsFields.paymentSystem": {
+    buildIncomingIdentity: (value) => normalizeIdentity(value),
+    getItemIdentity: getStringIdentity,
+    createItem: createStringItem,
+  },
+};
+
+const FIELD_OPTION_ALIASES = {
+  "employeeFields.country": "generalFields.country",
+  "clientFields.country": "generalFields.country",
+  "clientFields.currency": "generalFields.currency",
+  "employeeFields.currency": "generalFields.currency",
+  "executorFields.currency": "generalFields.currency",
+  "orderFields.currency": "generalFields.currency",
+  "assetsFields.currency": "generalFields.currency",
+  "orderFields.tag": "orderFields.tags",
+  "orderFields.status": "orderFields.statuses",
+  "orderFields.closeReason": "orderFields.closeReasons",
+  "orderFields.discountReasons": "orderFields.discountReason",
+  "financeFields.article": "financeFields.articles",
+  "financeFields.subarticle": "financeFields.subarticles",
+  "clientFields.tag": "clientFields.tags",
+  "companyFields.tag": "companyFields.tags",
+  "employeeFields.tag": "employeeFields.tags",
+  "assetsFields.cardDesign": "assetsFields.cardDesigns",
+};
+
+const normalizeFieldsBundle = (bundle) => withDefaults(bundle);
+const writeFieldsBundleCache = (bundle) => {
+  const normalized = normalizeFieldsBundle(bundle);
+  writeCachedValue("fieldsData", normalized);
+  return normalized;
+};
+
+const resolveFieldOptionTarget = (groupKey, fieldName) => {
+  const rawKey = normalizeFieldTargetKey(groupKey, fieldName);
+  const canonicalKey = FIELD_OPTION_ALIASES[rawKey] || rawKey;
+  const [resolvedGroupKey = "", resolvedFieldName = ""] = canonicalKey.split(".");
+  const config = FIELD_OPTION_TARGETS[canonicalKey] || null;
+
+  return {
+    key: canonicalKey,
+    groupKey: resolvedGroupKey,
+    fieldName: resolvedFieldName,
+    config,
+    supported: Boolean(config),
+  };
+};
+
+const assertSupportedFieldOptionTarget = (target) => {
+  if (target?.supported) return target;
+  throw new Error(
+    `Автодобавление поля "${target?.groupKey || ""}.${target?.fieldName || ""}" не поддерживается.`
+  );
+};
+
+// --- Нормализация (чтение с сервера) ---
+
+>>>>>>> develope
 export const normStrs = (arr) => {
   const seen = new Set();
   const out = [];
@@ -231,70 +503,33 @@ const unwrap = (resp) => {
 
 export async function fetchFields() {
   const r = await httpGet("/fields");
-  return unwrap(r);
+  return normalizeFieldsBundle(unwrap(r));
 }
 
 export async function saveFields(payload) {
   const r = await httpPut("/fields", payload);
-  return unwrap(r);
+  return normalizeFieldsBundle(unwrap(r));
 }
-
-const FIELD_OPTION_ALIASES = {
-  orderFields: {
-    discountReasons: "discountReason",
-  },
-  clientFields: {
-    tag: "tags",
-  },
-  companyFields: {
-    tag: "tags",
-  },
-  employeeFields: {
-    tag: "tags",
-  },
-  assetsFields: {
-    cardDesign: "cardDesigns",
-  },
-};
-
-const resolveFieldOptionTarget = (groupKey, fieldName) => {
-  const safeGroupKey = tidy(groupKey);
-  const safeFieldName = tidy(fieldName);
-
-  return {
-    groupKey: safeGroupKey,
-    fieldName: FIELD_OPTION_ALIASES?.[safeGroupKey]?.[safeFieldName] || safeFieldName,
-  };
-};
 
 export async function addFieldOption(groupKey, fieldName, rawValue, extraData = {}) {
   const value = tidy(rawValue);
   if (!value) {
-    return withDefaults(await fetchFields());
+    return fetchFields();
   }
 
-  const target = resolveFieldOptionTarget(groupKey, fieldName);
-  if (!target.groupKey || !target.fieldName) {
-    return withDefaults(await fetchFields());
-  }
+  const target = assertSupportedFieldOptionTarget(resolveFieldOptionTarget(groupKey, fieldName));
 
-  const raw = await fetchFields();
-  const normalized = withDefaults(raw);
+  const normalized = await fetchFields();
   const list = Array.isArray(normalized?.[target.groupKey]?.[target.fieldName])
     ? [...normalized[target.groupKey][target.fieldName]]
     : [];
+  const incomingIdentity = target.config.buildIncomingIdentity(value, extraData);
 
-  const exists = list.some((item) => {
-    const itemValue =
-      item?.code ??
-      item?.value ??
-      item?.name ??
-      item?.articleValue ??
-      item?.categoryValue ??
-      item?.subarticleValue ??
-      "";
-    return tidy(itemValue).toLowerCase() === value.toLowerCase();
-  });
+  if (!incomingIdentity) {
+    throw new Error(`Недостаточно данных для добавления поля "${target.key}".`);
+  }
+
+  const exists = list.some((item) => target.config.getItemIdentity(item) === incomingIdentity);
 
   if (exists) {
     return normalized;
@@ -310,25 +545,17 @@ export async function addFieldOption(groupKey, fieldName, rawValue, extraData = 
     ...(normalized[target.groupKey] || {}),
     [target.fieldName]: [
       ...list,
-      {
-        id: rid(),
-        value,
-        name: value,
-        order: nextOrder,
-        isDeleted: false,
-        ...extraData,
-      },
+      target.config.createItem(value, nextOrder, extraData),
     ],
   };
 
-  const savedRaw = await saveFields(serializeForSave(normalized));
-  writeCachedValue("fieldsData", savedRaw);
-  return withDefaults(savedRaw);
+  const saved = await saveFields(serializeForSave(normalized));
+  return writeFieldsBundleCache(saved);
 }
 
 export async function fetchInactiveFields() {
   const r = await httpGet("/fields/inactive");
-  return unwrap(r);
+  return normalizeFieldsBundle(unwrap(r));
 }
 
 export function withDefaults(fields) {

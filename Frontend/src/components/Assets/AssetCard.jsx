@@ -101,7 +101,7 @@ const AssetCard = ({
   const designImageVersion =
     designObj?.imageVersion ??
     asset?.cardDesign?.imageVersion ??
-    "";
+    designVersion;
   const versionedDesignUrl = withCacheVersion(rawDesignUrl, designImageVersion);
 
   const [designUrl, setDesignUrl] = useState("");

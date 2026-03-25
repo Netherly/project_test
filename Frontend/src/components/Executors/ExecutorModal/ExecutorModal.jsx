@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { executorSchema } from './executorSchema'; 
@@ -21,42 +21,26 @@ import '../../../styles/ExecutorModal.css';
 export default function ExecutorModal({
   executor, 
   orders,
+  employees, 
   journalEntries,   
   transactions,
-  fields,  
   onClose,
   onSave,
   onDelete,
-  employees,      
-  roleOptions,    
-  currencyOptions,
+  roleOptions = [],     
+  currencyOptions = [], 
+  onAddNewField          
 }) {
   const safeExecutor = executor ?? {};
   const isNew = !safeExecutor.id;
 
-  const { refreshFields } = useFields();
+  const { refreshFields, executorRoles = [], currencies = [], fields = [] } = useFields();
 
   const [activeTab, setActiveTab] = useState('general');
   const [closing, setClosing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const formId = 'executor-form';
-  
-  const formDefaults = useMemo(() => ({
-      orderId: '',
-      orderNumber: '',
-      performer: '',
-      dateForPerformer: new Date().toISOString().split('T')[0],
-      hideClient: false,
-      roundHours: false,
-      currency: fields?.currency?.[0]?.value || '',
-      hourlyRate: '',
-      amountInput: '',
-      maxAmount: '',
-      ...safeExecutor,
-      role: safeExecutor.performerRole || (fields?.role && fields.role.length > 0 ? fields.role[0].value : ''),
-  }), [fields, safeExecutor]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsOpen(true), 10);
@@ -74,11 +58,26 @@ export default function ExecutorModal({
     }
   };
 
+  const formDefaults = {
+    orderId: '',
+    orderNumber: '',
+    performer: '', 
+    dateForPerformer: new Date().toISOString().split('T')[0], 
+    hideClient: false,
+    roundHours: false,
+    currency: safeExecutor.currency || (currencyOptions.length > 0 ? currencyOptions[0] : 'UAH'), 
+    hourlyRate: '',
+    amountInput: '',
+    maxAmount: '',
+    ...safeExecutor,
+    role: safeExecutor.performerRole || (roleOptions.length > 0 ? roleOptions[0] : ''),
+  };
+
   const methods = useForm({
-        resolver: yupResolver(executorSchema),
-        mode: 'onChange',
-        defaultValues: formDefaults,
-    });
+    resolver: yupResolver(executorSchema),
+    mode: 'onChange',
+    defaultValues: formDefaults,
+  });
 
   const { handleSubmit, reset, formState: { isDirty, errors } } = methods;
 
@@ -89,20 +88,19 @@ export default function ExecutorModal({
   }, [defaultsString, reset]);
 
   const submitHandler = (data) => {
-        const dataToSave = {
-            ...safeExecutor, 
-            ...data,        
-            performerRole: data.role,
-            orderSum: parseFloat(data.amountInput) || 0,
-            hourlyRate: parseFloat(data.hourlyRate) || 0,
-            paymentBalance: parseFloat(data.maxAmount) || 0,
-            clientHidden: data.hideClient,
-            orderDate: data.dateForPerformer,
-        };
-        
-        onSave(dataToSave);
-        reset(data);
+    const dataToSave = {
+        ...safeExecutor, 
+        ...data,        
+        performerRole: data.role,
+        orderSum: parseFloat(data.amountInput) || 0,
+        hourlyRate: parseFloat(data.hourlyRate) || 0,
+        paymentBalance: parseFloat(data.maxAmount) || 0,
+        clientHidden: data.hideClient,
+        orderDate: data.dateForPerformer,
     };
+    onSave(dataToSave);
+    reset(data);
+  };
 
   const onInvalid = (err) => {
     const firstErrorField = Object.keys(err)[0];
@@ -162,7 +160,7 @@ export default function ExecutorModal({
         <div className="left-panel">
           <FormProvider {...methods}>
             <form
-              id={formId}
+              id="executor-form"
               className="employee-modal-body custom-scrollbar"
               onSubmit={handleSubmit(submitHandler, onInvalid)}
             >
@@ -187,8 +185,8 @@ export default function ExecutorModal({
                   <GeneralInfoTab 
                     orders={orders} 
                     employees={employees} 
-                    roleOptions={roleOptions}        
-                    currencyOptions={currencyOptions} 
+                    roleOptions={executorRoles.length ? executorRoles : roleOptions}        
+                    currencyOptions={currencies.length ? currencies : currencyOptions} 
                     fields={fields}
                     onAddNewField={handleAddNewField}     
                   />
@@ -204,8 +202,8 @@ export default function ExecutorModal({
               <button className='cancel-order-btn' type="button" onClick={() => reset(JSON.parse(defaultsString))} disabled={!isDirty}>
                   Сбросить
               </button>
-              <button className='save-order-btn' type="submit" form={formId}>
-                Сохранить
+              <button className='save-order-btn' type="submit" form="executor-form" disabled={!isDirty}>
+                  Сохранить
               </button>
           </div>
         </div>

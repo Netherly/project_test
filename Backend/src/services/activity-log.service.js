@@ -21,6 +21,21 @@ const IMPORTANT_EMPLOYEE_ACTIONS = new Set([
   'asset_transaction_updated',
   'asset_transaction_deleted',
 ]);
+const IMPORTANT_CLIENT_ACTIONS = new Set([
+  'created',
+  'deleted',
+  'note',
+  'order_created',
+  'order_linked',
+  'order_unlinked',
+  'order_status_updated',
+  'transaction_created',
+  'transaction_updated',
+  'transaction_deleted',
+  'regular_payment_created',
+  'regular_payment_updated',
+  'regular_payment_deleted',
+]);
 
 const sanitizeUserAgent = (value) => {
   if (!value) return null;
@@ -189,11 +204,18 @@ const decorateLog = (log) => {
   const isEmployeeImportant =
     log?.entityType === 'employee' &&
     IMPORTANT_EMPLOYEE_ACTIONS.has(log?.action);
+  const isClientImportant =
+    log?.entityType === 'client' &&
+    IMPORTANT_CLIENT_ACTIONS.has(log?.action);
   const presentation = log?.entityType === 'employee'
     ? isEmployeeImportant
       ? 'important'
       : 'inline'
-    : 'card';
+    : log?.entityType === 'client'
+      ? isClientImportant
+        ? 'important'
+        : 'inline'
+      : 'card';
 
   return {
     ...rest,
@@ -206,7 +228,9 @@ const decorateLog = (log) => {
     presentation,
     editable: log?.action === 'note',
     deletable: log?.action === 'note',
-    pinnable: log?.entityType === 'employee' ? presentation === 'important' : log?.action === 'note',
+    pinnable: log?.entityType === 'employee'
+      ? presentation === 'important'
+      : log?.action === 'note',
   };
 };
 
