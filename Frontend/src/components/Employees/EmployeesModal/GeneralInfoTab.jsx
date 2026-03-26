@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
-<<<<<<< HEAD
 import CreatableSelect from "../../Client/ClientModal/CreatableSelect"; 
 import { Plus, ExternalLink, Copy, Link2Off } from 'lucide-react';
 import { getCountryDisplayName } from '../../../utils/countryDisplay';
@@ -36,17 +35,6 @@ export default function GeneralInfoTab({ isNew, employeeId, fieldsData, crmLangu
 
   const currentCountry = useWatch({ control, name: "country" });
   const currentCountryId = useWatch({ control, name: "countryId" });
-=======
-import { Plus, Minus } from 'lucide-react';
-import { useFields } from "../../../context/FieldsContext"; 
-
-export default function GeneralInfoTab({ fieldsData }) {
-  const { control } = useFormContext();
-  const { fields } = useFields();
-  const [currencies, setCurrencies] = useState([]);
-  
-  const mainCurrencyValue = useWatch({ control, name: "mainCurrency" });
->>>>>>> develope
 
   useEffect(() => {
     if (!countryOptions.length || (!currentCountry && !currentCountryId)) return;
@@ -72,7 +60,6 @@ export default function GeneralInfoTab({ fieldsData }) {
       : null;
     const match = matchById || matchByValue;
 
-<<<<<<< HEAD
     if (!match) return;
 
     if (currentCountryId !== match.value) {
@@ -268,19 +255,6 @@ export default function GeneralInfoTab({ fieldsData }) {
       setTimeout(() => setTempPasswordError(''), 2000);
     }
   };
-=======
-    const loadedCurrencies = Array.isArray(fields?.generalFields?.currency) 
-      ? fields.generalFields.currency 
-      : [];
-
-    const currencyCodes = loadedCurrencies
-      .map((c) => (typeof c === "string" ? c : c?.code || c?.value || c?.name))
-      .map((s) => String(s || "").trim().toLowerCase())
-      .filter(Boolean);
-      
-    setCurrencies(currencyCodes.length ? currencyCodes : ["uah", "usd", "usdt", "eur", "rub"]);
-  }, [fields, fieldsData]);
->>>>>>> develope
 
   return (
     <div className="tab-section">

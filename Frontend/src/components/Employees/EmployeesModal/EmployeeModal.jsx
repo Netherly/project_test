@@ -226,15 +226,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 
                 {activeTab === "general" && (
                   <GeneralInfoTab 
-<<<<<<< HEAD
-=======
-                    fieldsData={appData.fields}
-                  />
-                )}
-                
-                {activeTab === "contacts" && (
-                  <ContactsTab
->>>>>>> develope
                     isNew={isNew}
                     employeeId={safeEmployee.id}
                     fieldsData={appData.fields}
