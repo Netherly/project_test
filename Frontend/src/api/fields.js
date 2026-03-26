@@ -24,8 +24,6 @@ const normalizeDeleteAction = (value) => {
   return action === "hide" ? "hide" : "";
 };
 
-<<<<<<< HEAD
-=======
 const normalizeFieldTargetKey = (groupKey, fieldName) => `${tidy(groupKey)}.${tidy(fieldName)}`;
 
 const createStringItem = (value, order, extraData = {}) => ({
@@ -295,7 +293,6 @@ const assertSupportedFieldOptionTarget = (target) => {
 
 // --- Нормализация (чтение с сервера) ---
 
->>>>>>> develope
 export const normStrs = (arr) => {
   const seen = new Set();
   const out = [];

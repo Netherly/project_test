@@ -89,7 +89,7 @@ const AssetCard = ({
         d?.name.toLowerCase() === (designNameValue || "").toLowerCase()
     );
 
-  const designClass = "card-design-default"; // Всегда используем дефолтный класс (для белого текста)
+  const designClass = "card-design-default"; 
 
   const rawDesignUrl = resolveCardDesignUrl(
     designObj?.viewUrl ??
@@ -98,10 +98,12 @@ const AssetCard = ({
       asset?.cardDesign?.url ??
       ""
   );
+  
   const designImageVersion =
     designObj?.imageVersion ??
     asset?.cardDesign?.imageVersion ??
-    designVersion;
+    "";
+    
   const versionedDesignUrl = withCacheVersion(rawDesignUrl, designImageVersion);
 
   const [designUrl, setDesignUrl] = useState("");
