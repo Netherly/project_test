@@ -246,6 +246,7 @@ export default function ClientModal({
             <ClientHeader
               onClose={closeHandler}
               onDelete={onDelete ? deleteHandler : null}
+              onDuplicate={!isNew && onDuplicate ? onDuplicate : null}
               tagOptions={fieldOptions.tags}
               onAddNewField={handleAddNewField}
             />
@@ -254,7 +255,6 @@ export default function ClientModal({
           <TabsNav
             activeTab={activeTab}
             setActiveTab={setActiveTab}
-            /* ИСПРАВЛЕНИЕ ЗДЕСЬ: Передаем живые ошибки формы, а не статичный стейт formErrors */
             errors={groupErrors(errors)}
             isNew={isNew}
           />

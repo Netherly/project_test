@@ -116,10 +116,32 @@ const AssetDetailsModal = ({
   const [showTurnoverTooltip, setShowTurnoverTooltip] = useState(false);
   const [isEditingRequisites, setIsEditingRequisites] = useState(false);
 
+  const optionsMenuRef = useRef(null);
+  const optionsTriggerRef = useRef(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        showOptionsMenu &&
+        optionsMenuRef.current &&
+        !optionsMenuRef.current.contains(event.target) &&
+        optionsTriggerRef.current &&
+        !optionsTriggerRef.current.contains(event.target)
+      ) {
+        setShowOptionsMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showOptionsMenu]);
 
   const getInitialState = (data) => {
     const allReqs = Array.isArray(data?.requisites) 
@@ -341,7 +363,6 @@ const AssetDetailsModal = ({
 
   const handleDuplicateClick = () => {
     onDuplicate(asset);
-    onClose();
     setShowOptionsMenu(false);
   };
 
@@ -391,7 +412,11 @@ const AssetDetailsModal = ({
           <div className="header-actions-right">
             <span>{asset.currency}</span>
             <div className="modal-header-actions">
-              <button className="options-button" onClick={() => setShowOptionsMenu((p) => !p)}>
+              <button 
+                ref={optionsTriggerRef} 
+                className="options-button" 
+                onClick={() => setShowOptionsMenu((p) => !p)}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
@@ -405,8 +430,9 @@ const AssetDetailsModal = ({
                   <circle cx="12" cy="19" r="1" />
                 </svg>
               </button>
+
               {showOptionsMenu && (
-                <div className="options-menu">
+                <div className="options-menu" ref={optionsMenuRef}>
                   <button className="menu-item" onClick={handleDuplicateClick}>
                     <Copy size={14} /> Дублировать
                   </button>
@@ -416,7 +442,7 @@ const AssetDetailsModal = ({
                 </div>
               )}
               <button className="modal-close-button" onClick={onClose}>
-                <X />
+                <X size={24} />
               </button>
             </div>
           </div>
@@ -653,7 +679,7 @@ const AssetDetailsModal = ({
 
           <div className="modal-section requisites-block">
             <div className="requisites-header">
-              <h3>Доп. реквизиты</h3>
+              <h3>Реквизиты</h3>
               <div className="requisite-header-controls">
                 <button
                   type="button"
@@ -691,13 +717,17 @@ const AssetDetailsModal = ({
                         className="requisite-input"
                         placeholder="Название"
                       />
-                      <input
-                        type="text"
+                      <textarea
                         name="value"
                         value={req.value}
                         onChange={(e) => handleRequisiteChange(index, e)}
-                        className="requisite-input"
+                        className="requisite-input requisite-textarea custom-scrollbar"
                         placeholder="Значение"
+                        rows={1}
+                        onInput={(e) => {
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
                       />
                       <button
                         type="button"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import EmployeeModal from "./EmployeesModal/EmployeeModal";
 import NoAccessState from "../ui/NoAccessState.jsx";
@@ -39,6 +39,7 @@ const syncEmployeeListCache = (employee, mode = "upsert") => {
 export default function EmployeeDetailsPage() {
   const { employeeId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,7 +47,37 @@ export default function EmployeeDetailsPage() {
 
   useEffect(() => {
     if (!employeeId || employeeId === "new") {
-      setEmployee(normalizeEmployee({}));
+      const duplicatedData = location.state?.duplicatedData;
+      
+      if (duplicatedData) {
+        const { 
+          id, urlId, publicId, userid, 
+          login, email, phone, passport, chatLink,
+          telegram, telegramId, telegramName, telegramNickname, telegramNick, telegramBindingLink, telegramDateTime,
+          balance, cashOnHand,
+          requisitesList, requisites, EmployeeRequisite, employeeRequisites,
+          ...restData 
+        } = duplicatedData;
+
+        
+        const cleanRequisites = (requisitesList || []).map(req => {
+          const { id, ...reqWithoutId } = req;
+          return reqWithoutId;
+        });
+
+        
+        setEmployee(normalizeEmployee({
+          ...restData,
+          fullName: restData.fullName ? `${restData.fullName} (Копия)` : "",
+          login: "", 
+          balance: 0,
+          cashOnHand: 0,
+          requisitesList: cleanRequisites
+        }));
+      } else {
+        setEmployee(normalizeEmployee({}));
+      }
+      
       setLoading(false);
       return;
     }
@@ -61,7 +92,7 @@ export default function EmployeeDetailsPage() {
         if (!mounted) return;
         setEmployee(data);
       } catch (e) {
-        console.error("Ошибка загрузки сотрудника:", e);
+        console.error(e);
         if (!mounted) return;
         if (isForbiddenError(e)) {
           setForbidden(true);
@@ -78,7 +109,7 @@ export default function EmployeeDetailsPage() {
     return () => {
       mounted = false;
     };
-  }, [employeeId]);
+  }, [employeeId, location.state]);
 
   const handleSaveEmployee = async (formData) => {
     try {
@@ -97,7 +128,7 @@ export default function EmployeeDetailsPage() {
         return created;
       }
     } catch (e) {
-      console.error("Ошибка сохранения сотрудника:", e);
+      console.error(e);
       throw e;
     }
   };
@@ -108,8 +139,14 @@ export default function EmployeeDetailsPage() {
       syncEmployeeListCache(employee || { id: employeeId }, "remove");
       navigate("/employees");
     } catch (e) {
-      console.error("Ошибка удаления сотрудника:", e);
+      console.error(e);
       throw e;
+    }
+  };
+
+  const handleDuplicateEmployee = () => {
+    if (employee) {
+      navigate("/employees/new", { state: { duplicatedData: employee } });
     }
   };
 
@@ -163,6 +200,7 @@ export default function EmployeeDetailsPage() {
           onClose={handleCloseModal}
           onSave={handleSaveEmployee}
           onDelete={employeeId && employeeId !== "new" ? handleDeleteEmployee : null}
+          onDuplicate={employeeId && employeeId !== "new" ? handleDuplicateEmployee : null}
         />
       )}
     </div>

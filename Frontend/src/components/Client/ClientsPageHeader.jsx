@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaSearch } from "react-icons/fa";
 import PageHeaderIcon from '../HeaderIcon/PageHeaderIcon.jsx';
 import styles from "./ClientsPageHeader.module.css";
+import "../../components/Journal/JournalPage.css"; 
 
-// Вспомогательная функция, чтобы безопасно достать имя из строки или объекта
 const getName = (item) => {
   if (!item) return "";
   if (typeof item === 'string') return item;
@@ -29,7 +28,6 @@ function MultiTagSelect({
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase();
-    // ИСПРАВЛЕНО: поддержка объектов в тегах
     return qq 
       ? options.filter(o => getName(o).toLowerCase().includes(qq)) 
       : options;
@@ -99,7 +97,6 @@ function MultiTagSelect({
   }, []);
 
   const toggle = (tagItem) => {
-    // Сохраняем только имя тега в массив значений
     const tagName = getName(tagItem);
     value.includes(tagName)
       ? onChange(value.filter(v => v !== tagName))
@@ -141,7 +138,6 @@ function MultiTagSelect({
         {filtered.map((tagItem, idx) => {
           const tagName = getName(tagItem);
           const checked = value.includes(tagName);
-          // Используем tagName как ключ, либо idx если вдруг имя пустое
           const key = tagName || idx; 
           return (
             <label key={key} className={`${styles.tagsOption} ${checked ? styles.isChecked : ""}`}>
@@ -213,9 +209,6 @@ function MultiTagSelect({
   );
 }
 
-/* ===========================
-   Хедер и фильтры
-   =========================== */
 export default function ClientsPageHeader({
   onAdd,
   onSearch,
@@ -241,36 +234,26 @@ export default function ClientsPageHeader({
 
   const [query, setQuery] = useState(queryValue);
   const [showAdvanced, setShowAdvanced] = useState(false);
-
   const [filters, setFilters] = useState(initialFilters);
 
   const inputRef = useRef(null);
+  const searchContainerRef = useRef(null);
 
-  // Фокус при открытии панели (как в журнале)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        if (!event.target.classList.contains("journal-main-search-input")) {
+          setShowAdvanced(false);
+        }
+      }
+    };
+    if (showAdvanced) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showAdvanced]);
+
   useEffect(() => { if (showAdvanced) inputRef.current?.focus(); }, [showAdvanced]);
-  useEffect(() => {
-    setQuery(queryValue || "");
-  }, [queryValue]);
-  useEffect(() => {
-    setFilters(initialFilters);
-  }, [filtersValueKey]);
-
-  
-  const preview = useMemo(() => {
-    const parts = [];
-    if (query) parts.push(query);
-    if (filters.currency) parts.push(`валюта:${filters.currency}`);
-    if (filters.status) parts.push(`статус:${filters.status}`);
-    if (filters.tags?.length) parts.push(`теги:${filters.tags.join(", ")}`);
-    if (filters.source) parts.push(`источник:${filters.source}`);
-    if (filters.category) parts.push(`категория:${filters.category}`);
-    if (filters.country) parts.push(`страна:${filters.country}`);
-    if (filters.share) parts.push(`доля:${filters.share === "yes" ? "есть" : "нет"}`);
-    if (filters.dateFrom || filters.dateTo) {
-      parts.push(`дата:${filters.dateFrom || "…"}–${filters.dateTo || "…"}`);
-    }
-    return parts.join("  •  ");
-  }, [query, filters]);
+  useEffect(() => { setQuery(queryValue || ""); }, [queryValue]);
+  useEffect(() => { setFilters(initialFilters); }, [filtersValueKey]);
 
   const handleChange = (field) => (eOrValue) => {
     const value = eOrValue?.target ? eOrValue.target.value : eOrValue;
@@ -289,12 +272,16 @@ export default function ClientsPageHeader({
     setQuery("");
     onFilterChange?.(empty);
     onSearch?.("", empty);
+    setShowAdvanced(false);
   };
 
-  const hasActive =
-    !!(query || filters.currency || filters.status || filters.tags.length ||
-       filters.source || filters.category || filters.country || filters.share ||
-       filters.dateFrom || filters.dateTo);
+  const activeFiltersCount = Object.entries(filters).filter(([key, value]) => {
+    return Array.isArray(value) ? value.length > 0 : value !== "";
+  }).length;
+
+  const mainSearchPlaceholder = activeFiltersCount > 0
+      ? `Активно ${activeFiltersCount} фильтров...`
+      : "Поиск по клиентам...";
 
   return (
     <header className={styles.clientsHeaderContainer}>
@@ -302,61 +289,46 @@ export default function ClientsPageHeader({
         <PageHeaderIcon pageName="Клиенты" />
         КЛИЕНТЫ
       </h1>
-      <span className={styles.headerDivider} aria-hidden="true" />
 
-      
-      <div className={`${styles.searchContainer} ${showAdvanced ? styles.active : ""}`} role="search">
-        <div className={styles.mainSearchBar}>
-          <span className={styles.searchIcon} aria-hidden="true"><FaSearch /></span>
-
+      <div className="journal-search-container" ref={searchContainerRef}>
+        <div className="journal-main-search-bar">
+          <span className="journal-search-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m21 21-4.34-4.34"/>
+              <circle cx="11" cy="11" r="8"/>
+            </svg>
+          </span>
           <input
             ref={inputRef}
             type="text"
-            className={styles.mainSearchInput}
-            placeholder="Введите параметры поиска (откроются фильтры)"
-            value={preview}
-            onChange={() => {}}
-            onFocus={() => setShowAdvanced(true)}
-            readOnly
-            aria-label="Поиск по всем полям (настройки в фильтрах)"
+            className="journal-main-search-input"
+            placeholder={mainSearchPlaceholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onClick={() => { if (!showAdvanced) setShowAdvanced(true); }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleApply(); }}
           />
-
-          <div className={styles.statPill} title={`Итого клиентов: ${total ?? 0}`}>
-            <span className={styles.statPillLabel}>Итого клиентов </span>
-            <span className={styles.statPillValue}>{total ?? 0}</span>
-          </div>
-
           <span
-            className={styles.toggleAdvancedSearch}
-            onClick={() => setShowAdvanced(v => !v)}
-            role="button"
-            aria-label={showAdvanced ? "Скрыть фильтры" : "Показать фильтры"}
-            aria-expanded={showAdvanced}
-            title="Фильтры"
+            className="journal-toggle-advanced-search"
+            onClick={() => setShowAdvanced(!showAdvanced)}
           >
             {showAdvanced ? "▲" : "▼"}
           </span>
         </div>
 
-        {/* Панель фильтров — снизу, поверх таблицы (как в журнале) */}
-        <div className={`${styles.filtersPanel} ${!showAdvanced ? styles.hidden : ""}`}>
-          <div className={styles.advancedSearchFields}>
+        {showAdvanced && (
+          <div className="journal-advanced-search-fields">
             <div className={styles.searchFieldGroup}>
               <label>Валюта</label>
               <select value={filters.currency} onChange={handleChange("currency")}>
                 <option value="" disabled hidden>Не выбрано</option>
-                {/* ИСПРАВЛЕНО: Безопасный рендеринг объектов */}
                 {currencyOptions.map((cur, idx) => {
                     const name = getName(cur);
                     return <option key={name || idx} value={name}>{name}</option>
                 })}
               </select>
               {filters.currency && (
-                <span
-                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
-                  onClick={() => setFilters(f => ({ ...f, currency: "" }))}
-                  title="Очистить"
-                >×</span>
+                <span className={`${styles.fieldClear} ${styles.clearBeforeCaret}`} onClick={() => setFilters(f => ({ ...f, currency: "" }))}>×</span>
               )}
             </div>
 
@@ -364,23 +336,17 @@ export default function ClientsPageHeader({
               <label>Статус</label>
               <select value={filters.status} onChange={handleChange("status")}>
                 <option value="" disabled hidden>Не выбрано</option>
-                {/* ИСПРАВЛЕНО */}
                 {statusOptions.map((st, idx) => {
                     const name = getName(st);
                     return <option key={name || idx} value={name}>{name}</option>
                 })}
               </select>
               {filters.status && (
-                <span
-                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
-                  onClick={() => setFilters(f => ({ ...f, status: "" }))}
-                  title="Очистить"
-                >×</span>
+                <span className={`${styles.fieldClear} ${styles.clearBeforeCaret}`} onClick={() => setFilters(f => ({ ...f, status: "" }))}>×</span>
               )}
             </div>
 
             <div className={styles.searchFieldGroup}>
-              {/* ИСПРАВЛЕНО */}
               <label>Теги</label>
               <MultiTagSelect
                 options={tagOptions}
@@ -394,18 +360,13 @@ export default function ClientsPageHeader({
               <label>Источник</label>
               <select value={filters.source} onChange={handleChange("source")}>
                 <option value="" disabled hidden>Не выбрано</option>
-                {/* ИСПРАВЛЕНО */}
                 {sourceOptions.map((s, idx) => {
                     const name = getName(s);
                     return <option key={name || idx} value={name}>{name}</option>
                 })}
               </select>
               {filters.source && (
-                <span
-                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
-                  onClick={() => setFilters(f => ({ ...f, source: "" }))}
-                  title="Очистить"
-                >×</span>
+                <span className={`${styles.fieldClear} ${styles.clearBeforeCaret}`} onClick={() => setFilters(f => ({ ...f, source: "" }))}>×</span>
               )}
             </div>
 
@@ -419,11 +380,7 @@ export default function ClientsPageHeader({
                 })}
               </select>
               {filters.category && (
-                <span
-                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
-                  onClick={() => setFilters(f => ({ ...f, category: "" }))}
-                  title="Очистить"
-                >×</span>
+                <span className={`${styles.fieldClear} ${styles.clearBeforeCaret}`} onClick={() => setFilters(f => ({ ...f, category: "" }))}>×</span>
               )}
             </div>
 
@@ -431,18 +388,13 @@ export default function ClientsPageHeader({
               <label>Страна</label>
               <select value={filters.country} onChange={handleChange("country")}>
                 <option value="" disabled hidden>Не выбрано</option>
-                {/* ИСПРАВЛЕНО */}
                 {countryOptions.map((c, idx) => {
                     const name = getName(c);
                     return <option key={name || idx} value={name}>{name}</option>
                 })}
               </select>
               {filters.country && (
-                <span
-                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
-                  onClick={() => setFilters(f => ({ ...f, country: "" }))}
-                  title="Очистить"
-                >×</span>
+                <span className={`${styles.fieldClear} ${styles.clearBeforeCaret}`} onClick={() => setFilters(f => ({ ...f, country: "" }))}>×</span>
               )}
             </div>
 
@@ -454,11 +406,7 @@ export default function ClientsPageHeader({
                 <option value="no">Нет</option>
               </select>
               {filters.share && (
-                <span
-                  className={`${styles.fieldClear} ${styles.clearBeforeCaret}`}
-                  onClick={() => setFilters(f => ({ ...f, share: "" }))}
-                  title="Очистить"
-                >×</span>
+                <span className={`${styles.fieldClear} ${styles.clearBeforeCaret}`} onClick={() => setFilters(f => ({ ...f, share: "" }))}>×</span>
               )}
             </div>
 
@@ -480,32 +428,42 @@ export default function ClientsPageHeader({
                 {(filters.dateFrom || filters.dateTo) && (
                   <span
                     className={styles.fieldClear}
+                    style={{ position: 'relative', top: 0, right: 0 }}
                     onClick={() => setFilters(f => ({ ...f, dateFrom: "", dateTo: "" }))}
                     title="Очистить"
                   >×</span>
                 )}
               </div>
             </div>
-          </div>
 
-          <div className={styles.searchButtons}>
-            <button className={styles.resetButton} type="button" onClick={handleReset}>Сбросить</button>
-            <button className={styles.searchButton} type="button" onClick={handleApply}>Поиск</button>
+            <div className="journal-search-buttons">
+              <button type="button" className="journal-reset-button" onClick={handleReset}>Сбросить</button>
+              <button type="button" className="journal-cancel-button" onClick={() => setShowAdvanced(false)}>Отмена</button>
+              <button type="button" className="journal-search-button" onClick={handleApply}>Фильтровать</button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      <button
-        type="button"
-        className={styles.addEntryButton}
-        onClick={addDisabled ? undefined : onAdd}
-        disabled={addDisabled}
-      >
-        {hideAddIcon ? null : (
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-        )}{" "}
-        {addLabel}
-      </button>
+      <div className={styles.addClientWrapper}>
+        <div className={styles.statPill} title={`Итого клиентов: ${total ?? 0}`}>
+          <span className={styles.statPillLabel}>Итого: </span>
+          <span className={styles.statPillValue}>{total ?? 0}</span>
+        </div>
+        <button
+          type="button"
+          className={styles.addEntryButton}
+          onClick={addDisabled ? undefined : onAdd}
+          disabled={addDisabled}
+        >
+          {hideAddIcon ? null : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus-icon lucide-plus">
+              <path d="M5 12h14"/><path d="M12 5v14"/>
+            </svg>
+          )}{" "}
+          {addLabel}
+        </button>
+      </div>
     </header>
   );
 }

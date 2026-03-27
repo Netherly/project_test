@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import "../../styles/AssetsPage.css";
 import PageHeaderIcon from "../HeaderIcon/PageHeaderIcon.jsx";
@@ -33,7 +33,6 @@ import {
 import { buildEntityPath, matchesEntityRouteParam } from "../../utils/entityRoutes";
 import { rid } from "../../utils/rid";
 
-// Импорты для Drag and Drop
 import {
   DndContext,
   closestCenter,
@@ -93,6 +92,7 @@ const SortableAssetCard = ({ id, disabled, children }) => {
 
 const AssetsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { accountId: assetId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { transactions } = useTransactions();
@@ -188,7 +188,7 @@ const AssetsPage = () => {
       });
       setFieldsVersion(readCacheSnapshot("fieldsData", { fallback: rawFields }).signature || "");
     } catch (err) {
-      console.error("Failed to load fields", err);
+      console.error(err);
     }
   };
 
@@ -200,7 +200,7 @@ const AssetsPage = () => {
         assetsFields: normalized?.assetsFields || { type: [], paymentSystem: [], cardDesigns: [] },
       });
     } catch (e) {
-      console.error("Ошибка при сохранении нового поля в БД:", e);
+      console.error(e);
     }
   };
 
@@ -265,7 +265,7 @@ const AssetsPage = () => {
           writeLatestRatesSnapshot(latest);
         }
       } catch (error) {
-        console.error("Не удалось загрузить актуальные курсы валют для активов:", error);
+        console.error(error);
       }
     };
 
@@ -363,7 +363,7 @@ const AssetsPage = () => {
       const nextAssets = applyAssetsSnapshot(safeFetchedAssets);
       writeCachedValue("assetsData", nextAssets);
     } catch (err) {
-      console.error("Failed to load assets", err);
+      console.error(err);
       const cachedAssets = readCachedValue("assetsData", defaultAssets);
       applyAssetsSnapshot(cachedAssets);
     }
@@ -402,7 +402,7 @@ const AssetsPage = () => {
       await loadAssets();
       handleCloseModal();
     } catch (err) {
-      console.error("Failed to create asset", err);
+      console.error(err);
       handleCloseModal();
     }
   };
@@ -412,37 +412,34 @@ const AssetsPage = () => {
       await apiDeleteAsset(idToDelete);
       await loadAssets();
     } catch (err) {
-      console.error("Failed to delete asset", err);
-      window.alert(err?.message || "Не удалось удалить актив");
+      console.error(err);
       throw err;
     }
   };
 
-  const handleDuplicateAsset = async (assetToDuplicate) => {
-    try {
-      const newId = `${assetToDuplicate.accountName} (Копия ${Date.now()})`;
-      const maxOrder = Math.max(0, ...assets.map(a => a.order || 0));
-      
-      const duplicatedAsset = {
-        ...assetToDuplicate,
-        id: newId,
-        accountName: `${assetToDuplicate.accountName} (Копия)`,
-        balance: 0,
-        balanceUAH: 0,
-        balanceUSD: 0,
-        balanceRUB: 0,
-        turnoverStartBalance: 0,
-        turnoverIncoming: 0.0,
-        turnoverOutgoing: 0.0,
-        turnoverEndBalance: 0.0,
-        order: maxOrder + 1,
-        requisites: (assetToDuplicate.requisites || []).map((req) => ({ ...req })),
+  const handleDuplicateAsset = (assetToDuplicate) => {
+    if (assetToDuplicate) {
+      const {
+        id, urlId, balance, balanceUAH, balanceUSD, balanceRUB,
+        turnoverStartBalance, turnoverIncoming, turnoverOutgoing, turnoverEndBalance,
+        ...rest
+      } = assetToDuplicate;
+
+      const cleanRequisites = (rest.requisites || []).map(req => {
+        const { id, internalId, ...reqWithoutId } = req;
+        return reqWithoutId;
+      });
+
+      const duplicatedData = {
+        ...rest,
+        accountName: rest.accountName ? `${rest.accountName} (Копия)` : "",
+        requisites: cleanRequisites
       };
-      
-      await apiCreateAsset(duplicatedAsset);
-      await loadAssets();
-    } catch (err) {
-      console.error("Failed to duplicate asset", err);
+
+      navigate({
+        pathname: "/accounts/new",
+        search: searchParams.toString(),
+      }, { state: { duplicatedData } });
     }
   };
 
@@ -478,7 +475,7 @@ const AssetsPage = () => {
       await loadAssets();
       handleCloseModal();
     } catch (err) {
-      console.error("Failed to update asset", err);
+      console.error(err);
       handleCloseModal();
     }
   };
@@ -770,6 +767,7 @@ const AssetsPage = () => {
             fields={fields}
             employees={employees}
             onAddNewField={handleAddNewField}
+            initialData={location.state?.duplicatedData}
           />
         )}
 

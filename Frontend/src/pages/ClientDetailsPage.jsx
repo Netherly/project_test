@@ -85,7 +85,25 @@ export default function ClientDetailsPage() {
         setClientsList(normalized); 
 
         if (!clientId || clientId === "new") {
-          setClient({});
+          const duplicatedData = location.state?.duplicatedData;
+          
+          if (duplicatedData) {
+            const { 
+              id, urlId, 
+              phone, email, telegram,
+              ...restData 
+            } = duplicatedData;
+
+            setClient({
+              ...restData,
+              name: restData.name ? `${restData.name} (Копия)` : "",
+              full_name: restData.full_name ? `${restData.full_name} (Копия)` : "",
+              phone: "",
+              email: ""
+            });
+          } else {
+            setClient({});
+          }
         } else {
           const found = normalized.find((c) => matchesEntityRouteParam(c, clientId));
           if (found) {
@@ -112,7 +130,7 @@ export default function ClientDetailsPage() {
     return () => {
       mounted = false;
     };
-  }, [clientId]);
+  }, [clientId, location.state]);
 
   const handleSaveClient = async (data) => {
     try {
@@ -157,6 +175,12 @@ export default function ClientDetailsPage() {
     } catch (e) {
       console.error("deleteClient failed:", e);
       throw e;
+    }
+  };
+
+  const handleDuplicateClient = () => {
+    if (client) {
+      navigate("/clients/new", { state: { duplicatedData: client } });
     }
   };
 
@@ -229,6 +253,7 @@ export default function ClientDetailsPage() {
           onClose={handleCloseModal}
           onSave={handleSaveClient}
           onDelete={clientId && clientId !== "new" ? handleDeleteClient : null}
+          onDuplicate={clientId && clientId !== "new" ? handleDuplicateClient : null}
           onAddCompany={handleAddCompany}
         />
       )}
