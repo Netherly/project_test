@@ -6,7 +6,7 @@
   outline: none;
   color: var(--container-text-color);
   
-  padding: 8px;
+  padding: 10px 12px;
   width: 100%;
   
   resize: none; 
@@ -17,5 +17,10 @@
   line-height: 1.4;
   
   transition: border-color 0.2s ease;
-  min-height: 38px; 
+  min-height: 40px; 
+}
+
+.auto-resize-textarea::placeholder{
+  color: var(--container-text-color);
+  opacity: 0.6;
 }
