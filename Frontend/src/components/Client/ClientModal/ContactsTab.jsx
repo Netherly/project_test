@@ -1,10 +1,17 @@
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import './ContactsTab.css';
-import CreatableSelect from "./CreatableSelect"; // Добавлен импорт
+import CreatableSelect from "./CreatableSelect"; 
+import { ExternalLink, Upload } from 'lucide-react';
 
 export default function ContactsTab({ countries = [], openImage, onAddCountry }) {
   const { control, formState: { errors } } = useFormContext();
+
+  const openLink = (url) => {
+    if (url && typeof url === 'string') {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <div className="tab-section contacts-tab">
@@ -59,7 +66,7 @@ export default function ContactsTab({ countries = [], openImage, onAddCountry })
         )}
       />
 
-      {/* ---------- Страна (ЗАМЕНЕНО НА CREATABLE SELECT) ---------- */}
+      {/* ---------- Страна ---------- */}
       <Controller
         name="country"
         control={control}
@@ -133,8 +140,34 @@ export default function ContactsTab({ countries = [], openImage, onAddCountry })
         render={({ field }) => (
           <div className="form-field photo-field">
             <label>Ссылка на фото</label>
-            <div className="photo-link-wrapper">
-              <input {...field} placeholder="URL изображения" />
+            <div className="input-with-icon-wrapper" style={{ width: '100%', flex: 1 }}>
+              <input 
+                {...field} 
+                placeholder="URL изображения" 
+                style={{ flex: 1 }}
+              />
+              <div className="input-icons-group">
+                <button
+                  type="button"
+                  className="icon-action-btn"
+                  onClick={() => openLink(field.value)}
+                  disabled={!field.value}
+                  title="Открыть фото в новой вкладке"
+                >
+                  <ExternalLink size={18} />
+                </button>
+
+                <button
+                  type="button"
+                  className="icon-action-btn"
+                  onClick={(e) => {
+                      e.preventDefault();
+                  }}
+                  title="Загрузить файл (в разработке)"
+                >
+                  <Upload size={18} />
+                </button>
+              </div>
             </div>
           </div>
         )}

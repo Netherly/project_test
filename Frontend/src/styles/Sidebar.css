@@ -14,6 +14,7 @@
 .avatar-sidebar {
     width: 72px;
     height: 72px;
+    border-radius: 50%;
     cursor: pointer;
     object-fit: cover;
 }

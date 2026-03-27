@@ -24,7 +24,8 @@ export default function CompanyModal({
     onSave,
     onDelete
 }) {
-    const safeCompany = company ?? {};
+    // Исправлено: мемоизируем пустой объект, чтобы не запускать бесконечный цикл
+    const safeCompany = useMemo(() => company || {}, [company]);
     const isNew = !safeCompany.id;
     const { fields, refreshFields } = useFields();
 
@@ -34,6 +35,7 @@ export default function CompanyModal({
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const formId = 'company-form';
+
     const formDefaults = useMemo(() => ({
         name: '',
         phone: '',
