@@ -26,6 +26,8 @@ import ReportWebm from "../assets/menu-icons/Отчеты.webm";
 import EmployesWebm from "../assets/menu-icons/Сотрудники.webm";
 import DashboardJson from "../assets/menu-icons/Дашборд.webm";
 
+import defaultAvatar from "../assets/avatar-placeholder.svg";
+
 const MediaIcon = ({ src, alt, className, active }) => {
   const lottieRef = useRef(null);
   const cycleCountRef = useRef(0);
@@ -86,8 +88,15 @@ const MediaIcon = ({ src, alt, className, active }) => {
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Мы используем реф для хранения текущего активного меню синхронно, 
+  // чтобы таймеры работали с актуальным значением, не дожидаясь ререндера стейта
   const [activeMenu, setActiveMenu] = useState(null);
+  const activeMenuRef = useRef(null); 
+  
   const [loggingOut, setLoggingOut] = useState(false);
+  
+  const enterTimerRef = useRef(null);
   const leaveTimerRef = useRef(null); 
 
   const [profile, setProfile] = useState({ nickname: "Nickname", userId: "" });
@@ -95,7 +104,10 @@ const Sidebar = () => {
   const loadProfile = useCallback(async () => {
     try {
       const p = await ProfileAPI.get();
-      setProfile({ nickname: p.nickname || "Nickname", userId: p.userId || "" });
+      setProfile({ 
+        nickname: p.nickname || "Nickname", 
+        userId: p.userId || ""
+      });
     } catch (e) {
       console.error("Не удалось загрузить профиль в Sidebar:", e?.message || e);
     }
@@ -151,18 +163,44 @@ const Sidebar = () => {
     { name: "Настройки", menu: "settings", iconActive: SettingsWebm, iconInactive: SettingsWebm },
   ];
 
-  const handleMouseEnter = (menuName) => {
-    if (leaveTimerRef.current) {
-      clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
+  const changeMenu = (newMenu) => {
+      activeMenuRef.current = newMenu;
+      setActiveMenu(newMenu);
+  }
+
+  const handleMenuEnter = (menuName) => {
+    // 1. При входе на новый пункт немедленно отменяем все запланированные действия
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+    
+    // 2. Если меню уже открыто (какое-то), просто переключаем его на новое мгновенно
+    if (activeMenuRef.current) {
+        changeMenu(menuName);
+    } else {
+        // 3. Если меню было закрыто, открываем его с задержкой
+        enterTimerRef.current = setTimeout(() => {
+            changeMenu(menuName);
+        }, 150); 
     }
-    setActiveMenu(menuName);
   };
 
-  const handleMouseLeave = () => {
+  const handleMenuLeave = () => {
+    // 1. Отменяем запланированное открытие, если увели курсор
+    if (enterTimerRef.current) {
+      clearTimeout(enterTimerRef.current);
+    }
+    
+    // 2. Планируем закрытие
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
     leaveTimerRef.current = setTimeout(() => {
-      setActiveMenu(null);
-    }, 300); 
+      changeMenu(null);
+    }, 400); 
+  };
+
+  const handleSubmenuEnter = () => {
+    // Если мышка зашла в саму панель подменю — отменяем закрытие
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
   };
 
   const matchesPath = useCallback(
@@ -184,7 +222,7 @@ const Sidebar = () => {
 
     if (targetPath) {
       navigate(targetPath);
-      setActiveMenu(null); 
+      changeMenu(null); 
     }
   };
 
@@ -219,13 +257,14 @@ const Sidebar = () => {
         <div
           key={`submenu-${key}`}
           className="submenu-panel show"
-          onMouseEnter={() => handleMouseEnter(key)} 
-          onMouseLeave={handleMouseLeave}
+          onMouseEnter={handleSubmenuEnter} 
+          onMouseLeave={handleMenuLeave}
+          style={{ paddingLeft: '15px' }} 
         >
           <ul className="submenu">
             {submenus[key].map(({ name, path, icon }) => (
               <li key={`${key}-${path}`}>
-                <NavLink to={path} onClick={() => setActiveMenu(null)}>
+                <NavLink to={path} onClick={() => changeMenu(null)}>
                   {icon && (
                     <MediaIcon
                       src={icon}
@@ -249,13 +288,12 @@ const Sidebar = () => {
     <>
       <nav className="sidebar">
         <div className="avatar-link" onMouseEnter={handleAvatarEnter}>
-          {/* Добавили onClick для перехода на /profile при клике на картинку */}
           <img 
-            src="/avatar.jpg" 
+            src={defaultAvatar} 
             alt="Profile" 
             className="avatar-sidebar" 
             onClick={() => navigate('/profile')} 
-            style={{ cursor: "pointer" }} 
+            style={{ cursor: "pointer", objectFit: "cover" }} 
           />
           <div className="avatar-dropdown">
             <div className="avatar-info">
@@ -290,12 +328,12 @@ const Sidebar = () => {
                 <li
                   key={item.name}
                   className={`menu-item ${isItemActive ? "active" : ""}`}
-                  onMouseEnter={() => item.menu && handleMouseEnter(item.menu)}
-                  onMouseLeave={handleMouseLeave}
+                  onMouseEnter={() => item.menu && handleMenuEnter(item.menu)}
+                  onMouseLeave={handleMenuLeave}
                   onClick={() => item.menu && handleParentClick(item.menu)}
                 >
                   {item.path ? (
-                    <NavLink to={item.path} className={isExactActive ? "active" : ""} onClick={() => setActiveMenu(null)}>
+                    <NavLink to={item.path} className={isExactActive ? "active" : ""} onClick={() => changeMenu(null)}>
                       <MediaIcon src={iconSrc} alt={item.name} className="menu-icon" active={isItemActive} />
                       <span>{item.name}</span>
                     </NavLink>

@@ -202,3 +202,8 @@
     background-image: none;
     cursor: pointer;
 }
+
+.requisites-tab-wrapper select.assets-workplan-textarea option {
+    background-color: #19213A;
+    color: var(--text-color);
+}

@@ -279,6 +279,10 @@ select option:disabled {
 /* Стили для табов */
 .tabs-nav {
   padding: 0 16px;
+  position: sticky;
+  top: 144px;
+  z-index: 99;
+  background-color: var(--bg-menu-color);
 }
 .tabs-nav ul {
   display: flex;

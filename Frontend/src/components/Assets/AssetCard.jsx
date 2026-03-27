@@ -2,15 +2,9 @@ import React, { useEffect, useState } from "react";
 import "../../styles/AssetCard.css";
 import { Trash2 } from "lucide-react";
 import { withCacheVersion } from "../../api/http";
-import {
-  resolveCardDesignUrl,
-} from "../../utils/cardDesigns";
+import { resolveCardDesignUrl } from "../../utils/cardDesigns";
 import { useTransactions } from "../../context/TransactionsContext";
 
-import visaLogo from "../../assets/assets-card/visa.png";
-import mastercardLogo from "../../assets/assets-card/mastercard.png";
-import mirLogo from "../../assets/assets-card/mir.png";
-import cryptoLogo from "../../assets/assets-card/cryptologo.png";
 import cardChip from "../../assets/assets-card/cardchip.png";
 
 const safeFileUrl = (url, version = "") => {
@@ -76,17 +70,13 @@ const AssetCard = ({
   const paymentSystemValue = asset?.paymentSystemRaw ?? asset?.paymentSystem;
   const currencyValue = asset?.currencyRaw ?? asset?.currency;
 
-  const designValue =
-    asset?.designRaw?.id ?? asset?.designRaw?.name ?? asset?.design ?? "";
-  const designNameValue =
-    asset?.designRaw?.name ?? asset?.cardDesign?.name ?? asset?.design ?? "";
+  const designValue = asset?.designRaw?.id ?? asset?.designRaw?.name ?? asset?.design ?? "";
+  const designNameValue = asset?.designRaw?.name ?? asset?.cardDesign?.name ?? asset?.design ?? "";
 
   const designObj =
     cardDesigns.find((d) => d?.id && designValue && d.id === designValue) ||
     cardDesigns.find(
-      (d) =>
-        d?.name &&
-        d?.name.toLowerCase() === (designNameValue || "").toLowerCase()
+      (d) => d?.name && d?.name.toLowerCase() === (designNameValue || "").toLowerCase()
     );
 
   const designClass = "card-design-default"; 
@@ -99,10 +89,7 @@ const AssetCard = ({
       ""
   );
   
-  const designImageVersion =
-    designObj?.imageVersion ??
-    asset?.cardDesign?.imageVersion ??
-    "";
+  const designImageVersion = designObj?.imageVersion ?? asset?.cardDesign?.imageVersion ?? "";
     
   const versionedDesignUrl = withCacheVersion(rawDesignUrl, designImageVersion);
 
@@ -152,48 +139,13 @@ const AssetCard = ({
           />
         );
       }
-
-      switch (psNameRaw) {
-        case "Visa":
-          return <img src={visaLogo} alt="Visa" className="card-type-logo visa" />;
-        case "Mastercard":
-          return (
-            <img
-              src={mastercardLogo}
-              alt="Mastercard"
-              className="card-type-logo mastercard"
-            />
-          );
-        case "Мир":
-          return <img src={mirLogo} alt="Мир" className="card-type-logo mir" />;
-        case "Криптовалюта":
-          return <img src={cryptoLogo} alt="Bitcoin" className="card-type-logo crypto" />;
-        default:
-          break;
-      }
-    }
-
-    if (cardNumber) {
-      if (cardNumber.startsWith("4")) {
-        return <img src={visaLogo} alt="Visa" className="card-type-logo visa" />;
-      }
-      if (cardNumber.startsWith("5")) {
-        return (
-          <img
-            src={mastercardLogo}
-            alt="Mastercard"
-            className="card-type-logo mastercard"
-          />
-        );
-      }
     }
 
     return null;
   };
 
   const getCurrencySymbol = (currency) => {
-    const curr =
-      typeof currency === "object" ? currency?.code || currency?.name : currency;
+    const curr = typeof currency === "object" ? currency?.code || currency?.name : currency;
 
     switch (curr) {
       case "UAH":
@@ -283,7 +235,6 @@ const AssetCard = ({
               )}
             </div>
 
-
             <div className="card-expiry-cvv">
               <div className="card-expiry">
                 <span className="label">Срок</span>
@@ -307,7 +258,6 @@ const AssetCard = ({
                 <span className="card-number-back empty"></span>
               )}
             </div>
-
 
             <div className="card-requisites-scroll-container custom-scrollbar">
               {(requisites || []).filter(r => r.label !== "Номер карты" && r.label !== "Срок действия" && r.label !== "CVV").map((req, index) => (

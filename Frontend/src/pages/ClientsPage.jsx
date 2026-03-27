@@ -21,7 +21,6 @@ import {
 } from "../utils/resourceCache";
 import { buildEntityPath } from "../utils/entityRoutes";
 
-
 const statusToEmojiMap = {
   "Лид": "🎯",
   "Изучаем ТЗ": "📄",
@@ -151,7 +150,6 @@ export default function ClientsPage() {
       : [];
   });
 
-  
   const referrerOptions = useMemo(() => {
     const items = [];
     const seen = new Set();
@@ -518,7 +516,6 @@ export default function ClientsPage() {
   const [colWidths, setColWidths] = useState(load);
   const wrapRef = useRef(null);
 
-  
   useLayoutEffect(() => {
     if (wrapRef.current && colWidths.every((w) => w == null)) {
       const total = wrapRef.current.clientWidth || 1200;
@@ -683,7 +680,6 @@ export default function ClientsPage() {
     document.addEventListener("mouseup", up);
   };
 
-  
   const normalizeCategoryName = (value) => {
     if (!value) return "";
     if (typeof value === "string") return value.trim();
@@ -715,10 +711,13 @@ export default function ClientsPage() {
       ensureBucket(key, name).clients.push(client);
     });
 
-    const items = Array.from(buckets.values()).map((item) => ({
-      ...item,
-      count: item.clients.length,
-    }));
+    const items = Array.from(buckets.values())
+      .map((item) => ({
+        ...item,
+        count: item.clients.length,
+      }))
+      .filter((item) => item.count > 0); // Исключаем категории, в которых 0 клиентов
+
     items.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ru"));
     return items;
   }, [filteredRows, clientCategories]);

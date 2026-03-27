@@ -68,6 +68,7 @@ const CompaniesPage = () => {
                     setCompanies(prev => prev.map(c => c.id === companyData.id ? { ...c, ...companyData } : c));
                 }
             } else {
+                let created; // Исправлено: добавлено объявление переменной
                 try {
                     created = await createCompany(companyData);
                     setCompanies(prev => [...prev, created]);
@@ -181,7 +182,7 @@ const CompaniesPage = () => {
                                 <tbody>
                                     <tr className="table-spacer-row"><td colSpan={3}></td></tr>
                                     {processedCompanies.map((company) => (
-                                        <tr key={company.id} className="executor-row" onClick={() => setModalCompany(company)}>
+                                        <tr key={company.id} className="executor-row" onClick={() => openCompany(company)}>
                                             <td>{company.name || '-'}</td>
                                             <td>{company.firstClientName}</td>
                                             <td>{company.otherClientsNames}</td>

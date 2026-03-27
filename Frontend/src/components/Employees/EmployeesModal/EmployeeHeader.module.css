@@ -4,7 +4,8 @@
     gap: 16px;
     padding: 8px 24px;
     background: var(--bg-menu-color);
-    position: relative;
+    position: sticky;
+    top: 0;
 }
 
 .avatarContainer {

@@ -148,7 +148,7 @@ export default function ClientModal({
     getValues,
     setValue,
     reset,
-    formState: { isDirty },
+    formState: { isDirty, errors },
   } = methods;
 
   useEffect(() => {
@@ -255,7 +255,8 @@ export default function ClientModal({
           <TabsNav
             activeTab={activeTab}
             setActiveTab={setActiveTab}
-            errors={formErrors}
+            /* ИСПРАВЛЕНИЕ ЗДЕСЬ: Передаем живые ошибки формы, а не статичный стейт formErrors */
+            errors={groupErrors(errors)}
             isNew={isNew}
           />
 
