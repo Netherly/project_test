@@ -462,6 +462,7 @@ select option:disabled {
   color: #c0c0c0;
   margin-bottom: 6px;
   padding-top: 12px;
+  font-weight: 500;
 }
 
 .currency-table {
@@ -550,6 +551,7 @@ select option:disabled {
   color: #c0c0c0;
   cursor: pointer;
   width: 150px;
+  font-weight: 500;
 }
 
 .form-field-checkbox input[type="checkbox"] {
@@ -618,6 +620,11 @@ select option:disabled {
     display: flex;
     align-items: center;
     border-bottom: 1px solid var(--border-form-color);
+}
+
+.currency-row .custom-number-input input::placeholder {
+    color: var(--text-color, #fff);
+    opacity: 0.6;
 }
 
 .currency-row .custom-number-input input[type="number"] {

@@ -21,6 +21,9 @@
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
+  height: 40px;
+  line-height: 40px;
+  vertical-align: middle;
 }
 
 .creatable-input:focus {
