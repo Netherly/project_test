@@ -25,7 +25,7 @@ import "../../../styles/EmployeeModal.css";
 
 const toText = (value) => String(value ?? '').trim();
 
-export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
+export default function EmployeeModal({ employee, onClose, onSave, onDelete, onDuplicate }) {
   const safeEmployee = useMemo(() => normalizeEmployee(employee ?? {}), [employee]);
   const isNew = !safeEmployee.id;
 
@@ -63,7 +63,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
         await refreshFields();
       }
     } catch (e) {
-      console.error("Ошибка при сохранении нового поля в БД:", e);
+      console.error(e);
     }
   };
 
@@ -109,7 +109,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
         });
 
       } catch (error) {
-        console.error("Ошибка загрузки данных сотрудника:", error);
+        console.error(error);
       } finally {
         if (mounted) setLoadingData(false);
       }
@@ -137,7 +137,6 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
       window.removeEventListener(RESOURCE_CACHE_EVENT, handleCacheChange);
     };
   }, []);
-
 
   const methods = useForm({
     resolver: yupResolver(employeeSchema),
@@ -213,6 +212,7 @@ export default function EmployeeModal({ employee, onClose, onSave, onDelete }) {
                 isNew={isNew}
                 onClose={closeHandler}
                 onDelete={!isNew && onDelete ? deleteHandler : null}
+                onDuplicate={!isNew && onDuplicate ? onDuplicate : null}
                 isDirty={isDirty}
                 reset={reset}
                 tagOptions={appData.fields?.employeeFields?.tags || []}

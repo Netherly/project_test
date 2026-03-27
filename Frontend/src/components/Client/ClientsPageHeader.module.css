@@ -1,155 +1,87 @@
 .clientsHeaderContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  background-color: var(--container-bg);
+  height: 60px;
+  border-bottom: 1px solid var(--border--color);
   position: sticky;
   top: 0;
   z-index: 10;
-  display: flex;
-  align-items: center;
-  min-height: 60px;
-  background: var(--container-bg);
-  border-bottom: 1px solid var(--border--color);
-  color: var(--text-color);
-  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .journalTitle {
-  font-size: 22px;
+  font-size: var(--font-size-page-title, 22px);
   font-weight: 700;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
   margin: 0;
-  padding: 0 15px 0 15px;
-}
-
-.headerDivider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--border--color);
-  opacity: 0.9;
-}
-
-/* ==========================================================================
-   SEARCH & FILTERS (FIXED)
-   ========================================================================== */
-
-.searchContainer {
-  flex: 1;
-  min-width: 260px;
-  position: relative;
-  z-index: 1010; 
-  margin-right: 15px;
-}
-
-.searchContainer.active .mainSearchBar {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  position: relative;
-  z-index: 1201; 
-}
-
-.mainSearchBar {
-  position: relative;
+  color: var(--text-color);
+  text-transform: uppercase;
+  padding: 0 15px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-radius: 12px;
-  padding: 8px 10px;
-  background: var(--container-bg);
+  border-right: 1px solid var(--border--color);
+  height: 100%;
 }
 
-.searchIcon {
-  color: var(--chips-color);
-  font-size: 18px;
-}
 
-.mainSearchInput {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  color: var(--chips-color);
-  font-size: 16px;
-  min-width: 100px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.mainSearchInput::placeholder {
-  color: var(--chips-color);
-}
-
-.toggleAdvancedSearch {
-  margin-left: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--chips-color);
-  user-select: none;
-  padding: 5px;
+.addClientWrapper {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  border-left: 1px solid var(--border--color);
+  box-sizing: border-box;
 }
 
 .statPill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--border--color);
-  background: var(--bg-color);
   color: var(--text-color);
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 0 15px;
   white-space: nowrap;
-  font-size: 13px;
-  margin-right: 5px;
+  font-size: 14px;
+  border-right: 1px solid var(--border--color);
+  height: 100%;
 }
 
-.statPillLabel { opacity: .9; }
-.statPillValue { font-weight: 700; }
+.statPillLabel { opacity: 0.9; }
+.statPillValue { font-weight: 700; color: var(--accent-color); }
 
-/* --- DROPDOWN PANEL --- */
-
-.filtersPanel {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 101%;
-  margin-top: -1px; 
-  border-top: none;
-  border-radius: 0 0 8px 8px; 
-  background: var(--container-bg);
-  border-top: none; 
-  padding: 20px;
-  z-index: 1200;
+.addEntryButton {
+  padding: 0 15px;
+  background-color: var(--container-bg);
+  color: #fff;
+  height: 100%;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
   box-sizing: border-box;
 }
 
-.hidden {
-  display: none;
+.addEntryButton:hover {
+  background-color: var(--input-border-focus);
 }
 
-/* Сетка для полей (3 колонки) */
-.advancedSearchFields {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px 20px;
+.addEntryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-/* Адаптив сетки */
-@media (max-width: 1200px) {
-  .advancedSearchFields {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 768px) {
-  .advancedSearchFields {
-    grid-template-columns: 1fr;
-  }
-}
 
 .searchFieldGroup {
   display: flex;
   flex-direction: column;
   position: relative;
   width: 100%;
+  text-align: left;
 }
 
 .searchFieldGroup label {
@@ -159,10 +91,8 @@
   font-weight: 600;
 }
 
-/* Стилизация инпутов и селектов */
-.advancedSearchFields select,
-.advancedSearchFields input[type="text"],
-.advancedSearchFields input[type="date"] {
+.searchFieldGroup select,
+.searchFieldGroup input[type="date"] {
   width: 100%;
   padding: 10px 30px 10px 12px;
   background: var(--bg-color);
@@ -178,28 +108,20 @@
   appearance: none;
 }
 
-.advancedSearchFields input:focus,
-.advancedSearchFields select:focus {
+.searchFieldGroup select:focus,
+.searchFieldGroup input[type="date"]:focus {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 1px var(--accent-color);
 }
 
-.advancedSearchFields input::placeholder {
-  color: var(--chips-color);
-  opacity: 0.7;
-}
-
-/* --- ИСПРАВЛЕНИЕ БЕЛОГО ФОНА В SELECT --- */
-.advancedSearchFields select option {
+.searchFieldGroup select option {
   background-color: var(--bg-menu-color);
   color: var(--text-color);
-  padding: 5px;
 }
 
-/* Крестик очистки поля */
 .fieldClear {
   position: absolute;
-  top: 34px; /* Подбираем высоту: label height + margin + input padding */
+  top: 34px;
   right: 10px;
   width: 18px;
   height: 18px;
@@ -220,11 +142,8 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Блок дат на всю ширину */
 .dateRangeGroup {
   grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
 }
 
 .dateFilterInline {
@@ -239,96 +158,11 @@
   font-size: 14px;
 }
 
-.dateFilterInline input {
-  max-width: 160px;
-}
-
-/* Футер с кнопками */
-.searchButtons {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 15px;
-  border-top: 1px solid var(--border--color);
-}
-
-.resetButton {
-  background: transparent;
-  border: 1px solid var(--accent-color);
-  color: var(--accent-color);
-  padding: 8px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.resetButton:hover {
-  background: rgba(var(--accent-color-rgb), 0.1);
-}
-
-.searchButton {
-  background: var(--button-bg);
-  color: #fff;
-  border: none;
-  padding: 8px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.searchButton:hover {
-  background: var(--accent-color);
-}
-
-/* ==========================================================================
-   OTHER BUTTONS (Add, etc)
-   ========================================================================== */
-
-.addEntryButton {
-  background-color: var(--container-bg);
-  color: var(--text-color);
-  border: none;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-left: auto;
-  padding: 0 15px;
-  border-left: 1px solid var(--border--color);
-  height: 100%;
-}
-
-.addEntryButton:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.addEntryButton:disabled:hover {
-  background-color: var(--container-bg);
-}
 
 
-.addEntryButton:hover{
-  background-color: var(--input-border-focus);
-}
 
-
-.addEntryButton:hover{
-  background-color: var(--input-border-focus);
-}
-
-
-/* Tag Select Component Styles (embedded here for consistency) */
 .tagsSelect { position: relative; width: 100%; }
 
-/* Поле-кнопка */
 .tagsInput {
   display: flex;
   align-items: center;
@@ -342,12 +176,12 @@
   position: relative;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
+
 .tagsInput.isOpen {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 1px var(--accent-color);
 }
 
-/* Чипсы тегов */
 .tagsChips {
   display: flex;
   flex-wrap: nowrap;
@@ -357,6 +191,7 @@
   flex: 1;
   min-width: 0;
 }
+
 .tagsPlaceholder { color: var(--chips-color); font-size: 14px; opacity: 0.7; }
 
 .tagChip {
@@ -371,7 +206,9 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+
 .tagChipText { white-space: nowrap; }
+
 .tagChipCount {
   background: var(--accent-color, #6366f1);
   color: #fff;
@@ -379,6 +216,7 @@
   border-radius: 20px;
   padding: 1px 8px;
 }
+
 .tagChipRemove {
   background: none;
   border: none;
@@ -390,9 +228,9 @@
   opacity: 0.7;
   transition: opacity 0.15s, color 0.15s;
 }
+
 .tagChipRemove:hover { color: #ff4d4f; opacity: 1; }
 
-/* Стрелка */
 .tagsCaret {
   position: absolute;
   right: 10px;
@@ -403,11 +241,11 @@
   pointer-events: none;
   transition: transform 0.2s;
 }
+
 .tagsInput.isOpen .tagsCaret {
   transform: translateY(-50%) rotate(180deg);
 }
 
-/* Кнопка «Очистить всё» */
 .tagsClear {
   position: absolute;
   right: 28px;
@@ -424,13 +262,14 @@
   transition: color 0.15s, background 0.15s;
   z-index: 5;
 }
+
 .tagsClear:hover {
   color: var(--text-color);
   background: rgba(255, 255, 255, 0.12);
 }
+
 .clearBeforeCaret { z-index: 5; }
 
-/* Выпадающий список */
 .tagsDropdown {
   position: absolute;
   top: 100%;
@@ -449,13 +288,11 @@
   scrollbar-color: var(--border--color) transparent;
 }
 
-/* Вариант через портал — независимый дропдаун */
 .tagsDropdownPortal {
   border-top: 1px solid var(--border--color);
   border-radius: 10px;
 }
 
-/* Липкая шапка дропдауна */
 .tagsSticky {
   position: sticky;
   top: 0;
@@ -465,7 +302,6 @@
   padding: 8px 8px 6px;
 }
 
-/* Поиск внутри дропдауна */
 .tagsSearch {
   width: 100%;
   padding: 7px 10px;
@@ -478,15 +314,16 @@
   box-sizing: border-box;
   transition: border-color 0.2s;
 }
+
 .tagsSearch:focus { border-color: var(--accent-color); }
 
-/* «Выбрать всё» / «Очистить» */
 .tagsActions {
   display: flex;
   gap: 8px;
   padding: 6px 0 0;
   justify-content: flex-end;
 }
+
 .tagsActions button {
   background: transparent;
   border: 1px solid var(--border--color);
@@ -497,19 +334,19 @@
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }
+
 .tagsActions button:hover {
   border-color: var(--accent-color);
   color: var(--accent-color);
 }
+
 .tagsActions button:last-child:hover {
   border-color: #ff4d4f;
   color: #ff4d4f;
 }
 
-/* Список опций */
 .tagsOptions { padding: 6px 8px; }
 
-/* Пустой результат поиска */
 .tagsEmpty {
   padding: 20px 12px;
   text-align: center;
@@ -518,7 +355,6 @@
   opacity: 0.6;
 }
 
-/* Строка опции */
 .tagsOption {
   display: flex;
   align-items: center;
@@ -528,11 +364,14 @@
   gap: 8px;
   border-radius: 6px;
 }
+
 .tagsOption:hover { background: var(--input-border-focus); }
+
 .tagsOption.isChecked {
   background: var(--input-border-focus);
   color: var(--accent-color);
 }
+
 .tagsOption input[type="checkbox"] {
   margin: 0;
   width: auto;
@@ -540,11 +379,5 @@
   cursor: pointer;
   accent-color: var(--accent-color);
 }
-.tagsOptionText { flex: 1; font-size: 14px; }
 
-@media (max-width: 900px) {
-  .clientsHeaderContainer { flex-wrap: wrap; height: auto; }
-  .searchContainer { order: 3; width: 100%; margin-right: 0; margin-top: 10px; }
-  .headerDivider { display: none; }
-  .addEntryButton { order: 2; margin-left: auto; border-left: none; }
-}
+.tagsOptionText { flex: 1; font-size: 14px; }

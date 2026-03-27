@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import defaultAvatar from '../../../assets/avatar-placeholder.svg';
 import styles from './EmployeeHeader.module.css';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Copy } from 'lucide-react';
 
-export default function EmployeeHeader({ onClose, onDelete, tagOptions = [], onAddNewField }) {
+export default function EmployeeHeader({ onClose, onDelete, onDuplicate, tagOptions = [], onAddNewField }) {
     const { watch, control } = useFormContext();
     const fullName = watch('fullName')?.trim() || 'Имя сотрудника';
     const login = watch('login')?.trim() || 'Логин';
@@ -158,11 +158,18 @@ export default function EmployeeHeader({ onClose, onDelete, tagOptions = [], onA
                     <button className={styles.btn} type="button" onClick={() => setMenuOpen(o => !o)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                     </button>
-                    {onDelete && (
+                    {(onDelete || onDuplicate) && (
                         <ul className={`${styles.dropdown} ${menuOpen ? styles.show : ''}`}>
-                            <li onClick={() => { onDelete(); setMenuOpen(false); }}>
-                                <Trash2 size={14} /> Удалить сотрудника
-                            </li>
+                            {onDuplicate && (
+                                <li onClick={() => { onDuplicate(); setMenuOpen(false); }}>
+                                    <Copy size={14} /> Дублировать
+                                </li>
+                            )}
+                            {onDelete && (
+                                <li onClick={() => { onDelete(); setMenuOpen(false); }}>
+                                    <Trash2 size={14} /> Удалить сотрудника
+                                </li>
+                            )}
                         </ul>
                     )}
                 </div>

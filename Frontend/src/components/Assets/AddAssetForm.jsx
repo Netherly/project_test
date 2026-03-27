@@ -6,7 +6,7 @@ import AutoResizeTextarea from "../modals/OrderModal/AutoResizeTextarea";
 
 import CreatableSelect from "../Client/ClientModal/CreatableSelect"; 
 
-const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
+const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField, initialData }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,18 +16,46 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
     assetsFields: { type: [], paymentSystem: [], cardDesigns: [] },
   };
 
-  const [formData, setFormData] = useState({
-    accountName: "",
-    currency: "",
-    limitTurnover: "",
-    type: "",
-    paymentSystem: "",
-    design: "",
-    employeeId: "",
-    cardDate: "", 
-    cardCVV: "",  
-    requisites: [{ label: "", value: "" }],
-  });
+  // Функция для сборки начального стейта формы, учитывающая дублирование
+  const getInitialFormState = () => {
+    if (!initialData) {
+      return {
+        accountName: "",
+        currency: "",
+        limitTurnover: "",
+        type: "",
+        paymentSystem: "",
+        design: "",
+        employeeId: "",
+        cardDate: "", 
+        cardCVV: "",  
+        requisites: [{ label: "", value: "" }],
+      };
+    }
+
+    // Вытаскиваем срок и CVV из реквизитов, чтобы они стали отдельными полями в форме
+    const allReqs = Array.isArray(initialData.requisites) ? initialData.requisites : [];
+    const cardDate = allReqs.find((r) => r.label === "Срок действия")?.value || "";
+    const cardCVV = allReqs.find((r) => r.label === "CVV")?.value || "";
+    const dynamicReqs = allReqs.filter((r) => r.label !== "Срок действия" && r.label !== "CVV");
+
+    return {
+      accountName: initialData.accountName || "",
+      currency: initialData.currency || "",
+      limitTurnover: initialData.limitTurnover !== undefined && initialData.limitTurnover !== null 
+        ? String(initialData.limitTurnover) 
+        : "",
+      type: initialData.type || "",
+      paymentSystem: initialData.paymentSystem || "",
+      design: initialData.design || "",
+      employeeId: initialData.employeeId || "",
+      cardDate,
+      cardCVV,
+      requisites: dynamicReqs.length > 0 ? dynamicReqs : [{ label: "", value: "" }],
+    };
+  };
+
+  const [formData, setFormData] = useState(getInitialFormState);
 
   const handleFormChange = () => {
     if (!hasUnsavedChanges) setHasUnsavedChanges(true);
@@ -297,7 +325,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
                 value={getDesignName(formData.design)}
                 onChange={(val) => {
                   const selected = (assetsFields.cardDesigns || []).find(d => d?.name === val);
-                  handleChange({ target: { name: 'design', value: selected ? selected.id : "" } });
+                  handleSelectChange('design', selected ? selected.id : "");
                 }}
                 options={designOptions}
                 placeholder="Без темы"
@@ -313,7 +341,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
                 value={getEmployeeName(formData.employeeId)}
                 onChange={(val) => {
                   const selected = employees?.find(emp => (emp.fullName || emp.full_name || emp.name || emp.id) === val);
-                  handleChange({ target: { name: 'employeeId', value: selected ? selected.id : "" } });
+                  handleSelectChange('employeeId', selected ? selected.id : "");
                 }}
                 options={employeeOptions}
                 placeholder="Не выбрано"
@@ -352,7 +380,7 @@ const AddAssetForm = ({ onAdd, onClose, employees, fields, onAddNewField }) => {
             </div>
 
             <div className="requisites-section">
-              <h3 className="requisites-header">Доп. реквизиты</h3>
+              <h3 className="requisites-header">Реквизиты</h3>
               <div className="requisites-table-wrapper">
                 {formData.requisites.map((req, index) => (
                   <div key={index} className="requisites-table-row">
